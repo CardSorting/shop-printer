@@ -4,6 +4,7 @@
  * Firestore Implementation for event tracking.
  */
 import Stripe from 'stripe';
+import crypto from 'node:crypto';
 import { PaymentFailedError } from '@domain/errors';
 import { logger } from '@utils/logger';
 import { adminDb, FieldValue, withAdminFirestoreRetry } from '@infrastructure/firebase/admin';
@@ -95,13 +96,14 @@ export class StripeService {
    * - 'completed': Previously finalized successfully, skip.
    * - 'failed': Previous attempt failed, allow retry.
    */
-  async tryProcessEvent(eventId: string, type: string): Promise<boolean> {
+  async tryProcessEvent(eventId: string, type: string): Promise<{ alreadyProcessed: boolean; claimToken: string | null }> {
     const eventRef = adminDb.collection(this.collectionName).doc(eventId);
 
     return await withAdminFirestoreRetry(
       () => adminDb.runTransaction(async (transaction: any) => {
         const docSnap = await transaction.get(eventRef);
         const now = Date.now();
+        const claimToken = crypto.randomUUID();
         if (docSnap.exists) {
           const data = docSnap.data();
           // Allow retry of failed events — Stripe will resend on 500
@@ -109,10 +111,11 @@ export class StripeService {
             logger.info(`Retrying previously failed webhook event ${eventId}`, { previousReason: data.failReason });
             transaction.update(eventRef, {
               status: 'processing',
+              claimToken,
               retriedAt: FieldValue.serverTimestamp(),
               claimExpiresAt: now + this.processingLeaseMs,
             });
-            return false; // Re-attempt allowed
+            return { alreadyProcessed: false, claimToken }; // Re-attempt allowed
           }
           if (data?.status === 'processing' && (!data.claimExpiresAt || data.claimExpiresAt <= now)) {
             logger.warn(`Reclaiming stale webhook event ${eventId}`, {
@@ -121,22 +124,24 @@ export class StripeService {
             });
             transaction.update(eventRef, {
               status: 'processing',
+              claimToken,
               reclaimedAt: FieldValue.serverTimestamp(),
               claimExpiresAt: now + this.processingLeaseMs,
             });
-            return false;
+            return { alreadyProcessed: false, claimToken };
           }
-          return true; // 'processing' or 'completed' — skip
+          return { alreadyProcessed: true, claimToken: null }; // 'processing' or 'completed' — skip
         }
 
         transaction.set(eventRef, {
           id: eventId,
           type,
           status: 'processing',
+          claimToken,
           claimedAt: FieldValue.serverTimestamp(),
           claimExpiresAt: now + this.processingLeaseMs,
         });
-        return false; // New event, now claimed
+        return { alreadyProcessed: false, claimToken }; // New event, now claimed
       }),
       { operationName: 'stripe.tryProcessEvent' }
     );
@@ -166,14 +171,25 @@ export class StripeService {
   /**
    * Marks a webhook event as successfully completed. Permanently blocks future retries.
    */
-  async markEventProcessed(eventId: string, type: string): Promise<void> {
+  async markEventProcessed(eventId: string, type: string, claimToken?: string | null): Promise<void> {
     await withAdminFirestoreRetry(
-      () => adminDb.collection(this.collectionName).doc(eventId).set({
-        id: eventId,
-        type,
-        status: 'completed',
-        claimExpiresAt: null,
-        processedAt: FieldValue.serverTimestamp(),
+      () => adminDb.runTransaction(async (transaction: any) => {
+        const ref = adminDb.collection(this.collectionName).doc(eventId);
+        const snap = await transaction.get(ref);
+        const data = snap.exists ? snap.data() : null;
+        if (claimToken && data?.claimToken !== claimToken) {
+          logger.warn(`Skipping stale webhook completion for ${eventId}: claim token mismatch.`);
+          return;
+        }
+
+        transaction.set(ref, {
+          id: eventId,
+          type,
+          status: 'completed',
+          claimToken: null,
+          claimExpiresAt: null,
+          processedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
       }),
       { operationName: 'stripe.markEventProcessed' }
     );
@@ -183,15 +199,30 @@ export class StripeService {
    * Marks a webhook event as failed, allowing Stripe retries to re-attempt processing.
    * This replaces the old deleteEvent approach to prevent replay-on-partial-mutation.
    */
-  async markEventFailed(eventId: string, reason: string): Promise<void> {
+  async markEventFailed(eventId: string, reason: string, claimToken?: string | null): Promise<void> {
     await withAdminFirestoreRetry(
-      () => adminDb.collection(this.collectionName).doc(eventId).set({
-        id: eventId,
-        status: 'failed',
-        claimExpiresAt: null,
-        failReason: reason,
-        failedAt: FieldValue.serverTimestamp(),
-      }, { merge: true }),
+      () => adminDb.runTransaction(async (transaction: any) => {
+        const ref = adminDb.collection(this.collectionName).doc(eventId);
+        const snap = await transaction.get(ref);
+        const data = snap.exists ? snap.data() : null;
+        if (data?.status === 'completed') {
+          logger.warn(`Skipping stale webhook failure for ${eventId}: event is already completed.`);
+          return;
+        }
+        if (claimToken && data?.claimToken !== claimToken) {
+          logger.warn(`Skipping stale webhook failure for ${eventId}: claim token mismatch.`);
+          return;
+        }
+
+        transaction.set(ref, {
+          id: eventId,
+          status: 'failed',
+          claimToken: null,
+          claimExpiresAt: null,
+          failReason: reason,
+          failedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }),
       { operationName: 'stripe.markEventFailed' }
     );
   }

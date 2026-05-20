@@ -36,6 +36,12 @@ describe('OrderService Concurrency', () => {
       getByPaymentTransactionId: vi.fn(),
       getByPaymentTransactionIdTransactional: vi.fn(),
       getByIdempotencyKey: vi.fn().mockResolvedValue(null),
+      recordCheckoutAttempt: vi.fn(),
+      updateCheckoutAttempt: vi.fn(),
+      createOrUpdateReconciliationCase: vi.fn(),
+      guardedUpdateStatus: vi.fn().mockImplementation(async (_id, _allowed, status, _reason, transaction) => {
+        return mockOrderRepo.updateStatus(_id, status, transaction);
+      }),
       markForReconciliation: vi.fn(),
     };
     mockProductRepo = {

@@ -347,6 +347,54 @@ export interface Order {
   updatedAt: Date;
 }
 
+export type CheckoutAttemptState =
+  | 'reserved'
+  | 'payment_intent_created'
+  | 'paid'
+  | 'cancelled'
+  | 'restore_blocked'
+  | 'restored'
+  | 'reconciling';
+
+export interface CheckoutAttempt {
+  id: string;
+  userId: string;
+  idempotencyKey: string;
+  orderId: string;
+  cartId: string;
+  cartOwnerId: string;
+  fencingToken: number | null;
+  state: CheckoutAttemptState;
+  paymentIntentId: string | null;
+  reservationExpiresAt?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type PaymentReconciliationReason =
+  | 'paid_not_finalized'
+  | 'paid_cancelled'
+  | 'dangling_payment_intent'
+  | 'mapping_mismatch'
+  | 'finalization_failure'
+  | 'fencing_token_mismatch';
+
+export interface PaymentReconciliationCase {
+  id: string;
+  paymentIntentId: string;
+  orderId?: string | null;
+  checkoutAttemptId?: string | null;
+  reason: PaymentReconciliationReason;
+  severity: 'high' | 'critical';
+  stripeStatus?: string | null;
+  operatorVisibleMessage: string;
+  nextAction: string;
+  details?: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
+  resolvedAt?: Date | null;
+}
+
 export interface Fulfillment {
   id: string;
   orderId: string;
@@ -1328,5 +1376,4 @@ export interface ProductStats {
   productWithMarginCount: number;
   updatedAt: Date;
 }
-
 

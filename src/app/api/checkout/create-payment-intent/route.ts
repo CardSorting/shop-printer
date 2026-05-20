@@ -10,9 +10,10 @@ import {
     requireIdempotencyKey
 } from '@infrastructure/server/apiGuards';
 import { StripeService } from '@infrastructure/services/StripeService';
+import { getUnifiedDb, runTransaction } from '@infrastructure/firebase/bridge';
 import { logger } from '@utils/logger';
 import { DomainError } from '@domain/errors';
-import type { Cart, Order } from '@domain/models';
+import type { Cart, Order, OrderStatus } from '@domain/models';
 
 /**
  * [LAYER: INTERFACE]
@@ -92,6 +93,16 @@ export async function POST(request: Request) {
 
         // 4. Update order with actual Payment Intent ID
         await services.orderRepo.updatePaymentTransactionId(order.id, paymentIntentId);
+        await services.orderRepo.updateCheckoutAttempt(idempotencyKey, {
+          paymentIntentId,
+          state: 'payment_intent_created',
+        }).catch(attemptErr => {
+          logger.error('FATAL: Failed to attach PaymentIntent to checkout attempt. Manual reconciliation required.', {
+            orderId: order.id,
+            paymentIntentId,
+            attemptErr,
+          });
+        });
 
         return NextResponse.json({
           clientSecret,
@@ -116,7 +127,17 @@ export async function POST(request: Request) {
         }).catch(rollbackErr => {
             logger.error(`FATAL: Rollback failed for order ${order.id}. Manual reconciliation required.`, rollbackErr);
         });
-        await restoreCartAfterUnpaidCheckoutFailure(services, order);
+        await services.orderRepo.updateCheckoutAttempt(idempotencyKey, {
+          state: 'cancelled',
+          paymentIntentId: createdPaymentIntentId,
+        }).catch(attemptErr => {
+          logger.error('FATAL: Failed to mark checkout attempt cancelled after unpaid checkout rollback', {
+            orderId: order.id,
+            paymentIntentId: createdPaymentIntentId,
+            attemptErr,
+          });
+        });
+        await restoreCartAfterUnpaidCheckoutFailure(services, stripeService, order, idempotencyKey, createdPaymentIntentId);
 
         throw stripeErr;
     }
@@ -125,8 +146,41 @@ export async function POST(request: Request) {
   }
 }
 
-async function restoreCartAfterUnpaidCheckoutFailure(services: Awaited<ReturnType<typeof getServerServices>>, order: Order): Promise<void> {
+async function restoreCartAfterUnpaidCheckoutFailure(
+  services: Awaited<ReturnType<typeof getServerServices>>,
+  stripeService: StripeService,
+  order: Order,
+  checkoutAttemptId: string,
+  paymentIntentId: string | null
+): Promise<void> {
     try {
+        if (paymentIntentId) {
+            const pi = await stripeService.getPaymentIntent(paymentIntentId);
+            if (!['canceled'].includes(pi.status)) {
+                await services.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' }).catch(() => {});
+                await services.orderRepo.createOrUpdateReconciliationCase({
+                    paymentIntentId,
+                    orderId: order.id,
+                    checkoutAttemptId,
+                    reason: pi.status === 'succeeded' ? 'paid_not_finalized' : 'dangling_payment_intent',
+                    severity: 'critical',
+                    stripeStatus: pi.status,
+                    operatorVisibleMessage: `Checkout rollback for order ${order.id} could not safely restore cart because PaymentIntent ${paymentIntentId} is ${pi.status}.`,
+                    nextAction: 'Inspect Stripe payment state before restoring cart, cancelling, fulfilling, or refunding.',
+                    details: { restoreBlocked: true },
+                }).catch(caseErr => {
+                    logger.error('FATAL: Failed to record restore-blocked reconciliation case', { orderId: order.id, paymentIntentId, caseErr });
+                });
+                logger.warn('Skipping checkout cart restore because PaymentIntent is not safely cancelled', {
+                    userId: order.userId,
+                    orderId: order.id,
+                    paymentIntentId,
+                    stripeStatus: pi.status,
+                });
+                return;
+            }
+        }
+
         const restoredCart: Cart = {
             id: order.userId,
             userId: order.userId,
@@ -146,11 +200,41 @@ async function restoreCartAfterUnpaidCheckoutFailure(services: Awaited<ReturnTyp
             updatedAt: new Date(),
         };
 
-        const restored = await services.cartService.restoreCartIfEmpty(restoredCart);
-        if (!restored) {
-            logger.warn('Skipping checkout cart restore because user already has an active cart', {
+        const restored = await runTransaction(getUnifiedDb(), async (transaction: any) => {
+            const currentOrder = await services.orderRepo.getById(order.id, transaction);
+            if (!currentOrder) return { ok: false, reason: 'order_missing' };
+
+            const finalizedStatuses: OrderStatus[] = ['confirmed', 'processing', 'shipped', 'delivered', 'ready_for_pickup', 'delivery_started', 'refunded', 'partially_refunded'];
+            if (finalizedStatuses.includes(currentOrder.status)) return { ok: false, reason: 'order_finalized' };
+            if (currentOrder.status !== 'cancelled') return { ok: false, reason: `order_status_${currentOrder.status}` };
+            if (currentOrder.paymentTransactionId && currentOrder.paymentTransactionId !== paymentIntentId) return { ok: false, reason: 'payment_intent_mismatch' };
+            if (currentOrder.metadata?.inventoryReserved && !currentOrder.metadata?.inventoryReservationReleased) return { ok: false, reason: 'reservation_still_active' };
+
+            const attempt = await services.orderRepo.getCheckoutAttempt(checkoutAttemptId, transaction);
+            if (!attempt) return { ok: false, reason: 'attempt_missing' };
+            if (attempt.orderId !== order.id) return { ok: false, reason: 'attempt_order_mismatch' };
+            if (attempt.state === 'paid') return { ok: false, reason: 'attempt_paid' };
+            if (attempt.paymentIntentId && attempt.paymentIntentId !== paymentIntentId) return { ok: false, reason: 'attempt_payment_intent_mismatch' };
+            if (attempt.fencingToken !== (currentOrder.metadata?.fencingToken ?? null)) return { ok: false, reason: 'fencing_token_mismatch' };
+            if (attempt.cartOwnerId !== currentOrder.id) return { ok: false, reason: 'cart_owner_mismatch' };
+
+            const latestAttempt = await services.orderRepo.getLatestCheckoutAttemptForUser(order.userId, transaction);
+            if (latestAttempt && latestAttempt.idempotencyKey !== checkoutAttemptId) return { ok: false, reason: 'newer_checkout_attempt_exists' };
+
+            const existingCart = await services.cartRepo.getByUserId(order.userId, transaction);
+            if (existingCart && existingCart.items.length > 0) return { ok: false, reason: 'cart_not_empty' };
+
+            await services.cartRepo.save(restoredCart, transaction);
+            await services.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restored' }, transaction);
+            return { ok: true, reason: 'restored' };
+        });
+
+        if (!restored.ok) {
+            await services.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' }).catch(() => {});
+            logger.warn('Skipping checkout cart restore because restore guard failed', {
                 userId: order.userId,
                 orderId: order.id,
+                reason: restored.reason,
             });
         }
     } catch (restoreErr) {

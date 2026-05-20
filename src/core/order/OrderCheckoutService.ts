@@ -149,6 +149,7 @@ export class OrderCheckoutService {
           }
 
           const reservationExpiresAt = new Date(Date.now() + this.RESERVATION_TTL_MS).toISOString();
+          const checkoutAttemptId = idempotencyKey || crypto.randomUUID();
           const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
             userId,
             items: cart.items.map(item => {
@@ -181,7 +182,7 @@ export class OrderCheckoutService {
             customerEmail: userEmail,
             customerName: userName,
             paymentTransactionId: null,
-            idempotencyKey: idempotencyKey || crypto.randomUUID(),
+            idempotencyKey: checkoutAttemptId,
             fulfillmentMethod,
             fulfillmentLocationId: 'primary',
             fulfillments: [],
@@ -195,6 +196,8 @@ export class OrderCheckoutService {
               inventoryReservationFinalized: false,
               inventoryReservationExpiresAt: reservationExpiresAt,
               fencingToken: lockResult.fencingToken,
+              checkoutAttemptId,
+              cartOwnerId: userId,
             },
             riskScore: 0,
             estimatedDeliveryDate: deriveEstimatedDeliveryDate({ createdAt: new Date() } as any),
@@ -208,6 +211,18 @@ export class OrderCheckoutService {
           };
 
           const createdOrder = await this.orderRepo.create(orderData, transaction);
+          await this.orderRepo.recordCheckoutAttempt({
+            id: checkoutAttemptId,
+            idempotencyKey: checkoutAttemptId,
+            userId,
+            orderId: createdOrder.id,
+            cartId: userId,
+            cartOwnerId: createdOrder.id,
+            fencingToken: lockResult.fencingToken,
+            state: 'reserved',
+            paymentIntentId: null,
+            reservationExpiresAt,
+          }, transaction);
           await this.cartRepo.clear(userId, transaction);
           await this.audit.recordWithTransaction(transaction, {
             userId,
@@ -234,7 +249,7 @@ export class OrderCheckoutService {
         });
       } catch (paymentErr: any) {
         logger.error('Payment processing failed, cancelling pending order and releasing stock', { userId, orderId: order.id, paymentErr });
-        await this.orderRepo.updateStatus(order.id, 'cancelled').catch(err => {
+        await Promise.resolve(this.orderRepo.updateStatus(order.id, 'cancelled')).catch(err => {
           logger.error('FATAL: Rollback failed for order after payment failure', { orderId: order.id, err });
         });
 
@@ -248,16 +263,16 @@ export class OrderCheckoutService {
           })));
 
           if (stockUpdates.length > 0) {
-            await this.productRepo.batchUpdateStock(stockUpdates).catch(err => {
+            await Promise.resolve(this.productRepo.batchUpdateStock(stockUpdates)).catch(err => {
               logger.error('FATAL: Failed to restore stock during checkout payment rollback', { orderId: order.id, err });
             });
           }
 
-          await this.orderRepo.updateMetadata(order.id, {
+          await Promise.resolve(this.orderRepo.updateMetadata(order.id, {
             ...(order.metadata || {}),
             inventoryReservationReleased: true,
             inventoryReservationReleasedAt: new Date().toISOString(),
-          }).catch(err => {
+          })).catch(err => {
             logger.error('FATAL: Failed to update metadata for stock release during checkout rollback', { orderId: order.id, err });
           });
         }
@@ -265,13 +280,13 @@ export class OrderCheckoutService {
         if (order.discountCode) {
           const discount = await this.discountRepo.getByCode(order.discountCode);
           if (discount) {
-            await this.discountRepo.decrementUsage(discount.id).catch(err => {
+            await Promise.resolve(this.discountRepo.decrementUsage(discount.id)).catch(err => {
               logger.error('FATAL: Failed to rollback discount usage', { discountId: discount.id, err });
             });
             if (order.userId) {
-              await runTransaction(getUnifiedDb(), async (transaction: any) => {
+              await Promise.resolve(runTransaction(getUnifiedDb(), async (transaction: any) => {
                 await this.orderRepo.removeUserDiscountUsage(order.userId, order.discountCode!, transaction);
-              }).catch(err => {
+              })).catch(err => {
                 logger.error('FATAL: Failed to rollback customer discount usage during checkout payment rollback', { orderId: order.id, err });
               });
             }
@@ -284,6 +299,12 @@ export class OrderCheckoutService {
       if (paymentResult.success && paymentResult.transactionId) {
         try {
           await this.orderRepo.updatePaymentTransactionId(order.id, paymentResult.transactionId);
+          await Promise.resolve(this.orderRepo.updateCheckoutAttempt(order.idempotencyKey || idempotencyKey || order.id, {
+            paymentIntentId: paymentResult.transactionId,
+            state: 'payment_intent_created',
+          })).catch(err => {
+            logger.error('FATAL: Failed to attach payment intent to checkout attempt', { orderId: order.id, transactionId: paymentResult.transactionId, err });
+          });
           const finalizedOrder = await this.finalizeOrderPayment(paymentResult.transactionId, {
             id: paymentResult.transactionId,
             status: 'succeeded',
@@ -302,13 +323,28 @@ export class OrderCheckoutService {
             transactionId: paymentResult.transactionId,
             finalizationErr
           });
-          await this.orderRepo.updateStatus(order.id, 'reconciling').catch(err => {
+          await Promise.resolve(this.orderRepo.updateStatus(order.id, 'reconciling')).catch(err => {
             logger.error('FATAL: Failed to mark paid order for reconciliation after finalization failure', { orderId: order.id, err });
           });
-          await this.orderRepo.markForReconciliation(order.id, [
+          await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
+            paymentIntentId: paymentResult.transactionId,
+            orderId: order.id,
+            checkoutAttemptId: order.idempotencyKey || idempotencyKey || null,
+            reason: 'finalization_failure',
+            severity: 'critical',
+            stripeStatus: 'succeeded',
+            operatorVisibleMessage: `Payment ${paymentResult.transactionId} succeeded but local order finalization failed.`,
+            nextAction: 'Verify Stripe payment, then finalize order or refund from reconciliation.',
+            details: {
+              error: finalizationErr instanceof Error ? finalizationErr.message : 'Unknown finalization error',
+            },
+          })).catch(err => {
+            logger.error('FATAL: Failed to create payment reconciliation case after finalization failure', { orderId: order.id, err });
+          });
+          await Promise.resolve(this.orderRepo.markForReconciliation(order.id, [
             `Payment ${paymentResult.transactionId} succeeded but order finalization failed.`,
             finalizationErr instanceof Error ? finalizationErr.message : 'Unknown finalization error'
-          ]).catch(err => {
+          ])).catch(err => {
             logger.error('FATAL: Failed to write reconciliation note after finalization failure', { orderId: order.id, err });
           });
           throw finalizationErr;
@@ -330,9 +366,12 @@ export class OrderCheckoutService {
       throw new PaymentFailedError('Cannot finalize an order for a payment that has not succeeded.');
     }
 
+    const terminalPaymentConflict: { current: { orderId: string; previousStatus: OrderStatus } | null } = { current: null };
+    const fencingTokenConflict: { current: { orderId: string; expectedToken: number; currentToken: number } | null } = { current: null };
+    const mappingMismatch: { current: { orderId: string; existingPaymentIntentId: string; webhookPaymentIntentId: string } | null } = { current: null };
+    const danglingPaymentIntent: { current: { metadataOrderId?: string } | null } = { current: null };
+
     try {
-      const terminalPaymentConflict: { current: { orderId: string; previousStatus: OrderStatus } | null } = { current: null };
-      const fencingTokenConflict: { current: { orderId: string; expectedToken: number; currentToken: number } | null } = { current: null };
       const finalizedOrder = await runTransaction(db, async (transaction: any) => {
         let order = await this.orderRepo.getByPaymentTransactionIdTransactional(paymentIntentId, transaction);
         
@@ -347,17 +386,24 @@ export class OrderCheckoutService {
                 await this.orderRepo.updatePaymentTransactionId(directOrder.id, paymentIntentId, transaction);
                 order = { ...directOrder, paymentTransactionId: paymentIntentId };
               } else {
+                mappingMismatch.current = {
+                  orderId: directOrder.id,
+                  existingPaymentIntentId: directOrder.paymentTransactionId,
+                  webhookPaymentIntentId: paymentIntentId,
+                };
                 logger.warn('Direct order found but paymentTransactionId mismatch', {
                   orderId: directOrder.id,
                   orderTxId: directOrder.paymentTransactionId,
                   webhookTxId: paymentIntentId
                 });
+                throw new PaymentFailedError('Payment intent metadata maps to an order that is linked to a different payment intent.');
               }
             }
           }
         }
 
         if (!order) {
+          danglingPaymentIntent.current = { metadataOrderId: stripePi?.metadata?.orderId };
           logger.error('CRITICAL: Payment finalized for non-existent order mapping', { paymentIntentId });
           throw new OrderNotFoundError(paymentIntentId);
         }
@@ -370,7 +416,21 @@ export class OrderCheckoutService {
               status: order.status,
               paymentIntentId
             });
-            await this.orderRepo.updateStatus(order.id, 'reconciling', transaction);
+            await this.orderRepo.guardedUpdateStatus(order.id, ['cancelled', 'refunded'], 'reconciling', 'paid_terminal_conflict', transaction);
+            await this.orderRepo.createOrUpdateReconciliationCase({
+              paymentIntentId,
+              orderId: order.id,
+              checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
+              reason: 'paid_cancelled',
+              severity: 'critical',
+              stripeStatus: stripePi?.status || 'succeeded',
+              operatorVisibleMessage: `Payment ${paymentIntentId} succeeded after order ${order.id} was ${order.status}.`,
+              nextAction: 'Verify Stripe payment and decide whether to fulfill with restored inventory or refund.',
+              details: {
+                previousStatus: order.status,
+                metadataOrderId: stripePi?.metadata?.orderId,
+              },
+            }, transaction);
             await this.audit.recordWithTransaction(transaction, {
               userId: 'system',
               userEmail: 'stripe-webhook@dreambees.art',
@@ -394,7 +454,21 @@ export class OrderCheckoutService {
         if (expectedToken !== currentToken) {
           fencingTokenConflict.current = { orderId: order.id, expectedToken, currentToken };
           logger.warn('Fencing token mismatch detected', { orderId: order.id, expectedToken, currentToken });
-          await this.orderRepo.updateStatus(order.id, 'reconciling', transaction);
+          await this.orderRepo.guardedUpdateStatus(order.id, ['pending'], 'reconciling', 'fencing_token_mismatch', transaction);
+          await this.orderRepo.createOrUpdateReconciliationCase({
+            paymentIntentId,
+            orderId: order.id,
+            checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
+            reason: 'fencing_token_mismatch',
+            severity: 'high',
+            stripeStatus: stripePi?.status || 'succeeded',
+            operatorVisibleMessage: `Payment ${paymentIntentId} has a checkout fencing token mismatch for order ${order.id}.`,
+            nextAction: 'Verify checkout ownership before finalizing fulfillment or refund.',
+            details: {
+              expectedToken,
+              currentToken,
+            },
+          }, transaction);
           await this.audit.recordWithTransaction(transaction, {
             userId: 'system',
             userEmail: 'stripe-webhook@dreambees.art',
@@ -426,7 +500,7 @@ export class OrderCheckoutService {
           throw new PaymentFailedError('Cannot finalize physical order without an inventory reservation.');
         }
 
-        await this.orderRepo.updateStatus(order.id, nextStatus, transaction);
+        await this.orderRepo.guardedUpdateStatus(order.id, ['pending'], nextStatus, 'payment_finalized', transaction);
         await this.orderRepo.updateRiskScore(order.id, riskScore, transaction);
         await this.orderRepo.updateMetadata(order.id, {
           ...(order.metadata || {}),
@@ -448,6 +522,13 @@ export class OrderCheckoutService {
           correlationId: (stripePi?.metadata?.correlationId as string) || paymentIntentId
         });
 
+        await Promise.resolve(this.orderRepo.updateCheckoutAttempt(order.idempotencyKey || order.metadata?.checkoutAttemptId || order.id, {
+          state: 'paid',
+          paymentIntentId,
+        }, transaction)).catch((err: any) => {
+          logger.error('FATAL: Failed to mark checkout attempt as paid during finalization', { orderId: order.id, paymentIntentId, err });
+        });
+
         // Cart was already cleared atomically during initiateCheckout.
         // Do NOT clear again — the user may have started a new cart between
         // checkout initiation and this webhook-driven finalization.
@@ -466,10 +547,10 @@ export class OrderCheckoutService {
 
       if (terminalPaymentConflict.current) {
         const conflict = terminalPaymentConflict.current;
-        await this.orderRepo.markForReconciliation(conflict.orderId, [
+        await Promise.resolve(this.orderRepo.markForReconciliation(conflict.orderId, [
           `Payment ${paymentIntentId} succeeded after order had already reached terminal status ${conflict.previousStatus}.`,
           'Manual review is required before fulfillment, refund, or inventory action.'
-        ]).catch(err => {
+        ])).catch(err => {
           logger.error('FATAL: Failed to mark terminal paid order for reconciliation', {
             orderId: conflict.orderId,
             err
@@ -477,12 +558,43 @@ export class OrderCheckoutService {
         });
       }
 
+      if (mappingMismatch.current) {
+        const conflict = mappingMismatch.current;
+        await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
+          paymentIntentId,
+          orderId: conflict.orderId,
+          reason: 'mapping_mismatch',
+          severity: 'critical',
+          stripeStatus: stripePi?.status || null,
+          operatorVisibleMessage: `Payment ${paymentIntentId} metadata points to order ${conflict.orderId}, but that order is linked to ${conflict.existingPaymentIntentId}.`,
+          nextAction: 'Inspect Stripe/local mapping before finalizing, refunding, or remapping.',
+          details: conflict,
+        })).catch(err => {
+          logger.error('FATAL: Failed to create mapping mismatch reconciliation case', { paymentIntentId, err });
+        });
+      }
+
+      if (danglingPaymentIntent.current) {
+        await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
+          paymentIntentId,
+          orderId: danglingPaymentIntent.current.metadataOrderId || null,
+          reason: 'dangling_payment_intent',
+          severity: 'critical',
+          stripeStatus: stripePi?.status || null,
+          operatorVisibleMessage: `Payment ${paymentIntentId} succeeded but no local order mapping could be found.`,
+          nextAction: 'Locate or recreate the local order mapping before fulfillment or refund.',
+          details: danglingPaymentIntent.current,
+        })).catch(err => {
+          logger.error('FATAL: Failed to create dangling payment intent reconciliation case', { paymentIntentId, err });
+        });
+      }
+
       if (fencingTokenConflict.current) {
         const conflict = fencingTokenConflict.current;
-        await this.orderRepo.markForReconciliation(conflict.orderId, [
+        await Promise.resolve(this.orderRepo.markForReconciliation(conflict.orderId, [
           `Fencing token mismatch: Stripe PI token ${conflict.expectedToken} does not match Order token ${conflict.currentToken}.`,
           'This suggests a race condition or manual intervention superseded the checkout lease.'
-        ]).catch(err => {
+        ])).catch(err => {
           logger.error('FATAL: Failed to mark fencing-token conflict for reconciliation', {
             orderId: conflict.orderId,
             err
@@ -493,6 +605,54 @@ export class OrderCheckoutService {
       logger.info(`[OrderService] Payment finalized for order ${finalizedOrder.id}`);
       return finalizedOrder;
     } catch (err) {
+      if (mappingMismatch.current) {
+        const conflict = mappingMismatch.current;
+        await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
+          paymentIntentId,
+          orderId: conflict.orderId,
+          reason: 'mapping_mismatch',
+          severity: 'critical',
+          stripeStatus: stripePi?.status || null,
+          operatorVisibleMessage: `Payment ${paymentIntentId} metadata points to order ${conflict.orderId}, but that order is linked to ${conflict.existingPaymentIntentId}.`,
+          nextAction: 'Inspect Stripe/local mapping before finalizing, refunding, or remapping.',
+          details: conflict,
+        })).catch(caseErr => {
+          logger.error('FATAL: Failed to create mapping mismatch reconciliation case', { paymentIntentId, caseErr });
+        });
+      }
+
+      if (danglingPaymentIntent.current) {
+        await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
+          paymentIntentId,
+          orderId: danglingPaymentIntent.current.metadataOrderId || null,
+          reason: 'dangling_payment_intent',
+          severity: 'critical',
+          stripeStatus: stripePi?.status || null,
+          operatorVisibleMessage: `Payment ${paymentIntentId} succeeded but no local order mapping could be found.`,
+          nextAction: 'Locate or recreate the local order mapping before fulfillment or refund.',
+          details: danglingPaymentIntent.current,
+        })).catch(caseErr => {
+          logger.error('FATAL: Failed to create dangling payment intent reconciliation case', { paymentIntentId, caseErr });
+        });
+      }
+
+      if (stripePi?.status === 'succeeded') {
+        await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
+          paymentIntentId,
+          orderId: stripePi?.metadata?.orderId || null,
+          checkoutAttemptId: stripePi?.metadata?.checkoutKey || null,
+          reason: 'paid_not_finalized',
+          severity: 'critical',
+          stripeStatus: 'succeeded',
+          operatorVisibleMessage: `Payment ${paymentIntentId} succeeded but local finalization did not complete.`,
+          nextAction: 'Retry finalization; if blocked, resolve from reconciliation with Stripe evidence.',
+          details: {
+            error: err instanceof Error ? err.message : 'Unknown finalization error',
+          },
+        })).catch(caseErr => {
+          logger.error('FATAL: Failed to create paid-not-finalized reconciliation case', { paymentIntentId, caseErr });
+        });
+      }
       logger.error('CRITICAL: Failed to finalize order payment. System may be out of sync.', { paymentIntentId, err });
       throw err;
     }

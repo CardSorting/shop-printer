@@ -48,9 +48,12 @@ function makeReconcilingOrder(overrides: Record<string, any> = {}) {
 }
 
 function makeOrderRepo(order: any) {
-    return {
+    const repo: any = {
         getById: vi.fn().mockResolvedValue(order),
         updateStatus: vi.fn(),
+        guardedUpdateStatus: vi.fn().mockImplementation(async (id, _allowed, status, _reason, transaction) => {
+            return repo.updateStatus(id, status, transaction);
+        }),
         markForReconciliation: vi.fn(),
         clearReconciliationFlag: vi.fn(),
         updateMetadata: vi.fn(),
@@ -62,8 +65,12 @@ function makeOrderRepo(order: any) {
         removeUserDiscountUsage: vi.fn(),
         checkUserDiscountUsage: vi.fn().mockResolvedValue(false),
         getByIdempotencyKey: vi.fn().mockResolvedValue(null),
+        recordCheckoutAttempt: vi.fn(),
+        updateCheckoutAttempt: vi.fn(),
+        createOrUpdateReconciliationCase: vi.fn(),
         hasUsedDiscount: vi.fn().mockResolvedValue(false),
     };
+    return repo;
 }
 
 const mockAudit = { record: vi.fn(), recordWithTransaction: vi.fn() };

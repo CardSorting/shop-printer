@@ -1,7 +1,20 @@
 /**
  * [LAYER: DOMAIN]
  */
-import type { Product, ProductDraft, ProductUpdate, Cart, Order, OrderStatus, User, ProductStatus, Address } from './models';
+import type {
+  Product,
+  ProductDraft,
+  ProductUpdate,
+  Cart,
+  CheckoutAttempt,
+  Order,
+  OrderStatus,
+  PaymentReconciliationCase,
+  PaymentReconciliationReason,
+  User,
+  ProductStatus,
+  Address,
+} from './models';
 import type {
   Discount,
   DiscountDraft,
@@ -67,7 +80,23 @@ export interface IOrderRepository {
   }): Promise<{ orders: Order[]; nextCursor?: string }>;
   save(order: Order, transaction?: any): Promise<void>;
   updateStatus(id: string, status: OrderStatus, transaction?: any): Promise<void>;
+  guardedUpdateStatus(id: string, allowedCurrentStatuses: OrderStatus[], status: OrderStatus, reason: string, transaction?: any): Promise<void>;
   updatePaymentTransactionId(id: string, paymentTransactionId: string, transaction?: any): Promise<void>;
+  recordCheckoutAttempt(attempt: Omit<CheckoutAttempt, 'createdAt' | 'updatedAt'>, transaction?: any): Promise<void>;
+  updateCheckoutAttempt(idempotencyKey: string, updates: Partial<Omit<CheckoutAttempt, 'id' | 'createdAt' | 'updatedAt'>>, transaction?: any): Promise<void>;
+  getCheckoutAttempt(idempotencyKey: string, transaction?: any): Promise<CheckoutAttempt | null>;
+  getLatestCheckoutAttemptForUser(userId: string, transaction?: any): Promise<CheckoutAttempt | null>;
+  createOrUpdateReconciliationCase(params: {
+    paymentIntentId: string;
+    orderId?: string | null;
+    checkoutAttemptId?: string | null;
+    reason: PaymentReconciliationReason;
+    severity: 'high' | 'critical';
+    stripeStatus?: string | null;
+    operatorVisibleMessage: string;
+    nextAction: string;
+    details?: Record<string, any>;
+  }, transaction?: any): Promise<void>;
   batchUpdateStatus?(ids: string[], status: OrderStatus): Promise<void>;
   addNote(orderId: string, note: import('./models').OrderNote, transaction?: any): Promise<void>;
   updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }, transaction?: any): Promise<void>;

@@ -3,7 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const initiateCheckout = vi.fn();
 const updatePaymentTransactionId = vi.fn();
 const updateOrderStatus = vi.fn();
-const restoreCartIfEmpty = vi.fn();
+const updateCheckoutAttempt = vi.fn();
+const createOrUpdateReconciliationCase = vi.fn();
+const getOrderById = vi.fn();
+const getCheckoutAttempt = vi.fn();
+const getLatestCheckoutAttemptForUser = vi.fn();
+const getCartByUserId = vi.fn();
+const saveCart = vi.fn();
 const createPaymentIntent = vi.fn();
 const getPaymentIntent = vi.fn();
 const cancelPaymentIntent = vi.fn();
@@ -11,8 +17,15 @@ const cancelPaymentIntent = vi.fn();
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
     orderService: { initiateCheckout, updateOrderStatus },
-    cartService: { restoreCartIfEmpty },
-    orderRepo: { updatePaymentTransactionId },
+    cartRepo: { getByUserId: getCartByUserId, save: saveCart },
+    orderRepo: {
+      updatePaymentTransactionId,
+      updateCheckoutAttempt,
+      createOrUpdateReconciliationCase,
+      getById: getOrderById,
+      getCheckoutAttempt,
+      getLatestCheckoutAttemptForUser,
+    },
   })),
 }));
 
@@ -33,10 +46,18 @@ vi.mock('@infrastructure/server/apiGuards', async () => {
   };
 });
 
+vi.mock('@infrastructure/firebase/bridge', () => ({
+  getUnifiedDb: vi.fn(() => ({})),
+  runTransaction: vi.fn(async (_db: any, fn: any) => fn({})),
+}));
+
 describe('checkout create payment intent retry handling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    restoreCartIfEmpty.mockResolvedValue(true);
+    updateCheckoutAttempt.mockResolvedValue(undefined);
+    createOrUpdateReconciliationCase.mockResolvedValue(undefined);
+    getCartByUserId.mockResolvedValue(null);
+    saveCart.mockResolvedValue(undefined);
     cancelPaymentIntent.mockResolvedValue({});
   });
 
@@ -149,6 +170,24 @@ describe('checkout create payment intent retry handling', () => {
     });
     createPaymentIntent.mockRejectedValue(new Error('Stripe unavailable'));
     updateOrderStatus.mockResolvedValue(undefined);
+    getOrderById.mockResolvedValue({
+      id: 'order-rollback',
+      userId: 'user-1',
+      status: 'cancelled',
+      paymentTransactionId: null,
+      metadata: { fencingToken: 2, inventoryReserved: true, inventoryReservationReleased: true },
+    });
+    getCheckoutAttempt.mockResolvedValue({
+      idempotencyKey: 'checkout:test-stripe-failure',
+      orderId: 'order-rollback',
+      state: 'cancelled',
+      paymentIntentId: null,
+      fencingToken: 2,
+      cartOwnerId: 'order-rollback',
+    });
+    getLatestCheckoutAttemptForUser.mockResolvedValue({
+      idempotencyKey: 'checkout:test-stripe-failure',
+    });
     const { POST } = await import('./route');
 
     const response = await POST(new Request('https://example.test/api/checkout/create-payment-intent', {
@@ -165,7 +204,7 @@ describe('checkout create payment intent retry handling', () => {
       id: 'system',
       email: 'system-rollback@dreambees.art',
     });
-    expect(restoreCartIfEmpty).toHaveBeenCalledWith({
+    expect(saveCart).toHaveBeenCalledWith({
       id: 'user-1',
       userId: 'user-1',
       items: [{
@@ -182,7 +221,7 @@ describe('checkout create payment intent retry handling', () => {
       }],
       note: 'Leave by the studio',
       updatedAt: expect.any(Date),
-    });
+    }, expect.anything());
   });
 
   it('cancels a created payment intent when local order mapping fails', async () => {
@@ -206,6 +245,25 @@ describe('checkout create payment intent retry handling', () => {
     createPaymentIntent.mockResolvedValue({ id: 'pi_created_unmapped', clientSecret: 'secret_unmapped' });
     updatePaymentTransactionId.mockRejectedValue(new Error('map write failed'));
     updateOrderStatus.mockResolvedValue(undefined);
+    getPaymentIntent.mockResolvedValue({ id: 'pi_created_unmapped', status: 'canceled' });
+    getOrderById.mockResolvedValue({
+      id: 'order-mapping-failed',
+      userId: 'user-1',
+      status: 'cancelled',
+      paymentTransactionId: null,
+      metadata: { fencingToken: 3, inventoryReserved: true, inventoryReservationReleased: true },
+    });
+    getCheckoutAttempt.mockResolvedValue({
+      idempotencyKey: 'checkout:test-map-failure',
+      orderId: 'order-mapping-failed',
+      state: 'cancelled',
+      paymentIntentId: 'pi_created_unmapped',
+      fencingToken: 3,
+      cartOwnerId: 'order-mapping-failed',
+    });
+    getLatestCheckoutAttemptForUser.mockResolvedValue({
+      idempotencyKey: 'checkout:test-map-failure',
+    });
     const { POST } = await import('./route');
 
     const response = await POST(new Request('https://example.test/api/checkout/create-payment-intent', {
@@ -223,6 +281,50 @@ describe('checkout create payment intent retry handling', () => {
       id: 'system',
       email: 'system-rollback@dreambees.art',
     });
-    expect(restoreCartIfEmpty).toHaveBeenCalled();
+    expect(saveCart).toHaveBeenCalled();
+  });
+
+  it('does not restore the cart when rollback discovers a succeeded PaymentIntent', async () => {
+    initiateCheckout.mockResolvedValue({
+      id: 'order-paid-during-rollback',
+      userId: 'user-1',
+      status: 'pending',
+      total: 2500,
+      paymentTransactionId: null,
+      metadata: { fencingToken: 4 },
+      items: [{
+        productId: 'p1',
+        name: 'Print 1',
+        unitPrice: 2500,
+        quantity: 1,
+        imageUrl: '/print.png',
+        isDigital: false,
+        fulfilledQty: 0,
+      }],
+    });
+    createPaymentIntent.mockResolvedValue({ id: 'pi_paid_before_restore', clientSecret: 'secret_paid' });
+    updatePaymentTransactionId.mockRejectedValue(new Error('map write failed'));
+    cancelPaymentIntent.mockRejectedValue(new Error('already succeeded'));
+    getPaymentIntent.mockResolvedValue({ id: 'pi_paid_before_restore', status: 'succeeded' });
+    updateOrderStatus.mockResolvedValue(undefined);
+    const { POST } = await import('./route');
+
+    const response = await POST(new Request('https://example.test/api/checkout/create-payment-intent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        shippingAddress: { street: '1 Test St', city: 'Denver', state: 'CO', zip: '80202', country: 'US' },
+        idempotencyKey: 'checkout:test-paid-rollback',
+      }),
+    }));
+
+    expect(response.status).toBe(500);
+    expect(saveCart).not.toHaveBeenCalled();
+    expect(createOrUpdateReconciliationCase).toHaveBeenCalledWith(expect.objectContaining({
+      paymentIntentId: 'pi_paid_before_restore',
+      orderId: 'order-paid-during-rollback',
+      reason: 'paid_not_finalized',
+      stripeStatus: 'succeeded',
+    }));
   });
 });

@@ -26,7 +26,7 @@ export class OrderManagementService {
       throw new Error('Order requires manual reconciliation and is locked.');
     }
     assertValidOrderStatusTransition(order.status, status);
-    await this.orderRepo.updateStatus(id, status);
+    await this.orderRepo.guardedUpdateStatus(id, [order.status], status, 'order_management_status_update');
     await this.audit.record({ userId: actor.id, userEmail: actor.email, action: 'order_status_changed', targetId: id, details: { from: order.status, to: status } });
   }
 
@@ -58,7 +58,7 @@ export class OrderManagementService {
     
     const { orders } = await this.orderRepo.getAll({ status: 'pending', to: cutoff });
     for (const order of orders) {
-      await this.orderRepo.updateStatus(order.id, 'cancelled');
+      await this.orderRepo.guardedUpdateStatus(order.id, [order.status], 'cancelled', 'order_management_cleanup');
       await this.audit.record({ userId: 'system', userEmail: 'system@dreambees.art', action: 'order_status_changed', targetId: order.id, details: { from: 'pending', to: 'cancelled', reason: 'expired' } });
     }
     return { count: orders.length };

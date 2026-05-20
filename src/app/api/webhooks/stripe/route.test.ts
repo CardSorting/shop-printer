@@ -73,7 +73,7 @@ describe('Stripe webhook replay handling', () => {
   });
 
   it('marks event as completed after successful processing', async () => {
-    tryProcessEvent.mockResolvedValue(false);
+    tryProcessEvent.mockResolvedValue({ alreadyProcessed: false, claimToken: 'claim-token-1' });
     finalizeOrderPayment.mockResolvedValue({});
     markEventProcessed.mockResolvedValue(undefined);
     const { POST } = await import('./route');
@@ -83,11 +83,11 @@ describe('Stripe webhook replay handling', () => {
 
     expect(body.received).toBe(true);
     expect(finalizeOrderPayment).toHaveBeenCalledWith('pi_1', { id: 'pi_1' });
-    expect(markEventProcessed).toHaveBeenCalledWith('evt_1', 'payment_intent.succeeded');
+    expect(markEventProcessed).toHaveBeenCalledWith('evt_1', 'payment_intent.succeeded', 'claim-token-1');
   });
 
   it('marks event as failed (not deleted) on processing error', async () => {
-    tryProcessEvent.mockResolvedValue(false);
+    tryProcessEvent.mockResolvedValue({ alreadyProcessed: false, claimToken: 'claim-token-failed' });
     finalizeOrderPayment.mockRejectedValue(new Error('Firestore timeout'));
     markEventFailed.mockResolvedValue(undefined);
     const { POST } = await import('./route');
@@ -95,7 +95,7 @@ describe('Stripe webhook replay handling', () => {
     const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
 
     expect(response.status).toBe(500);
-    expect(markEventFailed).toHaveBeenCalledWith('evt_1', 'Firestore timeout');
+    expect(markEventFailed).toHaveBeenCalledWith('evt_1', 'Firestore timeout', 'claim-token-failed');
     expect(deleteEvent).not.toHaveBeenCalled();
   });
 
@@ -116,7 +116,7 @@ describe('Stripe webhook replay handling', () => {
     expect(response.status).toBe(200);
     expect(finalizeOrderPayment).toHaveBeenCalledWith('pi_1', { id: 'pi_1', status: 'succeeded', metadata: { orderId: 'o1' } });
     expect(updateOrderStatus).not.toHaveBeenCalled();
-    expect(markEventProcessed).toHaveBeenCalledWith('evt_failed_stale', 'payment_intent.payment_failed');
+    expect(markEventProcessed).toHaveBeenCalledWith('evt_failed_stale', 'payment_intent.payment_failed', null);
   });
 
   it('leaves order unchanged when payment_failed is not in a terminal failed Stripe state', async () => {

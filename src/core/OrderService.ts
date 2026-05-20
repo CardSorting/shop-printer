@@ -20,6 +20,7 @@ import type {
   ShippingLabel,
 } from '@domain/models';
 import { AuditService } from './AuditService';
+import { StripeService } from '@infrastructure/services/StripeService';
 import { OrderAdminService } from './order/OrderAdminService';
 import { OrderCheckoutService } from './order/OrderCheckoutService';
 import { OrderFulfillmentWorkflowService } from './order/OrderFulfillmentWorkflowService';
@@ -42,7 +43,7 @@ export class OrderService {
   private readonly adminService: OrderAdminService;
 
   constructor(
-    orderRepo: IOrderRepository,
+    private orderRepo: IOrderRepository,
     productRepo: IProductRepository,
     cartRepo: ICartRepository,
     discountRepo: IDiscountRepository,
@@ -53,7 +54,7 @@ export class OrderService {
     shippingRepo?: IShippingRepository
   ) {
     this.checkoutService = new OrderCheckoutService(
-      orderRepo,
+      this.orderRepo,
       productRepo,
       cartRepo,
       discountRepo,
@@ -62,10 +63,10 @@ export class OrderService {
       locker,
       shippingRepo
     );
-    this.logisticsService = new OrderLogisticsService(orderRepo, productRepo);
-    this.fulfillmentWorkflowService = new OrderFulfillmentWorkflowService(orderRepo);
-    this.readService = new OrderReadService(orderRepo);
-    this.adminService = new OrderAdminService(orderRepo, productRepo, discountRepo, audit);
+    this.logisticsService = new OrderLogisticsService(this.orderRepo, productRepo);
+    this.fulfillmentWorkflowService = new OrderFulfillmentWorkflowService(this.orderRepo);
+    this.readService = new OrderReadService(this.orderRepo);
+    this.adminService = new OrderAdminService(this.orderRepo, productRepo, discountRepo, audit);
   }
 
   autoAssignShippingMethod(orderId: string): Promise<{ carrier: string; service: string }> {
@@ -197,8 +198,61 @@ export class OrderService {
     return this.adminService.batchUpdateOrderStatus(ids, status, actor);
   }
 
-  cleanupExpiredOrders(expirationMinutes = 60): Promise<{ count: number }> {
-    return this.adminService.cleanupExpiredOrders(expirationMinutes);
+  async cleanupExpiredOrders(expirationMinutes = 60): Promise<{ count: number }> {
+    const cutoff = new Date();
+    cutoff.setMinutes(cutoff.getMinutes() - expirationMinutes);
+    const { orders } = await this.orderRepo.getAll({ status: 'pending', to: cutoff });
+    const stripeService = new StripeService();
+    let processed = 0;
+
+    for (const order of orders) {
+      if (order.paymentTransactionId) {
+        try {
+          const paymentIntent = await stripeService.getPaymentIntent(order.paymentTransactionId);
+          if (paymentIntent.status === 'succeeded') {
+            await this.finalizeOrderPayment(paymentIntent.id, paymentIntent);
+            processed++;
+            continue;
+          }
+
+          if (['processing', 'requires_action', 'requires_capture', 'requires_confirmation'].includes(paymentIntent.status)) {
+            await this.orderRepo.createOrUpdateReconciliationCase({
+              paymentIntentId: paymentIntent.id,
+              orderId: order.id,
+              checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
+              reason: 'paid_not_finalized',
+              severity: 'high',
+              stripeStatus: paymentIntent.status,
+              operatorVisibleMessage: `Expired pending order ${order.id} has active Stripe PaymentIntent ${paymentIntent.id} in status ${paymentIntent.status}.`,
+              nextAction: 'Wait for Stripe terminal state or manually inspect before cancellation.',
+              details: { cleanupBlocked: true, expirationMinutes },
+            });
+            continue;
+          }
+        } catch (error) {
+          await this.orderRepo.createOrUpdateReconciliationCase({
+            paymentIntentId: order.paymentTransactionId,
+            orderId: order.id,
+            checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
+            reason: 'paid_not_finalized',
+            severity: 'critical',
+            stripeStatus: null,
+            operatorVisibleMessage: `Expired pending order ${order.id} could not verify Stripe PaymentIntent ${order.paymentTransactionId} before cancellation.`,
+            nextAction: 'Verify Stripe status manually before cancelling, fulfilling, or refunding.',
+            details: { error: error instanceof Error ? error.message : 'Unknown Stripe lookup error' },
+          });
+          continue;
+        }
+      }
+
+      await this.adminService.updateOrderStatus(order.id, 'cancelled', {
+        id: 'system',
+        email: 'system@dreambees.art'
+      });
+      processed++;
+    }
+
+    return { count: processed };
   }
 
   getDigitalAssets(userId: string) {

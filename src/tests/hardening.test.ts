@@ -48,6 +48,12 @@ describe('Security Hardening Proofs', () => {
         checkUserDiscountUsage: vi.fn().mockResolvedValue(false),
         getByIdempotencyKey: vi.fn().mockResolvedValue(null),
         updateStatus: vi.fn(),
+        guardedUpdateStatus: vi.fn().mockImplementation(async (id, _allowed, status, _reason, transaction) => {
+          return mockOrderRepo.updateStatus(id, status, transaction);
+        }),
+        recordCheckoutAttempt: vi.fn(),
+        updateCheckoutAttempt: vi.fn(),
+        createOrUpdateReconciliationCase: vi.fn(),
       };
       mockProductRepo = {
         getById: vi.fn().mockResolvedValue({ id: 'p1', price: 1000, stock: 10 }),

@@ -31,9 +31,15 @@ describe('OrderService', () => {
       getByPaymentTransactionId: vi.fn(),
       getByPaymentTransactionIdTransactional: vi.fn(),
       updateStatus: vi.fn(),
+      guardedUpdateStatus: vi.fn().mockImplementation(async (id, _allowed, status, _reason, transaction) => {
+        return mockOrderRepo.updateStatus(id, status, transaction);
+      }),
       updateRiskScore: vi.fn(),
       updateMetadata: vi.fn(),
       addFulfillmentEvent: vi.fn(),
+      recordCheckoutAttempt: vi.fn(),
+      updateCheckoutAttempt: vi.fn(),
+      createOrUpdateReconciliationCase: vi.fn(),
     };
     mockProductRepo = {
       getById: vi.fn().mockResolvedValue({ id: 'p1', price: 1000, stock: 10 }),
@@ -94,6 +100,14 @@ describe('OrderService', () => {
       expect(order.total).toBeGreaterThan(0);
       expect(mockProductRepo.batchUpdateStock).toHaveBeenCalledWith([{ id: 'p1', delta: -1 }], expect.anything());
       expect(mockOrderRepo.create).toHaveBeenCalledTimes(1);
+      expect(mockOrderRepo.recordCheckoutAttempt).toHaveBeenCalledWith(expect.objectContaining({
+        userId: 'u1',
+        orderId: 'o1',
+        cartId: 'u1',
+        cartOwnerId: 'o1',
+        state: 'reserved',
+        paymentIntentId: null,
+      }), expect.anything());
       expect(mockCartRepo.clear).toHaveBeenCalledWith('u1', expect.anything());
     });
 

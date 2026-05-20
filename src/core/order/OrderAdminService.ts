@@ -64,7 +64,7 @@ export class OrderAdminService {
       await this.releaseInventoryReservation(order);
     }
 
-    await this.orderRepo.updateStatus(id, status);
+    await this.orderRepo.guardedUpdateStatus(id, [order.status], status, 'admin_order_status_update');
 
     if ((status === 'cancelled' || status === 'refunded') && order.discountCode) {
       const discount = await this.discountRepo.getByCode(order.discountCode);
@@ -113,7 +113,7 @@ export class OrderAdminService {
           assertValidOrderStatusTransition(order.status, status);
           validIds.push(id);
           
-          await this.orderRepo.updateStatus(id, status, transaction);
+          await this.orderRepo.guardedUpdateStatus(id, [order.status], status, 'admin_batch_order_status_update', transaction);
           
           // Points 1 & 7: Audit each individual status change within the same transaction substrate
           // Note: We record a single batch audit event below for high-level visibility, 

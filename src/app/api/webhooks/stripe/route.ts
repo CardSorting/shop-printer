@@ -23,10 +23,13 @@ export async function POST(request: Request) {
   }
 
   const services = await getServerServices();
+  let claimToken: string | null = null;
 
   try {
     // 1. Atomic Event Claim: Prevents duplicate processing while allowing retry of failed events
-    const alreadyProcessed = await stripeService.tryProcessEvent(event.id, event.type);
+    const claimResult = await stripeService.tryProcessEvent(event.id, event.type);
+    const alreadyProcessed = typeof claimResult === 'boolean' ? claimResult : claimResult.alreadyProcessed;
+    claimToken = typeof claimResult === 'boolean' ? null : claimResult.claimToken;
     if (alreadyProcessed) {
       const status = await stripeService.getEventStatus(event.id);
       if (status === 'completed') {
@@ -91,7 +94,7 @@ export async function POST(request: Request) {
     }
 
     // 3. Mark event as completed — permanently blocks future retries
-    await stripeService.markEventProcessed(event.id, event.type);
+    await stripeService.markEventProcessed(event.id, event.type, claimToken);
 
     return Response.json({ received: true });
   } catch (error) {
@@ -101,7 +104,7 @@ export async function POST(request: Request) {
     logger.error('Error processing Stripe webhook, marking event as failed for retry', error);
     if (event?.id) {
       try {
-        await stripeService.markEventFailed(event.id, error instanceof Error ? error.message : 'Unknown error');
+        await stripeService.markEventFailed(event.id, error instanceof Error ? error.message : 'Unknown error', claimToken);
       } catch (rollbackError) {
         logger.error('FATAL: Failed to mark webhook event as failed — manual intervention required', { eventId: event.id, rollbackError });
       }

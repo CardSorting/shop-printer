@@ -27,7 +27,16 @@ import {
 } from '../../firebase/bridge';
 import { logger } from '@utils/logger';
 import type { IOrderRepository } from '@domain/repositories';
-import type { Address, Order, OrderItem, OrderStatus, OrderStats } from '@domain/models';
+import type {
+  Address,
+  CheckoutAttempt,
+  Order,
+  OrderItem,
+  OrderStatus,
+  OrderStats,
+  PaymentReconciliationCase,
+  PaymentReconciliationReason,
+} from '@domain/models';
 
 
 import { mapDoc, mapTimestamp } from './utils';
@@ -35,10 +44,17 @@ import { mapDoc, mapTimestamp } from './utils';
 export class FirestoreOrderRepository implements IOrderRepository {
   private readonly collectionName = 'orders';
   private readonly statsDocPath = 'system_state/order_stats';
+  private readonly checkoutAttemptCollectionName = 'checkout_attempts';
+  private readonly userCheckoutStateCollectionName = 'user_checkout_state';
+  private readonly reconciliationCaseCollectionName = 'payment_reconciliation_cases';
 
 
   private mapDocToOrder(id: string, data: DocumentData): Order {
     return mapDoc<Order>(id, data);
+  }
+
+  private mapDocToCheckoutAttempt(id: string, data: DocumentData): CheckoutAttempt {
+    return mapDoc<CheckoutAttempt>(id, data);
   }
 
   async create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>, transaction?: any): Promise<Order> {
@@ -322,6 +338,46 @@ export class FirestoreOrderRepository implements IOrderRepository {
     }
   }
 
+  async guardedUpdateStatus(
+    id: string,
+    allowedCurrentStatuses: OrderStatus[],
+    status: OrderStatus,
+    reason: string,
+    transaction?: any
+  ): Promise<void> {
+    const db = getUnifiedDb();
+    const docRef = doc(db, this.collectionName, id);
+
+    const operation = async (t: any) => {
+      const snap = await t.get(docRef);
+      if (!snap.exists()) {
+        throw new Error(`Order ${id} not found`);
+      }
+
+      const oldStatus = snap.data().status as OrderStatus;
+      if (!allowedCurrentStatuses.includes(oldStatus)) {
+        throw new Error(`Guarded order transition rejected for ${id}: ${oldStatus} -> ${status} (${reason})`);
+      }
+
+      t.update(docRef, {
+        status,
+        updatedAt: serverTimestamp()
+      });
+
+      if (oldStatus !== status) {
+        this.applyOrderStatsDeltas(t, {
+          statusChanges: [{ from: oldStatus, to: status }]
+        });
+      }
+    };
+
+    if (transaction) {
+      await operation(transaction);
+    } else {
+      await runTransaction(db, operation);
+    }
+  }
+
   async batchUpdateStatus(ids: string[], status: OrderStatus): Promise<void> {
     const db = getUnifiedDb();
     await runTransaction(db, async (t: any) => {
@@ -384,6 +440,142 @@ export class FirestoreOrderRepository implements IOrderRepository {
     } else {
       await runTransaction(db, operation);
     }
+  }
+
+  async recordCheckoutAttempt(attempt: Omit<CheckoutAttempt, 'createdAt' | 'updatedAt'>, transaction?: any): Promise<void> {
+    const db = getUnifiedDb();
+    const operation = async (t: any) => {
+      const attemptRef = doc(db, this.checkoutAttemptCollectionName, attempt.idempotencyKey);
+      const userStateRef = doc(db, this.userCheckoutStateCollectionName, attempt.userId);
+      const data = {
+        ...attempt,
+        id: attempt.idempotencyKey,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      t.set(attemptRef, data, { merge: true });
+      t.set(userStateRef, {
+        userId: attempt.userId,
+        latestAttemptId: attempt.idempotencyKey,
+        orderId: attempt.orderId,
+        cartOwnerId: attempt.cartOwnerId,
+        fencingToken: attempt.fencingToken,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    };
+
+    if (transaction) await operation(transaction);
+    else await runTransaction(db, operation);
+  }
+
+  async updateCheckoutAttempt(
+    idempotencyKey: string,
+    updates: Partial<Omit<CheckoutAttempt, 'id' | 'createdAt' | 'updatedAt'>>,
+    transaction?: any
+  ): Promise<void> {
+    const db = getUnifiedDb();
+    if (transaction) {
+      const attemptRef = doc(db, this.checkoutAttemptCollectionName, idempotencyKey);
+      transaction.set(attemptRef, {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      return;
+    }
+
+    const operation = async (t: any) => {
+      const attemptRef = doc(db, this.checkoutAttemptCollectionName, idempotencyKey);
+      const attemptSnap = await t.get(attemptRef);
+      if (!attemptSnap.exists()) {
+        throw new Error(`Checkout attempt ${idempotencyKey} not found`);
+      }
+
+      t.update(attemptRef, {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      });
+
+      if (updates.userId || updates.orderId || updates.cartOwnerId || updates.fencingToken) {
+        const data = attemptSnap.data();
+        const userId = updates.userId || data.userId;
+        const userStateRef = doc(db, this.userCheckoutStateCollectionName, userId);
+        t.set(userStateRef, {
+          userId,
+          latestAttemptId: idempotencyKey,
+          orderId: updates.orderId || data.orderId,
+          cartOwnerId: updates.cartOwnerId || data.cartOwnerId,
+          fencingToken: updates.fencingToken ?? data.fencingToken ?? null,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
+    };
+
+    await runTransaction(db, operation);
+  }
+
+  async getCheckoutAttempt(idempotencyKey: string, transaction?: any): Promise<CheckoutAttempt | null> {
+    const ref = doc(getUnifiedDb(), this.checkoutAttemptCollectionName, idempotencyKey);
+    const snap = transaction ? await transaction.get(ref) : await getDoc(ref);
+    if (!snap.exists()) return null;
+    return this.mapDocToCheckoutAttempt(snap.id, snap.data());
+  }
+
+  async getLatestCheckoutAttemptForUser(userId: string, transaction?: any): Promise<CheckoutAttempt | null> {
+    const db = getUnifiedDb();
+    const stateRef = doc(db, this.userCheckoutStateCollectionName, userId);
+    const stateSnap = transaction ? await transaction.get(stateRef) : await getDoc(stateRef);
+    if (!stateSnap.exists()) return null;
+    const latestAttemptId = stateSnap.data()?.latestAttemptId;
+    if (!latestAttemptId) return null;
+    return this.getCheckoutAttempt(latestAttemptId, transaction);
+  }
+
+  async createOrUpdateReconciliationCase(params: {
+    paymentIntentId: string;
+    orderId?: string | null;
+    checkoutAttemptId?: string | null;
+    reason: PaymentReconciliationReason;
+    severity: 'high' | 'critical';
+    stripeStatus?: string | null;
+    operatorVisibleMessage: string;
+    nextAction: string;
+    details?: Record<string, any>;
+  }, transaction?: any): Promise<void> {
+    const db = getUnifiedDb();
+    const caseId = `${params.paymentIntentId}_${params.reason}`;
+    const operation = async (t: any) => {
+      const ref = doc(db, this.reconciliationCaseCollectionName, caseId);
+      const snap = await t.get(ref);
+      const payload: Omit<PaymentReconciliationCase, 'createdAt' | 'updatedAt'> & Record<string, any> = {
+        id: caseId,
+        paymentIntentId: params.paymentIntentId,
+        orderId: params.orderId ?? null,
+        checkoutAttemptId: params.checkoutAttemptId ?? null,
+        reason: params.reason,
+        severity: params.severity,
+        stripeStatus: params.stripeStatus ?? null,
+        operatorVisibleMessage: params.operatorVisibleMessage,
+        nextAction: params.nextAction,
+        details: params.details || {},
+      };
+
+      if (snap.exists()) {
+        t.set(ref, {
+          ...payload,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      } else {
+        t.set(ref, {
+          ...payload,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    };
+
+    if (transaction) await operation(transaction);
+    else await runTransaction(db, operation);
   }
 
 

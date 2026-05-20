@@ -22,7 +22,7 @@ export class RefundService {
     private locker?: import('@domain/repositories').ILockProvider
   ) {}
 
-  async processRefund(orderId: string, amount: number, actor: { id: string, email: string }, refundAttemptId?: string): Promise<void> {
+  async processRefund(orderId: string, amount: number, actor: { id: string, email: string }, refundAttemptId: string): Promise<void> {
     // 0. Production Hardening: Acquire distributed lock to prevent double-refund races
     const lockId = `refund_lock:${orderId}`;
     let fencingToken: number | null = null;
@@ -53,6 +53,9 @@ export class RefundService {
       if (!Number.isFinite(amount) || amount <= 0) {
         throw new Error('Refund amount must be a positive number.');
       }
+      if (!refundAttemptId?.trim()) {
+        throw new Error('refundAttemptId is required for refund idempotency.');
+      }
       if (refundableBalance <= 0) {
         throw new Error('This order has no refundable balance remaining.');
       }
@@ -68,8 +71,7 @@ export class RefundService {
 
       // Point 2: Deterministic Idempotency Keys (Granular)
       // Format: refund:{orderId}:{refundAttemptId}:{amount}
-      const attemptId = refundAttemptId || `att_${Date.now()}`;
-      const refundIdempotencyKey = `refund:${orderId}:${attemptId}:${safeAmount}`;
+      const refundIdempotencyKey = `refund:${orderId}:${refundAttemptId}:${safeAmount}`;
       
       const result = await this.payment.refundPayment(order.paymentTransactionId, safeAmount, refundIdempotencyKey);
       
@@ -78,7 +80,7 @@ export class RefundService {
           // Production Hardening: Perform all post-payment state mutations ATOMICALLY 
           await runTransaction(getUnifiedDb(), async (transaction: any) => {
             // 1. Update Order Status and Atomic Refund Amount
-            await this.orderRepo.updateStatus(orderId, nextStatus as any, transaction);
+            await this.orderRepo.guardedUpdateStatus(orderId, [order.status], nextStatus as any, 'refund_processed', transaction);
             await this.orderRepo.recordRefund(orderId, safeAmount, transaction);
 
             // 2. Restock inventory (physical items only)
@@ -117,7 +119,7 @@ export class RefundService {
           // CRITICAL: We MUST mark the order as requiring manual reconciliation.
           logger.error(`CRITICAL: Stripe refund succeeded but DB update failed for order ${orderId}. Marking for RECONCILIATION.`, dbError);
           
-          await this.orderRepo.updateStatus(orderId, 'reconciling');
+          await this.orderRepo.guardedUpdateStatus(orderId, [order.status], 'reconciling', 'stripe_refund_db_failure');
           await this.orderRepo.markForReconciliation(orderId, [
             `Stripe refund of ${safeAmount} succeeded (Key: ${refundIdempotencyKey}) but DB transaction failed.`,
             `Error: ${dbError instanceof Error ? dbError.message : 'Unknown'}`
@@ -140,7 +142,7 @@ export class RefundService {
       }
     } finally {
       if (this.locker) {
-        await this.locker.releaseLock(lockId, actor.id, fencingToken ?? undefined).catch(err => {
+        await Promise.resolve(this.locker.releaseLock(lockId, actor.id, fencingToken ?? undefined)).catch(err => {
           logger.error(`Failed to release refund lock for ${orderId}`, err);
         });
       }
