@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
+import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
 import { logger } from '@utils/logger';
 
 export async function GET(request: Request) {
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const services = await getServerServices();
     const { campaignService, auditService } = services;
 
-    const body = await request.json();
+    const body = await readJsonObject(request);
     if (body?.action === 'create_missing_lifecycle_playbooks') {
       const campaigns = await campaignService.createMissingLifecyclePlaybooks();
       await auditService.record({
@@ -59,35 +59,33 @@ export async function POST(request: Request) {
     }
 
     if (body?.action === 'activate_playbook') {
-      const campaign = await campaignService.activatePlaybook(body.playbookId);
+      const playbookId = requireString(body.playbookId, 'playbookId');
+      const campaign = await campaignService.activatePlaybook(playbookId);
       await auditService.record({
         userId: user.id,
         userEmail: user.email,
         action: 'campaign_created',
         targetId: campaign.id,
-        details: { playbookId: body.playbookId, source: 'concierge_marketing_strategy', status: 'active' },
+        details: { playbookId, source: 'concierge_marketing_strategy', status: 'active' },
       });
       return NextResponse.json(campaign);
     }
 
     if (body?.action === 'pause_playbook') {
-      const campaign = await campaignService.pausePlaybook(body.playbookId);
+      const campaign = await campaignService.pausePlaybook(requireString(body.playbookId, 'playbookId'));
       return NextResponse.json(campaign);
     }
 
     if (body?.action === 'plan_customer_lifecycle') {
-      if (!body.userId || typeof body.userId !== 'string') {
-        return NextResponse.json({ error: 'userId is required' }, { status: 400 });
-      }
-      const plan = await campaignService.planCustomerLifecycle(body.userId);
+      const userId = requireString(body.userId, 'userId');
+      const plan = await campaignService.planCustomerLifecycle(userId);
       return NextResponse.json(plan);
     }
 
     if (body?.action === 'enroll_customer_lifecycle') {
-      if (!body.userId || typeof body.userId !== 'string') {
-        return NextResponse.json({ error: 'userId is required' }, { status: 400 });
-      }
-      const result = await campaignService.enrollCustomerInLifecycle(body.userId, body.playbookId);
+      const userId = requireString(body.userId, 'userId');
+      const playbookId = body.playbookId === undefined ? undefined : requireString(body.playbookId, 'playbookId');
+      const result = await campaignService.enrollCustomerInLifecycle(userId, playbookId);
       return NextResponse.json(result);
     }
 

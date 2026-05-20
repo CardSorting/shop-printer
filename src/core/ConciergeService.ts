@@ -8,6 +8,7 @@ import { logger } from '@utils/logger';
 import { createHermesChatCompletion } from '@infrastructure/services/HermesService';
 import { getUnifiedDb, collection, addDoc, serverTimestamp, updateDoc, doc, getDoc, query, where, orderBy, limit, getDocs } from '@infrastructure/firebase/bridge';
 import { AuditService } from './AuditService';
+import { DomainError } from '@domain/errors';
 
 export interface ConciergeSession {
   id?: string;
@@ -80,6 +81,38 @@ export class ConciergeService {
     this.audit = auditService || new AuditService();
   }
 
+  private serializeSession(id: string, data: any): ConciergeSession {
+    return {
+      id,
+      ...data,
+      createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+    } as ConciergeSession;
+  }
+
+  async getSession(sessionId: string): Promise<ConciergeSession | null> {
+    const sessionDoc = await getDoc(doc(getUnifiedDb(), 'conciergeSessions', sessionId));
+    if (!sessionDoc.exists()) return null;
+    return this.serializeSession(sessionDoc.id, sessionDoc.data());
+  }
+
+  async listSessions(maxResults = 50): Promise<ConciergeSession[]> {
+    const sessionsQuery = query(
+      collection(getUnifiedDb(), 'conciergeSessions'),
+      orderBy('createdAt', 'desc'),
+      limit(Math.min(Math.max(Math.trunc(maxResults), 1), 100))
+    );
+    const sessionsSnap = await getDocs(sessionsQuery);
+    return sessionsSnap.docs.map((d: any) => this.serializeSession(d.id, d.data()));
+  }
+
+  async analyzeStoredSession(sessionId: string) {
+    const session = await this.getSession(sessionId);
+    if (!session) throw new DomainError('Session not found.');
+    if (!Array.isArray(session.transcript)) throw new DomainError('Session transcript is unavailable.');
+    return this.analyzeSession(sessionId, session.transcript);
+  }
+
   /**
    * Finalizes a concierge session by analyzing it for insights and suggestions.
    * This is Layer 2 & 3 of the architecture.
@@ -90,6 +123,7 @@ export class ConciergeService {
       
       const db = getUnifiedDb();
       const sessionDoc = await getDoc(doc(db, 'conciergeSessions', sessionId));
+      if (!sessionDoc.exists()) throw new DomainError('Session not found.');
       const sessionData = sessionDoc.data() as ConciergeSession;
 
       // Get previous sessions for memory if we have a userId

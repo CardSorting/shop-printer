@@ -1,47 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUnifiedDb, collection, query, orderBy, limit, getDocs, doc, getDoc } from '@infrastructure/firebase/bridge';
+import { getServerServices } from '@infrastructure/server/services';
+import { jsonError, parseBoundedLimit, requireAdminSession } from '@infrastructure/server/apiGuards';
 import { logger } from '@utils/logger';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    const db = getUnifiedDb();
+    await requireAdminSession(req);
+    const { conciergeService } = await getServerServices();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
     if (id) {
-      const docRef = doc(db, 'conciergeSessions', id);
-      const docSnap = await getDoc(docRef);
-      if (!docSnap.exists()) {
+      const session = await conciergeService.getSession(id);
+      if (!session) {
         return NextResponse.json({ error: 'Session not found' }, { status: 404 });
       }
-      const data = docSnap.data();
-      return NextResponse.json({
-        id: docSnap.id,
-        ...data,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
-      });
+      return NextResponse.json(session);
     }
 
-    const sessionsRef = collection(db, 'conciergeSessions');
-    const q = query(sessionsRef, orderBy('createdAt', 'desc'), limit(50));
-    const querySnapshot = await getDocs(q);
-
-    const sessions = querySnapshot.docs.map((d: any) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        ...data,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
-      };
-    });
+    const sessions = await conciergeService.listSessions(parseBoundedLimit(searchParams.get('limit'), 50, 100));
 
     return NextResponse.json(sessions);
-  } catch (error: any) {
-    logger.error('Failed to fetch Concierge sessions', { error: error.message });
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } catch (error) {
+    logger.error('Failed to fetch Concierge sessions', { error: error instanceof Error ? error.message : String(error) });
+    return jsonError(error, 'Failed to fetch Concierge sessions', req);
   }
 }

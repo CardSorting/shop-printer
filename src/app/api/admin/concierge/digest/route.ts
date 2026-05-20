@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server';
-import { conciergeService } from '@core/ConciergeService';
+import { getServerServices } from '@infrastructure/server/services';
+import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
 import { logger } from '@utils/logger';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    await requireAdminSession(request);
+    const { conciergeService } = await getServerServices();
     const digest = await conciergeService.generateStoreDigest();
     if (!digest) throw new Error('Failed to generate digest');
     return NextResponse.json(digest);
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Digest API error', error);
-    return NextResponse.json({ error: 'Failed to load intelligence' }, { status: 500 });
+    return jsonError(error, 'Failed to load intelligence', request);
   }
 }

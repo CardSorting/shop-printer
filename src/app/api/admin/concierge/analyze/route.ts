@@ -1,34 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { conciergeService } from '@core/ConciergeService';
+import { getServerServices } from '@infrastructure/server/services';
+import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
 import { logger } from '@utils/logger';
-import { getUnifiedDb, doc, getDoc } from '@infrastructure/firebase/bridge';
-// import { doc, getDoc } from 'firebase/firestore';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId } = await req.json();
+    const user = await requireAdminSession(req);
+    const body = await readJsonObject(req);
+    const sessionId = requireString(body.sessionId, 'sessionId');
+    const { conciergeService, auditService } = await getServerServices();
+    const result = await conciergeService.analyzeStoredSession(sessionId);
 
-    if (!sessionId) {
-      return NextResponse.json({ error: 'Session ID is required' }, { status: 400 });
-    }
-
-    const db = getUnifiedDb();
-    const sessionDoc = await getDoc(doc(db, 'conciergeSessions', sessionId));
-
-    if (!sessionDoc.exists()) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-    }
-
-    const sessionData = sessionDoc.data();
-    const transcript = sessionData.transcript || [];
-
-    const result = await conciergeService.analyzeSession(sessionId, transcript);
+    await auditService.record({
+      userId: user.id,
+      userEmail: user.email,
+      action: 'concierge_analyzed',
+      targetId: sessionId,
+      details: { source: 'admin_concierge_analyze' },
+    });
 
     return NextResponse.json(result);
-  } catch (error: any) {
-    logger.error('Failed to trigger session analysis', { error: error.message });
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } catch (error) {
+    logger.error('Failed to trigger session analysis', { error: error instanceof Error ? error.message : String(error) });
+    return jsonError(error, 'Failed to trigger session analysis', req);
   }
 }

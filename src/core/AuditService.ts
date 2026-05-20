@@ -37,6 +37,7 @@ export type AuditAction =
   | 'category_created' | 'category_updated' | 'category_deleted'
   | 'product_type_created' | 'product_type_updated' | 'product_type_deleted'
   | 'wishlist_created' | 'wishlist_updated' | 'wishlist_deleted'
+  | 'inventory_location_saved' | 'inventory_location_updated' | 'inventory_location_geocoded'
   | 'settings_updated'
   | 'ops_plan_generated' | 'ops_plan_executed' | 'merchandising_review_triggered' | 'setup_review_recorded'
   | 'concierge_analyzed' | 'concierge_escalated'

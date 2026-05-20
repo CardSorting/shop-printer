@@ -107,7 +107,7 @@ export function ConciergeBubble({ initialContext, productInfo }: ConciergeBubble
       if (!storedSessionId) return;
       setIsSyncing(true);
       try {
-        const res = await fetch(`/api/admin/concierge/sessions?id=${storedSessionId}`);
+        const res = await fetch(`/api/concierge/sessions?id=${storedSessionId}`);
         if (res.ok) {
           const session = await res.json();
           if (session && session.status !== 'resolved') {

@@ -5,6 +5,8 @@
  */
 import { 
   MarketingCampaign, 
+  MarketingCampaignDraft,
+  MarketingOverview,
   Order,
   Cart
 } from '@domain/models';
@@ -217,6 +219,26 @@ export class CampaignService {
       return this.findRetentionOpportunityUsers(campaign);
     }
     return [];
+  }
+
+  async listCampaigns(options?: Parameters<ICampaignRepository['getAll']>[0]): Promise<MarketingCampaign[]> {
+    return this.campaignRepo.getAll(options);
+  }
+
+  async getOverview(): Promise<MarketingOverview> {
+    return this.campaignRepo.getOverview();
+  }
+
+  async createCampaign(draft: MarketingCampaignDraft, actor: { id: string; email: string }): Promise<MarketingCampaign> {
+    const campaign = await this.campaignRepo.create(draft);
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'campaign_created',
+      targetId: campaign.id,
+      details: { name: campaign.name, type: campaign.type },
+    });
+    return campaign;
   }
 
   async getConciergeMarketingStrategy() {

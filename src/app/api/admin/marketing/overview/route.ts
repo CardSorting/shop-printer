@@ -1,22 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getInitialServices } from '@core/container';
-import { logger } from '@utils/logger';
+import { getServerServices } from '@infrastructure/server/services';
+import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { campaignService, authService } = getInitialServices();
-    
-    // Auth check
-    const user = await authService.getCurrentUser();
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdminSession(request);
+    const { campaignService } = await getServerServices();
 
-    const overview = await (campaignService as any).campaignRepo.getOverview();
+    const overview = await campaignService.getOverview();
     
     return NextResponse.json(overview);
-  } catch (error: any) {
-    logger.error('Failed to fetch marketing overview', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(error, 'Failed to fetch marketing overview', request);
   }
 }
