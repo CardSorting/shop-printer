@@ -3,12 +3,14 @@
  */
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { jsonError, readJsonObject, requireAdminSession } from '@infrastructure/server/apiGuards';
+import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
+import { parseCollectionUpdate } from '../../catalogParsers';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdminSession();
-    const { id } = await params;
+    await requireAdminSession(request);
+    const { id: rawId } = await params;
+    const id = requireString(rawId, 'id');
     const services = await getServerServices();
     const collection = await services.collectionService.get(id);
     return NextResponse.json(collection);
@@ -20,8 +22,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAdminSession(request);
-    const { id } = await params;
-    const body = await readJsonObject(request);
+    const { id: rawId } = await params;
+    const id = requireString(rawId, 'id');
+    const body = parseCollectionUpdate(await readJsonObject(request));
     const services = await getServerServices();
     
     const collection = await services.collectionService.update(id, body, {
@@ -38,7 +41,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAdminSession(request);
-    const { id } = await params;
+    const { id: rawId } = await params;
+    const id = requireString(rawId, 'id');
     const services = await getServerServices();
     
     await services.collectionService.delete(id, {
@@ -46,7 +50,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       email: session.email
     });
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, deletedId: id });
   } catch (error) {
     return jsonError(error, 'Failed to delete collection');
   }

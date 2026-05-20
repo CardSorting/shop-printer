@@ -4,14 +4,15 @@
  */
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
+import { jsonError, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
 
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: rawId } = await params;
+    const id = requireString(rawId, 'id');
     const session = await requireAdminSession(request);
     const services = await getServerServices();
     
@@ -20,7 +21,7 @@ export async function DELETE(
       email: session.email
     });
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, deletedId: id });
   } catch (error) {
     return jsonError(error, 'Failed to delete category');
   }

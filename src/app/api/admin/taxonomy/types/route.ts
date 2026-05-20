@@ -5,10 +5,11 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
 import { jsonError, readJsonObject, requireAdminSession } from '@infrastructure/server/apiGuards';
+import { parseProductTypeInput } from '../../catalogParsers';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    await requireAdminSession();
+    await requireAdminSession(request);
     const services = await getServerServices();
     const types = await services.taxonomyService.getAllTypes();
     return NextResponse.json(types);
@@ -20,7 +21,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await requireAdminSession(request);
-    const body = await readJsonObject(request);
+    const body = parseProductTypeInput(await readJsonObject(request));
     const services = await getServerServices();
     
     const type = await services.taxonomyService.saveType(body, {

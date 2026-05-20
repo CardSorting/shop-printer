@@ -1,16 +1,14 @@
 import { jsonError, requireAdminSession, readJsonObject } from '@infrastructure/server/apiGuards';
 import { getServerServices } from '@infrastructure/server/services';
+import { parseSupplierDraft, parseSupplierListOptions } from '../catalogParsers';
 
 export async function GET(request: Request) {
   try {
-    await requireAdminSession();
+    await requireAdminSession(request);
     const { searchParams } = new URL(request.url);
     const services = await getServerServices();
     
-    const suppliers = await services.supplierService.list({
-      query: searchParams.get('query') || undefined,
-      limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined,
-    });
+    const suppliers = await services.supplierService.list(parseSupplierListOptions(searchParams));
     
     return Response.json(suppliers);
   } catch (error) {
@@ -21,10 +19,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await requireAdminSession(request);
-    const body = await readJsonObject(request);
+    const body = parseSupplierDraft(await readJsonObject(request));
     const services = await getServerServices();
     
-    const supplier = await services.supplierService.create(body as any, {
+    const supplier = await services.supplierService.create(body, {
       id: session.id,
       email: session.email
     });

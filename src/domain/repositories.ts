@@ -273,7 +273,7 @@ export interface ISupplierRepository {
 }
 
 export interface ICollectionRepository {
-  getAll(options?: { status?: 'active' | 'archived'; limit?: number }): Promise<import('./models').Collection[]>;
+  getAll(options?: { status?: import('./models').Collection['status']; limit?: number }): Promise<import('./models').Collection[]>;
   getById(id: string): Promise<import('./models').Collection | null>;
   getByHandle(handle: string): Promise<import('./models').Collection | null>;
   save(collection: import('./models').Collection): Promise<import('./models').Collection>;

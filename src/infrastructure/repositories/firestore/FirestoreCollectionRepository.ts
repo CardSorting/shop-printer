@@ -32,7 +32,7 @@ export class FirestoreCollectionRepository implements ICollectionRepository {
     return mapDoc<Collection>(id, data);
   }
 
-  async getAll(options?: { status?: 'active' | 'archived'; limit?: number }): Promise<Collection[]> {
+  async getAll(options?: { status?: Collection['status']; limit?: number }): Promise<Collection[]> {
     let q = query(collection(getUnifiedDb(), this.collectionName));
     if (options?.status) q = query(q, where('status', '==', options.status));
     if (options?.limit) q = query(q, limit(options.limit));

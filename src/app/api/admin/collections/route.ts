@@ -1,16 +1,14 @@
 import { getServerServices } from '@infrastructure/server/services';
 import { jsonError, requireAdminSession, readJsonObject } from '@infrastructure/server/apiGuards';
+import { parseCollectionDraft, parseCollectionListOptions } from '../catalogParsers';
 
 export async function GET(request: Request) {
   try {
-    await requireAdminSession();
+    await requireAdminSession(request);
     const { searchParams } = new URL(request.url);
     const services = await getServerServices();
     
-    const collections = await services.collectionService.list({
-      status: (searchParams.get('status') as 'active' | 'archived') || undefined,
-      limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined,
-    });
+    const collections = await services.collectionService.list(parseCollectionListOptions(searchParams));
     
     return Response.json(collections);
   } catch (error) {
@@ -21,10 +19,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await requireAdminSession(request);
-    const body = await readJsonObject(request);
+    const body = parseCollectionDraft(await readJsonObject(request));
     const services = await getServerServices();
     
-    const collection = await services.collectionService.create(body as any, {
+    const collection = await services.collectionService.create(body, {
       id: session.id,
       email: session.email
     });
