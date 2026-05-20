@@ -4,11 +4,12 @@ import { jsonError } from '@infrastructure/server/apiGuards';
 
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const { slug } = await params;
     const services = await getServerServices();
-    const category = await services.taxonomyService.getCategoryBySlug(params.slug);
+    const category = await services.taxonomyService.getCategoryBySlug(slug);
     
     if (!category) {
       return NextResponse.json({ error: 'Category not found' }, { status: 404 });

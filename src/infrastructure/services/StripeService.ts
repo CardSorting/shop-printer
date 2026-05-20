@@ -11,6 +11,7 @@ import { adminDb, FieldValue, withAdminFirestoreRetry } from '@infrastructure/fi
 export class StripeService {
   private stripe: Stripe;
   private readonly collectionName = 'stripe_webhook_events';
+  private readonly processingLeaseMs = 5 * 60 * 1000;
 
   constructor() {
     const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
@@ -100,6 +101,7 @@ export class StripeService {
     return await withAdminFirestoreRetry(
       () => adminDb.runTransaction(async (transaction: any) => {
         const docSnap = await transaction.get(eventRef);
+        const now = Date.now();
         if (docSnap.exists) {
           const data = docSnap.data();
           // Allow retry of failed events — Stripe will resend on 500
@@ -108,8 +110,21 @@ export class StripeService {
             transaction.update(eventRef, {
               status: 'processing',
               retriedAt: FieldValue.serverTimestamp(),
+              claimExpiresAt: now + this.processingLeaseMs,
             });
             return false; // Re-attempt allowed
+          }
+          if (data?.status === 'processing' && (!data.claimExpiresAt || data.claimExpiresAt <= now)) {
+            logger.warn(`Reclaiming stale webhook event ${eventId}`, {
+              type,
+              previousClaimExpiresAt: data.claimExpiresAt,
+            });
+            transaction.update(eventRef, {
+              status: 'processing',
+              reclaimedAt: FieldValue.serverTimestamp(),
+              claimExpiresAt: now + this.processingLeaseMs,
+            });
+            return false;
           }
           return true; // 'processing' or 'completed' — skip
         }
@@ -119,6 +134,7 @@ export class StripeService {
           type,
           status: 'processing',
           claimedAt: FieldValue.serverTimestamp(),
+          claimExpiresAt: now + this.processingLeaseMs,
         });
         return false; // New event, now claimed
       }),
@@ -137,6 +153,16 @@ export class StripeService {
     return docSnap.exists;
   }
 
+  async getEventStatus(eventId: string): Promise<'processing' | 'completed' | 'failed' | null> {
+    const docSnap: any = await withAdminFirestoreRetry(
+      () => adminDb.collection(this.collectionName).doc(eventId).get(),
+      { operationName: 'stripe.getEventStatus' }
+    );
+    if (!docSnap.exists) return null;
+    const status = docSnap.data()?.status;
+    return status === 'processing' || status === 'completed' || status === 'failed' ? status : null;
+  }
+
   /**
    * Marks a webhook event as successfully completed. Permanently blocks future retries.
    */
@@ -146,6 +172,7 @@ export class StripeService {
         id: eventId,
         type,
         status: 'completed',
+        claimExpiresAt: null,
         processedAt: FieldValue.serverTimestamp(),
       }),
       { operationName: 'stripe.markEventProcessed' }
@@ -161,6 +188,7 @@ export class StripeService {
       () => adminDb.collection(this.collectionName).doc(eventId).set({
         id: eventId,
         status: 'failed',
+        claimExpiresAt: null,
         failReason: reason,
         failedAt: FieldValue.serverTimestamp(),
       }, { merge: true }),
@@ -183,5 +211,12 @@ export class StripeService {
    */
   async getPaymentIntent(id: string): Promise<Stripe.PaymentIntent> {
     return this.stripe.paymentIntents.retrieve(id);
+  }
+
+  async cancelPaymentIntent(id: string): Promise<Stripe.PaymentIntent> {
+    if (!process.env.STRIPE_SECRET_KEY?.trim()) {
+      throw new PaymentFailedError('Stripe is not configured. Set STRIPE_SECRET_KEY.');
+    }
+    return this.stripe.paymentIntents.cancel(id);
   }
 }

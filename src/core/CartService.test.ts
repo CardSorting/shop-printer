@@ -78,10 +78,62 @@ describe('CartService', () => {
     });
   });
 
+  describe('updateQuantity', () => {
+    it('should treat quantity zero as item removal without requiring product lookup', async () => {
+      mockCartRepo.getByUserId.mockResolvedValue({
+        userId: 'u1',
+        items: [{ productId: 'p1', quantity: 1, name: 'Product 1', priceSnapshot: 1000, imageUrl: '' }]
+      });
+
+      const cart = await cartService.updateQuantity('u1', 'p1', 0);
+
+      expect(cart.items).toHaveLength(0);
+      expect(mockProductRepo.getById).not.toHaveBeenCalled();
+      expect(mockCartRepo.save).toHaveBeenCalled();
+    });
+  });
+
   describe('clearCart', () => {
     it('should call clear on repo', async () => {
       await cartService.clearCart('u1');
       expect(mockCartRepo.clear).toHaveBeenCalledWith('u1');
+    });
+  });
+
+  describe('restoreCartIfEmpty', () => {
+    it('should restore a cart when no active cart exists', async () => {
+      mockCartRepo.getByUserId.mockResolvedValue(null);
+      const restored = await cartService.restoreCartIfEmpty({
+        id: 'u1',
+        userId: 'u1',
+        items: [{ productId: 'p1', quantity: 1, name: 'Product 1', priceSnapshot: 1000, imageUrl: '' }],
+        updatedAt: new Date()
+      });
+
+      expect(restored).toBe(true);
+      expect(mockCartRepo.save).toHaveBeenCalledWith(expect.objectContaining({
+        userId: 'u1',
+        items: [{ productId: 'p1', quantity: 1, name: 'Product 1', priceSnapshot: 1000, imageUrl: '' }]
+      }), expect.anything());
+    });
+
+    it('should not overwrite an active cart during rollback restore', async () => {
+      mockCartRepo.getByUserId.mockResolvedValue({
+        id: 'u1',
+        userId: 'u1',
+        items: [{ productId: 'p2', quantity: 1, name: 'Product 2', priceSnapshot: 2000, imageUrl: '' }],
+        updatedAt: new Date()
+      });
+
+      const restored = await cartService.restoreCartIfEmpty({
+        id: 'u1',
+        userId: 'u1',
+        items: [{ productId: 'p1', quantity: 1, name: 'Product 1', priceSnapshot: 1000, imageUrl: '' }],
+        updatedAt: new Date()
+      });
+
+      expect(restored).toBe(false);
+      expect(mockCartRepo.save).not.toHaveBeenCalled();
     });
   });
 });

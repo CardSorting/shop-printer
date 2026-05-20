@@ -28,8 +28,14 @@ export async function POST(request: Request) {
     // 1. Atomic Event Claim: Prevents duplicate processing while allowing retry of failed events
     const alreadyProcessed = await stripeService.tryProcessEvent(event.id, event.type);
     if (alreadyProcessed) {
-      logger.info(`Webhook event ${event.id} already processed or in progress. Skipping.`);
-      return Response.json({ received: true, duplicate: true });
+      const status = await stripeService.getEventStatus(event.id);
+      if (status === 'completed') {
+        logger.info(`Webhook event ${event.id} already processed. Skipping.`);
+        return Response.json({ received: true, duplicate: true });
+      }
+
+      logger.warn(`Webhook event ${event.id} is already being processed. Asking Stripe to retry instead of acknowledging early.`, { status });
+      return NextResponse.json({ received: false, retry: true }, { status: 503 });
     }
 
     // 2. Event Dispatch
@@ -44,6 +50,20 @@ export async function POST(request: Request) {
       case 'payment_intent.payment_failed': {
         const paymentIntent = event.data.object;
         logger.warn(`Processing payment_intent.payment_failed: ${paymentIntent.id}`);
+
+        const currentPaymentIntent = await stripeService.getPaymentIntent(paymentIntent.id);
+        if (currentPaymentIntent.status === 'succeeded') {
+          logger.warn(`Ignoring stale payment_intent.payment_failed for succeeded intent ${paymentIntent.id}; finalizing instead.`);
+          await services.orderService.finalizeOrderPayment(paymentIntent.id, currentPaymentIntent);
+          break;
+        }
+
+        if (!['requires_payment_method', 'canceled'].includes(currentPaymentIntent.status)) {
+          logger.info(`Payment intent ${paymentIntent.id} is not in a terminal failed state. Leaving order unchanged.`, {
+            status: currentPaymentIntent.status,
+          });
+          break;
+        }
         
         // Production Hardening: Dual-lookup with metadata fallback.
         // The PI→Order map write from create-payment-intent may not have committed yet

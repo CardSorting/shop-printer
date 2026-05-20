@@ -185,8 +185,8 @@ export function createApiClientServices() {
             getLogisticsInsights: (signal?: AbortSignal) => request<any>('/api/admin/logistics', { signal }),
         },
         orderService: {
-            finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
-            placeOrder: (userId: string, shippingAddress: Address, paymentMethodId?: string, idempotencyKey?: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
+            finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
+            placeOrder: (userId: string, shippingAddress: Address, paymentMethodId: string | undefined, idempotencyKey: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
             getOrders: (userId: string, options?: {
                 status?: OrderStatus | 'all';
                 query?: string;

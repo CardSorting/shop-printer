@@ -29,6 +29,7 @@ export interface CartContextValue {
 const CartContext = createContext<CartContextValue | null>(null);
 
 const GUEST_CART_KEY = 'DreamBees_guest_cart';
+const LEGACY_GUEST_CART_KEY = 'dreambees_guest_cart';
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -47,7 +48,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Helper to load guest cart from localStorage
   const getGuestCart = useCallback((): Cart | null => {
     if (typeof window === 'undefined') return null;
-    const saved = localStorage.getItem(GUEST_CART_KEY);
+    const saved = localStorage.getItem(GUEST_CART_KEY) ?? localStorage.getItem(LEGACY_GUEST_CART_KEY);
     if (!saved) return null;
     try {
       const parsed = JSON.parse(saved);
@@ -65,8 +66,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (typeof window === 'undefined') return;
     if (updatedCart) {
       localStorage.setItem(GUEST_CART_KEY, JSON.stringify(updatedCart));
+      localStorage.removeItem(LEGACY_GUEST_CART_KEY);
     } else {
       localStorage.removeItem(GUEST_CART_KEY);
+      localStorage.removeItem(LEGACY_GUEST_CART_KEY);
     }
   }, []);
 

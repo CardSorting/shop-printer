@@ -353,11 +353,29 @@ export class FirestoreOrderRepository implements IOrderRepository {
     // via getByPaymentTransactionIdTransactional.
     const operation = async (t: any) => {
       const orderRef = doc(db, this.collectionName, id);
+      const orderSnap = await t.get(orderRef);
+      if (!orderSnap.exists()) {
+        throw new Error(`Order ${id} not found`);
+      }
+
+      const existingOrderTx = orderSnap.data().paymentTransactionId;
+      if (existingOrderTx && existingOrderTx !== paymentTransactionId) {
+        throw new Error(`Order ${id} is already linked to payment transaction ${existingOrderTx}`);
+      }
+
+      const mapRef = doc(db, 'order_payment_intent_map', paymentTransactionId);
+      const mapSnap = await t.get(mapRef);
+      if (mapSnap.exists()) {
+        const { orderId } = mapSnap.data();
+        if (orderId !== id) {
+          throw new Error(`Payment transaction ${paymentTransactionId} is already linked to order ${orderId}`);
+        }
+      }
+
       t.update(orderRef, { 
         paymentTransactionId, 
         updatedAt: serverTimestamp() 
       });
-      const mapRef = doc(db, 'order_payment_intent_map', paymentTransactionId);
       t.set(mapRef, { orderId: id, createdAt: serverTimestamp() });
     };
 

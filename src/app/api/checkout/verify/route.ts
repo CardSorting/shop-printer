@@ -22,7 +22,20 @@ export async function GET(request: Request) {
     
     // 1. Fetch PI from Stripe for authoritative status
     const pi = await stripeService.getPaymentIntent(paymentIntentId);
-    const order = await services.orderRepo.getByPaymentTransactionId(paymentIntentId);
+    let order = await services.orderRepo.getByPaymentTransactionId(paymentIntentId);
+    if (!order && pi.metadata?.orderId) {
+      const fallbackOrder = await services.orderRepo.getById(pi.metadata.orderId);
+      if (fallbackOrder && (!fallbackOrder.paymentTransactionId || fallbackOrder.paymentTransactionId === paymentIntentId)) {
+        order = fallbackOrder;
+        if (!fallbackOrder.paymentTransactionId) {
+          await services.orderRepo.updatePaymentTransactionId(fallbackOrder.id, paymentIntentId);
+        }
+        logger.info('Resolved checkout verification via payment intent metadata fallback', {
+          paymentIntentId,
+          orderId: fallbackOrder.id,
+        });
+      }
+    }
     if (!order) throw new OrderNotFoundError(paymentIntentId);
     if (order.userId !== user.id) throw new UnauthorizedError();
     if (pi.metadata?.orderId && pi.metadata.orderId !== order.id) {

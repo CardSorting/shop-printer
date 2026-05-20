@@ -7,10 +7,12 @@ import {
     requireSessionUser, 
     parseShippingAddress, 
     optionalString,
-    parseIdempotencyKey
+    requireIdempotencyKey
 } from '@infrastructure/server/apiGuards';
 import { StripeService } from '@infrastructure/services/StripeService';
 import { logger } from '@utils/logger';
+import { DomainError } from '@domain/errors';
+import type { Cart, Order } from '@domain/models';
 
 /**
  * [LAYER: INTERFACE]
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
     
     const shippingAddress = parseShippingAddress(body.shippingAddress);
     const discountCode = optionalString(body.discountCode, 'discountCode');
-    const idempotencyKey = parseIdempotencyKey(body.idempotencyKey);
+    const idempotencyKey = requireIdempotencyKey(body.idempotencyKey);
     
     // 2. Initiate checkout (Deduct stock, create PENDING order)
     // Wrapped in a DB transaction inside the service
@@ -44,9 +46,34 @@ export async function POST(request: Request) {
     } catch (err) {
         return jsonError(err, 'Failed to reserve inventory for checkout');
     }
+    if (order.status !== 'pending') {
+        throw new DomainError(`Checkout reservation is no longer payable (status: ${order.status}). Please start a new checkout.`);
+    }
 
     // 3. Create Stripe Payment Intent
     const stripeService = new StripeService();
+    let createdPaymentIntentId: string | null = null;
+    if (order.paymentTransactionId) {
+        const existingPi = await stripeService.getPaymentIntent(order.paymentTransactionId);
+        if (existingPi.metadata?.orderId && existingPi.metadata.orderId !== order.id) {
+            throw new DomainError('Existing payment intent metadata does not match this checkout reservation.');
+        }
+        if (existingPi.amount !== order.total) {
+            throw new DomainError('Existing payment intent amount does not match this checkout reservation.');
+        }
+        if (!existingPi.client_secret) {
+            throw new DomainError('Existing payment intent cannot be resumed.');
+        }
+
+        return NextResponse.json({
+          clientSecret: existingPi.client_secret,
+          paymentIntentId: existingPi.id,
+          orderId: order.id,
+          amount: order.total,
+          resumed: true,
+        });
+    }
+
     try {
         const { clientSecret, id: paymentIntentId } = await stripeService.createPaymentIntent({
           amount: order.total,
@@ -61,6 +88,7 @@ export async function POST(request: Request) {
             fencingToken: order.metadata?.fencingToken?.toString() || '0'
           }
         });
+        createdPaymentIntentId = paymentIntentId;
 
         // 4. Update order with actual Payment Intent ID
         await services.orderRepo.updatePaymentTransactionId(order.id, paymentIntentId);
@@ -75,6 +103,12 @@ export async function POST(request: Request) {
         // FORENSIC ROLLBACK: If Stripe fails, we MUST cancel the order and restock immediately
         // to prevent inventory "hanging" in a pending state unnecessarily.
         logger.error(`CRITICAL: Stripe PI creation failed for order ${order.id}. Rolling back.`, stripeErr);
+
+        if (createdPaymentIntentId) {
+          await stripeService.cancelPaymentIntent(createdPaymentIntentId).catch(cancelErr => {
+            logger.error(`FATAL: Failed to cancel dangling Stripe PI ${createdPaymentIntentId} for rolled back order ${order.id}.`, cancelErr);
+          });
+        }
         
         await services.orderService.updateOrderStatus(order.id, 'cancelled', { 
             id: 'system', 
@@ -82,10 +116,44 @@ export async function POST(request: Request) {
         }).catch(rollbackErr => {
             logger.error(`FATAL: Rollback failed for order ${order.id}. Manual reconciliation required.`, rollbackErr);
         });
+        await restoreCartAfterUnpaidCheckoutFailure(services, order);
 
         throw stripeErr;
     }
   } catch (error) {
     return jsonError(error, 'Checkout initiation failed');
   }
+}
+
+async function restoreCartAfterUnpaidCheckoutFailure(services: Awaited<ReturnType<typeof getServerServices>>, order: Order): Promise<void> {
+    try {
+        const restoredCart: Cart = {
+            id: order.userId,
+            userId: order.userId,
+            items: order.items.map(item => ({
+                productId: item.productId,
+                variantId: item.variantId,
+                variantTitle: item.variantTitle,
+                productHandle: item.productHandle,
+                name: item.name,
+                priceSnapshot: item.unitPrice,
+                quantity: item.quantity,
+                imageUrl: item.imageUrl || '',
+                isDigital: item.isDigital,
+                shippingClassId: item.shippingClassId,
+            })),
+            note: order.customerNote,
+            updatedAt: new Date(),
+        };
+
+        const restored = await services.cartService.restoreCartIfEmpty(restoredCart);
+        if (!restored) {
+            logger.warn('Skipping checkout cart restore because user already has an active cart', {
+                userId: order.userId,
+                orderId: order.id,
+            });
+        }
+    } catch (restoreErr) {
+        logger.error(`FATAL: Failed to restore cart after unpaid checkout rollback for order ${order.id}.`, restoreErr);
+    }
 }

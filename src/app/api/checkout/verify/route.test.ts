@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getByPaymentTransactionId = vi.fn();
+const getById = vi.fn();
+const updatePaymentTransactionId = vi.fn();
 const finalizeOrderPayment = vi.fn();
 const getPaymentIntent = vi.fn();
 
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
-    orderRepo: { getByPaymentTransactionId },
+    orderRepo: { getByPaymentTransactionId, getById, updatePaymentTransactionId },
     orderService: { finalizeOrderPayment },
   })),
 }));
@@ -41,5 +43,21 @@ describe('checkout verify authorization', () => {
 
     expect(response.status).toBe(403);
     expect(finalizeOrderPayment).not.toHaveBeenCalled();
+  });
+
+  it('falls back to payment intent metadata when the payment map is not visible yet', async () => {
+    getByPaymentTransactionId.mockResolvedValue(null);
+    getById.mockResolvedValue({ id: 'o1', userId: 'user-1', paymentTransactionId: null });
+    updatePaymentTransactionId.mockResolvedValue(undefined);
+    finalizeOrderPayment.mockResolvedValue({ id: 'o1', status: 'processing' });
+    const { GET } = await import('./route');
+
+    const response = await GET(new Request('https://example.test/api/checkout/verify?payment_intent=pi_1'));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(updatePaymentTransactionId).toHaveBeenCalledWith('o1', 'pi_1');
+    expect(finalizeOrderPayment).toHaveBeenCalledWith('pi_1', { id: 'pi_1', status: 'succeeded', metadata: { orderId: 'o1' } });
   });
 });

@@ -9,7 +9,7 @@ import type {
   IShippingRepository,
 } from '@domain/repositories';
 import type { Address, Order, OrderStatus } from '@domain/models';
-import { CartEmptyError, CheckoutInProgressError, OrderNotFoundError, PaymentFailedError } from '@domain/errors';
+import { CartEmptyError, CheckoutInProgressError, DomainError, OrderNotFoundError, PaymentFailedError } from '@domain/errors';
 import {
   assertValidOrderItems,
   assertValidShippingAddress,
@@ -61,6 +61,9 @@ export class OrderCheckoutService {
       if (idempotencyKey) {
         const existing = await this.orderRepo.getByIdempotencyKey(idempotencyKey);
         if (existing) {
+          if (existing.userId !== userId) {
+            throw new DomainError('Checkout idempotency key is already associated with another user.');
+          }
           if (existing.status === 'pending' && existing.paymentTransactionId === null && paymentMethodId) {
             logger.info('Pending duplicate order without payment transaction found. Resuming payment flow.', { userId, idempotencyKey, orderId: existing.id });
             order = existing;
@@ -221,19 +224,14 @@ export class OrderCheckoutService {
 
       if (!paymentMethodId) return order;
 
+      let paymentResult: { success: boolean; transactionId: string | null };
       try {
-        const paymentResult = await this.payment.processPayment({
+        paymentResult = await this.payment.processPayment({
           amount: order.total,
           orderId: order.id,
           paymentMethodId,
           idempotencyKey: idempotencyKey || order.idempotencyKey || crypto.randomUUID()
         });
-
-        if (paymentResult.success && paymentResult.transactionId) {
-          await this.orderRepo.updateStatus(order.id, 'confirmed');
-          await this.orderRepo.updatePaymentTransactionId(order.id, paymentResult.transactionId);
-          return { ...order, status: 'confirmed' as OrderStatus, paymentTransactionId: paymentResult.transactionId };
-        }
       } catch (paymentErr: any) {
         logger.error('Payment processing failed, cancelling pending order and releasing stock', { userId, orderId: order.id, paymentErr });
         await this.orderRepo.updateStatus(order.id, 'cancelled').catch(err => {
@@ -270,10 +268,51 @@ export class OrderCheckoutService {
             await this.discountRepo.decrementUsage(discount.id).catch(err => {
               logger.error('FATAL: Failed to rollback discount usage', { discountId: discount.id, err });
             });
+            if (order.userId) {
+              await runTransaction(getUnifiedDb(), async (transaction: any) => {
+                await this.orderRepo.removeUserDiscountUsage(order.userId, order.discountCode!, transaction);
+              }).catch(err => {
+                logger.error('FATAL: Failed to rollback customer discount usage during checkout payment rollback', { orderId: order.id, err });
+              });
+            }
           }
         }
 
         throw paymentErr;
+      }
+
+      if (paymentResult.success && paymentResult.transactionId) {
+        try {
+          await this.orderRepo.updatePaymentTransactionId(order.id, paymentResult.transactionId);
+          const finalizedOrder = await this.finalizeOrderPayment(paymentResult.transactionId, {
+            id: paymentResult.transactionId,
+            status: 'succeeded',
+            metadata: {
+              orderId: order.id,
+              fencingToken: order.metadata?.fencingToken?.toString() || '0',
+              correlationId: idempotencyKey || order.idempotencyKey || paymentResult.transactionId,
+            },
+            charges: { data: [] },
+          });
+          return finalizedOrder;
+        } catch (finalizationErr) {
+          logger.error('Payment succeeded but order finalization failed; marking for reconciliation', {
+            userId,
+            orderId: order.id,
+            transactionId: paymentResult.transactionId,
+            finalizationErr
+          });
+          await this.orderRepo.updateStatus(order.id, 'reconciling').catch(err => {
+            logger.error('FATAL: Failed to mark paid order for reconciliation after finalization failure', { orderId: order.id, err });
+          });
+          await this.orderRepo.markForReconciliation(order.id, [
+            `Payment ${paymentResult.transactionId} succeeded but order finalization failed.`,
+            finalizationErr instanceof Error ? finalizationErr.message : 'Unknown finalization error'
+          ]).catch(err => {
+            logger.error('FATAL: Failed to write reconciliation note after finalization failure', { orderId: order.id, err });
+          });
+          throw finalizationErr;
+        }
       }
 
       return order;
@@ -292,6 +331,8 @@ export class OrderCheckoutService {
     }
 
     try {
+      const terminalPaymentConflict: { current: { orderId: string; previousStatus: OrderStatus } | null } = { current: null };
+      const fencingTokenConflict: { current: { orderId: string; expectedToken: number; currentToken: number } | null } = { current: null };
       const finalizedOrder = await runTransaction(db, async (transaction: any) => {
         let order = await this.orderRepo.getByPaymentTransactionIdTransactional(paymentIntentId, transaction);
         
@@ -322,6 +363,28 @@ export class OrderCheckoutService {
         }
 
         if (order.status !== 'pending') {
+          if (stripePi?.status === 'succeeded' && (order.status === 'cancelled' || order.status === 'refunded')) {
+            terminalPaymentConflict.current = { orderId: order.id, previousStatus: order.status };
+            logger.error('Payment succeeded for terminal order. Moving order to reconciliation.', {
+              orderId: order.id,
+              status: order.status,
+              paymentIntentId
+            });
+            await this.orderRepo.updateStatus(order.id, 'reconciling', transaction);
+            await this.audit.recordWithTransaction(transaction, {
+              userId: 'system',
+              userEmail: 'stripe-webhook@dreambees.art',
+              action: 'payment_received_on_cancelled_order',
+              targetId: order.id,
+              details: {
+                previousStatus: order.status,
+                paymentIntentId,
+                metadataOrderId: stripePi?.metadata?.orderId
+              },
+              correlationId: paymentIntentId
+            });
+            return { ...order, status: 'reconciling' as OrderStatus, reconciliationRequired: true };
+          }
           logger.info('Order already finalized, returning existing state', { orderId: order.id, status: order.status });
           return order;
         }
@@ -329,13 +392,23 @@ export class OrderCheckoutService {
         const expectedToken = Number(stripePi?.metadata?.fencingToken || 0);
         const currentToken = Number(order.metadata?.fencingToken || 0);
         if (expectedToken !== currentToken) {
+          fencingTokenConflict.current = { orderId: order.id, expectedToken, currentToken };
           logger.warn('Fencing token mismatch detected', { orderId: order.id, expectedToken, currentToken });
           await this.orderRepo.updateStatus(order.id, 'reconciling', transaction);
-          await this.orderRepo.markForReconciliation(order.id, [
-            `Fencing token mismatch: Stripe PI token ${expectedToken} does not match Order token ${currentToken}.`,
-            'This suggests a race condition or manual intervention superseded the checkout lease.'
-          ]);
-          return order;
+          await this.audit.recordWithTransaction(transaction, {
+            userId: 'system',
+            userEmail: 'stripe-webhook@dreambees.art',
+            action: 'checkout_reconciliation_required',
+            targetId: order.id,
+            details: {
+              reason: 'fencing_token_mismatch',
+              paymentIntentId,
+              expectedToken,
+              currentToken
+            },
+            correlationId: paymentIntentId
+          });
+          return { ...order, status: 'reconciling' as OrderStatus, reconciliationRequired: true };
         }
 
         const riskScore = stripePi?.charges?.data?.[0]?.outcome?.risk_score || 0;
@@ -390,6 +463,32 @@ export class OrderCheckoutService {
 
         return { ...order, status: nextStatus, riskScore };
       });
+
+      if (terminalPaymentConflict.current) {
+        const conflict = terminalPaymentConflict.current;
+        await this.orderRepo.markForReconciliation(conflict.orderId, [
+          `Payment ${paymentIntentId} succeeded after order had already reached terminal status ${conflict.previousStatus}.`,
+          'Manual review is required before fulfillment, refund, or inventory action.'
+        ]).catch(err => {
+          logger.error('FATAL: Failed to mark terminal paid order for reconciliation', {
+            orderId: conflict.orderId,
+            err
+          });
+        });
+      }
+
+      if (fencingTokenConflict.current) {
+        const conflict = fencingTokenConflict.current;
+        await this.orderRepo.markForReconciliation(conflict.orderId, [
+          `Fencing token mismatch: Stripe PI token ${conflict.expectedToken} does not match Order token ${conflict.currentToken}.`,
+          'This suggests a race condition or manual intervention superseded the checkout lease.'
+        ]).catch(err => {
+          logger.error('FATAL: Failed to mark fencing-token conflict for reconciliation', {
+            orderId: conflict.orderId,
+            err
+          });
+        });
+      }
 
       logger.info(`[OrderService] Payment finalized for order ${finalizedOrder.id}`);
       return finalizedOrder;

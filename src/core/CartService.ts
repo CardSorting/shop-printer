@@ -83,6 +83,18 @@ export class CartService {
       const cart = await this.cartRepo.getByUserId(userId, transaction);
       const items = cart?.items ?? [];
 
+      if (quantity === 0) {
+        const updatedCart: Cart = {
+          id: userId,
+          userId,
+          items: removeCartItem(items, productId, variantId),
+          updatedAt: new Date(),
+        };
+
+        await this.cartRepo.save(updatedCart, transaction);
+        return updatedCart;
+      }
+
       // Transactional product read
       const product = await this.productRepo.getById(productId, transaction);
       if (!product) throw new ProductNotFoundError(productId);
@@ -103,6 +115,16 @@ export class CartService {
 
   async clearCart(userId: string): Promise<void> {
     await this.cartRepo.clear(userId);
+  }
+
+  async restoreCartIfEmpty(cart: Cart): Promise<boolean> {
+    return await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const existingCart = await this.cartRepo.getByUserId(cart.userId, transaction);
+      if (existingCart && existingCart.items.length > 0) return false;
+
+      await this.cartRepo.save({ ...cart, updatedAt: new Date() }, transaction);
+      return true;
+    });
   }
   
   async updateNote(userId: string, note: string): Promise<Cart> {

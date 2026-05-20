@@ -534,16 +534,22 @@ export function parseIdempotencyKey(value: unknown): string | undefined {
     return trimmed;
 }
 
+export function requireIdempotencyKey(value: unknown): string {
+    const key = parseIdempotencyKey(value);
+    if (!key) throw new DomainError('idempotencyKey is required.');
+    return key;
+}
+
 export function parseCheckoutRequest(body: Record<string, unknown>): { 
     shippingAddress: Address; 
     paymentMethodId: string; 
-    idempotencyKey?: string;
+    idempotencyKey: string;
     discountCode?: string;
 } {
     return {
         shippingAddress: parseShippingAddress(body.shippingAddress),
         paymentMethodId: requireString(body.paymentMethodId, 'paymentMethodId'),
-        idempotencyKey: parseIdempotencyKey(body.idempotencyKey),
+        idempotencyKey: requireIdempotencyKey(body.idempotencyKey),
         discountCode: optionalString(body.discountCode, 'discountCode'),
     };
 }
