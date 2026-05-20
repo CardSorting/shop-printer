@@ -209,6 +209,7 @@ export type OperationalPlanStatus =
   | 'approved'
   | 'executing'
   | 'executed'
+  | 'partially_executed'
   | 'rejected'
   | 'failed';
 

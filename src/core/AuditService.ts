@@ -38,7 +38,7 @@ export type AuditAction =
   | 'product_type_created' | 'product_type_updated' | 'product_type_deleted'
   | 'wishlist_created' | 'wishlist_updated' | 'wishlist_deleted'
   | 'settings_updated'
-  | 'ops_plan_generated' | 'ops_plan_executed' | 'merchandising_review_triggered'
+  | 'ops_plan_generated' | 'ops_plan_executed' | 'merchandising_review_triggered' | 'setup_review_recorded'
   | 'concierge_analyzed' | 'concierge_escalated'
   | 'security_alert'
   | 'ticket_updated' | 'ticket_status_changed' | 'ticket_batch_updated'

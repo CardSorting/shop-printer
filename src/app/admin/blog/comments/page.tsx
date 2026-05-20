@@ -1,34 +1,32 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { useServices } from '@ui/hooks/useServices';
 
 import { 
   MessageSquare, Check, X, Trash2, 
-  User, Calendar, ExternalLink, ShieldCheck,
-  AlertTriangle, Loader2, Search
+  User, Calendar, ShieldCheck,
+  AlertTriangle, Loader2
 } from 'lucide-react';
-import Link from 'next/link';
 import Image from 'next/image';
 import { sanitizeImageUrl } from '@utils/sanitizer';
 import type { BlogComment } from '@domain/models';
 
 export default function CommentModerationPage() {
-  const services = useServices();
   const [comments, setComments] = useState<BlogComment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'published' | 'spam'>('all');
 
   useEffect(() => {
     async function loadComments() {
       try {
-        // Since we don't have a getRecentComments across all posts, 
-        // we'll either need to add it or fetch all posts and then their comments.
-        // For production, I'll add getRecentComments to the repository.
         const response = await fetch('/api/admin/blog/comments');
+        if (!response.ok) throw new Error(`Failed to load comments (${response.status})`);
         const data = await response.json();
         setComments(data);
+        setError(null);
       } catch (err) {
         console.error('Failed to load comments', err);
+        setError(err instanceof Error ? err.message : 'Failed to load comments');
       } finally {
         setLoading(false);
       }
@@ -40,21 +38,29 @@ export default function CommentModerationPage() {
     try {
       await fetch(`/api/admin/blog/comments/${commentId}/status`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
+      }).then((response) => {
+        if (!response.ok) throw new Error(`Failed to update status (${response.status})`);
       });
       setComments(comments.map(c => c.id === commentId ? { ...c, status } : c));
+      setError(null);
     } catch (err) {
       console.error('Failed to update status', err);
+      setError(err instanceof Error ? err.message : 'Failed to update status');
     }
   };
 
   const handleDelete = async (commentId: string) => {
     if (!confirm('Are you sure you want to delete this comment?')) return;
     try {
-      await fetch(`/api/admin/blog/comments/${commentId}`, { method: 'DELETE' });
+      const response = await fetch(`/api/admin/blog/comments/${commentId}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error(`Failed to delete comment (${response.status})`);
       setComments(comments.filter(c => c.id !== commentId));
+      setError(null);
     } catch (err) {
       console.error('Failed to delete comment', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete comment');
     }
   };
 
@@ -69,6 +75,12 @@ export default function CommentModerationPage() {
         </h1>
         <p className="text-gray-500 font-medium mt-2">Manage reader engagement and keep your community safe.</p>
       </div>
+
+      {error && (
+        <div className="rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm font-bold text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

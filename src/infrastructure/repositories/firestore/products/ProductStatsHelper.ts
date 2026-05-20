@@ -1,5 +1,5 @@
 import { Product, ProductDraft, ProductStatus, ProductSetupIssue, MarginHealth } from '@domain/models';
-import { calculateGrossMarginPercent } from '@domain/rules';
+import { calculateGrossMarginPercent, getProductSetupIssues } from '@domain/rules';
 import { Timestamp, serverTimestamp, increment, Transaction, doc, getUnifiedDb, setDoc, getDoc, getDocs, collection } from '../../../firebase/bridge';
 import { logger } from '@utils/logger';
 
@@ -10,6 +10,7 @@ export interface ProductStats {
   lowStockCount: number;
   outOfStockCount: number;
   statusCounts: Record<ProductStatus, number>;
+  setupIssueCounts: Record<ProductSetupIssue, number>;
   marginHealthCounts: Record<MarginHealth, number>;
   totalMarginPercent: number;
   productWithMarginCount: number;
@@ -34,6 +35,9 @@ export function getProductStatsDeltas(oldProduct: Product | null, newProduct: Pr
     deltas['inventoryValue'] = -((oldProduct.stock || 0) * (oldProduct.price || 0));
     deltas[`statusCounts.${oldProduct.status}`] = -1;
     deltas[`marginHealthCounts.${(oldProduct as any).marginHealth || 'unknown'}`] = -1;
+    getProductSetupIssues(oldProduct).forEach((issue) => {
+      deltas[`setupIssueCounts.${issue}`] = (deltas[`setupIssueCounts.${issue}`] || 0) - 1;
+    });
     
     const health = getStockHealth(oldProduct.stock);
     if (health === 'low') deltas['lowStockCount'] = -1;
@@ -51,6 +55,9 @@ export function getProductStatsDeltas(oldProduct: Product | null, newProduct: Pr
     deltas['inventoryValue'] = (newProduct.stock || 0) * (newProduct.price || 0);
     deltas[`statusCounts.${newProduct.status}`] = 1;
     deltas[`marginHealthCounts.${(newProduct as any).marginHealth || 'unknown'}`] = 1;
+    getProductSetupIssues(newProduct).forEach((issue) => {
+      deltas[`setupIssueCounts.${issue}`] = (deltas[`setupIssueCounts.${issue}`] || 0) + 1;
+    });
     
     const health = getStockHealth(newProduct.stock);
     if (health === 'low') deltas['lowStockCount'] = 1;
@@ -79,6 +86,19 @@ export function getProductStatsDeltas(oldProduct: Product | null, newProduct: Pr
       deltas[`marginHealthCounts.${(oldProduct as any).marginHealth || 'unknown'}`] = (deltas[`marginHealthCounts.${(oldProduct as any).marginHealth || 'unknown'}`] || 0) - 1;
       deltas[`marginHealthCounts.${(newProduct as any).marginHealth || 'unknown'}`] = (deltas[`marginHealthCounts.${(newProduct as any).marginHealth || 'unknown'}`] || 0) + 1;
     }
+
+    const oldIssues = new Set(getProductSetupIssues(oldProduct));
+    const newIssues = new Set(getProductSetupIssues(newProduct));
+    oldIssues.forEach((issue) => {
+      if (!newIssues.has(issue)) {
+        deltas[`setupIssueCounts.${issue}`] = (deltas[`setupIssueCounts.${issue}`] || 0) - 1;
+      }
+    });
+    newIssues.forEach((issue) => {
+      if (!oldIssues.has(issue)) {
+        deltas[`setupIssueCounts.${issue}`] = (deltas[`setupIssueCounts.${issue}`] || 0) + 1;
+      }
+    });
     
     const oldHealth = getStockHealth(oldProduct.stock);
     const newHealth = getStockHealth(newProduct.stock);
@@ -135,6 +155,15 @@ export async function initializeProductStats(collectionName: string, mapFn: (id:
     lowStockCount: 0,
     outOfStockCount: 0,
     statusCounts: { active: 0, draft: 0, archived: 0 },
+    setupIssueCounts: {
+      missing_image: 0,
+      missing_sku: 0,
+      missing_price: 0,
+      missing_cost: 0,
+      missing_stock: 0,
+      missing_category: 0,
+      not_published: 0,
+    },
     marginHealthCounts: { unknown: 0, at_risk: 0, healthy: 0, premium: 0 },
     totalMarginPercent: 0,
     productWithMarginCount: 0,
@@ -153,6 +182,9 @@ export async function initializeProductStats(collectionName: string, mapFn: (id:
     else if (product.stock < 10) stats.lowStockCount++;
 
     stats.statusCounts[product.status] = (stats.statusCounts[product.status] || 0) + 1;
+    getProductSetupIssues(product).forEach((issue) => {
+      stats.setupIssueCounts[issue] = (stats.setupIssueCounts[issue] || 0) + 1;
+    });
     
     const marginHealth = (product.marginHealth || 'unknown') as MarginHealth;
     stats.marginHealthCounts[marginHealth] = (stats.marginHealthCounts[marginHealth] || 0) + 1;

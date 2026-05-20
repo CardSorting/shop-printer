@@ -81,6 +81,9 @@ export class ProductService {
     category?: string;
     collection?: string;
     query?: string;
+    status?: ProductStatus | 'all';
+    inventoryHealth?: 'out_of_stock' | 'low_stock' | 'healthy' | 'all';
+    setupStatus?: 'ready' | 'needs_attention' | 'all';
     limit?: number;
     cursor?: string;
   }): Promise<{ products: Product[]; nextCursor?: string }> {
@@ -133,19 +136,12 @@ export class ProductService {
     });
 
     const enriched = products.map((product: Product) => this.enrichProductForManagement(product));
+    const setupIssueCounts = stats.setupIssueCounts ?? await this.computeSetupIssueCounts();
 
     return {
       totalProducts: stats.totalProducts,
       statusCounts: stats.statusCounts,
-      setupIssueCounts: {
-        missing_image: stats.statusCounts.active, // Approximation or we can add more specific counters
-        missing_sku: 0,
-        missing_price: 0,
-        missing_cost: 0,
-        missing_stock: 0,
-        missing_category: 0,
-        not_published: stats.statusCounts.draft || 0,
-      },
+      setupIssueCounts,
       marginHealthCounts: stats.marginHealthCounts,
       lowStockCount: stats.lowStockCount,
       outOfStockCount: stats.outOfStockCount,
@@ -204,6 +200,25 @@ export class ProductService {
       grossMarginPercent,
       inventoryHealth: classifyInventoryHealth(product.stock),
     };
+  }
+
+  private async computeSetupIssueCounts(): Promise<Record<ProductSetupIssue, number>> {
+    const counts: Record<ProductSetupIssue, number> = {
+      missing_image: 0,
+      missing_sku: 0,
+      missing_price: 0,
+      missing_cost: 0,
+      missing_stock: 0,
+      missing_category: 0,
+      not_published: 0,
+    };
+    const { products } = await this.repo.getAll({ status: 'all', limit: 1000 });
+    products.forEach((product) => {
+      getProductSetupIssues(product).forEach((issue) => {
+        counts[issue] += 1;
+      });
+    });
+    return counts;
   }
 
   private matchesSavedView(product: ProductManagementProduct, view: ProductSavedView): boolean {
@@ -494,9 +509,7 @@ export class ProductService {
     const { products } = await this.repo.getAll({ limit: 1000 });
     const anomalies: any[] = [];
 
-    // 2. In a real industrialized app, we would fetch ALL orders and aggregate deductions.
-    // For this pass, we demonstrate the logic by checking for negative stock or 
-    // inconsistencies between base product and variants.
+    // Cross-check product-level stock against variant totals and impossible negative values.
     for (const product of products) {
       if (product.hasVariants && product.variants) {
         const variantTotal = product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);

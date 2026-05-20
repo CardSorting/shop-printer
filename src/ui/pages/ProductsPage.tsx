@@ -162,7 +162,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
         }
       } catch (err: any) {
         if (err.name === 'AbortError') return;
-        console.error('Failed to load categories', err);
+        logger.error('Failed to load categories', err);
       }
     };
     void loadCategories();
@@ -190,7 +190,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
       if (!controller.signal.aborted) {
         let filtered = result.products;
         
-        // Client-side filtering simulation (Industrial Robustness)
+        // Apply refinements that are not covered by the current indexed catalog query.
         if (selectedConditions.length > 0) {
           filtered = filtered.filter(p => selectedConditions.includes(String(p.metafields?.condition || 'New')));
         }

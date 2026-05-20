@@ -76,7 +76,9 @@ function reviveDates(value: unknown): unknown {
 export function createApiClientServices() {
     return {
         logger: {
-            log: (...args: any[]) => console.log('[UI]', ...args),
+            log: (...args: any[]) => {
+                if (process.env.NODE_ENV === 'development') console.debug('[UI]', ...args);
+            },
             error: (...args: any[]) => console.error('[UI]', ...args),
             warn: (...args: any[]) => console.warn('[UI]', ...args),
         },

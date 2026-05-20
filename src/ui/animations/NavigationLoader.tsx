@@ -15,16 +15,40 @@ export function NavigationLoader() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // When pathname or searchParams change, we've arrived at the new page
-    setLoading(false);
+    const timeout = window.setTimeout(() => setLoading(false), 120);
+    return () => window.clearTimeout(timeout);
   }, [pathname, searchParams]);
 
-  // We can't easily hook into the START of a transition in Next.js App Router 
-  // without wrapping the Link component, but we can detect the change.
-  // To make it truly immediate, we'd need a global state or a custom Link.
-  
-  // However, we can use the 'honey-wipe' effect or a simple progress bar
-  // that shows up when the page is actually transitioning.
-  
-  return null; // For now, we'll rely on the improved page transitions.
+  useEffect(() => {
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target.closest('a[href]') : null;
+      if (!(target instanceof HTMLAnchorElement)) return;
+      if (target.target && target.target !== '_self') return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.defaultPrevented) return;
+
+      const nextUrl = new URL(target.href, window.location.href);
+      if (nextUrl.origin !== window.location.origin) return;
+      if (`${nextUrl.pathname}${nextUrl.search}` === `${window.location.pathname}${window.location.search}`) return;
+
+      setLoading(true);
+    };
+
+    window.addEventListener('click', handleClick, true);
+    return () => window.removeEventListener('click', handleClick, true);
+  }, []);
+
+  return (
+    <AnimatePresence>
+      {loading && (
+        <motion.div
+          aria-hidden="true"
+          className="fixed left-0 right-0 top-0 z-[1000] h-1 origin-left bg-primary-500 shadow-[0_0_18px_rgba(245,158,11,0.45)]"
+          initial={{ scaleX: 0, opacity: 0 }}
+          animate={{ scaleX: 0.82, opacity: 1 }}
+          exit={{ scaleX: 1, opacity: 0 }}
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+        />
+      )}
+    </AnimatePresence>
+  );
 }

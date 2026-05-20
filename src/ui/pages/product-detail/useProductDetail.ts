@@ -110,15 +110,6 @@ export function useProductDetail(initialProduct?: Product | null) {
   // --- Data Loading ---
   const loadProduct = useCallback(async () => {
     if (!handle || initialProduct) {
-      if (initialProduct) {
-        console.log('[PDP] Using initialProduct:', {
-          id: initialProduct.id,
-          handle: initialProduct.handle,
-          imageUrl: initialProduct.imageUrl,
-          mediaCount: initialProduct.media?.length,
-          variantCount: initialProduct.variants?.length
-        });
-      }
       return;
     }
     
@@ -146,14 +137,6 @@ export function useProductDetail(initialProduct?: Product | null) {
       }
 
       if (!controller.signal.aborted && loaded) {
-        console.log('[PDP] Loaded product data:', {
-          id: loaded.id,
-          handle: loaded.handle,
-          imageUrl: loaded.imageUrl,
-          media: loaded.media?.map(m => m.url),
-          variants: loaded.variants?.map(v => v.imageUrl)
-        });
-
         // 3. CANONICAL REDIRECT: If the current URL handle is actually an ID, 
         // or if it's an old handle, redirect to the official handle.
         if (loaded.handle && handle !== loaded.handle) {

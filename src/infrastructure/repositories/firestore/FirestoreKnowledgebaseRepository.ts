@@ -378,7 +378,7 @@ export class FirestoreKnowledgebaseRepository {
   }
 
 
-  async updateCommentStatus(commentId: string, status: 'approved' | 'pending' | 'spam'): Promise<void> {
+  async updateCommentStatus(commentId: string, status: 'pending' | 'published' | 'spam'): Promise<void> {
     await updateDoc(doc(getUnifiedDb(), this.commentCollection, commentId), { 
       status, 
       updatedAt: serverTimestamp() 

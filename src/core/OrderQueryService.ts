@@ -228,4 +228,17 @@ export class OrderQueryService {
       } as any);
     }
   }
+
+  async addInternalNotes(orderIds: string[], text: string, actor: { id: string; email: string }): Promise<void> {
+    const normalizedText = text.trim();
+    if (!normalizedText) throw new Error('Internal note text is required.');
+
+    await Promise.all(orderIds.map((orderId) => this.orderRepo.addNote(orderId, {
+      id: crypto.randomUUID(),
+      authorId: actor.id,
+      authorEmail: actor.email,
+      text: normalizedText,
+      createdAt: new Date(),
+    })));
+  }
 }

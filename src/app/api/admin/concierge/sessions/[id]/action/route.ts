@@ -12,7 +12,7 @@ export async function POST(
     const { id: sessionId } = await params;
     const body = await req.json();
     const { action, payload } = body;
-    const operator = user.email;
+    const operator = user.displayName || user.email;
 
     const db = getUnifiedDb();
     const sessionRef = doc(db, 'conciergeSessions', sessionId);
@@ -72,9 +72,20 @@ export async function POST(
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    // Always add an event to the activity feed
+    const eventType = action === 'assign'
+      ? 'assigned'
+      : action === 'snooze'
+        ? 'reminder_set'
+        : action === 'add_note'
+          ? 'note_added'
+          : action === 'track_outcome'
+            ? 'outcome_tracked'
+            : action === 'accept_suggestion' || action === 'dismiss_suggestion'
+              ? 'outcome_tracked'
+            : action;
+
     updates.events = arrayUnion({
-      type: action === 'add_note' ? 'note_added' : action,
+      type: eventType,
       timestamp: new Date().toISOString(),
       label: eventLabel,
       description: eventDescription,

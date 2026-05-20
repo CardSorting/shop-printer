@@ -62,6 +62,7 @@ import {
   useAdminPageTitle, 
   useToast 
 } from '../../components/admin/AdminComponents';
+import { useAuth } from '../../hooks/useAuth';
 
 interface Suggestion {
   action: string;
@@ -122,6 +123,7 @@ interface ConciergeSession {
 export function AdminConciergeInsights() {
   useAdminPageTitle('Support Desk');
   const { toast } = useToast();
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<ConciergeSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -149,6 +151,7 @@ export function AdminConciergeInsights() {
   const [isCreatingLifecycle, setIsCreatingLifecycle] = useState(false);
   const [strategyAction, setStrategyAction] = useState<string | null>(null);
   const [optimizationReport, setOptimizationReport] = useState<any>(null);
+  const currentOperatorLabel = user?.displayName || user?.email || 'Current admin';
 
   const fetchSessions = async () => {
     setIsLoading(true);
@@ -187,7 +190,6 @@ export function AdminConciergeInsights() {
         body: JSON.stringify({ 
           action, 
           payload,
-          operator: 'Me' // In a real app, this would be the logged-in admin name
         })
       });
       if (!res.ok) throw new Error('Action failed');
@@ -386,7 +388,7 @@ export function AdminConciergeInsights() {
   const filteredSessions = sessions.filter(s => {
     if (filter === 'all') return true;
     if (filter === 'needs_attention') return s.escalationNeeded && s.status !== 'resolved';
-    if (filter === 'assigned_to_me') return s.assignedOperator === 'Me' && s.status !== 'resolved';
+    if (filter === 'assigned_to_me') return s.assignedOperator === currentOperatorLabel && s.status !== 'resolved';
     if (filter === 'snoozed') return s.isSnoozed;
     return true;
   });
@@ -564,7 +566,7 @@ export function AdminConciergeInsights() {
                        </button>
                        <div className="w-px h-4 self-center bg-gray-200" />
                        <button 
-                         onClick={() => handleSessionAction('assign', { operatorName: 'Team Lead' })}
+                         onClick={() => handleSessionAction('assign', { operatorName: currentOperatorLabel })}
                          className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
                        >
                          Assign

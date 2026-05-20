@@ -334,7 +334,7 @@ export interface IKnowledgebaseRepository {
   getAllComments(): Promise<import('./models').BlogComment[]>;
   addComment(comment: Omit<import('./models').BlogComment, 'id' | 'createdAt' | 'updatedAt' | 'likes'>): Promise<import('./models').BlogComment>;
 
-  updateCommentStatus(commentId: string, status: 'pending' | 'spam' | 'approved'): Promise<void>;
+  updateCommentStatus(commentId: string, status: 'pending' | 'published' | 'spam'): Promise<void>;
   deleteComment(commentId: string): Promise<void>;
 
   // CRM & Analytics

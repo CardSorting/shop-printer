@@ -1416,6 +1416,7 @@ export interface ProductStats {
   lowStockCount: number;
   outOfStockCount: number;
   statusCounts: Record<ProductStatus, number>;
+  setupIssueCounts: Record<ProductSetupIssue, number>;
   marginHealthCounts: Record<MarginHealth, number>;
   totalMarginPercent: number; // Sum for average calculation
   productWithMarginCount: number;

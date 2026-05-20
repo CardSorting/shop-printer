@@ -2,7 +2,7 @@
  * [LAYER: CORE]
  * Business operations compiler runtime.
  */
-import type { OperationalActor, OperationalIntentType, OperationalPlan, OperationalStateSnapshot } from '@domain/ops/types';
+import type { OperationalActor, OperationalIntentType, OperationalPlan, OperationalPlanStatus, OperationalStateSnapshot } from '@domain/ops/types';
 import { buildDefaultDesiredState, OPERATIONAL_INTENT_CARDS } from '@domain/ops/intents';
 import type { ProductService } from './ProductService';
 import type { OrderQueryService } from './OrderQueryService';
@@ -72,10 +72,21 @@ export class OperationsRuntimeService {
       }
     }
 
+    const executedCount = executedOperations.filter(op => op.status === 'executed').length;
+    const failedCount = executedOperations.filter(op => op.status === 'failed').length;
+    const terminalCount = executedCount + failedCount;
+    const nextStatus: OperationalPlanStatus = terminalCount === executedOperations.length
+      ? failedCount === 0
+        ? 'executed'
+        : executedCount === 0
+          ? 'failed'
+          : 'partially_executed'
+      : 'executing';
+
     const updatedPlan = {
       ...plan,
       proposedOperations: executedOperations,
-      status: executedOperations.every(op => op.status === 'executed' || op.status === 'failed') ? 'completed' : 'partially_executed' as any,
+      status: nextStatus,
       executedAt: new Date(),
     };
 
@@ -87,7 +98,8 @@ export class OperationsRuntimeService {
       details: {
         status: updatedPlan.status,
         totalOperations: executedOperations.length,
-        executedCount: executedOperations.filter(o => o.status === 'executed').length,
+        executedCount,
+        failedCount,
       }
     });
 
@@ -96,11 +108,17 @@ export class OperationsRuntimeService {
 
   private async executeTool(toolId: string, input: any, actor: OperationalActor) {
     switch (toolId) {
+      case 'product.batch_update_inventory':
+        return this.productService.batchUpdateInventory(this.parseInventoryUpdates(input), {
+          id: actor.userId,
+          email: actor.email,
+        });
+
       case 'purchase_order.draft':
         return this.purchaseOrderService.createDraft({
           supplier: 'Pending Selection',
           referenceNumber: `OPS-${Date.now().toString().slice(-6)}`,
-          items: input.products.map((p: any) => ({
+          items: this.parseProducts(input).map((p: any) => ({
             productId: p.productId,
             sku: 'PENDING',
             productName: p.name,
@@ -111,15 +129,19 @@ export class OperationsRuntimeService {
           }))
         });
 
-      case 'discount.draft':
+      case 'discount.draft': {
+        const discountProductIds = await this.selectDiscountProductIds(input);
+        if (discountProductIds.length === 0) {
+          throw new Error('No active, in-stock, margin-known products are eligible for this discount draft.');
+        }
         return this.settingsService.createDiscountDraft({
           code: `WEEKEND-${Date.now().toString().slice(-4)}`,
           type: 'percentage',
-          value: input.percentOff,
+          value: this.parsePercent(input.percentOff),
           status: 'scheduled',
           isAutomatic: false,
           selectionType: 'specific_products',
-          selectedProductIds: [], // Would be filtered based on logic in real app
+          selectedProductIds: discountProductIds,
           selectedCollectionIds: [],
           minimumRequirementType: 'none',
           minimumAmount: null,
@@ -133,29 +155,105 @@ export class OperationsRuntimeService {
           startsAt: new Date(),
           endsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
         });
+      }
 
-      case 'product.update_listing_quality':
-        // This tool performs a bulk 'touch' to re-verify metadata and health
-        const productIds = input.products.map((p: any) => p.id);
+      case 'product.update_listing_quality': {
+        const productIds = this.parseProducts(input).map((p: any) => p.id);
         return this.productService.batchReverify(productIds);
+      }
 
       case 'order.prioritize_fulfillment':
-        // Moves orders from 'pending' to 'processing' or adds a high-priority tag
         return this.orderQueryService.prioritizeFulfillmentQueue();
 
+      case 'order.add_internal_note':
+        return this.orderQueryService.addInternalNotes(this.parseOrderIds(input), this.parseNote(input), {
+          id: actor.userId,
+          email: actor.email,
+        });
+
       case 'storefront.draft_featured_collection':
-        // In v1 this just adds a task for the merchant to review the homepage
+        return this.settingsService.updateSetting('storefront_featured_collection_draft', {
+          id: crypto.randomUUID(),
+          status: 'draft',
+          source: 'operations_runtime',
+          maxItems: this.parsePositiveInteger(input.maxItems, 4),
+          excludedProductIds: this.parseStringArray(input.excludeProductIds),
+          createdAt: new Date().toISOString(),
+          reason: 'Stock-aware merchandising update suggested',
+        }, {
+          id: actor.userId,
+          email: actor.email,
+        });
+
+      case 'settings.review_setup':
         return this.auditService.record({
           userId: actor.userId,
           userEmail: actor.email,
-          action: 'merchandising_review_triggered',
-          targetId: 'homepage',
-          details: { reason: 'Stock-aware merchandising update suggested', suggestedExclusions: input.excludeProductIds }
+          action: 'setup_review_recorded',
+          targetId: 'setup_progress',
+          details: input,
         });
 
       default:
-        throw new Error(`Tool ${toolId} not implemented in runtime.`);
+        throw new Error(`Unsupported operations tool: ${toolId}`);
     }
+  }
+
+  private parseProducts(input: any): any[] {
+    if (!Array.isArray(input?.products)) throw new Error('Operation input must include a products array.');
+    return input.products;
+  }
+
+  private parseStringArray(value: unknown): string[] {
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0) : [];
+  }
+
+  private parseOrderIds(input: any): string[] {
+    const ids = this.parseStringArray(input?.orderIds);
+    if (ids.length === 0) throw new Error('Operation input must include at least one order id.');
+    return ids;
+  }
+
+  private parseNote(input: any): string {
+    if (typeof input?.note !== 'string' || !input.note.trim()) throw new Error('Operation input must include a note.');
+    return input.note;
+  }
+
+  private parsePercent(value: unknown): number {
+    const percent = Number(value);
+    if (!Number.isFinite(percent) || percent <= 0 || percent > 100) throw new Error('Discount percent must be between 1 and 100.');
+    return percent;
+  }
+
+  private parsePositiveInteger(value: unknown, fallback: number): number {
+    const next = Number(value);
+    return Number.isInteger(next) && next > 0 ? next : fallback;
+  }
+
+  private parseInventoryUpdates(input: any): { id: string; variantId?: string; stock: number }[] {
+    if (!Array.isArray(input?.updates)) throw new Error('Operation input must include inventory updates.');
+    return input.updates.map((update: any) => {
+      if (typeof update?.id !== 'string' || !update.id.trim()) throw new Error('Inventory update id is required.');
+      const stock = Number(update.stock);
+      if (!Number.isInteger(stock) || stock < 0) throw new Error(`Inventory stock for ${update.id} must be a non-negative integer.`);
+      return {
+        id: update.id,
+        variantId: typeof update.variantId === 'string' ? update.variantId : undefined,
+        stock,
+      };
+    });
+  }
+
+  private async selectDiscountProductIds(input: any): Promise<string[]> {
+    const excluded = new Set(this.parseStringArray(input?.excludeProductIds));
+    const { products } = await this.productService.getProducts({ status: 'active', limit: 100 });
+    const maxItems = this.parsePositiveInteger(input?.maxItems, 24);
+    return products
+      .filter((product) => !excluded.has(product.id))
+      .filter((product) => product.stock > Math.max(0, product.reorderPoint ?? 0))
+      .filter((product) => input?.requiresMarginKnown ? typeof product.cost === 'number' && product.cost > 0 : true)
+      .slice(0, maxItems)
+      .map((product) => product.id);
   }
 
   private async captureState(): Promise<OperationalStateSnapshot> {
