@@ -1,13 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { jsonError, readJsonObject, requireAdminSession, requireOrderStatus, requireString } from '@infrastructure/server/apiGuards';
+import { DomainError } from '@domain/errors';
+import { jsonError, readJsonObject, requireAdminSession, requireOrderStatus, requireStepUpAdminSession, requireString } from '@infrastructure/server/apiGuards';
 
 export async function PATCH(request: Request) {
     try {
-        const user = await requireAdminSession(request);
         const body = await readJsonObject(request);
         const { ids } = body;
         const status = requireOrderStatus(body.status);
+        if (status === 'refunded' || status === 'partially_refunded') {
+            throw new DomainError('Use the refund workflow for payment refunds; batch status updates cannot issue processor refunds.');
+        }
+
+        const user = status === 'cancelled'
+            ? await requireStepUpAdminSession(request)
+            : await requireAdminSession(request);
 
         if (!Array.isArray(ids)) {
             throw new Error('IDs must be an array');

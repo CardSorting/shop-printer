@@ -40,6 +40,8 @@ describe('OrderService', () => {
       updateRiskScore: vi.fn(),
       updateMetadata: vi.fn(),
       addFulfillmentEvent: vi.fn(),
+      addNote: vi.fn(),
+      updateFulfillment: vi.fn(),
       recordCheckoutAttempt: vi.fn(),
       updateCheckoutAttempt: vi.fn(),
       createOrUpdateReconciliationCase: vi.fn(),
@@ -172,6 +174,69 @@ describe('OrderService', () => {
 
       const result = await orderService.autoAssignShippingMethod('o1');
       expect(result.carrier).toBe('UPS');
+    });
+  });
+
+  describe('admin hardening', () => {
+    it('does not mark an order refunded through a status-only state change', async () => {
+      mockOrderRepo.getById.mockResolvedValue({
+        id: 'o1',
+        status: 'delivered',
+        paymentState: 'paid',
+        reconciliationRequired: false,
+      });
+
+      await expect(orderService.updateOrderStatus('o1', 'refunded', { id: 'admin', email: 'a@example.com' }))
+        .rejects.toThrow('refund workflow');
+      expect(mockOrderRepo.transitionPaymentState).not.toHaveBeenCalledWith(
+        'o1',
+        expect.anything(),
+        'refunded',
+        expect.anything(),
+        expect.anything()
+      );
+      expect(mockOrderRepo.guardedUpdateStatus).not.toHaveBeenCalled();
+    });
+
+    it('persists tracking, derives carrier data, records an event, and advances fulfillment', async () => {
+      mockOrderRepo.getById.mockResolvedValue({
+        id: 'o1',
+        status: 'processing',
+        fulfillmentState: 'processing',
+        fulfillmentMethod: 'shipping',
+        reconciliationRequired: false,
+        items: [],
+        total: 1000,
+        shippingAddress: { street: '1 Main', city: 'Denver', state: 'CO', zip: '80202', country: 'US' },
+      });
+
+      await orderService.updateOrderFulfillment('o1', {
+        trackingNumber: '1Z999AA10123456784',
+      }, { id: 'admin', email: 'a@example.com' });
+
+      expect(mockOrderRepo.updateFulfillment).toHaveBeenCalledWith('o1', expect.objectContaining({
+        trackingNumber: '1Z999AA10123456784',
+        shippingCarrier: 'UPS',
+        trackingUrl: expect.stringContaining('ups.com'),
+      }), expect.anything());
+      expect(mockOrderRepo.addFulfillmentEvent).toHaveBeenCalledWith('o1', expect.objectContaining({
+        type: 'in_transit',
+        label: 'Tracking assigned',
+      }), expect.anything());
+      expect(mockOrderRepo.transitionFulfillmentState).toHaveBeenCalledWith(
+        'o1',
+        ['unfulfilled', 'processing', 'shipped'],
+        'shipped',
+        'admin_tracking_assigned',
+        expect.anything()
+      );
+      expect(mockOrderRepo.guardedUpdateStatus).toHaveBeenCalledWith(
+        'o1',
+        ['processing'],
+        'shipped',
+        'admin_tracking_assigned',
+        expect.anything()
+      );
     });
   });
 });

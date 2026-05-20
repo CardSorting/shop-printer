@@ -1025,7 +1025,10 @@ export class FirestoreOrderRepository implements IOrderRepository {
 
   async updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }, transaction?: any): Promise<void> {
     const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
-    const updateData = { ...data, updatedAt: serverTimestamp() };
+    const updateData: Record<string, any> = { updatedAt: serverTimestamp() };
+    if (data.trackingNumber !== undefined) updateData.trackingNumber = data.trackingNumber;
+    if (data.shippingCarrier !== undefined) updateData.shippingCarrier = data.shippingCarrier;
+    if (data.trackingUrl !== undefined) updateData.trackingUrl = data.trackingUrl;
     if (transaction) transaction.update(docRef, updateData);
     else await updateDoc(docRef, updateData);
   }

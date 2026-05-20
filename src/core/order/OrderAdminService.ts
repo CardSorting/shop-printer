@@ -1,8 +1,8 @@
 import * as crypto from 'node:crypto';
 import type { IDiscountRepository, IOrderRepository, IProductRepository } from '@domain/repositories';
-import type { Address, Order, OrderNote, OrderStatus } from '@domain/models';
+import type { Address, Order, OrderFulfillmentEvent, OrderNote, OrderStatus } from '@domain/models';
 import { OrderNotFoundError, ProductNotFoundError } from '@domain/errors';
-import { assertValidOrderStatusTransition, calculateTax, coalesceStockUpdates } from '@domain/rules';
+import { assertValidOrderStatusTransition, calculateTax, coalesceStockUpdates, deriveTrackingUrl } from '@domain/rules';
 import { doc, getUnifiedDb, runTransaction, serverTimestamp } from '@infrastructure/firebase/bridge';
 import { AuditService } from '../AuditService';
 import { DiscountService } from '../DiscountService';
@@ -19,6 +19,27 @@ export class OrderAdminService {
 
   private isPaidPaymentState(order: Order): boolean {
     return order.paymentState === 'paid' || order.paymentState === 'partially_refunded' || order.paymentState === 'refunded';
+  }
+
+  private fulfillmentTransitionForStatus(status: OrderStatus): {
+    nextState: 'processing' | 'shipped' | 'delivered' | 'ready_for_pickup' | 'delivery_started';
+    allowed: Array<'unfulfilled' | 'processing' | 'ready_for_pickup' | 'delivery_started' | 'shipped' | 'delivered'>;
+  } | null {
+    if (status === 'processing') return { nextState: 'processing', allowed: ['unfulfilled', 'processing'] };
+    if (status === 'shipped') return { nextState: 'shipped', allowed: ['unfulfilled', 'processing', 'shipped'] };
+    if (status === 'delivered') return { nextState: 'delivered', allowed: ['ready_for_pickup', 'delivery_started', 'shipped', 'delivered'] };
+    if (status === 'ready_for_pickup') return { nextState: 'ready_for_pickup', allowed: ['unfulfilled', 'processing', 'ready_for_pickup'] };
+    if (status === 'delivery_started') return { nextState: 'delivery_started', allowed: ['unfulfilled', 'processing', 'delivery_started'] };
+    return null;
+  }
+
+  private inferCarrierFromTracking(trackingNumber: string): string {
+    const tn = trackingNumber.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (/^\d{12}$|^\d{15}$/.test(tn)) return 'FedEx';
+    if (/^1Z[A-Z0-9]{16}$/.test(tn)) return 'UPS';
+    if (/^\d{20,22}$|^[A-Z]{2}\d{9}[A-Z]{2}$/.test(tn)) return 'USPS';
+    if (/^\d{10}$/.test(tn)) return 'DHL';
+    return 'Other';
   }
 
   private async movePaidCancellationToReconciliation(order: Order, reason: string, transaction?: any): Promise<void> {
@@ -94,6 +115,9 @@ export class OrderAdminService {
     }
 
     assertValidOrderStatusTransition(order.status, status);
+    if (status === 'refunded' || status === 'partially_refunded') {
+      throw new Error('Refund status changes must be processed through the refund workflow.');
+    }
     if (status === 'cancelled') {
       if (this.isPaidPaymentState(order)) {
         await this.movePaidCancellationToReconciliation(order, 'admin_paid_order_cancellation_blocked');
@@ -103,13 +127,13 @@ export class OrderAdminService {
       await this.orderRepo.transitionPaymentState(id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'admin_order_cancelled');
       await this.orderRepo.transitionFulfillmentState(id, ['unfulfilled', 'processing', 'ready_for_pickup', 'delivery_started'], 'cancelled', 'admin_order_cancelled');
     }
-    if (status === 'refunded' || status === 'partially_refunded') {
-      await this.orderRepo.transitionPaymentState(id, ['paid', 'partially_refunded'], status === 'refunded' ? 'refunded' : 'partially_refunded', 'admin_order_refund_state');
+    const fulfillmentTransition = this.fulfillmentTransitionForStatus(status);
+    if (fulfillmentTransition) {
+      await this.orderRepo.transitionFulfillmentState(id, fulfillmentTransition.allowed, fulfillmentTransition.nextState, 'admin_order_status_update');
     }
-
     await this.orderRepo.guardedUpdateStatus(id, [order.status], status, 'admin_order_status_update');
 
-    if ((status === 'cancelled' || status === 'refunded') && order.discountCode) {
+    if (status === 'cancelled' && order.discountCode) {
       const discount = await this.discountRepo.getByCode(order.discountCode);
       if (discount) {
         await runTransaction(getUnifiedDb(), async (transaction: any) => {
@@ -134,6 +158,9 @@ export class OrderAdminService {
 
   async batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: OrderActor): Promise<void> {
     if (!ids.length) return;
+    if (status === 'refunded' || status === 'partially_refunded') {
+      throw new Error('Refund status changes must be processed through the refund workflow.');
+    }
 
     await runTransaction(getUnifiedDb(), async (transaction: any) => {
       const validIds: string[] = [];
@@ -159,18 +186,19 @@ export class OrderAdminService {
             logger.warn(`[batchUpdateOrderStatus] Paid order ${id} moved to reconciliation instead of cancellation.`);
             continue;
           }
-          validIds.push(id);
 
           if (status === 'cancelled') {
             await this.orderRepo.transitionPaymentState(id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'admin_batch_order_cancelled', transaction);
             await this.orderRepo.transitionFulfillmentState(id, ['unfulfilled', 'processing', 'ready_for_pickup', 'delivery_started'], 'cancelled', 'admin_batch_order_cancelled', transaction);
           }
 
-          if (status === 'refunded' || status === 'partially_refunded') {
-            await this.orderRepo.transitionPaymentState(id, ['paid', 'partially_refunded'], status === 'refunded' ? 'refunded' : 'partially_refunded', 'admin_batch_order_refund_state', transaction);
+          const fulfillmentTransition = this.fulfillmentTransitionForStatus(status);
+          if (fulfillmentTransition) {
+            await this.orderRepo.transitionFulfillmentState(id, fulfillmentTransition.allowed, fulfillmentTransition.nextState, 'admin_batch_order_status_update', transaction);
           }
           
           await this.orderRepo.guardedUpdateStatus(id, [order.status], status, 'admin_batch_order_status_update', transaction);
+          validIds.push(id);
           
           // Points 1 & 7: Audit each individual status change within the same transaction substrate
           // Note: We record a single batch audit event below for high-level visibility, 
@@ -495,12 +523,15 @@ export class OrderAdminService {
   async addOrderNote(id: string, text: string, actor: OrderActor): Promise<OrderNote> {
     const order = await this.orderRepo.getById(id);
     if (!order) throw new OrderNotFoundError(id);
+    const trimmedText = text.trim();
+    if (!trimmedText) throw new Error('Order note text is required.');
+    if (trimmedText.length > 4000) throw new Error('Order note text must be 4000 characters or fewer.');
 
     const note: OrderNote = {
       id: crypto.randomUUID(),
       authorId: actor.id,
       authorEmail: actor.email,
-      text,
+      text: trimmedText,
       createdAt: new Date()
     };
 
@@ -514,10 +545,45 @@ export class OrderAdminService {
     data: { trackingNumber?: string; shippingCarrier?: string },
     actor: OrderActor
   ): Promise<void> {
-    const order = await this.orderRepo.getById(id);
-    if (!order) throw new OrderNotFoundError(id);
+    const order = await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const current = await (this.orderRepo.getById as any)(id, transaction) as Order | null;
+      if (!current) throw new OrderNotFoundError(id);
+      if (current.reconciliationRequired || current.status === 'reconciling') {
+        throw new Error('Order requires manual reconciliation and is locked for fulfillment updates.');
+      }
+      if (current.status === 'cancelled' || current.status === 'refunded') {
+        throw new Error(`Cannot update fulfillment for an order in status: ${current.status}`);
+      }
 
-    await this.orderRepo.updateFulfillment(id, data);
+      const trackingNumber = data.trackingNumber?.trim();
+      const shippingCarrier = data.shippingCarrier?.trim()
+        || (trackingNumber ? this.inferCarrierFromTracking(trackingNumber) : undefined);
+      await this.orderRepo.updateFulfillment(id, {
+        trackingNumber,
+        shippingCarrier,
+        trackingUrl: trackingNumber ? deriveTrackingUrl({ ...current, trackingNumber } as Order) : undefined,
+      }, transaction);
+
+      if (trackingNumber) {
+        const event: OrderFulfillmentEvent = {
+          id: crypto.randomUUID(),
+          type: 'in_transit',
+          label: 'Tracking assigned',
+          description: `Tracking ${trackingNumber}${shippingCarrier ? ` via ${shippingCarrier}` : ''}`,
+          at: new Date(),
+        };
+        await this.orderRepo.addFulfillmentEvent(id, event, transaction);
+
+        if (current.status === 'confirmed' || current.status === 'processing' || current.status === 'shipped') {
+          await this.orderRepo.transitionFulfillmentState(id, ['unfulfilled', 'processing', 'shipped'], 'shipped', 'admin_tracking_assigned', transaction);
+          if (current.status !== 'shipped') {
+            await this.orderRepo.guardedUpdateStatus(id, [current.status], 'shipped', 'admin_tracking_assigned', transaction);
+          }
+        }
+      }
+
+      return current;
+    });
     await this.audit.record({
       userId: actor.id,
       userEmail: actor.email,

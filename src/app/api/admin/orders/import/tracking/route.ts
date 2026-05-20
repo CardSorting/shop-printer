@@ -9,7 +9,7 @@ import { jsonError, readJsonObject, requireAdminSession, requireString } from '@
  */
 export async function POST(request: Request) {
     try {
-        await requireAdminSession(request);
+        const user = await requireAdminSession(request);
         const body = await readJsonObject(request);
         const { rows } = body;
 
@@ -18,8 +18,7 @@ export async function POST(request: Request) {
         }
 
         const services = await getServerServices();
-        const user = await services.authService.getCurrentUser();
-        const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+        const actor = { id: user.id, email: user.email };
 
         let successCount = 0;
         const errors: string[] = [];
@@ -28,7 +27,7 @@ export async function POST(request: Request) {
             try {
                 const orderId = requireString(row.orderId, 'orderId');
                 const trackingNumber = requireString(row.trackingNumber, 'trackingNumber');
-                const carrier = row.carrier || 'USPS';
+                const carrier = typeof row.carrier === 'string' && row.carrier.trim() ? row.carrier.trim() : 'USPS';
 
                 await services.orderService.updateOrderFulfillment(orderId, {
                     trackingNumber,
