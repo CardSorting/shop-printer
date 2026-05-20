@@ -1,7 +1,7 @@
 import * as crypto from 'node:crypto';
 import type { IOrderRepository, IProductRepository } from '@domain/repositories';
 import type { CarrierManifest, LogisticsPerformance, Order, ShippingLabel, ShippingRule } from '@domain/models';
-import { OrderNotFoundError } from '@domain/errors';
+import { DomainError, OrderNotFoundError } from '@domain/errors';
 import { calculateShippingCost } from '@domain/rules';
 
 export class OrderLogisticsService {
@@ -77,7 +77,21 @@ export class OrderLogisticsService {
     packageDimensions?: { length: string; width: string; height: string },
     tareWeightLbs: number = 0.1
   ): Promise<string> {
-    const orders = (await Promise.all(orderIds.map(id => this.orderRepo.getById(id)))).filter(Boolean) as Order[];
+    const uniqueOrderIds = [...new Set(orderIds.map(id => id.trim()).filter(Boolean))];
+    if (uniqueOrderIds.length === 0) throw new DomainError('At least one order is required for shipping export.');
+    if (uniqueOrderIds.length > 100) throw new DomainError('Shipping export is limited to 100 orders at a time.');
+
+    const ordersById = new Map<string, Order>();
+    for (const id of uniqueOrderIds) {
+      const order = await this.orderRepo.getById(id);
+      if (!order) throw new OrderNotFoundError(id);
+      this.assertExportableOrder(order);
+      ordersById.set(id, order);
+    }
+
+    const dimensions = this.normalizePackageDimensions(packageDimensions);
+    const tareWeight = this.normalizeTareWeight(tareWeightLbs);
+    const orders = uniqueOrderIds.map(id => ordersById.get(id)!);
     
     const headers = [
       'Order ID',
@@ -108,13 +122,12 @@ export class OrderLogisticsService {
     const rows = await Promise.all(orders.map(async (order) => {
       const addr = order.shippingAddress;
       const itemSummary = order.items.map(i => `${i.name} x${i.quantity}`).join(', ');
-      const weightLbs = await this.calculateOrderWeight(order, tareWeightLbs);
+      const weightLbs = await this.calculateOrderWeight(order, tareWeight);
       const weightOz = weightLbs * 16;
       
-      // Extraction from parameters, metadata or defaults
-      const length = packageDimensions?.length || order.metadata?.packageLength || '6'; 
-      const width = packageDimensions?.width || order.metadata?.packageWidth || '4';
-      const height = packageDimensions?.height || order.metadata?.packageHeight || '1';
+      const length = dimensions?.length || this.normalizeDimension(order.metadata?.packageLength, 'packageLength') || '6'; 
+      const width = dimensions?.width || this.normalizeDimension(order.metadata?.packageWidth, 'packageWidth') || '4';
+      const height = dimensions?.height || this.normalizeDimension(order.metadata?.packageHeight, 'packageHeight') || '1';
       const company = (order.metadata?.company || '').slice(0, 35); // Pirate Ship limit
       
       // Robust Address Sanitization: Truncate and clean for carrier compatibility
@@ -157,14 +170,59 @@ export class OrderLogisticsService {
         (order.customerNote || '').slice(0, 100)
       ].map(val => {
         const s = String(val ?? '');
-        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-          return `"${s.replace(/"/g, '""')}"`;
+        const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+        if (safe.includes(',') || safe.includes('"') || safe.includes('\n')) {
+          return `"${safe.replace(/"/g, '""')}"`;
         }
-        return s;
+        return safe;
       }).join(',');
     }));
 
     return [headers.join(','), ...rows].join('\n');
+  }
+
+  private assertExportableOrder(order: Order): void {
+    if (order.reconciliationRequired || order.status === 'reconciling') {
+      throw new DomainError(`Order ${order.id} requires reconciliation before shipping export.`);
+    }
+    if (order.status !== 'confirmed' && order.status !== 'processing') {
+      throw new DomainError(`Order ${order.id} cannot be exported for shipping while in status ${order.status}.`);
+    }
+    if (order.fulfillmentMethod !== 'shipping') {
+      throw new DomainError(`Order ${order.id} uses ${order.fulfillmentMethod} fulfillment and cannot be exported to Pirate Ship.`);
+    }
+    if (!order.items.some(item => !item.isDigital)) {
+      throw new DomainError(`Order ${order.id} has no physical items to ship.`);
+    }
+    const address = order.shippingAddress;
+    if (!address?.street || !address.city || !address.state || !(address.zip || address.zipCode) || !address.country) {
+      throw new DomainError(`Order ${order.id} is missing a complete shipping address.`);
+    }
+  }
+
+  private normalizeDimension(value: unknown, field: string): string | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 60) {
+      throw new DomainError(`${field} must be a positive number no greater than 60 inches.`);
+    }
+    return parsed.toFixed(2).replace(/\.?0+$/, '');
+  }
+
+  private normalizePackageDimensions(packageDimensions?: { length: string; width: string; height: string }): { length: string; width: string; height: string } | undefined {
+    if (!packageDimensions) return undefined;
+    return {
+      length: this.normalizeDimension(packageDimensions.length, 'packageDimensions.length')!,
+      width: this.normalizeDimension(packageDimensions.width, 'packageDimensions.width')!,
+      height: this.normalizeDimension(packageDimensions.height, 'packageDimensions.height')!,
+    };
+  }
+
+  private normalizeTareWeight(value: number): number {
+    if (!Number.isFinite(value) || value < 0 || value > 10) {
+      throw new DomainError('tareWeight must be between 0 and 10 pounds.');
+    }
+    return value;
   }
 
   private async calculateOrderWeight(order: Order, tareWeightLbs: number): Promise<number> {

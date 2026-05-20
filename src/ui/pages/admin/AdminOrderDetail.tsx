@@ -219,7 +219,19 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
               </button>
               <div className="h-8 w-px bg-gray-200" />
               <button 
-                onClick={() => toast('info', 'Generating packing slip...')}
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`/api/admin/orders/${order.id}/packing-slip`);
+                    if (!response.ok) throw new Error('Packing slip generation failed');
+                    const html = await response.text();
+                    const blob = new Blob([html], { type: 'text/html' });
+                    const url = window.URL.createObjectURL(blob);
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                    window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+                  } catch (err) {
+                    toast('error', 'Packing slip generation failed');
+                  }
+                }}
                 className="flex items-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-xs font-bold text-gray-700 shadow-xs transition hover:bg-gray-50 active:scale-95"
               >
                 <Printer className="h-4 w-4 text-gray-400" />

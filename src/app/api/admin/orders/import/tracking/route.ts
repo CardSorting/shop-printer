@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
 import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
+import { DomainError } from '@domain/errors';
 
 /**
  * [LAYER: API]
@@ -16,6 +17,8 @@ export async function POST(request: Request) {
         if (!Array.isArray(rows)) {
             throw new Error('Rows must be an array');
         }
+        if (rows.length === 0) throw new DomainError('At least one tracking row is required.');
+        if (rows.length > 250) throw new DomainError('Tracking import is limited to 250 rows at a time.');
 
         const services = await getServerServices();
         const actor = { id: user.id, email: user.email };
@@ -25,6 +28,9 @@ export async function POST(request: Request) {
 
         for (const row of rows) {
             try {
+                if (!row || typeof row !== 'object' || Array.isArray(row)) {
+                    throw new DomainError('Tracking row must be an object.');
+                }
                 const orderId = requireString(row.orderId, 'orderId');
                 const trackingNumber = requireString(row.trackingNumber, 'trackingNumber');
                 const carrier = typeof row.carrier === 'string' && row.carrier.trim() ? row.carrier.trim() : 'USPS';

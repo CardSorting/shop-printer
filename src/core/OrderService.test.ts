@@ -177,6 +177,54 @@ describe('OrderService', () => {
     });
   });
 
+  describe('shipping export hardening', () => {
+    const shippableOrder = {
+      id: 'ship-1',
+      status: 'confirmed',
+      fulfillmentMethod: 'shipping',
+      reconciliationRequired: false,
+      userId: 'u1',
+      customerName: 'Customer',
+      customerEmail: 'c@example.com',
+      items: [{ productId: 'p1', name: 'Card', quantity: 1, unitPrice: 1000, fulfilledQty: 0 }],
+      total: 1000,
+      shippingAmount: 0,
+      taxAmount: 0,
+      shippingAddress: { street: '1 Main', city: 'Denver', state: 'CO', zip: '80202', country: 'US' },
+      paymentTransactionId: null,
+      riskScore: 0,
+      fulfillmentLocationId: null,
+      fulfillments: [],
+      notes: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it('fails shipping export when an order id is missing instead of silently dropping it', async () => {
+      mockOrderRepo.getById.mockResolvedValueOnce(null);
+
+      await expect(orderService.exportOrdersToPirateShipCsv(['missing-order']))
+        .rejects.toThrow(OrderNotFoundError);
+    });
+
+    it('blocks shipping export for unpaid pending orders', async () => {
+      mockOrderRepo.getById.mockResolvedValueOnce({ ...shippableOrder, status: 'pending' });
+
+      await expect(orderService.exportOrdersToPirateShipCsv(['ship-1']))
+        .rejects.toThrow('cannot be exported for shipping');
+    });
+
+    it('exports only validated shippable physical orders', async () => {
+      mockOrderRepo.getById.mockResolvedValueOnce(shippableOrder);
+
+      const csv = await orderService.exportOrdersToPirateShipCsv(['ship-1'], { length: '6', width: '4', height: '1' }, 0.1);
+
+      expect(csv).toContain('Order ID,Recipient Name');
+      expect(csv).toContain('ship-1');
+      expect(csv).toContain('Card x1');
+    });
+  });
+
   describe('admin hardening', () => {
     it('does not mark an order refunded through a status-only state change', async () => {
       mockOrderRepo.getById.mockResolvedValue({

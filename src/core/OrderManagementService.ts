@@ -6,6 +6,7 @@ import type {
   IOrderRepository 
 } from '@domain/repositories';
 import { 
+  Order,
   OrderStatus 
 } from '@domain/models';
 import { OrderNotFoundError } from '@domain/errors';
@@ -19,6 +20,10 @@ export class OrderManagementService {
     private audit: AuditService
   ) {}
 
+  private isPaidPaymentState(order: Order): boolean {
+    return order.paymentState === 'paid' || order.paymentState === 'partially_refunded' || order.paymentState === 'refunded';
+  }
+
   async updateOrderStatus(id: string, status: OrderStatus, actor: { id: string, email: string }): Promise<void> {
     const order = await this.orderRepo.getById(id);
     if (!order) throw new OrderNotFoundError(id);
@@ -26,6 +31,16 @@ export class OrderManagementService {
       throw new Error('Order requires manual reconciliation and is locked.');
     }
     assertValidOrderStatusTransition(order.status, status);
+    if (status === 'refunded' || status === 'partially_refunded') {
+      throw new Error('Refund status changes must be processed through the refund workflow.');
+    }
+    if (status === 'cancelled' && this.isPaidPaymentState(order)) {
+      throw new Error('Cannot cancel a paid order through OrderManagementService; use OrderService reconciliation workflow.');
+    }
+    if (status === 'cancelled') {
+      await this.orderRepo.transitionPaymentState(id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'order_management_status_update');
+      await this.orderRepo.transitionFulfillmentState(id, ['unfulfilled', 'processing', 'ready_for_pickup', 'delivery_started'], 'cancelled', 'order_management_status_update');
+    }
     await this.orderRepo.guardedUpdateStatus(id, [order.status], status, 'order_management_status_update');
     await this.audit.record({ userId: actor.id, userEmail: actor.email, action: 'order_status_changed', targetId: id, details: { from: order.status, to: status } });
   }
@@ -53,11 +68,21 @@ export class OrderManagementService {
     cutoff.setMinutes(cutoff.getMinutes() - expirationMinutes);
     
     const { orders } = await this.orderRepo.getAll({ status: 'pending', to: cutoff });
+    let processed = 0;
     for (const order of orders) {
+      if (order.paymentTransactionId || this.isPaidPaymentState(order)) {
+        logger.warn('[OrderManagementService] Skipping expired order with payment evidence; use OrderService cleanup for Stripe-aware reconciliation.', {
+          orderId: order.id,
+          paymentState: order.paymentState,
+          hasPaymentTransactionId: Boolean(order.paymentTransactionId),
+        });
+        continue;
+      }
       await this.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'order_management_cleanup');
       await this.orderRepo.guardedUpdateStatus(order.id, [order.status], 'cancelled', 'order_management_cleanup');
       await this.audit.record({ userId: 'system', userEmail: 'system@dreambees.art', action: 'order_status_changed', targetId: order.id, details: { from: 'pending', to: 'cancelled', reason: 'expired' } });
+      processed++;
     }
-    return { count: orders.length };
+    return { count: processed };
   }
 }

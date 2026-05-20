@@ -1,6 +1,26 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
 import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
+import { DomainError } from '@domain/errors';
+
+function parsePackageDimensions(value: unknown): { length: string; width: string; height: string } | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new DomainError('packageDimensions must be an object.');
+    }
+    const body = value as Record<string, unknown>;
+    return {
+        length: requireString(String(body.length ?? ''), 'packageDimensions.length'),
+        width: requireString(String(body.width ?? ''), 'packageDimensions.width'),
+        height: requireString(String(body.height ?? ''), 'packageDimensions.height'),
+    };
+}
+
+function parseOptionalNumber(value: unknown, field: string): number | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (typeof value !== 'number' || !Number.isFinite(value)) throw new DomainError(`${field} must be a number.`);
+    return value;
+}
 
 /**
  * [LAYER: API]
@@ -21,8 +41,8 @@ export async function POST(request: Request) {
         const services = await getServerServices();
         const csv = await services.orderService.exportOrdersToPirateShipCsv(
             validatedIds, 
-            packageDimensions as { length: string; width: string; height: string } | undefined, 
-            tareWeight as number | undefined
+            parsePackageDimensions(packageDimensions),
+            parseOptionalNumber(tareWeight, 'tareWeight')
         );
 
         return new NextResponse(csv, {

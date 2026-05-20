@@ -721,8 +721,8 @@ export async function POST(req: NextRequest) {
           const orderId = m[1];
           if (!validateToolCall('cancelOrder', { orderId }, sessionData.context)) continue;
           try {
-            const { orderManagementService } = getInitialServices();
-            await orderManagementService.updateOrderStatus(orderId, 'cancelled', {
+            const { orderService } = getInitialServices();
+            await orderService.updateOrderStatus(orderId, 'cancelled', {
               id: 'concierge',
               email: 'concierge@dreambees.art'
             });
