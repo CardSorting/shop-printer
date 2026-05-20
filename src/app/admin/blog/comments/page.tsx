@@ -9,12 +9,14 @@ import {
 import Image from 'next/image';
 import { sanitizeImageUrl } from '@utils/sanitizer';
 import type { BlogComment } from '@domain/models';
+import { AdminConfirmDialog } from '@ui/components/admin/AdminComponents';
 
 export default function CommentModerationPage() {
   const [comments, setComments] = useState<BlogComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'published' | 'spam'>('all');
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadComments() {
@@ -52,11 +54,11 @@ export default function CommentModerationPage() {
   };
 
   const handleDelete = async (commentId: string) => {
-    if (!confirm('Are you sure you want to delete this comment?')) return;
     try {
       const response = await fetch(`/api/admin/blog/comments/${commentId}`, { method: 'DELETE' });
       if (!response.ok) throw new Error(`Failed to delete comment (${response.status})`);
       setComments(comments.filter(c => c.id !== commentId));
+      setPendingDeleteId(null);
       setError(null);
     } catch (err) {
       console.error('Failed to delete comment', err);
@@ -181,8 +183,8 @@ export default function CommentModerationPage() {
                                <X className="h-4 w-4" /> Mark Spam
                              </button>
                            )}
-                           <button 
-                            onClick={() => handleDelete(comment.id)}
+                            <button 
+                            onClick={() => setPendingDeleteId(comment.id)}
                             className="h-10 w-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500"
                            >
                              <Trash2 className="h-4 w-4" />
@@ -205,6 +207,15 @@ export default function CommentModerationPage() {
           </div>
         )}
       </div>
+
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={() => pendingDeleteId && void handleDelete(pendingDeleteId)}
+        title="Delete comment?"
+        description="This permanently removes the comment from moderation and public discussion history."
+        confirmLabel="Delete comment"
+      />
     </div>
   );
 }

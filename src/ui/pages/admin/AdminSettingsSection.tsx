@@ -1,7 +1,5 @@
 "use client";
 
-'use client';
-
 /**
  * [LAYER: UI]
  * Admin settings section page — Full-width configuration for specific store areas.
@@ -31,6 +29,7 @@ import {
 } from 'lucide-react';
 import { 
   AdminPageHeader, 
+  AdminConfirmDialog,
   useToast, 
   useAdminPageTitle,
   AdminAuditLogs
@@ -176,6 +175,8 @@ function ShippingManager({ services, toast }: ShippingManagerProps) {
   const [rates, setRates] = useState<ShippingRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'zones' | 'classes'>('zones');
+  const [pendingDeleteZoneId, setPendingDeleteZoneId] = useState<string | null>(null);
+  const [pendingDeleteClassId, setPendingDeleteClassId] = useState<string | null>(null);
 
   const loadShippingData = useCallback(async () => {
     setLoading(true);
@@ -230,7 +231,6 @@ function ShippingManager({ services, toast }: ShippingManagerProps) {
   };
 
   const handleDeleteZone = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this zone?')) return;
     try {
       const user = await services.authService.getCurrentUser();
       const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
@@ -239,11 +239,12 @@ function ShippingManager({ services, toast }: ShippingManagerProps) {
       void loadShippingData();
     } catch (err) {
       toast('error', 'Failed to delete zone');
+    } finally {
+      setPendingDeleteZoneId(null);
     }
   };
 
   const handleDeleteClass = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this shipping class?')) return;
     try {
       const user = await services.authService.getCurrentUser();
       const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
@@ -252,6 +253,8 @@ function ShippingManager({ services, toast }: ShippingManagerProps) {
       void loadShippingData();
     } catch (err) {
       toast('error', 'Failed to delete class');
+    } finally {
+      setPendingDeleteClassId(null);
     }
   };
 
@@ -325,7 +328,7 @@ function ShippingManager({ services, toast }: ShippingManagerProps) {
                       <Edit3 className="h-4 w-4" />
                     </button>
                     <button 
-                      onClick={() => handleDeleteZone(zone.id)}
+                      onClick={() => setPendingDeleteZoneId(zone.id)}
                       className="p-2 text-gray-400 hover:text-red-600 transition"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -422,7 +425,7 @@ function ShippingManager({ services, toast }: ShippingManagerProps) {
                     <Edit3 className="h-4 w-4" />
                   </button>
                   <button 
-                    onClick={() => handleDeleteClass(shippingClass.id)}
+                    onClick={() => setPendingDeleteClassId(shippingClass.id)}
                     className="p-2 text-gray-400 hover:text-red-600 transition"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -433,6 +436,23 @@ function ShippingManager({ services, toast }: ShippingManagerProps) {
           </div>
         </div>
       )}
+
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteZoneId)}
+        onClose={() => setPendingDeleteZoneId(null)}
+        onConfirm={() => pendingDeleteZoneId && void handleDeleteZone(pendingDeleteZoneId)}
+        title="Delete shipping zone?"
+        description="This removes the zone and its configured rates from checkout calculations."
+        confirmLabel="Delete zone"
+      />
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteClassId)}
+        onClose={() => setPendingDeleteClassId(null)}
+        onConfirm={() => pendingDeleteClassId && void handleDeleteClass(pendingDeleteClassId)}
+        title="Delete shipping class?"
+        description="Products assigned to this class may need a new shipping class before checkout rates are complete."
+        confirmLabel="Delete class"
+      />
     </div>
   );
 }
@@ -724,6 +744,113 @@ export function AdminSettingsSection({ sectionId }: AdminSettingsSectionProps) {
              ) : sectionId === 'shipping' ? (
                <ShippingManager services={services} toast={toast} />
 
+             ) : sectionId === 'checkout' ? (
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest border-b pb-2">Checkout Rules</h3>
+                  <div className="grid gap-4">
+                    {[
+                      { key: 'checkout_guest_enabled', label: 'Allow guest checkout', desc: 'Customers can place orders without creating an account.', defaultValue: true },
+                      { key: 'checkout_customer_accounts', label: 'Offer customer accounts', desc: 'Show account sign-in and account creation options during checkout.', defaultValue: true },
+                      { key: 'checkout_abandoned_cart_recovery', label: 'Recover abandoned carts', desc: 'Send recovery emails when customers leave checkout before payment.', defaultValue: true },
+                      { key: 'checkout_marketing_opt_in', label: 'Show marketing opt-in', desc: 'Let customers subscribe to email updates while checking out.', defaultValue: false },
+                      { key: 'checkout_order_notes', label: 'Collect order notes', desc: 'Allow customers to include fulfillment instructions with an order.', defaultValue: true },
+                    ].map(item => (
+                      <label key={item.key} className="flex items-center justify-between p-4 rounded-xl border bg-white hover:bg-gray-50 transition cursor-pointer">
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">{item.label}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          defaultChecked={settings[item.key] ?? item.defaultValue}
+                          onChange={(e) => saveSetting(item.key, e.target.checked)}
+                          className="h-5 w-5 rounded-md border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest border-b pb-2">Checkout Copy</h3>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-700">Buyer Assurance Message</label>
+                    <textarea
+                      defaultValue={settings.checkout_assurance_message || ''}
+                      onBlur={(e) => saveSetting('checkout_assurance_message', e.target.value)}
+                      rows={3}
+                      className="w-full rounded-xl border bg-gray-50 px-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition"
+                      placeholder="Secure checkout, tracked shipping, and collector-grade packaging."
+                    />
+                  </div>
+                </div>
+              </div>
+
+             ) : sectionId === 'domains' ? (
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest border-b pb-2">Primary Domain</h3>
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-700">Custom Domain</label>
+                      <input
+                        type="text"
+                        defaultValue={settings.custom_domain || ''}
+                        onBlur={(e) => saveSetting('custom_domain', e.target.value.trim().toLowerCase())}
+                        className="w-full rounded-xl border bg-gray-50 px-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition"
+                        placeholder="shop.example.com"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-700">Canonical Storefront URL</label>
+                      <input
+                        type="text"
+                        defaultValue={settings.storefront_url || ''}
+                        onBlur={(e) => saveSetting('storefront_url', e.target.value.trim())}
+                        className="w-full rounded-xl border bg-gray-50 px-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition"
+                        placeholder="https://dreambeesart.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4">
+                  {[
+                    { key: 'domain_force_https', label: 'Force HTTPS', desc: 'Redirect storefront traffic to the secure canonical URL.', defaultValue: true },
+                    { key: 'domain_redirect_www', label: 'Redirect www variant', desc: 'Normalize www and apex traffic to the configured storefront URL.', defaultValue: true },
+                    { key: 'domain_enable_sitemap', label: 'Publish sitemap', desc: 'Expose sitemap metadata for search indexing.', defaultValue: true },
+                  ].map(item => (
+                    <label key={item.key} className="flex items-center justify-between p-4 rounded-xl border bg-white hover:bg-gray-50 transition cursor-pointer">
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">{item.label}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        defaultChecked={settings[item.key] ?? item.defaultValue}
+                        onChange={(e) => saveSetting(item.key, e.target.checked)}
+                        className="h-5 w-5 rounded-md border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </label>
+                  ))}
+                </div>
+
+                <div className="rounded-2xl border bg-gray-50 p-5">
+                  <div className="flex items-center gap-3">
+                    <Globe className="h-5 w-5 text-primary-600" />
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">
+                        {settings.custom_domain ? `Domain configured: ${settings.custom_domain}` : 'Using platform storefront domain'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        DNS verification runs through the deployed hosting provider. Keep the canonical URL aligned with the active production domain.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
              ) : sectionId === 'security' ? (
                <SecuritySection
                  auditLogs={auditLogs}
@@ -738,8 +865,8 @@ export function AdminSettingsSection({ sectionId }: AdminSettingsSectionProps) {
                     <Settings className="h-10 w-10" />
                  </div>
                  <div>
-                    <p className="text-lg font-bold text-gray-900">Section Under Development</p>
-                    <p className="text-sm text-gray-500 mt-1">We're working on bringing full control to the {sectionId} settings.</p>
+                    <p className="text-lg font-bold text-gray-900">Settings section unavailable</p>
+                    <p className="text-sm text-gray-500 mt-1">No settings section is registered for {sectionId}.</p>
                  </div>
                  <button 
                   onClick={() => router.push('/admin/settings')}

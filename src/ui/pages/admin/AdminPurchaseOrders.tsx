@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * [LAYER: UI]
  * Purchase Orders — merchant-friendly inbound inventory and receiving workspace
@@ -44,6 +42,7 @@ import {
   useToast,
   useAdminPageTitle,
   AdminStatusBadge,
+  AdminConfirmDialog,
 } from '../../components/admin/AdminComponents';
 import { AdminTimeline, type TimelineEvent } from '../../components/admin/AdminTimeline';
 
@@ -144,6 +143,7 @@ export function AdminPurchaseOrders() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('incoming');
   const [query, setQuery] = useState('');
   const [detail, setDetail] = useState<WorkspaceOrder | null>(null);
+  const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -174,12 +174,12 @@ export function AdminPurchaseOrders() {
   }, [workspace, statusFilter, query]);
 
   const handleCancel = async (id: string) => {
-    if (!confirm('Are you sure you want to cancel this purchase order?')) return;
     try {
       await services.purchaseOrderService.cancel(id);
       toast('success', 'Order cancelled');
       void loadData();
       setDetail(null);
+      setPendingCancelId(null);
     } catch (err) {
       toast('error', err instanceof Error ? err.message : 'Cancel failed');
     }
@@ -354,7 +354,23 @@ export function AdminPurchaseOrders() {
         </div>
       </div>
 
-      {detail && <DetailDrawer workspaceOrder={detail} onClose={() => setDetail(null)} onReceive={() => handleReceive(detail)} />}
+      {detail && (
+        <DetailDrawer
+          workspaceOrder={detail}
+          onClose={() => setDetail(null)}
+          onReceive={() => handleReceive(detail)}
+          onCancel={() => setPendingCancelId(detail.order.id)}
+        />
+      )}
+
+      <AdminConfirmDialog
+        open={Boolean(pendingCancelId)}
+        onClose={() => setPendingCancelId(null)}
+        onConfirm={() => pendingCancelId && void handleCancel(pendingCancelId)}
+        title="Cancel purchase order?"
+        description="This will move the purchase order out of active receiving. Existing product and inventory records will not be changed."
+        confirmLabel="Cancel order"
+      />
     </div>
   );
 }
@@ -368,7 +384,7 @@ function ReceivingStat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function DetailDrawer({ workspaceOrder, onClose, onReceive }: { workspaceOrder: WorkspaceOrder; onClose: () => void; onReceive: () => void }) {
+function DetailDrawer({ workspaceOrder, onClose, onReceive, onCancel }: { workspaceOrder: WorkspaceOrder; onClose: () => void; onReceive: () => void; onCancel: () => void }) {
   const { order, summary, workflow, lineSummaries } = workspaceOrder;
   const [activeTab, setActiveTab] = useState<'details' | 'timeline'>('details');
   const services = useServices();
@@ -474,7 +490,7 @@ function DetailDrawer({ workspaceOrder, onClose, onReceive }: { workspaceOrder: 
         </div>
 
         <div className="border-t bg-gray-50 p-8 flex items-center justify-between">
-          <button className="flex items-center gap-2 rounded-xl border bg-white px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition shadow-sm">
+          <button onClick={onCancel} className="flex items-center gap-2 rounded-xl border bg-white px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition shadow-sm">
             Cancel Order
           </button>
           {purchaseOrderRules.canReceive(order) && (

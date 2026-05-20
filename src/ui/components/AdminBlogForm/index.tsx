@@ -10,6 +10,7 @@ import { useServices } from '../../hooks/useServices';
 import { Pipeline } from './Pipeline';
 import { Sidebar } from './Sidebar';
 import type { AdminBlogFormProps, EditorTab } from './types';
+import { AdminConfirmDialog } from '../admin/AdminComponents';
 
 export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
   const router = useRouter();
@@ -39,6 +40,7 @@ export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
   const [authors, setAuthors] = useState<Author[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState<'interview' | 'tutorial' | 'spotlight' | null>(null);
 
   useEffect(() => {
     async function loadLibrary() {
@@ -145,11 +147,21 @@ export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
   };
 
   const applyTemplate = (type: keyof typeof CONTENT_TEMPLATES) => {
-    if (formData.content && !window.confirm('This will append the template to your current content. Continue?')) return;
+    if (formData.content) {
+      setPendingTemplate(type);
+      return;
+    }
     setFormData(prev => ({ ...prev, content: (prev.content || '') + '\n\n' + CONTENT_TEMPLATES[type] }));
   };
 
+  const appendPendingTemplate = () => {
+    if (!pendingTemplate) return;
+    setFormData(prev => ({ ...prev, content: (prev.content || '') + '\n\n' + CONTENT_TEMPLATES[pendingTemplate] }));
+    setPendingTemplate(null);
+  };
+
   return (
+    <>
     <form onSubmit={handleSave} className="max-w-[1600px] mx-auto pb-32">
       <Pipeline {...sharedState} onSave={handleSave} />
 
@@ -273,5 +285,16 @@ export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
         </div>
       </div>
     </form>
+
+    <AdminConfirmDialog
+      open={Boolean(pendingTemplate)}
+      onClose={() => setPendingTemplate(null)}
+      onConfirm={appendPendingTemplate}
+      title="Append template?"
+      description="This will add the selected content structure to the end of the current post body."
+      confirmLabel="Append template"
+      variant="primary"
+    />
+    </>
   );
 }

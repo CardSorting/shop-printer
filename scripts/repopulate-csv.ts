@@ -86,7 +86,7 @@ async function exportToCsv() {
   for (const doc of productsSnap.docs) {
     const data = doc.data();
     
-    // Only export products that came from our original set (avoid mocks if possible)
+    // Only export products that match the catalog source prefix for this storefront.
     // Actually, export everything currently in DB to be complete.
     
     const handle = data.handle || '';

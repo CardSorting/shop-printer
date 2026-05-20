@@ -102,5 +102,5 @@ async function reconcile() {
 }
 
 // In a real environment, we'd use a CLI flag or check if it's the main module
-// For now, we'll just export it.
+// Exported as a callable reconciliation job for API routes, cron, and manual scripts.
 export { reconcile };

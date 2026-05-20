@@ -10,6 +10,7 @@ import {
   AdminPageHeader, 
   AdminEmptyState, 
   SkeletonRow, 
+  AdminConfirmDialog,
   useToast, 
   useAdminPageTitle 
 } from '../../components/admin/AdminComponents';
@@ -24,6 +25,7 @@ export function AdminSupportMacros() {
   const [query, setQuery] = useState('');
   const [editingMacro, setEditingMacro] = useState<Partial<SupportMacro> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const loadMacros = useCallback(async () => {
     setLoading(true);
@@ -81,13 +83,14 @@ export function AdminSupportMacros() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this macro?')) return;
     try {
       await services.ticketService.deleteMacro(id);
       toast('success', 'Macro deleted');
       await loadMacros();
     } catch (err) {
       toast('error', 'Failed to delete macro');
+    } finally {
+      setPendingDeleteId(null);
     }
   };
 
@@ -150,7 +153,7 @@ export function AdminSupportMacros() {
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>
                       <button 
-                        onClick={() => handleDelete(macro.id)}
+                        onClick={() => setPendingDeleteId(macro.id)}
                         className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-600 transition-colors"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -240,6 +243,15 @@ export function AdminSupportMacros() {
           </aside>
         )}
       </div>
+
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={() => pendingDeleteId && void handleDelete(pendingDeleteId)}
+        title="Delete support macro?"
+        description="This permanently removes the saved reply from the support workspace. Existing ticket replies are not changed."
+        confirmLabel="Delete macro"
+      />
     </div>
   );
 }

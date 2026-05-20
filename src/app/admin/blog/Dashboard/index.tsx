@@ -15,6 +15,7 @@ import { StrategyGuide } from './components/StrategyGuide';
 import { BulkActionBar } from './components/BulkActionBar';
 import { BlogSubNav } from './components/BlogSubNav';
 import { ActionCenter } from './components/ActionCenter';
+import { AdminConfirmDialog } from '@ui/components/admin/AdminComponents';
 
 // Views
 import { EditorialView } from './views/EditorialView';
@@ -36,6 +37,8 @@ export default function BlogDashboard() {
   const [showAudit, setShowAudit] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingBulkAction, setPendingBulkAction] = useState<'publish' | 'archived' | 'delete' | null>(null);
+  const [pendingDeletePostId, setPendingDeletePostId] = useState<string | null>(null);
   const isMounted = React.useRef(true);
 
   React.useEffect(() => {
@@ -105,32 +108,31 @@ export default function BlogDashboard() {
 
   const handleBulkAction = async (action: 'publish' | 'archived' | 'delete') => {
     if (selectedPosts.length === 0) return;
-    
-    const confirmMsg = action === 'delete' 
-      ? `Are you sure you want to delete ${selectedPosts.length} posts? This cannot be undone.`
-      : `Apply '${action}' status to ${selectedPosts.length} posts?`;
-      
-    if (!window.confirm(confirmMsg)) return;
+    setPendingBulkAction(action);
+  };
 
+  const executeBulkAction = async () => {
+    if (!pendingBulkAction || selectedPosts.length === 0) return;
     setLoading(true);
     try {
-      if (action === 'delete') {
+      if (pendingBulkAction === 'delete') {
         await services.knowledgebaseService.batchDeleteArticles(selectedPosts);
       } else {
-        await services.knowledgebaseService.batchUpdateArticles(selectedPosts, { status: action as any });
+        await services.knowledgebaseService.batchUpdateArticles(selectedPosts, { status: pendingBulkAction as any });
       }
       
       const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
       if (isMounted.current) {
         setPosts(updatedPosts.articles);
         setSelectedPosts([]);
-        setStatusMessage(`Bulk ${action} completed for ${selectedPosts.length} posts.`);
+        setPendingBulkAction(null);
+        setStatusMessage(`Bulk ${pendingBulkAction} completed for ${selectedPosts.length} posts.`);
         setActionError(null);
       }
     } catch (err) {
       if (isMounted.current) {
-        console.error(`Bulk ${action} failed:`, err);
-        setActionError(`Failed to perform bulk ${action}.`);
+        console.error(`Bulk ${pendingBulkAction} failed:`, err);
+        setActionError(`Failed to perform bulk ${pendingBulkAction}.`);
       }
     } finally {
       if (isMounted.current) {
@@ -140,13 +142,18 @@ export default function BlogDashboard() {
   };
 
   const handleIndividualDelete = async (id: string) => {
-    if (!window.confirm('Delete this entry forever?')) return;
+    setPendingDeletePostId(id);
+  };
+
+  const executeIndividualDelete = async () => {
+    if (!pendingDeletePostId) return;
     setLoading(true);
     try {
-      await services.knowledgebaseService.batchDeleteArticles([id]);
+      await services.knowledgebaseService.batchDeleteArticles([pendingDeletePostId]);
       const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
       if (isMounted.current) {
         setPosts(updatedPosts.articles);
+        setPendingDeletePostId(null);
         setStatusMessage('Entry deleted.');
         setActionError(null);
       }
@@ -258,6 +265,29 @@ export default function BlogDashboard() {
         </div>
 
         {showGuide && <StrategyGuide onClose={() => setShowGuide(false)} />}
+
+        <AdminConfirmDialog
+          open={Boolean(pendingBulkAction)}
+          onClose={() => setPendingBulkAction(null)}
+          onConfirm={() => void executeBulkAction()}
+          title={pendingBulkAction === 'delete' ? 'Delete selected posts?' : 'Apply bulk status change?'}
+          description={pendingBulkAction === 'delete'
+            ? `This will permanently delete ${selectedPosts.length} selected post(s).`
+            : `This will update ${selectedPosts.length} selected post(s) to ${pendingBulkAction}.`}
+          confirmLabel={pendingBulkAction === 'delete' ? 'Delete posts' : 'Apply change'}
+          variant={pendingBulkAction === 'delete' ? 'danger' : 'primary'}
+          loading={loading}
+        />
+
+        <AdminConfirmDialog
+          open={Boolean(pendingDeletePostId)}
+          onClose={() => setPendingDeletePostId(null)}
+          onConfirm={() => void executeIndividualDelete()}
+          title="Delete entry?"
+          description="This permanently deletes the selected content entry and removes it from the editorial dashboard."
+          confirmLabel="Delete entry"
+          loading={loading}
+        />
 
         {(statusMessage || actionError) && (
           <div className={`rounded-2xl border px-5 py-4 text-sm font-bold ${

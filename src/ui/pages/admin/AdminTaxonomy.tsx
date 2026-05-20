@@ -5,7 +5,6 @@
  * Admin Taxonomy Manager — Managing categories and product types.
  * Gives merchants full control over their store's organizational structure.
  */
-'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useServices } from '../../hooks/useServices';
@@ -23,6 +22,7 @@ import {
 } from 'lucide-react';
 import { 
   AdminActionPanel, 
+  AdminConfirmDialog,
   SkeletonPage, 
   useAdminPageTitle, 
   useToast 
@@ -40,6 +40,7 @@ export function AdminTaxonomy() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   // Form states
@@ -109,7 +110,6 @@ export function AdminTaxonomy() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Are you sure? This may affect products using this organization.')) return;
     try {
       const user = await services.authService.getCurrentUser();
       const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
@@ -124,6 +124,8 @@ export function AdminTaxonomy() {
       await loadTaxonomy();
     } catch (err) {
       toast('error', 'Failed to delete item');
+    } finally {
+      setPendingDeleteId(null);
     }
   }
 
@@ -305,7 +307,7 @@ export function AdminTaxonomy() {
                           <ChevronRight className="h-5 w-5" />
                         </button>
                         <button 
-                          onClick={() => handleDelete(cat.id)}
+                          onClick={() => setPendingDeleteId(cat.id)}
                           className="p-2 text-gray-400 hover:text-red-600"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -337,7 +339,7 @@ export function AdminTaxonomy() {
                           <ChevronRight className="h-5 w-5" />
                         </button>
                         <button 
-                          onClick={() => handleDelete(t.id)}
+                          onClick={() => setPendingDeleteId(t.id)}
                           className="p-2 text-gray-400 hover:text-red-600"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -358,6 +360,15 @@ export function AdminTaxonomy() {
           </div>
         </main>
       </div>
+
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={() => pendingDeleteId && void handleDelete(pendingDeleteId)}
+        title={`Delete ${activeTab === 'categories' ? 'category' : 'product type'}?`}
+        description="Products that reference this organization value may need to be reviewed after deletion."
+        confirmLabel="Delete item"
+      />
     </div>
   );
 }

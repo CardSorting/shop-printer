@@ -1,7 +1,5 @@
 "use client";
 
-'use client';
-
 /**
  * [LAYER: UI]
  * Admin settings — Store configuration and setup checklist.

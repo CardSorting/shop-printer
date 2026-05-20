@@ -1,7 +1,5 @@
 "use client";
 
-'use client';
-
 /**
  * [LAYER: UI]
  * Admin order management — High-velocity fulfillment console.
@@ -50,6 +48,7 @@ import {
   useToast,
   useAdminPageTitle,
   AdminTab,
+  AdminConfirmDialog,
   exportToCSV
 } from '../../components/admin/AdminComponents';
 
@@ -107,6 +106,7 @@ export function AdminOrders() {
   const [noteInput, setNoteInput] = useState('');
   const [trackingNumbers, setTrackingNumbers] = useState<Record<string, string>>({});
   const [trackingInput, setTrackingInput] = useState('');
+  const [pirateShipConfirmOpen, setPirateShipConfirmOpen] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
 
   // Status counts for tabs
@@ -260,12 +260,8 @@ export function AdminOrders() {
 
   async function handlePirateShipExport() {
     if (selectedIds.size === 0) return;
-    
-    const count = selectedIds.size;
     const profile = SHIPPING_PROFILES.find(p => p.id === selectedProfileId);
-    const confirmed = window.confirm(`Ready to ship ${count} orders?\n\nPackaging: ${profile?.label}\n\nThis will download the Pirate Ship CSV and optionally update these orders to "In Fulfillment" so you can track your progress.`);
-    
-    if (!confirmed) return;
+    const count = selectedIds.size;
 
     try {
       setBatchUpdating(true);
@@ -307,6 +303,7 @@ export function AdminOrders() {
       toast('error', 'Fulfillment wizard failed');
     } finally {
       setBatchUpdating(false);
+      setPirateShipConfirmOpen(false);
     }
   }
 
@@ -434,7 +431,7 @@ export function AdminOrders() {
             </button>
             <div className="h-8 w-px bg-gray-200 mx-1" />
             <button 
-              onClick={handlePirateShipExport}
+              onClick={() => setPirateShipConfirmOpen(true)}
               disabled={selectedIds.size === 0}
               className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed"
             >
@@ -602,7 +599,7 @@ export function AdminOrders() {
         actions={
           <div className="flex items-center gap-2">
             <button 
-              onClick={handlePirateShipExport} 
+              onClick={() => setPirateShipConfirmOpen(true)}
               className="flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2 text-xs font-black text-white hover:bg-white/30 transition active:scale-95"
             >
               <Truck className="h-4 w-4" />
@@ -613,6 +610,17 @@ export function AdminOrders() {
             <button onClick={() => bulkUpdateStatus('shipped')} className="rounded-xl bg-white/10 px-4 py-2 text-xs font-bold text-white hover:bg-white/20 transition">Mark as Shipped</button>
           </div>
         }
+      />
+
+      <AdminConfirmDialog
+        open={pirateShipConfirmOpen}
+        onClose={() => setPirateShipConfirmOpen(false)}
+        onConfirm={() => void handlePirateShipExport()}
+        title="Generate Pirate Ship CSV?"
+        description={`This will download labels data for ${selectedIds.size} order${selectedIds.size === 1 ? '' : 's'} using ${SHIPPING_PROFILES.find(p => p.id === selectedProfileId)?.label ?? 'the selected package'} and move eligible orders to In Fulfillment.`}
+        confirmLabel="Generate CSV"
+        loading={batchUpdating}
+        variant="primary"
       />
     </div>
   );

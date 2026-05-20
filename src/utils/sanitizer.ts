@@ -92,7 +92,7 @@ export class Sanitizer {
 
 /**
  * Sanitizes and validates an image URL.
- * Returns a fallback placeholder if the URL is missing or clearly invalid.
+ * Returns a local fallback image if the URL is missing or clearly invalid.
  */
 export function sanitizeImageUrl(url?: string | null): string {
   if (!url || typeof url !== 'string' || url.trim() === '') {

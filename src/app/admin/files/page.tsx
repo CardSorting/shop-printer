@@ -17,7 +17,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { formatBytes } from '@utils/formatters';
-import { useToast } from '@ui/components/admin/AdminComponents';
+import { AdminConfirmDialog, useToast } from '@ui/components/admin/AdminComponents';
 import Image from 'next/image';
 import { sanitizeImageUrl } from '@utils/sanitizer';
 
@@ -37,6 +37,7 @@ export default function AdminFilesPage() {
   const [query, setQuery] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('grid');
   const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
+  const [pendingDeleteUrls, setPendingDeleteUrls] = useState<string[] | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const { toast } = useToast();
   const isMounted = useRef(true);
@@ -74,8 +75,6 @@ export default function AdminFilesPage() {
   }, [loadFiles]);
 
   const deleteFiles = async (urls: string[]) => {
-    if (!confirm(`Permanently delete ${urls.length} file(s)? This cannot be undone.`)) return;
-
     try {
       for (const url of urls) {
         await fetch('/api/admin/media', {
@@ -85,6 +84,7 @@ export default function AdminFilesPage() {
       }
       setFiles(prev => prev.filter(f => !urls.includes(f.url)));
       setSelectedUrls([]);
+      setPendingDeleteUrls(null);
       toast('success', `${urls.length} file(s) deleted`);
     } catch (err) {
       toast('error', 'Failed to delete some files');
@@ -273,7 +273,7 @@ export default function AdminFilesPage() {
                     <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => copyUrl(file.url, file.id)} className="rounded-lg border bg-white p-2 text-gray-500 shadow-sm hover:text-primary-600 hover:border-primary-200 transition">{copiedId === file.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}</button>
-                        <button onClick={() => deleteFiles([file.url])} className="rounded-lg border bg-white p-2 text-gray-500 shadow-sm hover:text-red-600 hover:border-red-200 transition"><Trash2 className="h-4 w-4" /></button>
+                        <button onClick={() => setPendingDeleteUrls([file.url])} className="rounded-lg border bg-white p-2 text-gray-500 shadow-sm hover:text-red-600 hover:border-red-200 transition"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -294,7 +294,7 @@ export default function AdminFilesPage() {
             </div>
             <div className="flex items-center gap-4">
               <button 
-                onClick={() => deleteFiles(selectedUrls)}
+                onClick={() => setPendingDeleteUrls(selectedUrls)}
                 className="flex items-center gap-2 text-xs font-bold text-red-400 hover:text-red-300 transition"
               >
                 <Trash2 className="h-4 w-4" /> Delete Permanently
@@ -310,6 +310,15 @@ export default function AdminFilesPage() {
         </div>
       )}
 
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteUrls)}
+        onClose={() => setPendingDeleteUrls(null)}
+        onConfirm={() => pendingDeleteUrls && void deleteFiles(pendingDeleteUrls)}
+        title="Delete files permanently?"
+        description={`This will permanently remove ${pendingDeleteUrls?.length ?? 0} file(s) from storage. Active products that reference deleted assets will use the configured local fallback image.`}
+        confirmLabel="Delete files"
+      />
+
       {/* Strategy Tip */}
       <div className="rounded-3xl border border-amber-100 bg-linear-to-br from-amber-50 to-orange-50 p-6 shadow-sm">
         <div className="flex gap-5">
@@ -320,7 +329,7 @@ export default function AdminFilesPage() {
             <h4 className="text-sm font-black uppercase tracking-tight text-amber-900">Professional Asset Guard</h4>
             <p className="mt-1 text-xs leading-relaxed text-amber-800 font-medium">
               Files are automatically optimized via **Lean Local Strategy**. 
-              Deleting assets here will permanently remove them from the host. Active products using these assets will fall back to default placeholders to prevent checkout friction.
+              Deleting assets here will permanently remove them from the host. Active products using these assets will fall back to the configured local fallback image to prevent checkout friction.
             </p>
           </div>
         </div>
