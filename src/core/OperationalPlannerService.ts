@@ -109,21 +109,35 @@ export class OperationalPlannerService {
     const topLowStockProducts = snapshot.inventory.products
       .filter((product) => product.inventoryHealth !== 'healthy')
       .slice(0, 6);
+    const reorderCandidates = topLowStockProducts.filter((product) => {
+      const supplier = product.supplier || product.manufacturer || product.vendor;
+      return supplier && product.cost !== undefined && product.cost > 0;
+    });
     const catalogAttention = snapshot.productManagement.productsNeedingAttention.slice(0, 6);
     const activeFulfillment = (snapshot.dashboard.fulfillmentCounts.to_review ?? 0) + (snapshot.dashboard.fulfillmentCounts.ready_to_ship ?? 0);
 
-    if (topLowStockProducts.length > 0 && ['prepare_for_weekend_sales', 'reduce_low_stock_risk', 'what_needs_attention_today'].includes(intent.desiredState.intentType)) {
+    if (reorderCandidates.length > 0 && ['prepare_for_weekend_sales', 'reduce_low_stock_risk', 'what_needs_attention_today'].includes(intent.desiredState.intentType)) {
+      const supplierCounts = reorderCandidates.reduce((acc, product) => {
+        const supplier = product.supplier || product.manufacturer || product.vendor!;
+        acc.set(supplier, (acc.get(supplier) ?? 0) + 1);
+        return acc;
+      }, new Map<string, number>());
+      const primarySupplier = [...supplierCounts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      const supplierProducts = reorderCandidates.filter((product) => (product.supplier || product.manufacturer || product.vendor) === primarySupplier);
       operations.push({
         id: 'draft-replenishment-po',
         tool: 'purchase_order.draft',
         target: 'procurement',
         title: 'Restock at-risk products',
-        description: `Review ${topLowStockProducts.length} low-stock products and prepare a reorder draft if the quantities look right.`,
-        diff: `+ Reorder candidates: ${topLowStockProducts.map((product) => product.name).join(', ')}`,
+        description: `Review ${supplierProducts.length} low-stock products from ${primarySupplier} and prepare a reorder draft if the quantities look right.`,
+        diff: `+ Reorder candidates: ${supplierProducts.map((product) => product.name).join(', ')}`,
         input: {
-          products: topLowStockProducts.map((product) => ({
+          supplier: primarySupplier,
+          products: supplierProducts.map((product) => ({
             productId: product.id,
+            sku: product.sku || product.id,
             name: product.name,
+            unitCost: product.cost!,
             currentStock: product.stock,
             suggestedQty: Math.max(product.reorderQuantity ?? 5, (product.reorderPoint ?? 5) * 2),
           })),
@@ -131,7 +145,7 @@ export class OperationalPlannerService {
         riskLevel: 'medium',
         requiresApproval: true,
         reversible: true,
-        beforeSummary: `${topLowStockProducts.length} products are low or out of stock.`,
+        beforeSummary: `${supplierProducts.length} products from ${primarySupplier} are low or out of stock.`,
         afterSummary: 'You have a clear reorder list to review before contacting a supplier.',
         status: 'proposed',
       });

@@ -115,18 +115,16 @@ export class OperationsRuntimeService {
         });
 
       case 'purchase_order.draft':
-        return this.purchaseOrderService.createDraft({
-          supplier: 'Pending Selection',
+        return this.purchaseOrderService.createPurchaseOrder({
+          supplier: this.parseSupplier(input),
           referenceNumber: `OPS-${Date.now().toString().slice(-6)}`,
-          items: this.parseProducts(input).map((p: any) => ({
+          items: this.parseReorderProducts(input).map((p) => ({
             productId: p.productId,
-            sku: 'PENDING',
-            productName: p.name,
             orderedQty: p.suggestedQty,
-            receivedQty: 0,
-            unitCost: 0,
-            totalCost: 0
-          }))
+            unitCost: p.unitCost,
+          })),
+          adminUserId: actor.userId,
+          adminUserEmail: actor.email,
         });
 
       case 'discount.draft': {
@@ -202,6 +200,29 @@ export class OperationsRuntimeService {
   private parseProducts(input: any): any[] {
     if (!Array.isArray(input?.products)) throw new Error('Operation input must include a products array.');
     return input.products;
+  }
+
+  private parseReorderProducts(input: any): Array<{ productId: string; name?: string; suggestedQty: number; unitCost: number }> {
+    if (!Array.isArray(input?.products)) throw new Error('Operation input must include a products array.');
+    if (input.products.length === 0) throw new Error('Operation input must include at least one product.');
+    return input.products.map((product: any) => {
+      if (typeof product?.productId !== 'string' || !product.productId.trim()) throw new Error('Operation product is missing productId.');
+      if (!Number.isInteger(product.suggestedQty) || product.suggestedQty <= 0) throw new Error(`Operation product ${product.productId} has an invalid suggested quantity.`);
+      if (!Number.isInteger(product.unitCost) || product.unitCost <= 0) throw new Error(`Operation product ${product.productId} requires a real unit cost.`);
+      return {
+        productId: product.productId,
+        name: typeof product.name === 'string' ? product.name : undefined,
+        suggestedQty: product.suggestedQty,
+        unitCost: product.unitCost,
+      };
+    });
+  }
+
+  private parseSupplier(input: any): string {
+    if (typeof input?.supplier !== 'string' || !input.supplier.trim()) {
+      throw new Error('Operation input must include a supplier for purchase order drafts.');
+    }
+    return input.supplier.trim();
   }
 
   private parseStringArray(value: unknown): string[] {

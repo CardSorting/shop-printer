@@ -30,6 +30,7 @@ describe('PurchaseOrderService - receiving Hardening', () => {
       saveReceivingSession: vi.fn((session) => Promise.resolve(session)),
     };
     mockProductRepo = {
+      getById: vi.fn().mockResolvedValue({ id: 'prod-1', sku: 'SHINY-1', name: 'Shiny Card' }),
       update: vi.fn(),
     };
     mockInventoryRepo = {
@@ -214,6 +215,35 @@ describe('PurchaseOrderService - receiving Hardening', () => {
       await expect(service.receiveItems(input, actor)).rejects.toThrow(
         /Cannot receive more than 10% over ordered amount/
       );
+    });
+
+    it('rejects duplicate received lines before inventory mutation', async () => {
+      await expect(service.receiveItems({
+        purchaseOrderId: 'po-1',
+        receivedBy: 'admin-1',
+        items: [
+          { purchaseOrderItemId: 'item-1', receivedQty: 1, condition: 'new' },
+          { purchaseOrderItemId: 'item-1', receivedQty: 1, condition: 'new' },
+        ],
+      }, actor)).rejects.toThrow('Duplicate received line item-1');
+
+      expect(mockInventoryRepo.adjustQuantity).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createPurchaseOrder validation', () => {
+    it('rejects duplicate products before saving a draft', async () => {
+      await expect(service.createPurchaseOrder({
+        supplier: 'Acme',
+        adminUserId: 'admin-1',
+        adminUserEmail: 'admin@example.com',
+        items: [
+          { productId: 'prod-1', orderedQty: 1, unitCost: 100 },
+          { productId: 'prod-1', orderedQty: 1, unitCost: 100 },
+        ],
+      })).rejects.toThrow('Duplicate product prod-1');
+
+      expect(mockPORepo.save).not.toHaveBeenCalled();
     });
   });
 });

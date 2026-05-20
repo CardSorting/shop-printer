@@ -3,12 +3,14 @@
  */
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { jsonError, readJsonObject, requireAdminSession } from '@infrastructure/server/apiGuards';
+import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
+import { parseClosePurchaseOrder, parsePurchaseOrderAction, parseReceiveItems } from '../parsers';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdminSession();
-    const { id } = await params;
+    await requireAdminSession(request);
+    const { id: rawId } = await params;
+    const id = requireString(rawId, 'id');
     const { searchParams } = new URL(request.url);
     const services = await getServerServices();
     if (searchParams.get('guided') === 'true') {
@@ -24,38 +26,29 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAdminSession(request);
-    const { id } = await params;
-    const body = await readJsonObject(request) as any;
+    const { id: rawId } = await params;
+    const id = requireString(rawId, 'id');
+    const body = await readJsonObject(request);
+    const action = parsePurchaseOrderAction(body);
     const services = await getServerServices();
 
-    if (body.action === 'submit') {
+    if (action === 'submit') {
       const order = await services.purchaseOrderService.submitOrder(id, user.id, user.email);
       return NextResponse.json(order);
     }
 
-    if (body.action === 'cancel') {
+    if (action === 'cancel') {
       const order = await services.purchaseOrderService.cancelOrder(id, user.id, user.email);
       return NextResponse.json(order);
     }
 
-    if (body.action === 'close') {
-      const order = await services.purchaseOrderService.closeOrder({
-        id,
-        discrepancyReason: body.discrepancyReason,
-        notes: body.notes,
-      }, user.id, user.email);
+    if (action === 'close') {
+      const order = await services.purchaseOrderService.closeOrder(parseClosePurchaseOrder(body, id), user.id, user.email);
       return NextResponse.json(order);
     }
 
-    if (body.action === 'receive') {
-      const result = await services.purchaseOrderService.receiveItems({
-        purchaseOrderId: id,
-        receivedBy: user.id,
-        items: body.items,
-        notes: body.notes,
-        locationId: body.locationId,
-        idempotencyKey: body.idempotencyKey,
-      }, { id: user.id, email: user.email });
+    if (action === 'receive') {
+      const result = await services.purchaseOrderService.receiveItems(parseReceiveItems(body, id, user.id), { id: user.id, email: user.email });
       return NextResponse.json(result);
     }
 

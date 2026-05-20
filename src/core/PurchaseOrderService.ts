@@ -51,6 +51,19 @@ export interface CreatePurchaseOrderInput {
   adminUserEmail: string;
 }
 
+export interface CreateDraftPurchaseOrderInput {
+  supplier: string;
+  referenceNumber: string;
+  items: Array<{
+    productId: string;
+    sku: string;
+    productName: string;
+    orderedQty: number;
+    unitCost: number;
+    notes?: string;
+  }>;
+}
+
 export interface ReceiveItemsInput {
   purchaseOrderId: string;
   receivedBy: string;
@@ -117,11 +130,10 @@ export class PurchaseOrderService {
   // ─────────────────────────────────────────────
 
   async createPurchaseOrder(input: CreatePurchaseOrderInput): Promise<PurchaseOrder> {
+    this.assertCreatePurchaseOrderInput(input);
+
     if (!input.supplier.trim()) {
       throw new InvalidPurchaseOrderError('Supplier name is required');
-    }
-    if (input.items.length === 0) {
-      throw new InvalidPurchaseOrderError('At least one item is required');
     }
 
     const items: PurchaseOrderItem[] = [];
@@ -178,20 +190,29 @@ export class PurchaseOrderService {
   }
 
   /**
-   * Simplified draft creation for operational automation.
+   * Draft creation for operational automation where product details were already resolved.
    */
-  async createDraft(input: { supplier: string; referenceNumber: string; items: any[] }): Promise<PurchaseOrder> {
+  async createDraft(input: CreateDraftPurchaseOrderInput): Promise<PurchaseOrder> {
+    if (!input.supplier.trim()) throw new InvalidPurchaseOrderError('Supplier name is required');
+    if (!input.referenceNumber.trim()) throw new InvalidPurchaseOrderError('Reference number is required');
+    if (!Array.isArray(input.items) || input.items.length === 0) throw new InvalidPurchaseOrderError('At least one item is required');
+    if (input.items.length > 100) throw new InvalidPurchaseOrderError('Purchase orders are limited to 100 line items');
+    const seen = new Set<string>();
     const items: PurchaseOrderItem[] = input.items.map(item => ({
       id: crypto.randomUUID(),
-      productId: item.productId,
-      sku: item.sku,
-      productName: item.productName,
-      orderedQty: item.orderedQty,
+      productId: this.requireLineString(item.productId, 'productId'),
+      sku: this.requireLineString(item.sku, 'sku'),
+      productName: this.requireLineString(item.productName, 'productName'),
+      orderedQty: this.requirePositiveWholeNumber(item.orderedQty, 'orderedQty'),
       receivedQty: 0,
-      unitCost: item.unitCost,
+      unitCost: this.requireNonNegativeWholeNumber(item.unitCost, 'unitCost'),
       totalCost: item.orderedQty * item.unitCost,
       notes: item.notes,
     }));
+    for (const item of items) {
+      if (seen.has(item.productId)) throw new InvalidPurchaseOrderError(`Duplicate product ${item.productId} in purchase order`);
+      seen.add(item.productId);
+    }
 
     const order: PurchaseOrder = {
       id: '',
@@ -209,6 +230,7 @@ export class PurchaseOrderService {
 
 
   async getPurchaseOrder(id: string): Promise<PurchaseOrder> {
+    this.assertId(id);
     const order = await this.purchaseOrderRepo.findById(id);
     if (!order) throw new PurchaseOrderNotFoundError(id);
     return order;
@@ -309,10 +331,11 @@ export class PurchaseOrderService {
     limit?: number;
     offset?: number;
   }): Promise<PurchaseOrder[]> {
-    return await this.purchaseOrderRepo.findAll(options);
+    return await this.purchaseOrderRepo.findAll(this.normalizeListOptions(options));
   }
 
   async countPurchaseOrders(status?: PurchaseOrderStatus): Promise<number> {
+    if (status && !this.isPurchaseOrderStatus(status)) throw new InvalidPurchaseOrderError('Purchase order status is invalid');
     return await this.purchaseOrderRepo.count({ status });
   }
 
@@ -400,6 +423,8 @@ export class PurchaseOrderService {
     session: ReceivingSession;
     inventoryUpdates: InventoryLevel[];
   }> {
+    this.assertReceiveItemsInput(input);
+
     if (input.idempotencyKey && this.purchaseOrderRepo.findReceivingSessionByIdempotencyKey) {
       const existingSession = await this.purchaseOrderRepo.findReceivingSessionByIdempotencyKey(
         input.purchaseOrderId,
@@ -633,5 +658,84 @@ export class PurchaseOrderService {
       totalSpent,
       lastOrderAt,
     };
+  }
+
+  private assertCreatePurchaseOrderInput(input: CreatePurchaseOrderInput): void {
+    if (!input || typeof input !== 'object') throw new InvalidPurchaseOrderError('Purchase order payload is required');
+    if (typeof input.supplier !== 'string' || !input.supplier.trim()) throw new InvalidPurchaseOrderError('Supplier name is required');
+    if (input.supplier.trim().length > 160) throw new InvalidPurchaseOrderError('Supplier name must be 160 characters or fewer');
+    if (!Array.isArray(input.items) || input.items.length === 0) throw new InvalidPurchaseOrderError('At least one item is required');
+    if (input.items.length > 100) throw new InvalidPurchaseOrderError('Purchase orders are limited to 100 line items');
+    const seen = new Set<string>();
+    for (const item of input.items) {
+      this.requireLineString(item.productId, 'productId');
+      this.requirePositiveWholeNumber(item.orderedQty, 'orderedQty');
+      this.requireNonNegativeWholeNumber(item.unitCost, 'unitCost');
+      if (seen.has(item.productId)) throw new InvalidPurchaseOrderError(`Duplicate product ${item.productId} in purchase order`);
+      seen.add(item.productId);
+    }
+  }
+
+  private assertReceiveItemsInput(input: ReceiveItemsInput): void {
+    this.assertId(input.purchaseOrderId);
+    if (typeof input.receivedBy !== 'string' || !input.receivedBy.trim()) throw new InvalidPurchaseOrderError('Receiver is required');
+    if (!Array.isArray(input.items) || input.items.length === 0) throw new InvalidPurchaseOrderError('At least one received item is required');
+    if (input.items.length > 100) throw new InvalidPurchaseOrderError('Receiving sessions are limited to 100 line items');
+    const seen = new Set<string>();
+    for (const item of input.items) {
+      this.requireLineString(item.purchaseOrderItemId, 'purchaseOrderItemId');
+      this.requirePositiveWholeNumber(item.receivedQty, 'receivedQty');
+      if (item.damagedQty !== undefined) this.requireNonNegativeWholeNumber(item.damagedQty, 'damagedQty');
+      if (!['new', 'damaged', 'defective'].includes(item.condition)) throw new InvalidPurchaseOrderError('Received item condition is invalid');
+      if (item.discrepancyReason !== undefined && !purchaseOrderRules.isValidDiscrepancyReason(item.discrepancyReason)) {
+        throw new InvalidPurchaseOrderError('Receiving discrepancy reason is invalid');
+      }
+      if (item.disposition !== undefined && !['add_to_stock', 'quarantine', 'return_to_supplier', 'write_off'].includes(item.disposition)) {
+        throw new InvalidPurchaseOrderError('Receiving disposition is invalid');
+      }
+      if (seen.has(item.purchaseOrderItemId)) throw new InvalidPurchaseOrderError(`Duplicate received line ${item.purchaseOrderItemId}`);
+      seen.add(item.purchaseOrderItemId);
+    }
+  }
+
+  private normalizeListOptions(options?: {
+    status?: PurchaseOrderStatus;
+    supplier?: string;
+    limit?: number;
+    offset?: number;
+  }): { status?: PurchaseOrderStatus; supplier?: string; limit?: number; offset?: number } | undefined {
+    if (!options) return undefined;
+    if (options.status && !this.isPurchaseOrderStatus(options.status)) throw new InvalidPurchaseOrderError('Purchase order status is invalid');
+    const limit = options.limit === undefined ? undefined : this.requirePositiveWholeNumber(options.limit, 'limit');
+    const offset = options.offset === undefined ? undefined : this.requireNonNegativeWholeNumber(options.offset, 'offset');
+    return {
+      status: options.status,
+      supplier: options.supplier?.trim() || undefined,
+      limit: limit === undefined ? undefined : Math.min(limit, 100),
+      offset,
+    };
+  }
+
+  private assertId(id: string): void {
+    if (typeof id !== 'string' || !id.trim()) throw new InvalidPurchaseOrderError('Purchase order id is required');
+  }
+
+  private isPurchaseOrderStatus(value: string): value is PurchaseOrderStatus {
+    return ['draft', 'ordered', 'partially_received', 'received', 'closed', 'cancelled'].includes(value);
+  }
+
+  private requireLineString(value: unknown, field: string): string {
+    if (typeof value !== 'string' || !value.trim()) throw new InvalidPurchaseOrderError(`${field} is required`);
+    return value.trim();
+  }
+
+  private requirePositiveWholeNumber(value: unknown, field: string): number {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) throw new InvalidPurchaseOrderError(`${field} must be a positive whole number`);
+    return value;
+  }
+
+  private requireNonNegativeWholeNumber(value: unknown, field: string): number {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) throw new InvalidPurchaseOrderError(`${field} must be zero or greater`);
+    return value;
   }
 }
