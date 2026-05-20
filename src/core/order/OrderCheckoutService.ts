@@ -178,7 +178,16 @@ export class OrderCheckoutService {
 
           if (discountCode) {
             const discountService = new DiscountService(this.discountRepo, this.audit, this.orderRepo);
-            const validation = await discountService.validateDiscount(discountCode, subtotal, userId, transaction);
+            const lineItems = cart.items.map((item) => {
+              const product = productMap.get(item.productId);
+              return {
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.priceSnapshot,
+                collections: product?.collections ?? [],
+              };
+            });
+            const validation = await discountService.validateDiscount(discountCode, subtotal, userId, transaction, [], { lineItems });
             if (validation.valid && validation.discount) {
               discountAmount = validation.discountAmount || 0;
               validDiscountCode = validation.discount.code;

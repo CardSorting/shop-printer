@@ -1,9 +1,10 @@
 import { getServerServices } from '@infrastructure/server/services';
 import { jsonError, requireAdminSession, readJsonObject } from '@infrastructure/server/apiGuards';
+import { parseDiscountDraft } from './parsers';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        await requireAdminSession();
+        await requireAdminSession(request);
         const services = await getServerServices();
         const discounts = await services.discountService.getAllDiscounts();
         return Response.json(discounts);
@@ -15,14 +16,10 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const user = await requireAdminSession(request);
-        const data = await readJsonObject(request);
+        const data = parseDiscountDraft(await readJsonObject(request));
         const services = await getServerServices();
-        
-        // Convert ISO strings back to Date objects
-        if (data.startsAt) data.startsAt = new Date(data.startsAt as string);
-        if (data.endsAt) data.endsAt = new Date(data.endsAt as string);
-        
-        const discount = await services.discountService.createDiscount(data as any, { id: user.id, email: user.email });
+
+        const discount = await services.discountService.createDiscount(data, { id: user.id, email: user.email });
         return Response.json(discount);
     } catch (error) {
         return jsonError(error, 'Failed to create discount');

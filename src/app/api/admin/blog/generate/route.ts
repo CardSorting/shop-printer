@@ -4,6 +4,7 @@ import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logger } from '@utils/logger';
 import { assertRateLimit, hasValidBearerToken, jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
+import { parseArticlePayload } from '../parsers';
 
 
 async function requireBlogGeneratorAccess(req: Request): Promise<void> {
@@ -118,7 +119,10 @@ export async function POST(req: Request) {
     logger.info(`[AI] Generating feature image using ${imageModelName}...`);
     const imagePrompt = `Generate a high-quality, professional feature image for a blog post titled: "${topic}". The style should be high-end tech photography or epic digital art, optimized for TCG collectors. Return ONLY the image URL or a base64 string.`;
     const featureImageResult = await tryGenerate(imageModelName, isVertex);
-    const featuredImageUrl = featureImageResult || '/assets/generated/generic_tcg_strategy_1778177431609.png'; // High-quality fallback
+    const generatedImage = (featureImageResult || '').trim();
+    const featuredImageUrl = (generatedImage.startsWith('/') || generatedImage.startsWith('https://'))
+      ? generatedImage
+      : '/assets/generated/generic_tcg_strategy_1778177431609.png';
 
     if (!text) {
       throw new Error('Failed to generate content: Empty response from AI model');
@@ -131,7 +135,7 @@ export async function POST(req: Request) {
     const articleId = crypto.randomUUID();
     const resolvedSlug = await services.knowledgebaseRepository.ensureUniqueSlug(data.slug || topic.toLowerCase().replace(/[^\w-]/g, '-'));
 
-    const article = {
+    const article = await parseArticlePayload({
       id: articleId,
       categoryId: categoryId || 'general',
       title: data.title,
@@ -151,18 +155,10 @@ export async function POST(req: Request) {
       seriesId: seriesId || null,
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
-
-    // Production Hardening: Sanitize AI-generated content before saving to DB
-    // This prevents XSS if the AI model generates malicious scripts or if 
-    // a prompt injection attack forces it to do so.
-    const { sanitizeHtml } = await import('@utils/sanitizer');
-    if (article.content) article.content = await sanitizeHtml(article.content);
-    if (article.excerpt) article.excerpt = await sanitizeHtml(article.excerpt);
-    if (article.title) article.title = await sanitizeHtml(article.title);
+    });
 
     // Save using the repository
-    await services.knowledgebaseRepository.saveArticle(article as any);
+    await services.knowledgebaseRepository.saveArticle(article);
 
     return NextResponse.json({ 
       success: true, 

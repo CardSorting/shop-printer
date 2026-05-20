@@ -185,9 +185,13 @@ export function requireConfiguredBearerToken(request: Request, envName: string):
 }
 
 export async function readJsonObject(request: Request): Promise<Record<string, unknown>> {
+    return readJsonObjectWithLimit(request, MAX_JSON_BODY_BYTES);
+}
+
+export async function readJsonObjectWithLimit(request: Request, maxBytes: number): Promise<Record<string, unknown>> {
     assertTrustedMutationOrigin(request);
     const contentLength = Number(request.headers.get('content-length') ?? 0);
-    if (Number.isFinite(contentLength) && contentLength > MAX_JSON_BODY_BYTES) {
+    if (Number.isFinite(contentLength) && contentLength > maxBytes) {
         throw new DomainError('Request body is too large.');
     }
 
@@ -198,7 +202,7 @@ export async function readJsonObject(request: Request): Promise<Record<string, u
 
     const rawBody = await request.text().catch(() => null);
     if (rawBody === null) throw new DomainError('Request body must be valid JSON.');
-    if (new TextEncoder().encode(rawBody).byteLength > MAX_JSON_BODY_BYTES) {
+    if (new TextEncoder().encode(rawBody).byteLength > maxBytes) {
         throw new DomainError('Request body is too large.');
     }
 

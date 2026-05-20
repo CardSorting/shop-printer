@@ -252,7 +252,16 @@ export class OrderAdminService {
     }
 
     const discountService = new DiscountService(this.discountRepo, this.audit, this.orderRepo);
-    const validation = await discountService.validateDiscount(code, order.total + (order.discountAmount || 0), order.userId);
+    const lineItems = await Promise.all(order.items.map(async (item) => {
+      const product = await this.productRepo.getById(item.productId);
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        collections: product?.collections ?? [],
+      };
+    }));
+    const validation = await discountService.validateDiscount(code, order.total + (order.discountAmount || 0), order.userId, undefined, [], { lineItems });
     if (!validation.valid || !validation.discount) {
       throw new Error(`Invalid discount: ${validation.message}`);
     }
