@@ -3,7 +3,7 @@
 /**
  * Buy Box: price, quantity, add-to-cart, wishlist, trust signals.
  * Pattern: Amazon/Shopify — sticky buy box, urgency for low stock only,
- * clear CTA hierarchy, branded installment messaging.
+ * clear CTA hierarchy.
  */
 import {
   ShoppingCart, Heart, Check, Truck, RefreshCcw, ShieldCheck, ChevronDown
@@ -89,9 +89,7 @@ export function ProductBuyBox({
             </span>
           )}
         </div>
-        <p className="text-xs text-gray-400 font-medium">
-          or 4 interest-free payments of {formatCurrency(Math.ceil(currentPrice / 4))} with <span className="font-bold text-gray-600">Shop Pay</span>
-        </p>
+
       </div>
 
       {/* Availability & Urgency */}

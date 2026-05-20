@@ -46,7 +46,7 @@ export interface ICartRepository {
 
 export interface IOrderRepository {
   create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>, transaction?: any): Promise<Order>;
-  getById(id: string): Promise<Order | null>;
+  getById(id: string, transaction?: any): Promise<Order | null>;
   getByIdempotencyKey(key: string): Promise<Order | null>;
   getByPaymentTransactionId(id: string): Promise<Order | null>;
   getByPaymentTransactionIdTransactional(id: string, transaction: any): Promise<Order | null>;
@@ -67,11 +67,12 @@ export interface IOrderRepository {
   }): Promise<{ orders: Order[]; nextCursor?: string }>;
   save(order: Order, transaction?: any): Promise<void>;
   updateStatus(id: string, status: OrderStatus, transaction?: any): Promise<void>;
-  updatePaymentTransactionId(id: string, paymentTransactionId: string): Promise<void>;
+  updatePaymentTransactionId(id: string, paymentTransactionId: string, transaction?: any): Promise<void>;
   batchUpdateStatus?(ids: string[], status: OrderStatus): Promise<void>;
   addNote(orderId: string, note: import('./models').OrderNote, transaction?: any): Promise<void>;
   updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }, transaction?: any): Promise<void>;
   updateRiskScore(orderId: string, score: number, transaction?: any): Promise<void>;
+  recordRefund(orderId: string, amount: number, transaction?: any): Promise<void>;
   markForReconciliation(orderId: string, notes: string[], appendOnly?: boolean): Promise<void>;
   clearReconciliationFlag(orderId: string, transaction?: any): Promise<void>;
   updateMetadata(orderId: string, metadata: Record<string, any>, transaction?: any): Promise<void>;

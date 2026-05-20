@@ -112,10 +112,17 @@ export class FirestoreOrderRepository implements IOrderRepository {
     }
   }
 
-  async getById(id: string): Promise<Order | null> {
-    const docSnap = await getDoc(doc(getUnifiedDb(), this.collectionName, id));
-    if (!docSnap.exists()) return null;
-    return this.mapDocToOrder(docSnap.id, docSnap.data());
+  async getById(id: string, transaction?: any): Promise<Order | null> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, id);
+    if (transaction) {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists()) return null;
+      return this.mapDocToOrder(snap.id, snap.data());
+    } else {
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) return null;
+      return this.mapDocToOrder(docSnap.id, docSnap.data());
+    }
   }
 
   async save(order: Order, transaction?: any): Promise<void> {
@@ -339,12 +346,12 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
 
-  async updatePaymentTransactionId(id: string, paymentTransactionId: string): Promise<void> {
+  async updatePaymentTransactionId(id: string, paymentTransactionId: string, transaction?: any): Promise<void> {
     const db = getUnifiedDb();
     // Production Hardening: Atomically update both the order doc AND the PI→Order lookup map.
     // Without the map write, finalizeOrderPayment (called by webhook) cannot resolve the order
     // via getByPaymentTransactionIdTransactional.
-    await runTransaction(db, async (t: any) => {
+    const operation = async (t: any) => {
       const orderRef = doc(db, this.collectionName, id);
       t.update(orderRef, { 
         paymentTransactionId, 
@@ -352,7 +359,13 @@ export class FirestoreOrderRepository implements IOrderRepository {
       });
       const mapRef = doc(db, 'order_payment_intent_map', paymentTransactionId);
       t.set(mapRef, { orderId: id, createdAt: serverTimestamp() });
-    });
+    };
+
+    if (transaction) {
+      await operation(transaction);
+    } else {
+      await runTransaction(db, operation);
+    }
   }
 
 

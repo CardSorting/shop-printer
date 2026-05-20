@@ -55,6 +55,7 @@ function makeOrderRepo(order: any) {
         clearReconciliationFlag: vi.fn(),
         updateMetadata: vi.fn(),
         updateRiskScore: vi.fn(),
+        recordRefund: vi.fn(),
         addFulfillmentEvent: vi.fn(),
         updateFulfillment: vi.fn(),
         recordUserDiscountUsage: vi.fn(),

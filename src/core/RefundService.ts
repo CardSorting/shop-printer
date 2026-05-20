@@ -79,7 +79,7 @@ export class RefundService {
           await runTransaction(getUnifiedDb(), async (transaction: any) => {
             // 1. Update Order Status and Atomic Refund Amount
             await this.orderRepo.updateStatus(orderId, nextStatus as any, transaction);
-            await (this.orderRepo as any).recordRefund(orderId, safeAmount, transaction);
+            await this.orderRepo.recordRefund(orderId, safeAmount, transaction);
 
             // 2. Restock inventory (physical items only)
             if (isFullRefund && this.productRepo) {

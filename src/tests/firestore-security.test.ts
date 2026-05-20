@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getDb, getAuth } from '../infrastructure/firebase/firebase';
-import { collection, addDoc, setDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, setDoc, doc, updateDoc, getDoc, getDocs } from 'firebase/firestore';
 
 /**
  * [SECURITY PROOFS]
@@ -54,7 +54,7 @@ describe('Firestore Security Substrate Proofs', () => {
         const discountsRef = collection(db, 'discounts');
         
         // Listing all discounts should be blocked
-        await expect(getDoc(doc(db, 'discounts', 'any-id')))
+        await expect(getDocs(discountsRef))
             .rejects.toThrow(/insufficient permissions/i);
     });
 });

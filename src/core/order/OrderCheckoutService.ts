@@ -55,158 +55,169 @@ export class OrderCheckoutService {
     if (!lockResult.success) throw new CheckoutInProgressError();
 
     try {
+      let order!: Order;
+      let resumedFromExisting = false;
+
       if (idempotencyKey) {
         const existing = await this.orderRepo.getByIdempotencyKey(idempotencyKey);
         if (existing) {
-          logger.info('Duplicate checkout attempt, returning existing order', { userId, idempotencyKey });
-          return existing;
+          if (existing.status === 'pending' && existing.paymentTransactionId === null && paymentMethodId) {
+            logger.info('Pending duplicate order without payment transaction found. Resuming payment flow.', { userId, idempotencyKey, orderId: existing.id });
+            order = existing;
+            resumedFromExisting = true;
+          } else {
+            logger.info('Duplicate checkout attempt, returning existing order', { userId, idempotencyKey });
+            return existing;
+          }
         }
       }
 
-      const order = await runTransaction(getUnifiedDb(), async (transaction: any) => {
-        const cart = await this.cartRepo.getByUserId(userId, transaction);
-        if (!cart || cart.items.length === 0) throw new CartEmptyError();
+      if (!resumedFromExisting) {
+        order = await runTransaction(getUnifiedDb(), async (transaction: any) => {
+          const cart = await this.cartRepo.getByUserId(userId, transaction);
+          if (!cart || cart.items.length === 0) throw new CartEmptyError();
 
-        assertValidOrderItems(cart.items);
-        const subtotal = calculateCartTotal(cart.items);
+          assertValidOrderItems(cart.items);
+          const subtotal = calculateCartTotal(cart.items);
 
-        const productMap = new Map<string, any>();
-        for (const item of cart.items) {
-          const product = await this.productRepo.getById(item.productId, transaction);
-          if (!product) throw new Error(`Product ${item.name} is no longer available.`);
-          productMap.set(item.productId, product);
+          const productMap = new Map<string, any>();
+          for (const item of cart.items) {
+            const product = await this.productRepo.getById(item.productId, transaction);
+            if (!product) throw new Error(`Product ${item.name} is no longer available.`);
+            productMap.set(item.productId, product);
 
-          let currentPrice = product.price;
-          if (item.variantId) {
-            const variant = product.variants?.find((v: any) => v.id === item.variantId);
-            if (!variant) throw new Error(`Variant for ${item.name} is no longer available.`);
-            currentPrice = variant.price;
-          }
-
-          if (currentPrice !== item.priceSnapshot) {
-            logger.warn('Price mismatch detected during checkout', {
-              productId: item.productId,
-              cartPrice: item.priceSnapshot,
-              currentPrice
-            });
-            throw new Error(`The price for ${item.name} has changed. Please refresh your cart.`);
-          }
-        }
-
-        let discountAmount = 0;
-        let validDiscountCode: string | undefined;
-        let isFreeShipping = false;
-
-        if (discountCode) {
-          const discountService = new DiscountService(this.discountRepo, this.audit, this.orderRepo);
-          const validation = await discountService.validateDiscount(discountCode, subtotal, userId, transaction);
-          if (validation.valid && validation.discount) {
-            discountAmount = validation.discountAmount || 0;
-            validDiscountCode = validation.discount.code;
-            isFreeShipping = !!validation.isFreeShipping;
-
-            await this.discountRepo.incrementUsage(validation.discount.id, transaction);
-
-            if (validation.discount.oncePerCustomer) {
-              await this.orderRepo.recordUserDiscountUsage(userId, validation.discount.code, transaction);
+            let currentPrice = product.price;
+            if (item.variantId) {
+              const variant = product.variants?.find((v: any) => v.id === item.variantId);
+              if (!variant) throw new Error(`Variant for ${item.name} is no longer available.`);
+              currentPrice = variant.price;
             }
-          } else if (!validation.valid) {
-            logger.warn('Checkout attempted with invalid discount code', { userId, discountCode, reason: validation.message });
+
+            if (currentPrice !== item.priceSnapshot) {
+              logger.warn('Price mismatch detected during checkout', {
+                productId: item.productId,
+                cartPrice: item.priceSnapshot,
+                currentPrice
+              });
+              throw new Error(`The price for ${item.name} has changed. Please refresh your cart.`);
+            }
           }
-        }
 
-        const [allRates, allZones] = this.shippingRepo
-          ? await Promise.all([this.shippingRepo.getAllRates(), this.shippingRepo.getAllZones()])
-          : [[], []];
+          let discountAmount = 0;
+          let validDiscountCode: string | undefined;
+          let isFreeShipping = false;
 
-        const shippingResult = calculateShipping(cart.items, shippingAddress, allRates, allZones);
-        const shipping = (subtotal >= 10000 || isFreeShipping || fulfillmentMethod === 'pickup') ? 0 : shippingResult.amount;
-        const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
-        const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
+          if (discountCode) {
+            const discountService = new DiscountService(this.discountRepo, this.audit, this.orderRepo);
+            const validation = await discountService.validateDiscount(discountCode, subtotal, userId, transaction);
+            if (validation.valid && validation.discount) {
+              discountAmount = validation.discountAmount || 0;
+              validDiscountCode = validation.discount.code;
+              isFreeShipping = !!validation.isFreeShipping;
 
-        const physicalItems = cart.items.filter(item => !item.isDigital);
-        const stockUpdates = coalesceStockUpdates(physicalItems.map(item => ({
-          id: item.productId,
-          variantId: item.variantId,
-          delta: -item.quantity
-        })));
+              await this.discountRepo.incrementUsage(validation.discount.id, transaction);
 
-        if (stockUpdates.length > 0) {
-          await this.productRepo.batchUpdateStock(stockUpdates, transaction);
-        }
+              if (validation.discount.oncePerCustomer) {
+                await this.orderRepo.recordUserDiscountUsage(userId, validation.discount.code, transaction);
+              }
+            } else if (!validation.valid) {
+              logger.warn('Checkout attempted with invalid discount code', { userId, discountCode, reason: validation.message });
+            }
+          }
 
-        const reservationExpiresAt = new Date(Date.now() + this.RESERVATION_TTL_MS).toISOString();
-        const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
-          userId,
-          items: cart.items.map(item => {
-            const product = productMap.get(item.productId);
-            return {
-              productId: item.productId,
-              variantId: item.variantId,
-              variantTitle: item.variantTitle,
-              productHandle: item.productHandle,
-              name: item.name,
-              quantity: item.quantity,
-              unitPrice: item.priceSnapshot,
-              imageUrl: item.imageUrl,
-              isDigital: item.isDigital,
-              digitalAssets: item.isDigital ? (product?.digitalAssets || []) : [],
-              shippingClassId: item.shippingClassId,
-              fulfilledQty: 0,
+          const [allRates, allZones] = this.shippingRepo
+            ? await Promise.all([this.shippingRepo.getAllRates(), this.shippingRepo.getAllZones()])
+            : [[], []];
+
+          const shippingResult = calculateShipping(cart.items, shippingAddress, allRates, allZones);
+          const shipping = (subtotal >= 10000 || isFreeShipping || fulfillmentMethod === 'pickup') ? 0 : shippingResult.amount;
+          const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
+          const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
+
+          const physicalItems = cart.items.filter(item => !item.isDigital);
+          const stockUpdates = coalesceStockUpdates(physicalItems.map(item => ({
+            id: item.productId,
+            variantId: item.variantId,
+            delta: -item.quantity
+          })));
+
+          if (stockUpdates.length > 0) {
+            await this.productRepo.batchUpdateStock(stockUpdates, transaction);
+          }
+
+          const reservationExpiresAt = new Date(Date.now() + this.RESERVATION_TTL_MS).toISOString();
+          const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
+            userId,
+            items: cart.items.map(item => {
+              const product = productMap.get(item.productId);
+              return {
+                productId: item.productId,
+                variantId: item.variantId,
+                variantTitle: item.variantTitle,
+                productHandle: item.productHandle,
+                name: item.name,
+                quantity: item.quantity,
+                unitPrice: item.priceSnapshot,
+                imageUrl: item.imageUrl,
+                isDigital: item.isDigital,
+                digitalAssets: item.isDigital ? (product?.digitalAssets || []) : [],
+                shippingClassId: item.shippingClassId,
+                fulfilledQty: 0,
+                at: new Date()
+              };
+            }) as any,
+            shippingAmount: shipping,
+            taxAmount,
+            discountAmount,
+            discountCode: validDiscountCode,
+            total,
+            status: 'pending',
+            shippingAddress,
+            shippingClassId: shippingResult.shippingClassId,
+            shippingCarrier: shippingResult.carrier,
+            customerEmail: userEmail,
+            customerName: userName,
+            paymentTransactionId: null,
+            idempotencyKey: idempotencyKey || crypto.randomUUID(),
+            fulfillmentMethod,
+            fulfillmentLocationId: 'primary',
+            fulfillments: [],
+            notes: [],
+            customerNote: cart.note,
+            metadata: {
+              shippingRateName: shippingResult.rateName,
+              shippingServiceCode: shippingResult.serviceCode,
+              inventoryReserved: stockUpdates.length > 0,
+              inventoryReservationReleased: false,
+              inventoryReservationFinalized: false,
+              inventoryReservationExpiresAt: reservationExpiresAt,
+              fencingToken: lockResult.fencingToken,
+            },
+            riskScore: 0,
+            estimatedDeliveryDate: deriveEstimatedDeliveryDate({ createdAt: new Date() } as any),
+            fulfillmentEvents: [{
+              id: crypto.randomUUID(),
+              type: 'order_placed',
+              label: 'Order Received',
+              description: 'Order received, pending payment verification.',
               at: new Date()
-            };
-          }) as any,
-          shippingAmount: shipping,
-          taxAmount,
-          discountAmount,
-          discountCode: validDiscountCode,
-          total,
-          status: 'pending',
-          shippingAddress,
-          shippingClassId: shippingResult.shippingClassId,
-          shippingCarrier: shippingResult.carrier,
-          customerEmail: userEmail,
-          customerName: userName,
-          paymentTransactionId: null,
-          idempotencyKey: idempotencyKey || crypto.randomUUID(),
-          fulfillmentMethod,
-          fulfillmentLocationId: 'primary',
-          fulfillments: [],
-          notes: [],
-          customerNote: cart.note,
-          metadata: {
-            shippingRateName: shippingResult.rateName,
-            shippingServiceCode: shippingResult.serviceCode,
-            inventoryReserved: stockUpdates.length > 0,
-            inventoryReservationReleased: false,
-            inventoryReservationFinalized: false,
-            inventoryReservationExpiresAt: reservationExpiresAt,
-            fencingToken: lockResult.fencingToken,
-          },
-          riskScore: 0,
-          estimatedDeliveryDate: deriveEstimatedDeliveryDate({ createdAt: new Date() } as any),
-          fulfillmentEvents: [{
-            id: crypto.randomUUID(),
-            type: 'order_placed',
-            label: 'Order Received',
-            description: 'Order received, pending payment verification.',
-            at: new Date()
-          }],
-        };
+            }],
+          };
 
-        const createdOrder = await this.orderRepo.create(orderData, transaction);
-        await this.cartRepo.clear(userId, transaction);
-        await this.audit.recordWithTransaction(transaction, {
-          userId,
-          userEmail: userEmail || 'unknown@dreambees.art',
-          action: 'order_placed',
-          targetId: createdOrder.id,
-          details: { total, itemCount: cart.items.length, discountCode: validDiscountCode, hasCustomerNote: !!cart.note },
-          correlationId: idempotencyKey || undefined
+          const createdOrder = await this.orderRepo.create(orderData, transaction);
+          await this.cartRepo.clear(userId, transaction);
+          await this.audit.recordWithTransaction(transaction, {
+            userId,
+            userEmail: userEmail || 'unknown@dreambees.art',
+            action: 'order_placed',
+            targetId: createdOrder.id,
+            details: { total, itemCount: cart.items.length, discountCode: validDiscountCode, hasCustomerNote: !!cart.note },
+            correlationId: idempotencyKey || undefined
+          });
+
+          return createdOrder;
         });
-
-        return createdOrder;
-      });
+      }
 
       if (!paymentMethodId) return order;
 
@@ -224,10 +235,34 @@ export class OrderCheckoutService {
           return { ...order, status: 'confirmed' as OrderStatus, paymentTransactionId: paymentResult.transactionId };
         }
       } catch (paymentErr: any) {
-        logger.error('Payment processing failed, cancelling pending order', { userId, orderId: order.id, paymentErr });
+        logger.error('Payment processing failed, cancelling pending order and releasing stock', { userId, orderId: order.id, paymentErr });
         await this.orderRepo.updateStatus(order.id, 'cancelled').catch(err => {
           logger.error('FATAL: Rollback failed for order after payment failure', { orderId: order.id, err });
         });
+
+        // Restore physical product stock reservations
+        const physicalItems = order.items.filter(item => !item.isDigital);
+        if (physicalItems.length > 0 && order.metadata?.inventoryReserved) {
+          const stockUpdates = coalesceStockUpdates(physicalItems.map(item => ({
+            id: item.productId,
+            variantId: item.variantId,
+            delta: item.quantity
+          })));
+
+          if (stockUpdates.length > 0) {
+            await this.productRepo.batchUpdateStock(stockUpdates).catch(err => {
+              logger.error('FATAL: Failed to restore stock during checkout payment rollback', { orderId: order.id, err });
+            });
+          }
+
+          await this.orderRepo.updateMetadata(order.id, {
+            ...(order.metadata || {}),
+            inventoryReservationReleased: true,
+            inventoryReservationReleasedAt: new Date().toISOString(),
+          }).catch(err => {
+            logger.error('FATAL: Failed to update metadata for stock release during checkout rollback', { orderId: order.id, err });
+          });
+        }
 
         if (order.discountCode) {
           const discount = await this.discountRepo.getByCode(order.discountCode);
@@ -258,7 +293,29 @@ export class OrderCheckoutService {
 
     try {
       const finalizedOrder = await runTransaction(db, async (transaction: any) => {
-        const order = await this.orderRepo.getByPaymentTransactionIdTransactional(paymentIntentId, transaction);
+        let order = await this.orderRepo.getByPaymentTransactionIdTransactional(paymentIntentId, transaction);
+        
+        if (!order) {
+          // Webhook Synchronous Race Fallback
+          const fallbackOrderId = stripePi?.metadata?.orderId;
+          if (fallbackOrderId) {
+            logger.info('Order not found by paymentTransactionId. Attempting fallback via stripePi.metadata.orderId', { paymentIntentId, fallbackOrderId });
+            const directOrder = await this.orderRepo.getById(fallbackOrderId, transaction);
+            if (directOrder) {
+              if (directOrder.paymentTransactionId === null || directOrder.paymentTransactionId === paymentIntentId) {
+                await this.orderRepo.updatePaymentTransactionId(directOrder.id, paymentIntentId, transaction);
+                order = { ...directOrder, paymentTransactionId: paymentIntentId };
+              } else {
+                logger.warn('Direct order found but paymentTransactionId mismatch', {
+                  orderId: directOrder.id,
+                  orderTxId: directOrder.paymentTransactionId,
+                  webhookTxId: paymentIntentId
+                });
+              }
+            }
+          }
+        }
+
         if (!order) {
           logger.error('CRITICAL: Payment finalized for non-existent order mapping', { paymentIntentId });
           throw new OrderNotFoundError(paymentIntentId);
@@ -318,7 +375,9 @@ export class OrderCheckoutService {
           correlationId: (stripePi?.metadata?.correlationId as string) || paymentIntentId
         });
 
-        await this.cartRepo.clear(order.userId, transaction);
+        // Cart was already cleared atomically during initiateCheckout.
+        // Do NOT clear again — the user may have started a new cart between
+        // checkout initiation and this webhook-driven finalization.
         await this.orderRepo.addFulfillmentEvent(order.id, {
           id: crypto.randomUUID(),
           type: 'payment_confirmed',

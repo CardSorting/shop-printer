@@ -34,6 +34,10 @@ export class StripeService {
     metadata?: Record<string, string>;
     idempotencyKey?: string;
   }): Promise<{ clientSecret: string; id: string }> {
+    if (!process.env.STRIPE_SECRET_KEY?.trim()) {
+      throw new PaymentFailedError('Stripe is not configured. Set STRIPE_SECRET_KEY.');
+    }
+
     try {
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: params.amount,
@@ -82,8 +86,13 @@ export class StripeService {
   }
 
   /**
-   * Checks if an event is processed and marks it as processing in a single transaction.
-   * Returns true if the event was already processed.
+   * Atomic event claim. Returns true if the event should be SKIPPED (already completed or in-progress).
+   * Returns false if the event is new or was previously failed (allowing Stripe retries).
+   *
+   * Event lifecycle: processing → completed | failed
+   * - 'processing': Claimed by this invocation, proceed with handling.
+   * - 'completed': Previously finalized successfully, skip.
+   * - 'failed': Previous attempt failed, allow retry.
    */
   async tryProcessEvent(eventId: string, type: string): Promise<boolean> {
     const eventRef = adminDb.collection(this.collectionName).doc(eventId);
@@ -92,15 +101,26 @@ export class StripeService {
       () => adminDb.runTransaction(async (transaction: any) => {
         const docSnap = await transaction.get(eventRef);
         if (docSnap.exists) {
-          return true; // Already processed
+          const data = docSnap.data();
+          // Allow retry of failed events — Stripe will resend on 500
+          if (data?.status === 'failed') {
+            logger.info(`Retrying previously failed webhook event ${eventId}`, { previousReason: data.failReason });
+            transaction.update(eventRef, {
+              status: 'processing',
+              retriedAt: FieldValue.serverTimestamp(),
+            });
+            return false; // Re-attempt allowed
+          }
+          return true; // 'processing' or 'completed' — skip
         }
 
         transaction.set(eventRef, {
           id: eventId,
           type,
-          processedAt: FieldValue.serverTimestamp(),
+          status: 'processing',
+          claimedAt: FieldValue.serverTimestamp(),
         });
-        return false; // Not processed, now marked
+        return false; // New event, now claimed
       }),
       { operationName: 'stripe.tryProcessEvent' }
     );
@@ -118,16 +138,43 @@ export class StripeService {
   }
 
   /**
-   * Marks a webhook event as processed.
+   * Marks a webhook event as successfully completed. Permanently blocks future retries.
    */
   async markEventProcessed(eventId: string, type: string): Promise<void> {
     await withAdminFirestoreRetry(
       () => adminDb.collection(this.collectionName).doc(eventId).set({
         id: eventId,
         type,
+        status: 'completed',
         processedAt: FieldValue.serverTimestamp(),
       }),
       { operationName: 'stripe.markEventProcessed' }
+    );
+  }
+
+  /**
+   * Marks a webhook event as failed, allowing Stripe retries to re-attempt processing.
+   * This replaces the old deleteEvent approach to prevent replay-on-partial-mutation.
+   */
+  async markEventFailed(eventId: string, reason: string): Promise<void> {
+    await withAdminFirestoreRetry(
+      () => adminDb.collection(this.collectionName).doc(eventId).set({
+        id: eventId,
+        status: 'failed',
+        failReason: reason,
+        failedAt: FieldValue.serverTimestamp(),
+      }, { merge: true }),
+      { operationName: 'stripe.markEventFailed' }
+    );
+  }
+
+  /**
+   * @deprecated Use markEventFailed instead. Retained for backward compatibility.
+   */
+  async deleteEvent(eventId: string): Promise<void> {
+    await withAdminFirestoreRetry(
+      () => adminDb.collection(this.collectionName).doc(eventId).delete(),
+      { operationName: 'stripe.deleteEvent' }
     );
   }
 

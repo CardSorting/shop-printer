@@ -146,4 +146,145 @@ describe('OrderService Concurrency', () => {
     expect(results.filter(result => result.status === 'rejected')).toHaveLength(1);
     expect(stock).toBe(0);
   });
+
+  it('should resume payment processing and transition order status to confirmed on checkout retry of a pending order with no payment transaction id', async () => {
+    const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
+    const idempotencyKey = 'timed-out-key';
+
+    // Mock existing order with status: pending and paymentTransactionId: null
+    mockOrderRepo.getByIdempotencyKey.mockResolvedValueOnce({
+      id: 'o-existing',
+      userId: 'u1',
+      total: 1000,
+      status: 'pending',
+      paymentTransactionId: null,
+      idempotencyKey
+    });
+
+    mockPayment.processPayment.mockResolvedValueOnce({
+      success: true,
+      transactionId: 'tx-recovered'
+    });
+
+    mockOrderRepo.updateStatus = vi.fn();
+    mockOrderRepo.updatePaymentTransactionId = vi.fn();
+
+    const order = await orderService.initiateCheckout(
+      'u1',
+      address as any,
+      'user@example.com',
+      'User',
+      undefined,
+      idempotencyKey,
+      'pm_123'
+    );
+
+    // Verify order is returned
+    expect(order.id).toBe('o-existing');
+    // Verify status is confirmed and paymentTransactionId is set in the returned order
+    expect(order.status).toBe('confirmed');
+    expect(order.paymentTransactionId).toBe('tx-recovered');
+
+    // Verify repository update calls were made
+    expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o-existing', 'confirmed');
+    expect(mockOrderRepo.updatePaymentTransactionId).toHaveBeenCalledWith('o-existing', 'tx-recovered');
+    expect(mockPayment.processPayment).toHaveBeenCalledWith({
+      amount: 1000,
+      orderId: 'o-existing',
+      paymentMethodId: 'pm_123',
+      idempotencyKey: 'timed-out-key'
+    });
+    // Verify that we did not run the cart checkout / create transaction flow again
+    expect(mockOrderRepo.create).not.toHaveBeenCalled();
+  });
+
+  it('should settle webhook instantly via fallback metadata query if synchronous transaction mapping is not yet written', async () => {
+    const stripePi = {
+      id: 'pi_race_123',
+      status: 'succeeded',
+      metadata: { orderId: 'order_123' },
+      charges: { data: [{ outcome: { risk_score: 10 } }] }
+    };
+
+    // 1. Webhook query by Payment Transaction ID returns null due to the race
+    mockOrderRepo.getByPaymentTransactionIdTransactional.mockResolvedValueOnce(null);
+
+    // 2. Fallback direct point-read finds the order transactionally
+    const mockOrder = {
+      id: 'order_123',
+      userId: 'u1',
+      status: 'pending',
+      paymentTransactionId: null,
+      fulfillmentMethod: 'shipping',
+      metadata: { inventoryReserved: true },
+      items: [{ productId: 'p1', quantity: 2 }]
+    };
+    mockOrderRepo.getById.mockResolvedValueOnce(mockOrder);
+
+    mockOrderRepo.updatePaymentTransactionId = vi.fn();
+    mockOrderRepo.updateStatus = vi.fn();
+    mockOrderRepo.updateRiskScore = vi.fn();
+    mockOrderRepo.updateMetadata = vi.fn();
+    mockOrderRepo.addFulfillmentEvent = vi.fn();
+
+    const result = await orderService.finalizeOrderPayment('pi_race_123', stripePi);
+
+    // Assert fallback query succeeded
+    expect(result.id).toBe('order_123');
+    expect(result.status).toBe('processing');
+
+    // Assert order repository mapping was updated transactionally
+    expect(mockOrderRepo.updatePaymentTransactionId).toHaveBeenCalledWith('order_123', 'pi_race_123', expect.anything());
+    expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('order_123', 'processing', expect.anything());
+    expect(mockOrderRepo.updateMetadata).toHaveBeenCalledWith('order_123', {
+      inventoryReserved: true,
+      inventoryReservationFinalized: true
+    }, expect.anything());
+  });
+
+  it('should transactionally restore physical stock and update metadata on payment failure during checkout', async () => {
+    const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
+
+    // Force processPayment to throw an error
+    mockPayment.processPayment.mockRejectedValueOnce(new Error('Stripe card declined'));
+
+    mockOrderRepo.updateStatus = vi.fn().mockResolvedValue(undefined);
+    mockOrderRepo.updateMetadata = vi.fn().mockResolvedValue(undefined);
+    mockProductRepo.batchUpdateStock = vi.fn().mockResolvedValue(undefined);
+
+    // Mock existing created order having metadata inventoryReserved: true
+    mockOrderRepo.create.mockResolvedValueOnce({
+      id: 'o1',
+      userId: 'u1',
+      status: 'pending',
+      paymentTransactionId: null,
+      discountCode: undefined,
+      metadata: { inventoryReserved: true },
+      items: [{ productId: 'p1', quantity: 1, isDigital: false }]
+    });
+
+    await expect(orderService.initiateCheckout(
+      'u1',
+      address as any,
+      'user@example.com',
+      'User',
+      undefined,
+      'bad-payment-key',
+      'pm_declined'
+    )).rejects.toThrow('Stripe card declined');
+
+    // Verify order was cancelled
+    expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o1', 'cancelled');
+
+    // Verify physical product stock was batch updated to be restored (delta of positive item quantity)
+    expect(mockProductRepo.batchUpdateStock).toHaveBeenLastCalledWith([
+      { id: 'p1', delta: 1, variantId: undefined }
+    ]);
+
+    // Verify metadata is updated with inventoryReservationReleased: true
+    expect(mockOrderRepo.updateMetadata).toHaveBeenCalledWith('o1', expect.objectContaining({
+      inventoryReservationReleased: true
+    }));
+  });
 });
+

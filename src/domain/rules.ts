@@ -359,7 +359,7 @@ export function validateCartItem(
   existingQuantity: number = 0,
   variantId?: string
 ): boolean {
-  if (quantity <= 0) return false;
+  if (!Number.isInteger(quantity) || quantity <= 0) return false;
   if (quantity > MAX_CART_QUANTITY) return false;
   
   // Production Hardening: Honor digital goods and backorder rules

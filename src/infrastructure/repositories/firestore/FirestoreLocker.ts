@@ -43,7 +43,7 @@ export class FirestoreLocker implements ILockProvider {
         return { success: true, fencingToken: firstToken };
       });
     } catch (error) {
-      logger.error('Error acquiring lock', { resourceId, owner, error });
+      logger.error('CRITICAL: Lock acquisition failed — checkout will be rejected. Investigate Firestore health.', { resourceId, owner, error });
       return { success: false, fencingToken: null };
     }
   }
