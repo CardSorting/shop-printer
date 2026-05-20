@@ -1,47 +1,34 @@
 import { NextRequest } from 'next/server';
 import { requireAdminSession, jsonError, readJsonObject } from '@infrastructure/server/apiGuards';
-import fs from 'node:fs/promises';
-import path from 'node:path';
+import { StorageFolder, StorageService } from '@infrastructure/services/StorageService';
+import { DomainError } from '@domain/errors';
 
 export const dynamic = 'force-dynamic';
-export async function GET() {
+const PUBLIC_MEDIA_FOLDERS = new Set<StorageFolder>(['products', 'collections', 'general']);
+
+function parseFolder(value: string | null): StorageFolder | undefined {
+  if (!value) return undefined;
+  if (!PUBLIC_MEDIA_FOLDERS.has(value as StorageFolder)) {
+    throw new DomainError('Invalid media folder');
+  }
+  return value as StorageFolder;
+}
+
+export async function GET(request: NextRequest) {
   try {
-    await requireAdminSession();
-    const storagePath = path.join(process.cwd(), 'public', 'storage');
-    
-    // Ensure directories exist
-    await fs.mkdir(path.join(storagePath, 'products'), { recursive: true });
-    await fs.mkdir(path.join(storagePath, 'collections'), { recursive: true });
-
-    const folders = ['products', 'collections'];
-    const allFiles: any[] = [];
-
-    for (const folder of folders) {
-      const folderPath = path.join(storagePath, folder);
-      const files = await fs.readdir(folderPath);
-
-      for (const file of files) {
-        if (file === '.gitkeep') continue;
-        
-        const filePath = path.join(folderPath, file);
-        const stats = await fs.stat(filePath);
-
-        allFiles.push({
-          id: file,
-          name: file,
-          url: `/storage/${folder}/${file}`,
-          folder,
-          size: stats.size,
-          createdAt: stats.birthtime,
-          updatedAt: stats.mtime
-        });
-      }
+    await requireAdminSession(request);
+    const folder = parseFolder(request.nextUrl.searchParams.get('folder'));
+    const limit = Number(request.nextUrl.searchParams.get('limit') ?? 500);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
+      throw new DomainError('limit must be an integer between 1 and 1000');
     }
 
-    // Sort by newest first
-    allFiles.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    const files = await StorageService.listFiles({
+      folders: folder ? [folder] : Array.from(PUBLIC_MEDIA_FOLDERS),
+      limit,
+    });
 
-    return Response.json({ files: allFiles });
+    return Response.json({ files });
   } catch (error) {
     return jsonError(error, 'Failed to list media');
   }
@@ -51,19 +38,13 @@ export async function DELETE(req: NextRequest) {
   try {
     await requireAdminSession(req);
     const body = await readJsonObject(req);
-    const { url } = body;
+    const storedPath = typeof body.url === 'string' ? body.url : body.path;
     
-    if (!url || typeof url !== 'string') return jsonError(new Error('URL required'));
+    if (!storedPath || typeof storedPath !== 'string') throw new DomainError('URL or path required');
 
-    // Security: Prevent path traversal by ensuring the URL starts with /storage/ and contains no ..
-    if (!url.startsWith('/storage/') || url.includes('..')) {
-      return jsonError(new Error('Invalid storage path'));
-    }
+    const deletedPath = await StorageService.deleteFileStrict(storedPath);
 
-    const filePath = path.join(process.cwd(), 'public', url);
-    await fs.unlink(filePath);
-
-    return Response.json({ success: true });
+    return Response.json({ success: true, deletedPath });
   } catch (error) {
     return jsonError(error, 'Failed to delete media');
   }

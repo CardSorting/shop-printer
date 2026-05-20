@@ -52,13 +52,16 @@ export async function POST(req: NextRequest) {
       'txt': ['text/plain']
     };
 
+    if (!ALLOWED_EXTENSIONS.has(ext)) {
+      return jsonError(new Error(`File extension .${ext} is not allowed for security reasons.`));
+    }
+
     if (mimeMap[ext] && !mimeMap[ext].includes(file.type)) {
        return jsonError(new Error(`Security mismatch: Extension .${ext} does not match file type ${file.type}`));
     }
 
-    // Production Hardening: Restrict non-image file extensions to prevent malicious uploads (e.g., .html, .php, .js)
-    if (!file.type.startsWith('image/') && !ALLOWED_EXTENSIONS.has(ext)) {
-      return jsonError(new Error(`File extension .${ext} is not allowed for security reasons.`));
+    if (ext === 'svg' && folder !== 'digital-assets') {
+      return jsonError(new Error('SVG uploads are only allowed as private digital assets.'));
     }
 
     // If it's a digital asset, use the StorageService for private storage with STREAMING

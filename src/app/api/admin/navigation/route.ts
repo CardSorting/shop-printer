@@ -4,7 +4,7 @@ import type { NavigationMenu } from '@domain/models';
 
 export async function GET(request: Request) {
   try {
-    await requireAdminSession();
+    await requireAdminSession(request);
     const services = await getServerServices();
     
     const { searchParams } = new URL(request.url);
@@ -42,8 +42,9 @@ export async function PUT(request: Request) {
       id: admin.id,
       email: admin.email
     });
+    const menu = await services.settingsService.getNavigationMenu(menuId);
 
-    return Response.json({ success: true });
+    return Response.json(menu);
   } catch (error) {
     return jsonError(error, 'Failed to update navigation menu');
   }

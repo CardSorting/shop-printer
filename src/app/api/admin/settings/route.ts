@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const services = getInitialServices();
     await services.settingsService.updateSetting(key, value, { id: user.id, email: user.email });
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ key, value });
   } catch (err) {
     return jsonError(err, 'Failed to update setting');
   }

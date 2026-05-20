@@ -8,6 +8,7 @@ import {
   getDownloadURL, 
   deleteObject, 
   getBytes,
+  getMetadata,
   listAll
 } from 'firebase/storage';
 import { getStorage } from '../firebase/firebase';
@@ -27,6 +28,16 @@ export interface StoredFile {
   size: number;
   mimeType: string;
 }
+
+export interface ListedStorageFile extends StoredFile {
+  url: string;
+  folder: StorageFolder;
+  storagePath: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const PUBLIC_STORAGE_FOLDERS: StorageFolder[] = ['products', 'collections', 'general'];
 
 export class StorageService {
   /**
@@ -132,6 +143,46 @@ export class StorageService {
     };
   }
 
+  static async listFiles(options?: {
+    folders?: StorageFolder[];
+    limit?: number;
+  }): Promise<ListedStorageFile[]> {
+    const folders = options?.folders?.length ? options.folders : PUBLIC_STORAGE_FOLDERS;
+    const limitVal = Math.min(Math.max(options?.limit ?? 500, 1), 1000);
+    const files: ListedStorageFile[] = [];
+
+    for (const folder of folders) {
+      const result = await listAll(ref(getStorage(), folder));
+
+      for (const itemRef of result.items) {
+        if (files.length >= limitVal) break;
+        const [metadata, downloadUrl] = await Promise.all([
+          getMetadata(itemRef),
+          folder === 'digital-assets' ? Promise.resolve(itemRef.fullPath) : getDownloadURL(itemRef),
+        ]);
+        const originalName = metadata.customMetadata?.originalName || itemRef.name;
+        const id = metadata.customMetadata?.id || itemRef.name;
+
+        files.push({
+          id,
+          name: originalName,
+          path: downloadUrl,
+          url: downloadUrl,
+          folder,
+          storagePath: itemRef.fullPath,
+          size: Number(metadata.size ?? 0),
+          mimeType: metadata.contentType || 'application/octet-stream',
+          createdAt: metadata.timeCreated || new Date(0).toISOString(),
+          updatedAt: metadata.updated || metadata.timeCreated || new Date(0).toISOString(),
+        });
+      }
+
+      if (files.length >= limitVal) break;
+    }
+
+    return files.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }
+
   /**
    * Helper to extract the internal storage path from a Firebase Download URL.
    */
@@ -201,6 +252,28 @@ export class StorageService {
     } catch (e) {
       logger.error(`[Forensic] Failed to delete file at ${storedPath}:`, e);
     }
+  }
+
+  static async deleteFileStrict(storedPath: string): Promise<string> {
+    let objectPath = storedPath;
+    if (storedPath.startsWith('http')) {
+      const url = new URL(storedPath);
+      const allowedDomains = ['firebasestorage.googleapis.com', 'firebasestorage.app'];
+      if (!allowedDomains.some((domain) => url.hostname.endsWith(domain))) {
+        throw new Error('Untrusted asset source.');
+      }
+      const extracted = this.extractPathFromUrl(storedPath);
+      if (!extracted) throw new Error('Invalid Firebase Storage URL.');
+      objectPath = extracted;
+    }
+
+    if (!PUBLIC_STORAGE_FOLDERS.some((folder) => objectPath === folder || objectPath.startsWith(`${folder}/`))) {
+      throw new Error('Invalid storage path.');
+    }
+
+    await deleteObject(ref(getStorage(), objectPath));
+    logger.info(`[Forensic] Deleted storage asset: ${objectPath}`);
+    return objectPath;
   }
 
   /**

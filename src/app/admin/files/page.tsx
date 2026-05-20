@@ -92,7 +92,7 @@ export default function AdminFilesPage() {
   };
 
   const copyUrl = (url: string, id: string) => {
-    const fullUrl = window.location.origin + url;
+    const fullUrl = url.startsWith('http') ? url : window.location.origin + url;
     navigator.clipboard.writeText(fullUrl);
     setCopiedId(id);
     if (copiedTimerRef.current !== null) {
