@@ -148,6 +148,31 @@ describe('Domain Rules', () => {
       ] as any;
       expect(purchaseOrderRules.calculateReceivedStatus(partialItems)).toBe('partially_received');
     });
+
+    describe('validateReceiveQty', () => {
+      it('should allow receiving within ordered quantity', () => {
+        expect(purchaseOrderRules.validateReceiveQty(10, 0, 5)).toBe(true);
+        expect(purchaseOrderRules.validateReceiveQty(10, 5, 5)).toBe(true);
+      });
+
+      it('should allow overage up to 10%', () => {
+        expect(purchaseOrderRules.validateReceiveQty(10, 0, 11)).toBe(true);
+        expect(purchaseOrderRules.validateReceiveQty(10, 5, 6)).toBe(true);
+      });
+
+      it('should reject overage exceeding 10%', () => {
+        expect(purchaseOrderRules.validateReceiveQty(10, 0, 12)).toBe(false);
+        expect(purchaseOrderRules.validateReceiveQty(10, 5, 7)).toBe(false);
+      });
+
+      it('should reject negative quantities', () => {
+        expect(purchaseOrderRules.validateReceiveQty(10, 0, -1)).toBe(false);
+      });
+
+      it('should reject non-integer quantities', () => {
+        expect(purchaseOrderRules.validateReceiveQty(10, 0, 1.5)).toBe(false);
+      });
+    });
   });
 
   describe('inventoryRules', () => {

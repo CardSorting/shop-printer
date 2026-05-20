@@ -815,7 +815,7 @@ export const purchaseOrderRules = {
   },
 
   validateReceiveQty: (ordered: number, alreadyReceived: number, newReceived: number): boolean =>
-    Number.isInteger(newReceived) && alreadyReceived + newReceived <= ordered && newReceived >= 0,
+    Number.isInteger(newReceived) && alreadyReceived + newReceived <= Math.ceil(ordered * 1.1) && newReceived >= 0,
 
   calculateLineReceivingSummary: lineReceivingSummary,
 

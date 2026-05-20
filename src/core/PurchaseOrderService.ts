@@ -437,9 +437,15 @@ export class PurchaseOrderService {
       const damagedQty = inputItem.damagedQty ?? (inputItem.condition === 'new' ? 0 : inputItem.receivedQty);
       const disposition = inputItem.disposition ?? (inputItem.condition === 'new' ? 'add_to_stock' : 'quarantine');
 
+      const nextReceived = currentSessionReceived + inputItem.receivedQty;
       if (!purchaseOrderRules.validateReceiveQty(poItem.orderedQty, currentSessionReceived, inputItem.receivedQty)) {
         throw new InvalidPurchaseOrderError(
-          `Cannot receive ${inputItem.receivedQty} of ${poItem.productName} (already received ${currentSessionReceived}, ordered ${poItem.orderedQty})`
+          `Cannot receive more than 10% over ordered amount for ${poItem.productName}`
+        );
+      }
+      if (nextReceived > poItem.orderedQty && inputItem.discrepancyReason !== 'overage') {
+        throw new InvalidPurchaseOrderError(
+          `Overage discrepancy reason is required when receiving more than ordered amount for ${poItem.productName}`
         );
       }
       if (damagedQty < 0 || damagedQty > inputItem.receivedQty) {

@@ -4,7 +4,7 @@ import { jsonError, readJsonObject, requireAdminSession } from '@infrastructure/
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdminSession(req);
+    const user = await requireAdminSession(req);
     const { id } = await params;
     const services = getInitialServices();
     const { status } = await readJsonObject(req);
@@ -14,6 +14,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     await services.knowledgebaseRepository.updateCommentStatus(id, status as any);
+
+    await services.auditService.record({
+      userId: user.id,
+      userEmail: user.email,
+      action: 'blog.comment_status_updated',
+      targetId: id,
+      details: { commentId: id, status }
+    });
+
     return NextResponse.json({ success: true });
   } catch (err) {
     return jsonError(err, 'Failed to update comment status');

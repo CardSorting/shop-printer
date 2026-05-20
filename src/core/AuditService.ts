@@ -44,7 +44,8 @@ export type AuditAction =
   | 'ticket_updated' | 'ticket_status_changed' | 'ticket_batch_updated'
   | 'campaign_created' | 'campaign_executed' | 'campaign_converted'
   | 'shipping_class_saved' | 'shipping_class_deleted' | 'shipping_zone_saved' | 'shipping_zone_deleted' | 'shipping_rate_saved' | 'shipping_rate_deleted'
-  | 'account_deletion_requested' | 'marketing_unsubscribe_requested';
+  | 'account_deletion_requested' | 'marketing_unsubscribe_requested'
+  | 'blog.comment_deleted' | 'blog.comment_status_updated';
 
 export interface AuditEntry {
   id: string;
