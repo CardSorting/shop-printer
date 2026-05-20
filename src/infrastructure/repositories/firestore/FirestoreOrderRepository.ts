@@ -29,12 +29,17 @@ import { logger } from '@utils/logger';
 import type { IOrderRepository } from '@domain/repositories';
 import type {
   Address,
+  CheckoutAuthoritySource,
   CheckoutAttempt,
   CheckoutAttemptState,
+  CheckoutTransitionEvidence,
+  CheckoutWaitingFor,
+  CheckoutWorkflowPhase,
   Order,
   OrderItem,
   OrderStatus,
   OrderStats,
+  PaymentReconciliationFailureClassification,
   PaymentState,
   FulfillmentState,
   ReconciliationState,
@@ -42,6 +47,7 @@ import type {
   PaymentReconciliationCaseLifecycleState,
   PaymentReconciliationReason,
 } from '@domain/models';
+import { assertLegalCheckoutPhaseTransition } from '@core/order/checkoutWorkflow';
 
 
 import { mapDoc, mapTimestamp } from './utils';
@@ -90,6 +96,20 @@ export class FirestoreOrderRepository implements IOrderRepository {
     if (data.reconciliationState) return data.reconciliationState as ReconciliationState;
     if (data.reconciliationRequired || data.status === 'reconciling') return 'needs_review';
     return 'none';
+  }
+
+  private normalizeReconciliationClassification(
+    classification?: PaymentReconciliationFailureClassification | 'transient' | 'terminal' | null,
+    reason?: PaymentReconciliationReason
+  ): PaymentReconciliationFailureClassification {
+    if (classification === 'transient') return 'transient_external';
+    if (classification === 'terminal') return 'operator_required';
+    if (classification) return classification;
+    if (reason === 'finalization_failure') return 'local_persistence_failure';
+    if (reason === 'paid_not_finalized') return 'local_persistence_failure';
+    if (reason === 'mapping_mismatch' || reason === 'dangling_payment_intent') return 'stripe_local_mismatch';
+    if (reason === 'paid_cancelled' || reason === 'fencing_token_mismatch') return 'operator_required';
+    return 'operator_required';
   }
 
   async create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>, transaction?: any): Promise<Order> {
@@ -681,6 +701,12 @@ export class FirestoreOrderRepository implements IOrderRepository {
       const data = {
         ...attempt,
         id: attempt.idempotencyKey,
+        cartOwner: attempt.cartOwner || attempt.cartOwnerId || attempt.userId,
+        currentPhase: attempt.currentPhase || 'CREATE_OR_RESUME_ATTEMPT',
+        authoritySource: attempt.authoritySource || 'local',
+        waitingFor: attempt.waitingFor || 'none',
+        lastTransitionAt: attempt.lastTransitionAt || new Date().toISOString(),
+        lastTransitionReason: attempt.lastTransitionReason || 'checkout_attempt_recorded',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -745,6 +771,76 @@ export class FirestoreOrderRepository implements IOrderRepository {
     await runTransaction(db, operation);
   }
 
+  async transitionCheckoutAttemptPhase(params: {
+    attemptId: string;
+    expectedPhases: CheckoutWorkflowPhase[];
+    nextPhase: CheckoutWorkflowPhase;
+    authoritySource: CheckoutAuthoritySource;
+    waitingFor: CheckoutWaitingFor;
+    reason: string;
+    evidence?: CheckoutTransitionEvidence;
+    orderId?: string | null;
+    paymentIntentId?: string | null;
+  }, transaction?: any): Promise<void> {
+    const db = getUnifiedDb();
+    const attemptRef = doc(db, this.checkoutAttemptCollectionName, params.attemptId);
+    const transitionAt = new Date().toISOString();
+
+    const operation = async (t: any) => {
+      const snap = await t.get(attemptRef);
+      if (!snap.exists()) {
+        throw new Error(`Checkout attempt ${params.attemptId} not found`);
+      }
+
+      const data = snap.data();
+      const currentPhase = data.currentPhase as CheckoutWorkflowPhase | undefined;
+      if (currentPhase && !params.expectedPhases.includes(currentPhase)) {
+        throw new Error(`Checkout phase stale update rejected for ${params.attemptId}: expected ${params.expectedPhases.join(', ')}, found ${currentPhase} (${params.reason})`);
+      }
+      assertLegalCheckoutPhaseTransition(currentPhase, params.nextPhase, params.reason);
+
+      const payload: Record<string, any> = {
+        currentPhase: params.nextPhase,
+        authoritySource: params.authoritySource,
+        waitingFor: params.waitingFor,
+        lastTransitionAt: transitionAt,
+        lastTransitionReason: params.reason,
+        updatedAt: serverTimestamp(),
+        [`phaseTransitions.${Date.now()}`]: {
+          oldPhase: currentPhase || null,
+          newPhase: params.nextPhase,
+          authoritySource: params.authoritySource,
+          waitingFor: params.waitingFor,
+          reason: params.reason,
+          evidence: params.evidence || [],
+          orderId: params.orderId ?? data.orderId ?? null,
+          paymentIntentId: params.paymentIntentId ?? data.paymentIntentId ?? null,
+          transitionedAt: transitionAt,
+        },
+      };
+      if (params.orderId !== undefined) payload.orderId = params.orderId;
+      if (params.paymentIntentId !== undefined) payload.paymentIntentId = params.paymentIntentId;
+      if (params.evidence) payload.phaseTransitionEvidence = params.evidence;
+
+      t.update(attemptRef, payload);
+
+      logger.info('checkout_phase_transition', {
+        attemptId: params.attemptId,
+        idempotencyKey: data.idempotencyKey || params.attemptId,
+        oldPhase: currentPhase || null,
+        newPhase: params.nextPhase,
+        authoritySource: params.authoritySource,
+        waitingFor: params.waitingFor,
+        reason: params.reason,
+        orderId: params.orderId ?? data.orderId ?? null,
+        paymentIntentId: params.paymentIntentId ?? data.paymentIntentId ?? null,
+      });
+    };
+
+    if (transaction) await operation(transaction);
+    else await runTransaction(db, operation);
+  }
+
   async getCheckoutAttempt(idempotencyKey: string, transaction?: any): Promise<CheckoutAttempt | null> {
     const ref = doc(getUnifiedDb(), this.checkoutAttemptCollectionName, idempotencyKey);
     const snap = transaction ? await transaction.get(ref) : await getDoc(ref);
@@ -776,6 +872,10 @@ export class FirestoreOrderRepository implements IOrderRepository {
     evidence?: Array<{ type: string; value: string; recordedAt: string }>;
     repairAttempt?: { attemptedAt: string; error?: string | null };
     details?: Record<string, any>;
+    failureClassification?: PaymentReconciliationFailureClassification | 'transient' | 'terminal';
+    lastObservedStripeState?: string | null;
+    lastObservedLocalState?: string | null;
+    blockingProductionReadiness?: boolean;
   }, transaction?: any): Promise<void> {
     const db = getUnifiedDb();
     const caseId = `${params.paymentIntentId}_${params.reason}`;
@@ -803,6 +903,10 @@ export class FirestoreOrderRepository implements IOrderRepository {
         evidence: params.evidence || defaultEvidence,
         repairAttemptCount: caseExists ? increment(0) : 0,
         details: params.details || {},
+        failureClassification: this.normalizeReconciliationClassification(params.failureClassification, params.reason),
+        lastObservedStripeState: params.lastObservedStripeState ?? params.stripeStatus ?? null,
+        lastObservedLocalState: params.lastObservedLocalState ?? null,
+        blockingProductionReadiness: params.blockingProductionReadiness ?? params.severity === 'critical',
       };
       if (params.repairAttempt) {
         payload.lifecycleState = params.lifecycleState || 'repair_attempted';

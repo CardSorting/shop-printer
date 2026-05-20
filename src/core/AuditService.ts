@@ -45,7 +45,8 @@ export type AuditAction =
   | 'campaign_created' | 'campaign_executed' | 'campaign_converted'
   | 'shipping_class_saved' | 'shipping_class_deleted' | 'shipping_zone_saved' | 'shipping_zone_deleted' | 'shipping_rate_saved' | 'shipping_rate_deleted'
   | 'account_deletion_requested' | 'marketing_unsubscribe_requested'
-  | 'blog.comment_deleted' | 'blog.comment_status_updated';
+  | 'blog.comment_deleted' | 'blog.comment_status_updated'
+  | 'checkout_resumed' | 'checkout_rollback_success' | 'checkout_rollback_failed';
 
 export interface AuditEntry {
   id: string;

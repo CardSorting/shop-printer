@@ -168,6 +168,39 @@ export class StripeService {
     return status === 'processing' || status === 'completed' || status === 'failed' ? status : null;
   }
 
+  async listStuckWebhookClaims(limit = 50): Promise<Array<{
+    id: string;
+    type?: string | null;
+    status: 'processing';
+    claimToken?: string | null;
+    claimExpiresAt?: number | null;
+    claimedAt?: unknown;
+    updatedAt?: unknown;
+  }>> {
+    const now = Date.now();
+    const snapshot: any = await withAdminFirestoreRetry(
+      () => adminDb.collection(this.collectionName)
+        .where('status', '==', 'processing')
+        .where('claimExpiresAt', '<=', now)
+        .limit(limit)
+        .get(),
+      { operationName: 'stripe.listStuckWebhookClaims' }
+    );
+
+    return snapshot.docs.map((docSnap: any) => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        type: data?.type || null,
+        status: 'processing',
+        claimToken: data?.claimToken || null,
+        claimExpiresAt: data?.claimExpiresAt || null,
+        claimedAt: data?.claimedAt || null,
+        updatedAt: data?.updatedAt || null,
+      };
+    });
+  }
+
   /**
    * Marks a webhook event as successfully completed. Permanently blocks future retries.
    */

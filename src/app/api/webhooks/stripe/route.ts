@@ -45,14 +45,16 @@ export async function POST(request: Request) {
     switch (event.type) {
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object;
-        logger.info(`Processing payment_intent.succeeded: ${paymentIntent.id}`);
+        const attemptId = paymentIntent.metadata?.checkoutKey || paymentIntent.id;
+        logger.info(`[CHECKOUT-WORKFLOW] [Attempt: ${attemptId}] Processing payment_intent.succeeded: ${paymentIntent.id}. Transitioning AWAIT_PAYMENT_CONFIRMATION -> FINALIZE_PAYMENT.`);
         
         await services.orderService.finalizeOrderPayment(paymentIntent.id, paymentIntent);
         break;
       }
       case 'payment_intent.payment_failed': {
         const paymentIntent = event.data.object;
-        logger.warn(`Processing payment_intent.payment_failed: ${paymentIntent.id}`);
+        const attemptId = paymentIntent.metadata?.checkoutKey || paymentIntent.id;
+        logger.warn(`[CHECKOUT-WORKFLOW] [Attempt: ${attemptId}] Processing payment_intent.payment_failed: ${paymentIntent.id}. Transitioning to RECOVER_OR_RECONCILE.`);
 
         const currentPaymentIntent = await stripeService.getPaymentIntent(paymentIntent.id);
         if (currentPaymentIntent.status === 'succeeded') {
@@ -69,8 +71,6 @@ export async function POST(request: Request) {
         }
         
         // Production Hardening: Dual-lookup with metadata fallback.
-        // The PI→Order map write from create-payment-intent may not have committed yet
-        // when this webhook arrives. Fall back to orderId stored in PI metadata.
         let order = await services.orderRepo.getByPaymentTransactionId(paymentIntent.id);
         if (!order && paymentIntent.metadata?.orderId) {
           const fallbackOrder = await services.orderRepo.getById(paymentIntent.metadata.orderId);
@@ -82,8 +82,43 @@ export async function POST(request: Request) {
 
         // Cancel if still pending or confirmed (race: verify endpoint may have promoted status)
         if (order && (order.status === 'pending' || order.status === 'confirmed')) {
+            if (order.paymentState === 'paid' || order.paymentState === 'partially_refunded' || order.paymentState === 'refunded') {
+              logger.warn('stale_payment_failed_webhook_rejected', {
+                eventId: event.id,
+                paymentIntentId: paymentIntent.id,
+                orderId: order.id,
+                localPaymentState: order.paymentState,
+                stripeStatus: currentPaymentIntent.status,
+              });
+              break;
+            }
+            if (typeof services.orderRepo.updateMetadata === 'function') {
+              await services.orderRepo.updateMetadata(order.id, {
+                ...(order.metadata || {}),
+                currentPhase: 'RECOVER_OR_RECONCILE',
+                authoritySource: 'local',
+                waitingFor: 'none'
+              }).catch(() => {});
+            }
             await services.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], currentPaymentIntent.status === 'canceled' ? 'cancelled' : 'failed', 'stripe_payment_failed');
             await services.orderRepo.guardedUpdateStatus(order.id, ['pending', 'confirmed'], 'cancelled', 'stripe_payment_failed');
+            await (services.orderRepo as any).transitionCheckoutAttemptPhase?.({
+              attemptId,
+              expectedPhases: ['AWAIT_PAYMENT_CONFIRMATION', 'RECOVER_OR_RECONCILE'],
+              nextPhase: 'RECOVER_OR_RECONCILE',
+              authoritySource: 'local',
+              waitingFor: 'none',
+              reason: 'stripe_payment_failed',
+              orderId: order.id,
+              paymentIntentId: paymentIntent.id,
+            }).catch((err: any) => {
+              logger.info('checkout_failed_phase_already_advanced', { orderId: order.id, paymentIntentId: paymentIntent.id, err });
+            });
+            if (order.idempotencyKey && typeof services.orderRepo.updateCheckoutAttempt === 'function') {
+              await services.orderRepo.updateCheckoutAttempt(order.idempotencyKey, {
+                state: 'cancelled'
+              }).catch(() => {});
+            }
         }
         break;
       }

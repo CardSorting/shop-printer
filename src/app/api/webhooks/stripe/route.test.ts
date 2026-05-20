@@ -142,7 +142,7 @@ describe('Stripe webhook replay handling', () => {
     expect(updateOrderStatus).not.toHaveBeenCalled();
   });
 
-  it('does not let a stale failed event regress a locally paid payment state', async () => {
+  it('acknowledges a stale failed event without regressing locally paid payment truth', async () => {
     constructEvent.mockReturnValue({
       id: 'evt_failed_after_paid',
       type: 'payment_intent.payment_failed',
@@ -156,15 +156,15 @@ describe('Stripe webhook replay handling', () => {
       paymentState: 'paid',
       paymentTransactionId: 'pi_paid_then_failed',
     });
-    transitionPaymentState.mockRejectedValue(new Error('Payment state regression rejected: paid -> cancelled'));
     markEventFailed.mockResolvedValue(undefined);
     const { POST } = await import('./route');
 
     const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
+    expect(transitionPaymentState).not.toHaveBeenCalled();
     expect(guardedUpdateStatus).not.toHaveBeenCalled();
-    expect(markEventProcessed).not.toHaveBeenCalled();
-    expect(markEventFailed).toHaveBeenCalledWith('evt_failed_after_paid', 'Payment state regression rejected: paid -> cancelled', 'claim-paid-regression');
+    expect(markEventProcessed).toHaveBeenCalledWith('evt_failed_after_paid', 'payment_intent.payment_failed', 'claim-paid-regression');
+    expect(markEventFailed).not.toHaveBeenCalled();
   });
 });

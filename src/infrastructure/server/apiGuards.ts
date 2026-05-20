@@ -100,7 +100,7 @@ const rateLimitStore: RateLimitStore = process.env.NODE_ENV === 'production'
     ? new FirestoreRateLimitStore() 
     : new MemoryRateLimitStore();
 
-class RateLimitError extends Error {
+export class RateLimitError extends Error {
     constructor(public readonly retryAfterSeconds: number) {
         super('Too many requests. Please wait and try again.');
         this.name = 'RateLimitError';
@@ -140,6 +140,25 @@ export async function requireStepUpAdminSession(request: Request): Promise<User 
     }
     
     return user as User & { role: 'admin' };
+}
+
+/**
+ * [SECURITY: STEP-UP AUTH]
+ * Fresh verification check for standard users (e.g. re-auth within the last maxAgeMs).
+ */
+export async function requireStepUpSessionUser(request: Request, maxAgeMs = 5 * 60 * 1000): Promise<User> {
+    const user = await requireSessionUser(request);
+    
+    const { getSessionPayload } = await import('./session');
+    const fp = clientFingerprint(request);
+    const payload = await getSessionPayload(fp);
+    
+    if (!payload || (Date.now() - payload.lastVerified > maxAgeMs)) {
+        logger.warn('Step-up authorization required for high-value user action', { userId: user.id });
+        throw new UnauthorizedError('Fresh session verification required for this high-value action. Please re-authenticate.');
+    }
+    
+    return user;
 }
 
 function safeEquals(left: string, right: string): boolean {
@@ -292,8 +311,8 @@ export function clientFingerprint(request: Request): string {
         .digest('hex');
 }
 
-export async function assertRateLimit(request: Request, scope: string, maxAttempts: number, windowMs: number): Promise<void> {
-    const key = `${scope}:${clientFingerprint(request)}`;
+export async function assertRateLimit(request: Request, scope: string, maxAttempts: number, windowMs: number, customSuffix?: string): Promise<void> {
+    const key = `${scope}:${customSuffix || clientFingerprint(request)}`;
     const bucket = await rateLimitStore.increment(key, windowMs);
 
     if (bucket.count > maxAttempts) {

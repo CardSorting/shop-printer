@@ -15,11 +15,16 @@ const saveCart = vi.fn();
 const createPaymentIntent = vi.fn();
 const getPaymentIntent = vi.fn();
 const cancelPaymentIntent = vi.fn();
+const mockAssertRateLimit = vi.fn();
+const mockRequireStepUpSessionUser = vi.fn();
+const batchUpdateStock = vi.fn();
+const updateMetadata = vi.fn();
 
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
     orderService: { initiateCheckout, updateOrderStatus },
     cartRepo: { getByUserId: getCartByUserId, save: saveCart },
+    productRepo: { batchUpdateStock },
     orderRepo: {
       updatePaymentTransactionId,
       updateCheckoutAttempt,
@@ -29,6 +34,7 @@ vi.mock('@infrastructure/server/services', () => ({
       getById: getOrderById,
       getCheckoutAttempt,
       getLatestCheckoutAttemptForUser,
+      updateMetadata,
     },
   })),
 }));
@@ -46,18 +52,27 @@ vi.mock('@infrastructure/server/apiGuards', async () => {
   return {
     ...actual,
     requireSessionUser: vi.fn(async () => ({ id: 'user-1', email: 'u@example.com', displayName: 'User' })),
-    assertRateLimit: vi.fn(async () => undefined),
+    requireStepUpSessionUser: mockRequireStepUpSessionUser,
+    assertRateLimit: mockAssertRateLimit,
   };
 });
 
 vi.mock('@infrastructure/firebase/bridge', () => ({
   getUnifiedDb: vi.fn(() => ({})),
-  runTransaction: vi.fn(async (_db: any, fn: any) => fn({})),
+  runTransaction: vi.fn(async (_db: any, fn: any) => fn({
+    get: vi.fn(async () => ({ exists: () => true, data: () => ({ hash: 'abc' }) })),
+    set: vi.fn(),
+  })),
+  doc: vi.fn(() => ({})),
+  collection: vi.fn(() => ({})),
+  serverTimestamp: vi.fn(() => new Date()),
 }));
 
 describe('checkout create payment intent retry handling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAssertRateLimit.mockResolvedValue(undefined);
+    mockRequireStepUpSessionUser.mockResolvedValue({ id: 'user-1', email: 'u@example.com', displayName: 'User' });
     updateCheckoutAttempt.mockResolvedValue(undefined);
     createOrUpdateReconciliationCase.mockResolvedValue(undefined);
     transitionPaymentState.mockResolvedValue(undefined);
@@ -65,6 +80,10 @@ describe('checkout create payment intent retry handling', () => {
     getCartByUserId.mockResolvedValue(null);
     saveCart.mockResolvedValue(undefined);
     cancelPaymentIntent.mockResolvedValue({});
+    updatePaymentTransactionId.mockResolvedValue(undefined);
+    createPaymentIntent.mockResolvedValue({ id: 'pi_created', clientSecret: 'secret_created' });
+    batchUpdateStock.mockResolvedValue(undefined);
+    updateMetadata.mockResolvedValue(undefined);
   });
 
   it('returns an existing payment intent for a pending reservation instead of creating another one', async () => {
@@ -384,5 +403,124 @@ describe('checkout create payment intent retry handling', () => {
     expect(response.status).toBe(500);
     expect(saveCart).not.toHaveBeenCalled();
     expect(updateCheckoutAttempt).toHaveBeenCalledWith('checkout:older-attempt', { state: 'restore_blocked' });
+  });
+
+  it('bypasses step-up session verification for standard value checkouts (< $1,000)', async () => {
+    initiateCheckout.mockResolvedValue({
+      id: 'order-normal-value',
+      userId: 'user-1',
+      status: 'pending',
+      total: 99900, // $999 (99,900 cents)
+      paymentTransactionId: null,
+      metadata: { fencingToken: 10 },
+      items: [{ productId: 'p1', name: 'Print 1', unitPrice: 99900, quantity: 1, isDigital: false }],
+    });
+    createPaymentIntent.mockResolvedValue({ id: 'pi_normal', clientSecret: 'secret_normal' });
+    
+    const { POST } = await import('./route');
+
+    const response = await POST(new Request('https://example.test/api/checkout/create-payment-intent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        shippingAddress: { street: '1 Test St', city: 'Denver', state: 'CO', zip: '80202', country: 'US' },
+        idempotencyKey: 'checkout:test-normal-value',
+      }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(mockRequireStepUpSessionUser).not.toHaveBeenCalled();
+    expect(createPaymentIntent).toHaveBeenCalled();
+  });
+
+  it('blocks high-value checkouts (>= $1,000) if step-up session verification fails and performs forensic rollback', async () => {
+    const { UnauthorizedError } = await import('@domain/errors');
+    const mockOrder = {
+      id: 'order-high-value',
+      userId: 'user-1',
+      status: 'pending',
+      total: 100000, // $1,000 (100,000 cents)
+      paymentTransactionId: null,
+      customerEmail: 'u@example.com',
+      metadata: { fencingToken: 11, inventoryReserved: true },
+      items: [{ productId: 'p1', variantId: 'v1', name: 'Print 1', unitPrice: 100000, quantity: 1, isDigital: false }],
+    };
+    initiateCheckout.mockResolvedValue(mockOrder);
+    
+    mockRequireStepUpSessionUser.mockRejectedValue(new UnauthorizedError('Fresh session verification required.'));
+    
+    // For cart restoration success
+    getOrderById.mockResolvedValue({
+      id: 'order-high-value',
+      userId: 'user-1',
+      status: 'cancelled',
+      paymentTransactionId: null,
+      metadata: { fencingToken: 11, inventoryReserved: true, inventoryReservationReleased: true },
+    });
+    getCheckoutAttempt.mockResolvedValue({
+      idempotencyKey: 'checkout:test-high-value-stale',
+      orderId: 'order-high-value',
+      state: 'cancelled',
+      paymentIntentId: null,
+      fencingToken: 11,
+      cartOwnerId: 'order-high-value',
+    });
+    getLatestCheckoutAttemptForUser.mockResolvedValue({
+      idempotencyKey: 'checkout:test-high-value-stale',
+    });
+
+    const { POST } = await import('./route');
+
+    const response = await POST(new Request('https://example.test/api/checkout/create-payment-intent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        shippingAddress: { street: '1 Test St', city: 'Denver', state: 'CO', zip: '80202', country: 'US' },
+        idempotencyKey: 'checkout:test-high-value-stale',
+      }),
+    }));
+
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toBe('Fresh session verification required.');
+    expect(mockRequireStepUpSessionUser).toHaveBeenCalledWith(expect.anything(), 5 * 60 * 1000);
+    
+    // Verify forensic order transition updates are triggered
+    expect(transitionPaymentState).toHaveBeenCalledWith('order-high-value', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'high_value_step_up_failure');
+    expect(guardedUpdateStatus).toHaveBeenCalledWith('order-high-value', ['pending'], 'cancelled', 'high_value_step_up_failure');
+    expect(updateCheckoutAttempt).toHaveBeenCalledWith('checkout:test-high-value-stale', expect.objectContaining({
+      state: 'cancelled',
+      paymentIntentId: null,
+      currentPhase: 'RECOVER_OR_RECONCILE',
+      authoritySource: 'local',
+      waitingFor: 'none',
+    }));
+    
+    // Verify cart restoration is triggered
+    expect(saveCart).toHaveBeenCalled();
+  });
+
+  it('enforces user account-bound rate limiting and returns a 429 response', async () => {
+    const { RateLimitError } = await import('@infrastructure/server/apiGuards');
+    mockAssertRateLimit.mockRejectedValue(new RateLimitError(45));
+
+    const { POST } = await import('./route');
+
+    const response = await POST(new Request('https://example.test/api/checkout/create-payment-intent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        shippingAddress: { street: '1 Test St', city: 'Denver', state: 'CO', zip: '80202', country: 'US' },
+        idempotencyKey: 'checkout:test-rate-limit',
+      }),
+    }));
+
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(body.error).toBe('Too many requests. Please wait and try again.');
+    expect(response.headers.get('Retry-After')).toBe('45');
+    expect(initiateCheckout).not.toHaveBeenCalled();
   });
 });

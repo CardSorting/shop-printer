@@ -27,6 +27,7 @@ import { OrderFulfillmentWorkflowService } from './order/OrderFulfillmentWorkflo
 import { OrderLogisticsService } from './order/OrderLogisticsService';
 import { OrderReadService } from './order/OrderReadService';
 import type { FulfillmentMethod, OrderActor } from './order/types';
+import { logger } from '@utils/logger';
 
 /**
  * [LAYER: CORE]
@@ -105,7 +106,8 @@ export class OrderService {
     discountCode?: string,
     idempotencyKey?: string,
     paymentMethodId?: string,
-    fulfillmentMethod: FulfillmentMethod = 'shipping'
+    fulfillmentMethod: FulfillmentMethod = 'shipping',
+    lockTtlMs?: number
   ): Promise<Order> {
     return this.checkoutService.initiateCheckout(
       userId,
@@ -115,7 +117,8 @@ export class OrderService {
       discountCode,
       idempotencyKey,
       paymentMethodId,
-      fulfillmentMethod
+      fulfillmentMethod,
+      lockTtlMs
     );
   }
 
@@ -210,12 +213,29 @@ export class OrderService {
         try {
           const paymentIntent = await stripeService.getPaymentIntent(order.paymentTransactionId);
           if (paymentIntent.status === 'succeeded') {
+            await Promise.resolve(this.orderRepo.updateCheckoutAttempt(order.idempotencyKey || order.metadata?.checkoutAttemptId || order.id, {
+              currentPhase: 'RECOVER_OR_RECONCILE',
+              authoritySource: 'stripe',
+              waitingFor: 'verification',
+              lastTransitionAt: new Date().toISOString(),
+              lastTransitionReason: 'cleanup_observed_stripe_success',
+            })).catch(() => {});
+            logger.info('cleanup_finalizing_stripe_succeeded_payment', {
+              orderId: order.id,
+              paymentIntentId: paymentIntent.id,
+              checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
+            });
             await this.finalizeOrderPayment(paymentIntent.id, paymentIntent);
             processed++;
             continue;
           }
 
           if (['processing', 'requires_action', 'requires_capture', 'requires_confirmation'].includes(paymentIntent.status)) {
+            logger.warn('cleanup_blocked_by_active_payment_intent', {
+              orderId: order.id,
+              paymentIntentId: paymentIntent.id,
+              stripeStatus: paymentIntent.status,
+            });
             await this.orderRepo.createOrUpdateReconciliationCase({
               paymentIntentId: paymentIntent.id,
               orderId: order.id,
@@ -226,10 +246,19 @@ export class OrderService {
               operatorVisibleMessage: `Expired pending order ${order.id} has active Stripe PaymentIntent ${paymentIntent.id} in status ${paymentIntent.status}.`,
               nextAction: 'Wait for Stripe terminal state or manually inspect before cancellation.',
               details: { cleanupBlocked: true, expirationMinutes },
+              failureClassification: 'transient_external',
+              lastObservedStripeState: paymentIntent.status,
+              lastObservedLocalState: `status:${order.status};paymentState:${order.paymentState || 'unknown'}`,
+              blockingProductionReadiness: false,
             });
             continue;
           }
         } catch (error) {
+          logger.error('cleanup_stripe_lookup_failed', {
+            orderId: order.id,
+            paymentIntentId: order.paymentTransactionId,
+            error,
+          });
           await this.orderRepo.createOrUpdateReconciliationCase({
             paymentIntentId: order.paymentTransactionId,
             orderId: order.id,
@@ -240,11 +269,19 @@ export class OrderService {
             operatorVisibleMessage: `Expired pending order ${order.id} could not verify Stripe PaymentIntent ${order.paymentTransactionId} before cancellation.`,
             nextAction: 'Verify Stripe status manually before cancelling, fulfilling, or refunding.',
             details: { error: error instanceof Error ? error.message : 'Unknown Stripe lookup error' },
+            failureClassification: 'transient_external',
+            lastObservedStripeState: null,
+            lastObservedLocalState: `status:${order.status};paymentState:${order.paymentState || 'unknown'}`,
+            blockingProductionReadiness: true,
           });
           continue;
         }
       }
 
+      logger.info('cleanup_cancelling_expired_unpaid_order', {
+        orderId: order.id,
+        checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
+      });
       await this.adminService.updateOrderStatus(order.id, 'cancelled', {
         id: 'system',
         email: 'system@dreambees.art'
@@ -311,7 +348,111 @@ export class OrderService {
     return this.readService.getAdminOverview();
   }
 
-  getRecoveryReadModel(options?: { limit?: number }) {
-    return this.orderRepo.getStuckCheckoutStates(options);
+  async getRecoveryReadModel(options?: { limit?: number }) {
+    const state = await this.orderRepo.getStuckCheckoutStates(options);
+    const limit = options?.limit || 50;
+    let stuckWebhookClaims: any[] = [];
+    try {
+      const stripeService = new StripeService();
+      stuckWebhookClaims = await stripeService.listStuckWebhookClaims(limit);
+    } catch (error) {
+      logger.error('recovery_read_model_stuck_webhook_claims_failed', { error });
+    }
+    const itemFromCase = (reconciliationCase: any) => ({
+      type: reconciliationCase.reason,
+      severity: reconciliationCase.severity,
+      recommendedAction: reconciliationCase.recommendedAction || reconciliationCase.nextAction,
+      blockingReason: reconciliationCase.blockingProductionReadiness
+        ? 'critical_reconciliation_case'
+        : reconciliationCase.lifecycleState,
+      orderId: reconciliationCase.orderId || null,
+      paymentIntentId: reconciliationCase.paymentIntentId || null,
+      checkoutAttemptId: reconciliationCase.checkoutAttemptId || null,
+      stripeState: reconciliationCase.lastObservedStripeState || reconciliationCase.stripeStatus || null,
+      localState: reconciliationCase.lastObservedLocalState || null,
+      timestamps: {
+        createdAt: reconciliationCase.createdAt,
+        updatedAt: reconciliationCase.updatedAt,
+      },
+    });
+    const itemFromOrder = (order: Order, type: string, severity: 'high' | 'critical', recommendedAction: string, blockingReason: string) => ({
+      type,
+      severity,
+      recommendedAction,
+      blockingReason,
+      orderId: order.id,
+      paymentIntentId: order.paymentTransactionId || null,
+      checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
+      stripeState: null,
+      localState: `status:${order.status};paymentState:${order.paymentState || 'unknown'};fulfillmentState:${order.fulfillmentState || 'unknown'};reconciliationState:${order.reconciliationState || 'unknown'}`,
+      timestamps: {
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+      },
+    });
+    const itemFromAttempt = (attempt: any) => ({
+      type: 'stuck_checkout_attempt',
+      severity: attempt.currentPhase === 'RECOVER_OR_RECONCILE' || attempt.state === 'reconciling' ? 'critical' : 'high',
+      recommendedAction: attempt.nextAction || 'Retry the deterministic next checkout phase or route to reconciliation if ownership is stale.',
+      blockingReason: attempt.waitingFor || attempt.state,
+      orderId: attempt.orderId || null,
+      paymentIntentId: attempt.paymentIntentId || null,
+      checkoutAttemptId: attempt.idempotencyKey || attempt.id || null,
+      stripeState: null,
+      localState: `phase:${attempt.currentPhase || 'unknown'};authority:${attempt.authoritySource || 'unknown'};waitingFor:${attempt.waitingFor || 'unknown'};state:${attempt.state}`,
+      timestamps: {
+        createdAt: attempt.createdAt,
+        updatedAt: attempt.updatedAt,
+        lastTransitionAt: attempt.lastTransitionAt || null,
+      },
+    });
+
+    return {
+      openReconciliationCases: state.openReconciliationCases.map(itemFromCase),
+      stuckCheckoutAttempts: state.stuckCheckoutAttempts.map(itemFromAttempt),
+      stuckWebhookClaims: stuckWebhookClaims.map(claim => ({
+        type: 'stuck_webhook_claim',
+        severity: 'high',
+        recommendedAction: 'Allow the claim lease to be reclaimed by replay, or inspect the failed worker before manual replay.',
+        blockingReason: 'webhook_claim_expired',
+        orderId: null,
+        paymentIntentId: null,
+        checkoutAttemptId: null,
+        stripeState: `event:${claim.type || 'unknown'};status:${claim.status}`,
+        localState: `claimExpiresAt:${claim.claimExpiresAt || 'unknown'}`,
+        timestamps: {
+          createdAt: claim.claimedAt || null,
+          updatedAt: claim.updatedAt || null,
+        },
+      })),
+      paidButUnfinalizedOrders: state.pendingPaidOrders.map(order => itemFromOrder(
+        order,
+        'paid_but_unfinalized_order',
+        'critical',
+        'Retry payment finalization or create a reconciliation case before fulfillment.',
+        'payment_paid_order_pending'
+      )),
+      paidCancelledConflicts: [
+        ...state.reconcilingPaidOrders.map(order => itemFromOrder(
+          order,
+          'paid_reconciling_order',
+          'critical',
+          'Resolve reconciliation before fulfillment, cancellation, or refund.',
+          'paid_order_in_reconciliation'
+        )),
+        ...state.paidCancelledOrdersMissingReview.map(order => itemFromOrder(
+          order,
+          'paid_cancelled_conflict',
+          'critical',
+          'Move order to reconciliation and decide fulfillment versus refund from Stripe evidence.',
+          'paid_order_cancelled_without_review'
+        )),
+      ],
+      danglingPaymentIntents: state.openReconciliationCases.filter(c => c.reason === 'dangling_payment_intent').map(itemFromCase),
+      refundRetryFailures: state.openReconciliationCases
+        .filter(c => c.details?.refundAttemptId || c.details?.refundIdempotencyKey)
+        .map(itemFromCase),
+      raw: state,
+    };
   }
 }

@@ -5,15 +5,45 @@ import {
     jsonError, 
     readJsonObject, 
     requireSessionUser, 
+    requireStepUpSessionUser,
     parseShippingAddress, 
     optionalString,
     requireIdempotencyKey
 } from '@infrastructure/server/apiGuards';
 import { StripeService } from '@infrastructure/services/StripeService';
+import { AuditService } from '@core/AuditService';
 import { getUnifiedDb, runTransaction } from '@infrastructure/firebase/bridge';
 import { logger } from '@utils/logger';
 import { DomainError } from '@domain/errors';
-import type { Cart, Order, OrderStatus } from '@domain/models';
+import type { Cart, CheckoutAuthoritySource, CheckoutWaitingFor, CheckoutWorkflowPhase, Order, OrderStatus } from '@domain/models';
+
+async function transitionCheckoutAttempt(
+    services: Awaited<ReturnType<typeof getServerServices>>,
+    params: {
+        attemptId: string;
+        expectedPhases: CheckoutWorkflowPhase[];
+        nextPhase: CheckoutWorkflowPhase;
+        authoritySource: CheckoutAuthoritySource;
+        waitingFor: CheckoutWaitingFor;
+        reason: string;
+        orderId?: string | null;
+        paymentIntentId?: string | null;
+    }
+) {
+    const transition = (services.orderRepo as any).transitionCheckoutAttemptPhase;
+    if (typeof transition === 'function') {
+        await transition.call(services.orderRepo, params);
+        return;
+    }
+    await services.orderRepo.updateCheckoutAttempt(params.attemptId, {
+        currentPhase: params.nextPhase,
+        authoritySource: params.authoritySource,
+        waitingFor: params.waitingFor,
+        lastTransitionAt: new Date().toISOString(),
+        lastTransitionReason: params.reason,
+        ...(params.paymentIntentId !== undefined ? { paymentIntentId: params.paymentIntentId } : {}),
+    });
+}
 
 /**
  * [LAYER: INTERFACE]
@@ -23,7 +53,8 @@ export async function POST(request: Request) {
   try {
     // 1. Production Gates
     const user = await requireSessionUser();
-    await assertRateLimit(request, 'checkout_init', 5, 60000); // 5 attempts per minute
+    await assertRateLimit(request, 'checkout_init', 5, 60000); // 5 attempts per minute (IP/fingerprint)
+    await assertRateLimit(request, 'checkout_init_user', 3, 60000, user.id); // 3 attempts per minute (User Account-bound)
 
     const services = await getServerServices();
     const body = await readJsonObject(request);
@@ -47,6 +78,79 @@ export async function POST(request: Request) {
     } catch (err) {
         return jsonError(err, 'Failed to reserve inventory for checkout');
     }
+
+    // 2.5 High-Value Checkout Gate ($1,000 / 100,000 cents threshold)
+    const HIGH_VALUE_THRESHOLD = 100000;
+    if (order.total >= HIGH_VALUE_THRESHOLD) {
+        try {
+            await requireStepUpSessionUser(request, 5 * 60 * 1000); // Require re-auth within last 5 minutes
+        } catch (stepUpErr) {
+            logger.warn('Step-up verification failed for high-value order checkout. Triggering forensic rollback.', {
+                userId: user.id,
+                orderId: order.id,
+                total: order.total
+            });
+
+            // Transition payment state and order status to cancelled in RECOVER_OR_RECONCILE phase
+            await services.orderRepo.updateMetadata(order.id, {
+                ...(order.metadata || {}),
+                currentPhase: 'RECOVER_OR_RECONCILE',
+                authoritySource: 'local',
+                waitingFor: 'none'
+            }).catch(() => {});
+            await services.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'high_value_step_up_failure').catch(rollbackErr => {
+                logger.error(`FATAL: Payment state rollback failed for high-value order ${order.id}.`, rollbackErr);
+            });
+            await services.orderRepo.guardedUpdateStatus(order.id, ['pending'], 'cancelled', 'high_value_step_up_failure').catch(rollbackErr => {
+                logger.error(`FATAL: Status rollback failed for high-value order ${order.id}.`, rollbackErr);
+            });
+            await services.orderRepo.updateCheckoutAttempt(idempotencyKey, {
+                state: 'cancelled',
+                paymentIntentId: null,
+                currentPhase: 'RECOVER_OR_RECONCILE',
+                authoritySource: 'local',
+                waitingFor: 'none'
+            }).catch(attemptErr => {
+                logger.error(`FATAL: Checkout attempt cancel failed for high-value order ${order.id}.`, attemptErr);
+            });
+
+            // Restore physical product stock reservations
+            const physicalItems = order.items.filter(item => !item.isDigital);
+            if (physicalItems.length > 0 && order.metadata?.inventoryReserved) {
+                const { coalesceStockUpdates } = await import('@domain/rules');
+                const stockUpdates = coalesceStockUpdates(physicalItems.map(item => ({
+                    id: item.productId,
+                    variantId: item.variantId,
+                    delta: item.quantity
+                })));
+
+                if (stockUpdates.length > 0) {
+                    await services.productRepo.batchUpdateStock(stockUpdates).catch(stockErr => {
+                        logger.error(`FATAL: Failed to restore stock during high-value step-up rollback for order ${order.id}.`, stockErr);
+                    });
+                }
+
+                // Update metadata so cart restoration can verify stock is released
+                await services.orderRepo.updateMetadata(order.id, {
+                    ...(order.metadata || {}),
+                    inventoryReservationReleased: true,
+                    inventoryReservationReleasedAt: new Date().toISOString(),
+                    currentPhase: 'RECOVER_OR_RECONCILE',
+                    authoritySource: 'local',
+                    waitingFor: 'none'
+                }).catch(metaErr => {
+                    logger.error(`FATAL: Failed to update metadata for stock release during high-value rollback for order ${order.id}.`, metaErr);
+                });
+            }
+
+            // Restore cart
+            const stripeService = new StripeService();
+            await restoreCartAfterUnpaidCheckoutFailure(services, stripeService, order, idempotencyKey, null);
+
+            return jsonError(stepUpErr, 'High-value checkout requires a fresh session.');
+        }
+    }
+
     if (order.status !== 'pending') {
         throw new DomainError(`Checkout reservation is no longer payable (status: ${order.status}). Please start a new checkout.`);
     }
@@ -66,6 +170,44 @@ export async function POST(request: Request) {
             throw new DomainError('Existing payment intent cannot be resumed.');
         }
 
+        // Resume: CREATE_OR_RESUME_PAYMENT_INTENT
+        await services.orderRepo.updateMetadata(order.id, {
+          ...(order.metadata || {}),
+          currentPhase: 'CREATE_OR_RESUME_PAYMENT_INTENT',
+          authoritySource: 'local',
+          waitingFor: 'none'
+        });
+        await transitionCheckoutAttempt(services, {
+          attemptId: idempotencyKey,
+          expectedPhases: ['INITIALIZE_ORDER', 'CREATE_OR_RESUME_ATTEMPT'],
+          nextPhase: 'CREATE_OR_RESUME_PAYMENT_INTENT',
+          authoritySource: 'local',
+          waitingFor: 'none',
+          reason: 'resume_existing_payment_intent',
+          orderId: order.id,
+          paymentIntentId: existingPi.id
+        }).catch(err => {
+          logger.info('checkout_resume_phase_already_advanced', { orderId: order.id, paymentIntentId: existingPi.id, err });
+        });
+
+        // Set Phase 6: AWAIT_PAYMENT_CONFIRMATION before returning
+        await services.orderRepo.updateMetadata(order.id, {
+          ...(order.metadata || {}),
+          currentPhase: 'AWAIT_PAYMENT_CONFIRMATION',
+          authoritySource: 'stripe',
+          waitingFor: 'webhook'
+        });
+        await transitionCheckoutAttempt(services, {
+          attemptId: idempotencyKey,
+          expectedPhases: ['CREATE_OR_RESUME_PAYMENT_INTENT', 'AWAIT_PAYMENT_CONFIRMATION'],
+          nextPhase: 'AWAIT_PAYMENT_CONFIRMATION',
+          authoritySource: 'stripe',
+          waitingFor: 'webhook',
+          reason: 'existing_payment_intent_returned_to_client',
+          orderId: order.id,
+          paymentIntentId: existingPi.id
+        });
+
         return NextResponse.json({
           clientSecret: existingPi.client_secret,
           paymentIntentId: existingPi.id,
@@ -76,6 +218,23 @@ export async function POST(request: Request) {
     }
 
     try {
+        // Transition to CREATE_OR_RESUME_PAYMENT_INTENT phase
+        await services.orderRepo.updateMetadata(order.id, {
+          ...(order.metadata || {}),
+          currentPhase: 'CREATE_OR_RESUME_PAYMENT_INTENT',
+          authoritySource: 'local',
+          waitingFor: 'none'
+        });
+        await transitionCheckoutAttempt(services, {
+          attemptId: idempotencyKey,
+          expectedPhases: ['INITIALIZE_ORDER', 'CREATE_OR_RESUME_ATTEMPT'],
+          nextPhase: 'CREATE_OR_RESUME_PAYMENT_INTENT',
+          authoritySource: 'local',
+          waitingFor: 'none',
+          reason: 'create_payment_intent_started',
+          orderId: order.id,
+        });
+
         const { clientSecret, id: paymentIntentId } = await stripeService.createPaymentIntent({
           amount: order.total,
           currency: 'usd',
@@ -93,9 +252,23 @@ export async function POST(request: Request) {
 
         // 4. Update order with actual Payment Intent ID
         await services.orderRepo.updatePaymentTransactionId(order.id, paymentIntentId);
-        await services.orderRepo.updateCheckoutAttempt(idempotencyKey, {
+        
+        // Transition to AWAIT_PAYMENT_CONFIRMATION phase
+        await services.orderRepo.updateMetadata(order.id, {
+          ...(order.metadata || {}),
+          currentPhase: 'AWAIT_PAYMENT_CONFIRMATION',
+          authoritySource: 'stripe',
+          waitingFor: 'webhook'
+        });
+        await transitionCheckoutAttempt(services, {
+          attemptId: idempotencyKey,
+          expectedPhases: ['CREATE_OR_RESUME_PAYMENT_INTENT'],
+          nextPhase: 'AWAIT_PAYMENT_CONFIRMATION',
+          authoritySource: 'stripe',
+          waitingFor: 'webhook',
+          reason: 'payment_intent_created_and_linked',
+          orderId: order.id,
           paymentIntentId,
-          state: 'payment_intent_created',
         }).catch(attemptErr => {
           logger.error('FATAL: Failed to attach PaymentIntent to checkout attempt. Manual reconciliation required.', {
             orderId: order.id,
@@ -103,6 +276,10 @@ export async function POST(request: Request) {
             attemptErr,
           });
         });
+        await services.orderRepo.updateCheckoutAttempt(idempotencyKey, {
+          paymentIntentId,
+          state: 'payment_intent_created',
+        }).catch(() => {});
 
         return NextResponse.json({
           clientSecret,
@@ -111,16 +288,38 @@ export async function POST(request: Request) {
           amount: order.total,
         });
     } catch (stripeErr) {
-        // FORENSIC ROLLBACK: If Stripe fails, we MUST cancel the order and restock immediately
-        // to prevent inventory "hanging" in a pending state unnecessarily.
+        // FORENSIC ROLLBACK: If Stripe fails, we MUST cancel the order and restock immediately in RECOVER_OR_RECONCILE phase
         logger.error(`CRITICAL: Stripe PI creation failed for order ${order.id}. Rolling back.`, stripeErr);
 
         if (createdPaymentIntentId) {
           await stripeService.cancelPaymentIntent(createdPaymentIntentId).catch(cancelErr => {
             logger.error(`FATAL: Failed to cancel dangling Stripe PI ${createdPaymentIntentId} for rolled back order ${order.id}.`, cancelErr);
           });
+          await services.orderRepo.createOrUpdateReconciliationCase({
+            paymentIntentId: createdPaymentIntentId,
+            orderId: order.id,
+            checkoutAttemptId: idempotencyKey,
+            reason: 'finalization_failure',
+            severity: 'critical',
+            stripeStatus: 'unknown_after_local_persistence_failure',
+            operatorVisibleMessage: `PaymentIntent ${createdPaymentIntentId} was created for order ${order.id}, but local checkout persistence did not complete.`,
+            nextAction: 'Verify the Stripe PaymentIntent terminal state and confirm local rollback or repair the mapping.',
+            failureClassification: 'local_persistence_failure',
+            lastObservedStripeState: 'created_before_local_failure',
+            lastObservedLocalState: `status:${order.status};paymentTransactionId:${order.paymentTransactionId || 'null'}`,
+            blockingProductionReadiness: true,
+          }).catch(caseErr => {
+            logger.error('FATAL: Failed to create local persistence reconciliation case after PaymentIntent side effect', { orderId: order.id, paymentIntentId: createdPaymentIntentId, caseErr });
+          });
         }
         
+        await services.orderRepo.updateMetadata(order.id, {
+          ...(order.metadata || {}),
+          currentPhase: 'RECOVER_OR_RECONCILE',
+          authoritySource: 'local',
+          waitingFor: 'none'
+        }).catch(() => {});
+
         await services.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], createdPaymentIntentId ? 'cancelled' : 'failed', 'checkout_payment_intent_creation_rollback').catch(rollbackErr => {
             logger.error(`FATAL: Payment state rollback failed for order ${order.id}. Manual reconciliation required.`, rollbackErr);
         });
@@ -130,6 +329,9 @@ export async function POST(request: Request) {
         await services.orderRepo.updateCheckoutAttempt(idempotencyKey, {
           state: 'cancelled',
           paymentIntentId: createdPaymentIntentId,
+          currentPhase: 'RECOVER_OR_RECONCILE',
+          authoritySource: 'local',
+          waitingFor: 'none'
         }).catch(attemptErr => {
           logger.error('FATAL: Failed to mark checkout attempt cancelled after unpaid checkout rollback', {
             orderId: order.id,
@@ -158,6 +360,16 @@ async function restoreCartAfterUnpaidCheckoutFailure(
             const pi = await stripeService.getPaymentIntent(paymentIntentId);
             if (!['canceled'].includes(pi.status)) {
                 await services.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' }).catch(() => {});
+                await transitionCheckoutAttempt(services, {
+                    attemptId: checkoutAttemptId,
+                    expectedPhases: ['RECOVER_OR_RECONCILE', 'CREATE_OR_RESUME_PAYMENT_INTENT', 'AWAIT_PAYMENT_CONFIRMATION'],
+                    nextPhase: 'RECOVER_OR_RECONCILE',
+                    authoritySource: 'operator',
+                    waitingFor: 'operator',
+                    reason: 'cart_restore_blocked_by_stripe_state',
+                    orderId: order.id,
+                    paymentIntentId,
+                }).catch(() => {});
                 await services.orderRepo.createOrUpdateReconciliationCase({
                     paymentIntentId,
                     orderId: order.id,
@@ -168,6 +380,10 @@ async function restoreCartAfterUnpaidCheckoutFailure(
                     operatorVisibleMessage: `Checkout rollback for order ${order.id} could not safely restore cart because PaymentIntent ${paymentIntentId} is ${pi.status}.`,
                     nextAction: 'Inspect Stripe payment state before restoring cart, cancelling, fulfilling, or refunding.',
                     details: { restoreBlocked: true },
+                    failureClassification: pi.status === 'succeeded' ? 'stripe_local_mismatch' : 'operator_required',
+                    lastObservedStripeState: pi.status,
+                    lastObservedLocalState: `status:${order.status};paymentState:${order.paymentState || 'unknown'}`,
+                    blockingProductionReadiness: true,
                 }).catch(caseErr => {
                     logger.error('FATAL: Failed to record restore-blocked reconciliation case', { orderId: order.id, paymentIntentId, caseErr });
                 });
@@ -177,6 +393,15 @@ async function restoreCartAfterUnpaidCheckoutFailure(
                     paymentIntentId,
                     stripeStatus: pi.status,
                 });
+                const audit = new AuditService();
+                await audit.record({
+                    userId: order.userId,
+                    userEmail: order.customerEmail || 'unknown@dreambees.art',
+                    action: 'checkout_rollback_failed',
+                    targetId: order.id,
+                    details: { reason: 'payment_intent_not_canceled', stripeStatus: pi.status, paymentIntentId },
+                    correlationId: checkoutAttemptId || undefined
+                }).catch(() => {});
                 return;
             }
         }
@@ -226,16 +451,42 @@ async function restoreCartAfterUnpaidCheckoutFailure(
 
             await services.cartRepo.save(restoredCart, transaction);
             await services.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restored' }, transaction);
+            
+            const audit = new AuditService();
+            await audit.recordWithTransaction(transaction, {
+                userId: order.userId,
+                userEmail: order.customerEmail || 'unknown@dreambees.art',
+                action: 'checkout_rollback_success',
+                targetId: order.id,
+                details: { checkoutAttemptId, cartItemsCount: restoredCart.items.length },
+                correlationId: checkoutAttemptId || undefined
+            });
+
             return { ok: true, reason: 'restored' };
         });
 
         if (!restored.ok) {
             await services.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' }).catch(() => {});
+            logger.warn('cart_restore_rejected', {
+                userId: order.userId,
+                orderId: order.id,
+                checkoutAttemptId,
+                reason: restored.reason,
+            });
             logger.warn('Skipping checkout cart restore because restore guard failed', {
                 userId: order.userId,
                 orderId: order.id,
                 reason: restored.reason,
             });
+            const audit = new AuditService();
+            await audit.record({
+                userId: order.userId,
+                userEmail: order.customerEmail || 'unknown@dreambees.art',
+                action: 'checkout_rollback_failed',
+                targetId: order.id,
+                details: { reason: restored.reason, checkoutAttemptId },
+                correlationId: checkoutAttemptId || undefined
+            }).catch(() => {});
         }
     } catch (restoreErr) {
         logger.error(`FATAL: Failed to restore cart after unpaid checkout rollback for order ${order.id}.`, restoreErr);

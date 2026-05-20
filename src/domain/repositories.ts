@@ -7,10 +7,15 @@ import type {
   ProductUpdate,
   Cart,
   CheckoutAttempt,
+  CheckoutAuthoritySource,
+  CheckoutTransitionEvidence,
+  CheckoutWaitingFor,
+  CheckoutWorkflowPhase,
   Order,
   OrderStatus,
   PaymentState,
   PaymentReconciliationCase,
+  PaymentReconciliationFailureClassification,
   PaymentReconciliationReason,
   FulfillmentState,
   ReconciliationState,
@@ -90,6 +95,17 @@ export interface IOrderRepository {
   updatePaymentTransactionId(id: string, paymentTransactionId: string, transaction?: any): Promise<void>;
   recordCheckoutAttempt(attempt: Omit<CheckoutAttempt, 'createdAt' | 'updatedAt'>, transaction?: any): Promise<void>;
   updateCheckoutAttempt(idempotencyKey: string, updates: Partial<Omit<CheckoutAttempt, 'id' | 'createdAt' | 'updatedAt'>>, transaction?: any): Promise<void>;
+  transitionCheckoutAttemptPhase(params: {
+    attemptId: string;
+    expectedPhases: CheckoutWorkflowPhase[];
+    nextPhase: CheckoutWorkflowPhase;
+    authoritySource: CheckoutAuthoritySource;
+    waitingFor: CheckoutWaitingFor;
+    reason: string;
+    evidence?: CheckoutTransitionEvidence;
+    orderId?: string | null;
+    paymentIntentId?: string | null;
+  }, transaction?: any): Promise<void>;
   getCheckoutAttempt(idempotencyKey: string, transaction?: any): Promise<CheckoutAttempt | null>;
   getLatestCheckoutAttemptForUser(userId: string, transaction?: any): Promise<CheckoutAttempt | null>;
   createOrUpdateReconciliationCase(params: {
@@ -106,6 +122,10 @@ export interface IOrderRepository {
     evidence?: Array<{ type: string; value: string; recordedAt: string }>;
     repairAttempt?: { attemptedAt: string; error?: string | null };
     details?: Record<string, any>;
+    failureClassification?: PaymentReconciliationFailureClassification;
+    lastObservedStripeState?: string | null;
+    lastObservedLocalState?: string | null;
+    blockingProductionReadiness?: boolean;
   }, transaction?: any): Promise<void>;
   getOpenReconciliationCases(options?: { limit?: number; reason?: PaymentReconciliationReason }): Promise<PaymentReconciliationCase[]>;
   getStuckCheckoutStates(options?: { limit?: number }): Promise<{

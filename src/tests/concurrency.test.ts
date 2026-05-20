@@ -270,7 +270,7 @@ describe('OrderService Concurrency', () => {
       metadata: { inventoryReserved: true },
       items: [{ productId: 'p1', quantity: 2 }]
     };
-    mockOrderRepo.getById.mockResolvedValueOnce(mockOrder);
+    mockOrderRepo.getById.mockResolvedValue(mockOrder);
 
     mockOrderRepo.updatePaymentTransactionId = vi.fn();
     mockOrderRepo.updateStatus = vi.fn();

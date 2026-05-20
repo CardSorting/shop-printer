@@ -350,6 +350,41 @@ export interface Order {
   updatedAt: Date;
 }
 
+export type CheckoutWorkflowPhase =
+  | 'PREPARE_CHECKOUT'
+  | 'ACQUIRE_RESERVATION'
+  | 'CREATE_OR_RESUME_ATTEMPT'
+  | 'INITIALIZE_ORDER'
+  | 'CREATE_OR_RESUME_PAYMENT_INTENT'
+  | 'AWAIT_PAYMENT_CONFIRMATION'
+  | 'FINALIZE_PAYMENT'
+  | 'COMPLETE_CHECKOUT'
+  | 'RECOVER_OR_RECONCILE';
+
+export type CheckoutAuthoritySource = 'local' | 'stripe' | 'operator';
+
+export type CheckoutWaitingFor =
+  | 'none'
+  | 'webhook'
+  | 'verification'
+  | 'reconciliation'
+  | 'operator';
+
+export type CheckoutTransitionEvidence = Array<{
+  type: string;
+  value: string;
+  recordedAt: string;
+}>;
+
+export type CheckoutRecoveryPath =
+  | 'retry_local_workflow_step'
+  | 'resume_or_create_payment_intent'
+  | 'wait_for_stripe_confirmation'
+  | 'finalize_stripe_succeeded_payment'
+  | 'restore_unpaid_checkout'
+  | 'operator_reconciliation'
+  | 'checkout_complete';
+
 export type CheckoutAttemptState =
   | 'reserved'
   | 'payment_intent_created'
@@ -366,12 +401,23 @@ export interface CheckoutAttempt {
   orderId: string;
   cartId: string;
   cartOwnerId: string;
-  fencingToken: number | null;
+  cartOwner?: string;
+  fencingToken: number | string | null;
   state: CheckoutAttemptState;
   paymentIntentId: string | null;
   reservationExpiresAt?: string | null;
   createdAt: Date;
   updatedAt: Date;
+  currentPhase?: CheckoutWorkflowPhase;
+  authoritySource?: CheckoutAuthoritySource;
+  waitingFor?: CheckoutWaitingFor;
+  nextAction?: string;
+  recoveryPath?: CheckoutRecoveryPath;
+  checkoutOwner?: string;
+  authoritativeAttemptId?: string;
+  lastTransitionAt?: string;
+  lastTransitionReason?: string;
+  phaseTransitionEvidence?: CheckoutTransitionEvidence;
 }
 
 export type PaymentState =
@@ -414,6 +460,13 @@ export type PaymentReconciliationReason =
   | 'finalization_failure'
   | 'fencing_token_mismatch';
 
+export type PaymentReconciliationFailureClassification =
+  | 'transient_external'
+  | 'local_persistence_failure'
+  | 'stripe_local_mismatch'
+  | 'operator_required'
+  | 'terminal_unrecoverable';
+
 export interface PaymentReconciliationCase {
   id: string;
   paymentIntentId: string;
@@ -432,12 +485,16 @@ export interface PaymentReconciliationCase {
     recordedAt: string;
   }>;
   repairAttemptCount: number;
+  lastObservedStripeState?: string | null;
+  lastObservedLocalState?: string | null;
+  blockingProductionReadiness?: boolean;
   lastRepairAttemptAt?: Date | null;
   lastRepairError?: string | null;
   details?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
   resolvedAt?: Date | null;
+  failureClassification?: PaymentReconciliationFailureClassification;
 }
 
 export interface Fulfillment {
