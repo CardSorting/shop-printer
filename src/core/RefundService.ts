@@ -3,9 +3,7 @@ import type {
   IPaymentProcessor,
   IProductRepository 
 } from '@domain/repositories';
-import { 
-  Order 
-} from '@domain/models';
+import type { OrderStatus, PaymentState } from '@domain/models';
 import { OrderNotFoundError } from '@domain/errors';
 import { assertValidOrderStatusTransition } from '@domain/rules';
 import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
@@ -64,10 +62,11 @@ export class RefundService {
 
       // Production Hardening: Determine full vs partial refund based on REMAINDER
       const isFullRefund = (alreadyRefunded + safeAmount) >= order.total;
-      const nextStatus = isFullRefund ? 'refunded' : 'partially_refunded';
+      const nextStatus: OrderStatus = isFullRefund ? 'refunded' : 'partially_refunded';
+      const nextPaymentState: PaymentState = isFullRefund ? 'refunded' : 'partially_refunded';
 
       // Validate status transition before processing payment
-      assertValidOrderStatusTransition(order.status, nextStatus as any);
+      assertValidOrderStatusTransition(order.status, nextStatus);
 
       // Point 2: Deterministic Idempotency Keys (Granular)
       // Format: refund:{orderId}:{refundAttemptId}:{amount}
@@ -80,8 +79,8 @@ export class RefundService {
           // Production Hardening: Perform all post-payment state mutations ATOMICALLY 
           await runTransaction(getUnifiedDb(), async (transaction: any) => {
             // 1. Update Order Status and Atomic Refund Amount
-            await this.orderRepo.transitionPaymentState(orderId, ['paid', 'partially_refunded'], isFullRefund ? 'refunded' : 'partially_refunded', 'refund_processed', transaction);
-            await this.orderRepo.guardedUpdateStatus(orderId, [order.status], nextStatus as any, 'refund_processed', transaction);
+            await this.orderRepo.transitionPaymentState(orderId, ['paid', 'partially_refunded'], nextPaymentState, 'refund_processed', transaction);
+            await this.orderRepo.guardedUpdateStatus(orderId, [order.status], nextStatus, 'refund_processed', transaction);
             await this.orderRepo.recordRefund(orderId, safeAmount, transaction);
 
             // 2. Restock inventory (physical items only)

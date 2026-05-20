@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    await requireAdminSession();
+    await requireAdminSession(request);
     const metrics = await ticketRepository.getTicketHealthMetrics();
     return NextResponse.json(metrics);
   } catch (err) {

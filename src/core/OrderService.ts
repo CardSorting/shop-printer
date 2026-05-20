@@ -197,7 +197,7 @@ export class OrderService {
     return this.readService.getOrdersForCustomerView(userId, options);
   }
 
-  batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: OrderActor): Promise<void> {
+  batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: OrderActor): Promise<{ updatedIds: string[] }> {
     return this.adminService.batchUpdateOrderStatus(ids, status, actor);
   }
 

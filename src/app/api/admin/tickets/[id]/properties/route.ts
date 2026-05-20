@@ -1,6 +1,7 @@
-import { requireAdminSession, jsonError, readJsonObject } from '@infrastructure/server/apiGuards';
+import { requireAdminSession, jsonError, readJsonObject, requireString } from '@infrastructure/server/apiGuards';
 import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 import { getInitialServices } from '@core/container';
+import { parseTicketProperties } from '../../parsers';
 
 export async function PATCH(
   req: Request,
@@ -8,8 +9,9 @@ export async function PATCH(
 ) {
   try {
     const session = await requireAdminSession(req);
-    const properties = await readJsonObject(req);
-    const { id } = await params;
+    const properties = parseTicketProperties(await readJsonObject(req));
+    const { id: rawId } = await params;
+    const id = requireString(rawId, 'id');
     
     const oldTicket = await ticketRepository.getTicketById(id);
     await ticketRepository.updateTicketProperties(id, properties);

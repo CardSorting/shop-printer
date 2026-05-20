@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server';
 import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
+import { parseTicketListOptions } from './parsers';
 
 export async function GET(req: Request) {
   try {
-    await requireAdminSession();
+    await requireAdminSession(req);
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get('status') || undefined;
-    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit') as string, 10) : undefined;
     
-    const tickets = await ticketRepository.getTickets({ status, limit });
+    const tickets = await ticketRepository.getTickets(parseTicketListOptions(searchParams));
     return NextResponse.json(tickets);
   } catch (err: any) {
     return jsonError(err, 'Failed to fetch tickets');

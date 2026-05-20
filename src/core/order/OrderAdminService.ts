@@ -156,17 +156,17 @@ export class OrderAdminService {
     });
   }
 
-  async batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: OrderActor): Promise<void> {
-    if (!ids.length) return;
+  async batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: OrderActor): Promise<{ updatedIds: string[] }> {
+    if (!ids.length) return { updatedIds: [] };
     if (status === 'refunded' || status === 'partially_refunded') {
       throw new Error('Refund status changes must be processed through the refund workflow.');
     }
 
-    await runTransaction(getUnifiedDb(), async (transaction: any) => {
+    const updatedIds = await runTransaction(getUnifiedDb(), async (transaction: any) => {
       const validIds: string[] = [];
       
       for (const id of ids) {
-        const order = await (this.orderRepo.getById as any)(id, transaction) as Order | null;
+        const order = await this.orderRepo.getById(id, transaction);
         if (!order) {
           logger.warn(`[batchUpdateOrderStatus] Order ${id} not found, skipping.`);
           continue;
@@ -217,7 +217,11 @@ export class OrderAdminService {
           details: { ids: validIds, to: status, count: validIds.length }
         });
       }
+
+      return validIds;
     });
+
+    return { updatedIds };
   }
 
   async cleanupExpiredOrders(expirationMinutes = 60): Promise<{ count: number }> {
@@ -340,7 +344,7 @@ export class OrderAdminService {
 
   async swapOrderItem(orderId: string, oldProductId: string, newProductId: string, actor: OrderActor): Promise<void> {
     const changed = await runTransaction(getUnifiedDb(), async (transaction: any) => {
-      const order = await (this.orderRepo.getById as any)(orderId, transaction) as Order | null;
+      const order = await this.orderRepo.getById(orderId, transaction);
       if (!order) throw new OrderNotFoundError(orderId);
 
       // PRODUCTION HARDENING: Lock items once fulfillment has started or order is under investigation
@@ -555,7 +559,7 @@ export class OrderAdminService {
     actor: OrderActor
   ): Promise<void> {
     const order = await runTransaction(getUnifiedDb(), async (transaction: any) => {
-      const current = await (this.orderRepo.getById as any)(id, transaction) as Order | null;
+      const current = await this.orderRepo.getById(id, transaction);
       if (!current) throw new OrderNotFoundError(id);
       if (current.reconciliationRequired || current.status === 'reconciling') {
         throw new Error('Order requires manual reconciliation and is locked for fulfillment updates.');

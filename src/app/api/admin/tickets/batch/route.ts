@@ -1,16 +1,14 @@
 import { requireAdminSession, jsonError, readJsonObject } from '@infrastructure/server/apiGuards';
 import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 import { getInitialServices } from '@core/container';
+import { parseTicketBatchUpdate } from '../parsers';
 
 export async function PATCH(request: Request) {
   try {
     const session = await requireAdminSession(request);
-    const { ids, updates } = await readJsonObject(request);
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return jsonError(new Error('IDs are required'));
-    }
+    const { ids, updates } = parseTicketBatchUpdate(await readJsonObject(request));
     
-    await ticketRepository.batchUpdateTickets(ids as string[], updates as any);
+    await ticketRepository.batchUpdateTickets(ids, updates);
 
     // PRODUCTION HARDENING: Forensic Auditing
     const { auditService } = getInitialServices();
@@ -22,7 +20,7 @@ export async function PATCH(request: Request) {
       details: { ids, updates }
     });
 
-    return Response.json({ success: true });
+    return Response.json({ success: true, updatedCount: ids.length });
   } catch (err) {
     return jsonError(err, 'Failed to batch update tickets');
   }

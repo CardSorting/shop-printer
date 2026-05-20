@@ -315,8 +315,8 @@ export interface ITicketRepository {
   getTicketForCustomer(id: string, userId: string): Promise<import('./models').SupportTicket | null>;
   createTicket(ticket: import('./models').SupportTicket): Promise<void>;
   updateTicketProperties(id: string, updates: Partial<import('./models').SupportTicket>): Promise<void>;
-  updateTicketStatus(id: string, status: string): Promise<void>;
-  updateTicketPriority(id: string, priority: string): Promise<void>;
+  updateTicketStatus(id: string, status: import('./models').TicketStatus): Promise<void>;
+  updateTicketPriority(id: string, priority: import('./models').TicketPriority): Promise<void>;
   addMessage(message: import('./models').TicketMessage): Promise<void>;
   batchUpdateTickets(ids: string[], updates: Partial<import('./models').SupportTicket>): Promise<void>;
   getTicketHealthMetrics(): Promise<{ slaCompliance: number; unassignedRate: number; totalActive: number }>;

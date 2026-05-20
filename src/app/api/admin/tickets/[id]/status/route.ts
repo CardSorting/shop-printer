@@ -1,15 +1,17 @@
 import { requireAdminSession, jsonError, readJsonObject, requireString } from '@infrastructure/server/apiGuards';
 import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 import { getInitialServices } from '@core/container';
+import { parseTicketStatusUpdate } from '../../parsers';
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAdminSession(req);
-    const { id } = await params;
-    const { status } = await readJsonObject(req);
+    const { id: rawId } = await params;
+    const id = requireString(rawId, 'id');
+    const status = parseTicketStatusUpdate(await readJsonObject(req));
     
     const oldTicket = await ticketRepository.getTicketById(id);
-    await ticketRepository.updateTicketStatus(id, requireString(status, 'status'));
+    await ticketRepository.updateTicketStatus(id, status);
     const updated = await ticketRepository.getTicketById(id);
 
     // PRODUCTION HARDENING: Forensic Auditing
