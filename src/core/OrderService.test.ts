@@ -34,6 +34,9 @@ describe('OrderService', () => {
       guardedUpdateStatus: vi.fn().mockImplementation(async (id, _allowed, status, _reason, transaction) => {
         return mockOrderRepo.updateStatus(id, status, transaction);
       }),
+      transitionPaymentState: vi.fn().mockResolvedValue(undefined),
+      transitionFulfillmentState: vi.fn().mockResolvedValue(undefined),
+      transitionReconciliationState: vi.fn().mockResolvedValue(undefined),
       updateRiskScore: vi.fn(),
       updateMetadata: vi.fn(),
       addFulfillmentEvent: vi.fn(),

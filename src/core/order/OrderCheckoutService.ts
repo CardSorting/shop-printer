@@ -176,6 +176,9 @@ export class OrderCheckoutService {
             discountCode: validDiscountCode,
             total,
             status: 'pending',
+            paymentState: 'unpaid',
+            fulfillmentState: 'unfulfilled',
+            reconciliationState: 'none',
             shippingAddress,
             shippingClassId: shippingResult.shippingClassId,
             shippingCarrier: shippingResult.carrier,
@@ -249,7 +252,10 @@ export class OrderCheckoutService {
         });
       } catch (paymentErr: any) {
         logger.error('Payment processing failed, cancelling pending order and releasing stock', { userId, orderId: order.id, paymentErr });
-        await Promise.resolve(this.orderRepo.updateStatus(order.id, 'cancelled')).catch(err => {
+        await Promise.resolve(this.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'payment_processor_failure')).catch(err => {
+          logger.error('FATAL: Failed to mark payment state failed after payment failure', { orderId: order.id, err });
+        });
+        await Promise.resolve(this.orderRepo.guardedUpdateStatus(order.id, ['pending'], 'cancelled', 'payment_processor_failure')).catch(err => {
           logger.error('FATAL: Rollback failed for order after payment failure', { orderId: order.id, err });
         });
 
@@ -323,7 +329,10 @@ export class OrderCheckoutService {
             transactionId: paymentResult.transactionId,
             finalizationErr
           });
-          await Promise.resolve(this.orderRepo.updateStatus(order.id, 'reconciling')).catch(err => {
+          await Promise.resolve(this.orderRepo.transitionReconciliationState(order.id, ['none', 'needs_review'], 'needs_review', 'finalization_failure')).catch(err => {
+            logger.error('FATAL: Failed to set reconciliation state after finalization failure', { orderId: order.id, err });
+          });
+          await Promise.resolve(this.orderRepo.guardedUpdateStatus(order.id, ['pending'], 'reconciling', 'finalization_failure')).catch(err => {
             logger.error('FATAL: Failed to mark paid order for reconciliation after finalization failure', { orderId: order.id, err });
           });
           await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
@@ -416,6 +425,10 @@ export class OrderCheckoutService {
               status: order.status,
               paymentIntentId
             });
+            if (order.status === 'cancelled') {
+              await this.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed', 'cancelled'], 'paid', 'stripe_succeeded_terminal_conflict', transaction);
+            }
+            await this.orderRepo.transitionReconciliationState(order.id, ['none', 'needs_review'], 'needs_review', 'paid_terminal_conflict', transaction);
             await this.orderRepo.guardedUpdateStatus(order.id, ['cancelled', 'refunded'], 'reconciling', 'paid_terminal_conflict', transaction);
             await this.orderRepo.createOrUpdateReconciliationCase({
               paymentIntentId,
@@ -454,6 +467,8 @@ export class OrderCheckoutService {
         if (expectedToken !== currentToken) {
           fencingTokenConflict.current = { orderId: order.id, expectedToken, currentToken };
           logger.warn('Fencing token mismatch detected', { orderId: order.id, expectedToken, currentToken });
+          await this.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing'], 'paid', 'stripe_succeeded_fencing_mismatch', transaction);
+          await this.orderRepo.transitionReconciliationState(order.id, ['none', 'needs_review'], 'needs_review', 'fencing_token_mismatch', transaction);
           await this.orderRepo.guardedUpdateStatus(order.id, ['pending'], 'reconciling', 'fencing_token_mismatch', transaction);
           await this.orderRepo.createOrUpdateReconciliationCase({
             paymentIntentId,
@@ -500,6 +515,9 @@ export class OrderCheckoutService {
           throw new PaymentFailedError('Cannot finalize physical order without an inventory reservation.');
         }
 
+        await this.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing'], 'paid', 'payment_finalized', transaction);
+        await this.orderRepo.transitionFulfillmentState(order.id, ['unfulfilled'], nextStatus === 'processing' ? 'processing' : nextStatus === 'delivered' ? 'delivered' : nextStatus === 'ready_for_pickup' ? 'ready_for_pickup' : nextStatus === 'delivery_started' ? 'delivery_started' : 'unfulfilled', 'payment_finalized', transaction);
+        await this.orderRepo.transitionReconciliationState(order.id, ['none', 'resolved'], 'none', 'payment_finalized', transaction);
         await this.orderRepo.guardedUpdateStatus(order.id, ['pending'], nextStatus, 'payment_finalized', transaction);
         await this.orderRepo.updateRiskScore(order.id, riskScore, transaction);
         await this.orderRepo.updateMetadata(order.id, {

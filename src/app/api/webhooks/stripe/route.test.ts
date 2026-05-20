@@ -10,6 +10,8 @@ const finalizeOrderPayment = vi.fn();
 const updateOrderStatus = vi.fn();
 const getByPaymentTransactionId = vi.fn();
 const getById = vi.fn();
+const transitionPaymentState = vi.fn();
+const guardedUpdateStatus = vi.fn();
 const getPaymentIntent = vi.fn();
 
 vi.mock('next/headers', () => ({
@@ -31,7 +33,7 @@ vi.mock('@infrastructure/services/StripeService', () => ({
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
     orderService: { finalizeOrderPayment, updateOrderStatus },
-    orderRepo: { getByPaymentTransactionId, getById },
+    orderRepo: { getByPaymentTransactionId, getById, transitionPaymentState, guardedUpdateStatus },
   })),
 }));
 
@@ -43,6 +45,8 @@ describe('Stripe webhook replay handling', () => {
       type: 'payment_intent.succeeded',
       data: { object: { id: 'pi_1' } },
     });
+    transitionPaymentState.mockResolvedValue(undefined);
+    guardedUpdateStatus.mockResolvedValue(undefined);
   });
 
   it('does not finalize duplicate webhook events', async () => {
@@ -136,5 +140,31 @@ describe('Stripe webhook replay handling', () => {
     expect(finalizeOrderPayment).not.toHaveBeenCalled();
     expect(getByPaymentTransactionId).not.toHaveBeenCalled();
     expect(updateOrderStatus).not.toHaveBeenCalled();
+  });
+
+  it('does not let a stale failed event regress a locally paid payment state', async () => {
+    constructEvent.mockReturnValue({
+      id: 'evt_failed_after_paid',
+      type: 'payment_intent.payment_failed',
+      data: { object: { id: 'pi_paid_then_failed', metadata: { orderId: 'o-paid' } } },
+    });
+    tryProcessEvent.mockResolvedValue({ alreadyProcessed: false, claimToken: 'claim-paid-regression' });
+    getPaymentIntent.mockResolvedValue({ id: 'pi_paid_then_failed', status: 'canceled', metadata: { orderId: 'o-paid' } });
+    getByPaymentTransactionId.mockResolvedValue({
+      id: 'o-paid',
+      status: 'confirmed',
+      paymentState: 'paid',
+      paymentTransactionId: 'pi_paid_then_failed',
+    });
+    transitionPaymentState.mockRejectedValue(new Error('Payment state regression rejected: paid -> cancelled'));
+    markEventFailed.mockResolvedValue(undefined);
+    const { POST } = await import('./route');
+
+    const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
+
+    expect(response.status).toBe(500);
+    expect(guardedUpdateStatus).not.toHaveBeenCalled();
+    expect(markEventProcessed).not.toHaveBeenCalled();
+    expect(markEventFailed).toHaveBeenCalledWith('evt_failed_after_paid', 'Payment state regression rejected: paid -> cancelled', 'claim-paid-regression');
   });
 });

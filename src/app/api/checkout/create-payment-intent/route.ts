@@ -121,10 +121,10 @@ export async function POST(request: Request) {
           });
         }
         
-        await services.orderService.updateOrderStatus(order.id, 'cancelled', { 
-            id: 'system', 
-            email: 'system-rollback@dreambees.art' 
-        }).catch(rollbackErr => {
+        await services.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], createdPaymentIntentId ? 'cancelled' : 'failed', 'checkout_payment_intent_creation_rollback').catch(rollbackErr => {
+            logger.error(`FATAL: Payment state rollback failed for order ${order.id}. Manual reconciliation required.`, rollbackErr);
+        });
+        await services.orderRepo.guardedUpdateStatus(order.id, ['pending'], 'cancelled', 'checkout_payment_intent_creation_rollback').catch(rollbackErr => {
             logger.error(`FATAL: Rollback failed for order ${order.id}. Manual reconciliation required.`, rollbackErr);
         });
         await services.orderRepo.updateCheckoutAttempt(idempotencyKey, {

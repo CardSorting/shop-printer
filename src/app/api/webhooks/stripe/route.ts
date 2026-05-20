@@ -82,10 +82,8 @@ export async function POST(request: Request) {
 
         // Cancel if still pending or confirmed (race: verify endpoint may have promoted status)
         if (order && (order.status === 'pending' || order.status === 'confirmed')) {
-            await services.orderService.updateOrderStatus(order.id, 'cancelled', { 
-                id: 'system', 
-                email: 'stripe-webhook@dreambees.art' 
-            });
+            await services.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], currentPaymentIntent.status === 'canceled' ? 'cancelled' : 'failed', 'stripe_payment_failed');
+            await services.orderRepo.guardedUpdateStatus(order.id, ['pending', 'confirmed'], 'cancelled', 'stripe_payment_failed');
         }
         break;
       }

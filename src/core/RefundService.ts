@@ -80,6 +80,7 @@ export class RefundService {
           // Production Hardening: Perform all post-payment state mutations ATOMICALLY 
           await runTransaction(getUnifiedDb(), async (transaction: any) => {
             // 1. Update Order Status and Atomic Refund Amount
+            await this.orderRepo.transitionPaymentState(orderId, ['paid', 'partially_refunded'], isFullRefund ? 'refunded' : 'partially_refunded', 'refund_processed', transaction);
             await this.orderRepo.guardedUpdateStatus(orderId, [order.status], nextStatus as any, 'refund_processed', transaction);
             await this.orderRepo.recordRefund(orderId, safeAmount, transaction);
 
@@ -119,6 +120,9 @@ export class RefundService {
           // CRITICAL: We MUST mark the order as requiring manual reconciliation.
           logger.error(`CRITICAL: Stripe refund succeeded but DB update failed for order ${orderId}. Marking for RECONCILIATION.`, dbError);
           
+          await this.orderRepo.transitionReconciliationState(orderId, ['none', 'needs_review'], 'needs_review', 'stripe_refund_db_failure').catch(error => {
+            logger.error('Failed to transition reconciliation state after Stripe refund DB failure', { orderId, error });
+          });
           await this.orderRepo.guardedUpdateStatus(orderId, [order.status], 'reconciling', 'stripe_refund_db_failure');
           await this.orderRepo.markForReconciliation(orderId, [
             `Stripe refund of ${safeAmount} succeeded (Key: ${refundIdempotencyKey}) but DB transaction failed.`,

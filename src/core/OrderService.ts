@@ -310,4 +310,8 @@ export class OrderService {
   getAdminOverview() {
     return this.readService.getAdminOverview();
   }
+
+  getRecoveryReadModel(options?: { limit?: number }) {
+    return this.orderRepo.getStuckCheckoutStates(options);
+  }
 }

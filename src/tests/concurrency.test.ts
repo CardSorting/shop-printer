@@ -39,6 +39,10 @@ describe('OrderService Concurrency', () => {
       recordCheckoutAttempt: vi.fn(),
       updateCheckoutAttempt: vi.fn(),
       createOrUpdateReconciliationCase: vi.fn(),
+      transitionPaymentState: vi.fn().mockResolvedValue(undefined),
+      transitionFulfillmentState: vi.fn().mockResolvedValue(undefined),
+      transitionReconciliationState: vi.fn().mockResolvedValue(undefined),
+      updateStatus: vi.fn().mockResolvedValue(undefined),
       guardedUpdateStatus: vi.fn().mockImplementation(async (_id, _allowed, status, _reason, transaction) => {
         return mockOrderRepo.updateStatus(_id, status, transaction);
       }),
@@ -310,7 +314,16 @@ describe('OrderService Concurrency', () => {
     });
 
     expect(result.status).toBe('reconciling');
+    expect(mockOrderRepo.transitionPaymentState).toHaveBeenCalledWith('o-cancelled', ['unpaid', 'requires_payment_method', 'processing', 'failed', 'cancelled'], 'paid', 'stripe_succeeded_terminal_conflict', expect.anything());
+    expect(mockOrderRepo.transitionReconciliationState).toHaveBeenCalledWith('o-cancelled', ['none', 'needs_review'], 'needs_review', 'paid_terminal_conflict', expect.anything());
+    expect(mockOrderRepo.guardedUpdateStatus).toHaveBeenCalledWith('o-cancelled', ['cancelled', 'refunded'], 'reconciling', 'paid_terminal_conflict', expect.anything());
     expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o-cancelled', 'reconciling', expect.anything());
+    expect(mockOrderRepo.createOrUpdateReconciliationCase).toHaveBeenCalledWith(expect.objectContaining({
+      paymentIntentId: 'pi_late_success',
+      orderId: 'o-cancelled',
+      reason: 'paid_cancelled',
+      severity: 'critical',
+    }), expect.anything());
     expect(mockOrderRepo.markForReconciliation).toHaveBeenCalledWith('o-cancelled', expect.arrayContaining([
       'Payment pi_late_success succeeded after order had already reached terminal status cancelled.',
       'Manual review is required before fulfillment, refund, or inventory action.'
@@ -343,7 +356,16 @@ describe('OrderService Concurrency', () => {
     });
 
     expect(result.status).toBe('reconciling');
+    expect(mockOrderRepo.transitionPaymentState).toHaveBeenCalledWith('o-fence', ['unpaid', 'requires_payment_method', 'processing'], 'paid', 'stripe_succeeded_fencing_mismatch', expect.anything());
+    expect(mockOrderRepo.transitionReconciliationState).toHaveBeenCalledWith('o-fence', ['none', 'needs_review'], 'needs_review', 'fencing_token_mismatch', expect.anything());
+    expect(mockOrderRepo.guardedUpdateStatus).toHaveBeenCalledWith('o-fence', ['pending'], 'reconciling', 'fencing_token_mismatch', expect.anything());
     expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o-fence', 'reconciling', expect.anything());
+    expect(mockOrderRepo.createOrUpdateReconciliationCase).toHaveBeenCalledWith(expect.objectContaining({
+      paymentIntentId: 'pi_fence',
+      orderId: 'o-fence',
+      reason: 'fencing_token_mismatch',
+      severity: 'high',
+    }), expect.anything());
     expect(mockOrderRepo.markForReconciliation).toHaveBeenCalledWith('o-fence', expect.arrayContaining([
       'Fencing token mismatch: Stripe PI token 3 does not match Order token 7.',
       'This suggests a race condition or manual intervention superseded the checkout lease.'
@@ -387,7 +409,8 @@ describe('OrderService Concurrency', () => {
     )).rejects.toThrow('Stripe card declined');
 
     // Verify order was cancelled
-    expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o1', 'cancelled');
+    expect(mockOrderRepo.transitionPaymentState).toHaveBeenCalledWith('o1', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'payment_processor_failure');
+    expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o1', 'cancelled', undefined);
 
     // Verify physical product stock was batch updated to be restored (delta of positive item quantity)
     expect(mockProductRepo.batchUpdateStock).toHaveBeenLastCalledWith([
@@ -432,7 +455,8 @@ describe('OrderService Concurrency', () => {
     )).rejects.toThrow('finalizer write failed');
 
     expect(mockOrderRepo.updatePaymentTransactionId).toHaveBeenCalledWith('o-paid', 'tx-paid-finalize-failed');
-    expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o-paid', 'reconciling');
+    expect(mockOrderRepo.transitionReconciliationState).toHaveBeenCalledWith('o-paid', ['none', 'needs_review'], 'needs_review', 'finalization_failure');
+    expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o-paid', 'reconciling', undefined);
     expect(mockOrderRepo.markForReconciliation).toHaveBeenCalledWith('o-paid', expect.arrayContaining([
       'Payment tx-paid-finalize-failed succeeded but order finalization failed.',
       'finalizer write failed'

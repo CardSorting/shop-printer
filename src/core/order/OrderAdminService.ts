@@ -31,8 +31,12 @@ export class OrderAdminService {
     if (!evidence?.trim()) throw new Error('Supporting evidence is required.');
 
     await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      await this.orderRepo.transitionReconciliationState(id, ['needs_review', 'in_progress'], 'resolved', 'manual_reconciliation_resolution', transaction);
+      if (resolutionAction === 'refunded' || resolutionAction === 'partially_refunded') {
+        await this.orderRepo.transitionPaymentState(id, ['paid', 'partially_refunded'], resolutionAction === 'refunded' ? 'refunded' : 'partially_refunded', 'manual_reconciliation_resolution', transaction);
+      }
+      await this.orderRepo.guardedUpdateStatus(id, [order.status], resolutionAction, 'manual_reconciliation_resolution', transaction);
       await this.orderRepo.clearReconciliationFlag(id, transaction);
-      await this.orderRepo.updateStatus(id, resolutionAction, transaction);
       await this.orderRepo.updateMetadata(id, {
         ...order.metadata,
         reconciliationResolvedAt: new Date().toISOString(),
@@ -62,6 +66,17 @@ export class OrderAdminService {
     assertValidOrderStatusTransition(order.status, status);
     if (status === 'cancelled') {
       await this.releaseInventoryReservation(order);
+      await this.orderRepo.transitionPaymentState(id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'admin_order_cancelled').catch(error => {
+        logger.error('Failed to transition payment state during cancellation', { orderId: id, error });
+      });
+      await this.orderRepo.transitionFulfillmentState(id, ['unfulfilled', 'processing', 'ready_for_pickup', 'delivery_started'], 'cancelled', 'admin_order_cancelled').catch(error => {
+        logger.error('Failed to transition fulfillment state during cancellation', { orderId: id, error });
+      });
+    }
+    if (status === 'refunded' || status === 'partially_refunded') {
+      await this.orderRepo.transitionPaymentState(id, ['paid', 'partially_refunded'], status === 'refunded' ? 'refunded' : 'partially_refunded', 'admin_order_refund_state').catch(error => {
+        logger.error('Failed to transition payment state during refund status update', { orderId: id, error });
+      });
     }
 
     await this.orderRepo.guardedUpdateStatus(id, [order.status], status, 'admin_order_status_update');
@@ -112,6 +127,15 @@ export class OrderAdminService {
         try {
           assertValidOrderStatusTransition(order.status, status);
           validIds.push(id);
+
+          if (status === 'cancelled') {
+            await this.orderRepo.transitionPaymentState(id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'admin_batch_order_cancelled', transaction);
+            await this.orderRepo.transitionFulfillmentState(id, ['unfulfilled', 'processing', 'ready_for_pickup', 'delivery_started'], 'cancelled', 'admin_batch_order_cancelled', transaction);
+          }
+
+          if (status === 'refunded' || status === 'partially_refunded') {
+            await this.orderRepo.transitionPaymentState(id, ['paid', 'partially_refunded'], status === 'refunded' ? 'refunded' : 'partially_refunded', 'admin_batch_order_refund_state', transaction);
+          }
           
           await this.orderRepo.guardedUpdateStatus(id, [order.status], status, 'admin_batch_order_status_update', transaction);
           

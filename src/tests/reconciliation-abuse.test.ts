@@ -54,6 +54,9 @@ function makeOrderRepo(order: any) {
         guardedUpdateStatus: vi.fn().mockImplementation(async (id, _allowed, status, _reason, transaction) => {
             return repo.updateStatus(id, status, transaction);
         }),
+        transitionPaymentState: vi.fn().mockResolvedValue(undefined),
+        transitionFulfillmentState: vi.fn().mockResolvedValue(undefined),
+        transitionReconciliationState: vi.fn().mockResolvedValue(undefined),
         markForReconciliation: vi.fn(),
         clearReconciliationFlag: vi.fn(),
         updateMetadata: vi.fn(),

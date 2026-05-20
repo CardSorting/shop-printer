@@ -34,7 +34,11 @@ import type {
   OrderItem,
   OrderStatus,
   OrderStats,
+  PaymentState,
+  FulfillmentState,
+  ReconciliationState,
   PaymentReconciliationCase,
+  PaymentReconciliationCaseLifecycleState,
   PaymentReconciliationReason,
 } from '@domain/models';
 
@@ -55,6 +59,36 @@ export class FirestoreOrderRepository implements IOrderRepository {
 
   private mapDocToCheckoutAttempt(id: string, data: DocumentData): CheckoutAttempt {
     return mapDoc<CheckoutAttempt>(id, data);
+  }
+
+  private mapDocToReconciliationCase(id: string, data: DocumentData): PaymentReconciliationCase {
+    return mapDoc<PaymentReconciliationCase>(id, data);
+  }
+
+  private derivePaymentState(data: DocumentData): PaymentState {
+    if (data.paymentState) return data.paymentState as PaymentState;
+    if (data.status === 'refunded') return 'refunded';
+    if (data.status === 'partially_refunded') return 'partially_refunded';
+    if (data.status === 'cancelled') return 'cancelled';
+    if (['confirmed', 'processing', 'shipped', 'delivered', 'ready_for_pickup', 'delivery_started'].includes(data.status)) return 'paid';
+    return 'unpaid';
+  }
+
+  private deriveFulfillmentState(data: DocumentData): FulfillmentState {
+    if (data.fulfillmentState) return data.fulfillmentState as FulfillmentState;
+    if (data.status === 'processing') return 'processing';
+    if (data.status === 'ready_for_pickup') return 'ready_for_pickup';
+    if (data.status === 'delivery_started') return 'delivery_started';
+    if (data.status === 'shipped') return 'shipped';
+    if (data.status === 'delivered') return 'delivered';
+    if (data.status === 'cancelled') return 'cancelled';
+    return 'unfulfilled';
+  }
+
+  private deriveReconciliationState(data: DocumentData): ReconciliationState {
+    if (data.reconciliationState) return data.reconciliationState as ReconciliationState;
+    if (data.reconciliationRequired || data.status === 'reconciling') return 'needs_review';
+    return 'none';
   }
 
   async create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>, transaction?: any): Promise<Order> {
@@ -84,6 +118,9 @@ export class FirestoreOrderRepository implements IOrderRepository {
 
       const orderData = {
         ...order,
+        paymentState: order.paymentState || this.derivePaymentState(order),
+        fulfillmentState: order.fulfillmentState || this.deriveFulfillmentState(order),
+        reconciliationState: order.reconciliationState || this.deriveReconciliationState(order),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         riskScore: await this.calculateRiskScore(order),
@@ -117,7 +154,10 @@ export class FirestoreOrderRepository implements IOrderRepository {
         customerNote: order.customerNote || null,
         createdAt: now,
         updatedAt: now,
-        riskScore: orderData.riskScore
+        riskScore: orderData.riskScore,
+        paymentState: orderData.paymentState,
+        fulfillmentState: orderData.fulfillmentState,
+        reconciliationState: orderData.reconciliationState,
       } as Order;
     };
 
@@ -313,6 +353,14 @@ export class FirestoreOrderRepository implements IOrderRepository {
   async updateStatus(id: string, status: OrderStatus, transaction?: any): Promise<void> {
     const db = getUnifiedDb();
     const docRef = doc(db, this.collectionName, id);
+
+    if (transaction) {
+      transaction.update(docRef, {
+        status,
+        updatedAt: serverTimestamp()
+      });
+      return;
+    }
     
     const operation = async (t: any) => {
       const snap = await t.get(docRef);
@@ -348,6 +396,20 @@ export class FirestoreOrderRepository implements IOrderRepository {
     const db = getUnifiedDb();
     const docRef = doc(db, this.collectionName, id);
 
+    if (transaction) {
+      transaction.update(docRef, {
+        status,
+        updatedAt: serverTimestamp(),
+        [`metadata.guardedStatusTransitions.${Date.now()}`]: {
+          allowedCurrentStatuses,
+          to: status,
+          reason,
+          transactionGuardedByCaller: true,
+        },
+      });
+      return;
+    }
+
     const operation = async (t: any) => {
       const snap = await t.get(docRef);
       if (!snap.exists()) {
@@ -376,6 +438,157 @@ export class FirestoreOrderRepository implements IOrderRepository {
     } else {
       await runTransaction(db, operation);
     }
+  }
+
+  private assertMonotonicPaymentState(current: PaymentState, next: PaymentState, reason: string): void {
+    const rank: Record<PaymentState, number> = {
+      unpaid: 0,
+      requires_payment_method: 1,
+      processing: 2,
+      failed: 3,
+      cancelled: 3,
+      paid: 4,
+      partially_refunded: 5,
+      refunded: 6,
+    };
+
+    if (current === next) return;
+    if ((current === 'paid' || current === 'partially_refunded' || current === 'refunded') && ['unpaid', 'requires_payment_method', 'processing', 'failed', 'cancelled'].includes(next)) {
+      throw new Error(`Payment state regression rejected: ${current} -> ${next} (${reason})`);
+    }
+    if (rank[next] < rank[current] && !(current === 'failed' && next === 'requires_payment_method')) {
+      throw new Error(`Payment state regression rejected: ${current} -> ${next} (${reason})`);
+    }
+  }
+
+  async transitionPaymentState(
+    id: string,
+    allowedCurrentStates: PaymentState[],
+    nextState: PaymentState,
+    reason: string,
+    transaction?: any
+  ): Promise<void> {
+    const db = getUnifiedDb();
+    const docRef = doc(db, this.collectionName, id);
+
+    if (transaction) {
+      transaction.update(docRef, {
+        paymentState: nextState,
+        [`metadata.paymentStateTransitions.${Date.now()}`]: {
+          allowedCurrentStates,
+          to: nextState,
+          reason,
+          transactionGuardedByCaller: true,
+        },
+        updatedAt: serverTimestamp(),
+      });
+      return;
+    }
+
+    const operation = async (t: any) => {
+      const snap = await t.get(docRef);
+      if (!snap.exists()) throw new Error(`Order ${id} not found`);
+      const data = snap.data();
+      const current = this.derivePaymentState(data);
+      if (!allowedCurrentStates.includes(current)) {
+        throw new Error(`Payment state transition rejected for ${id}: ${current} -> ${nextState} (${reason})`);
+      }
+      this.assertMonotonicPaymentState(current, nextState, reason);
+      t.update(docRef, {
+        paymentState: nextState,
+        [`metadata.paymentStateTransitions.${Date.now()}`]: { from: current, to: nextState, reason },
+        updatedAt: serverTimestamp(),
+      });
+    };
+
+    if (transaction) await operation(transaction);
+    else await runTransaction(db, operation);
+  }
+
+  async transitionFulfillmentState(
+    id: string,
+    allowedCurrentStates: FulfillmentState[],
+    nextState: FulfillmentState,
+    reason: string,
+    transaction?: any
+  ): Promise<void> {
+    const db = getUnifiedDb();
+    const docRef = doc(db, this.collectionName, id);
+
+    if (transaction) {
+      transaction.update(docRef, {
+        fulfillmentState: nextState,
+        [`metadata.fulfillmentStateTransitions.${Date.now()}`]: {
+          allowedCurrentStates,
+          to: nextState,
+          reason,
+          transactionGuardedByCaller: true,
+        },
+        updatedAt: serverTimestamp(),
+      });
+      return;
+    }
+
+    const operation = async (t: any) => {
+      const snap = await t.get(docRef);
+      if (!snap.exists()) throw new Error(`Order ${id} not found`);
+      const current = this.deriveFulfillmentState(snap.data());
+      if (!allowedCurrentStates.includes(current)) {
+        throw new Error(`Fulfillment state transition rejected for ${id}: ${current} -> ${nextState} (${reason})`);
+      }
+      t.update(docRef, {
+        fulfillmentState: nextState,
+        [`metadata.fulfillmentStateTransitions.${Date.now()}`]: { from: current, to: nextState, reason },
+        updatedAt: serverTimestamp(),
+      });
+    };
+
+    if (transaction) await operation(transaction);
+    else await runTransaction(db, operation);
+  }
+
+  async transitionReconciliationState(
+    id: string,
+    allowedCurrentStates: ReconciliationState[],
+    nextState: ReconciliationState,
+    reason: string,
+    transaction?: any
+  ): Promise<void> {
+    const db = getUnifiedDb();
+    const docRef = doc(db, this.collectionName, id);
+
+    if (transaction) {
+      transaction.update(docRef, {
+        reconciliationState: nextState,
+        reconciliationRequired: nextState === 'needs_review' || nextState === 'in_progress',
+        [`metadata.reconciliationStateTransitions.${Date.now()}`]: {
+          allowedCurrentStates,
+          to: nextState,
+          reason,
+          transactionGuardedByCaller: true,
+        },
+        updatedAt: serverTimestamp(),
+      });
+      return;
+    }
+
+    const operation = async (t: any) => {
+      const snap = await t.get(docRef);
+      if (!snap.exists()) throw new Error(`Order ${id} not found`);
+      const current = this.deriveReconciliationState(snap.data());
+      if (!allowedCurrentStates.includes(current)) {
+        throw new Error(`Reconciliation state transition rejected for ${id}: ${current} -> ${nextState} (${reason})`);
+      }
+      t.update(docRef, {
+        reconciliationState: nextState,
+        reconciliationRequired: nextState === 'needs_review' || nextState === 'in_progress',
+        [`metadata.reconciliationStateTransitions.${Date.now()}`]: { from: current, to: nextState, reason },
+        updatedAt: serverTimestamp(),
+      });
+    };
+
+    if (transaction) await operation(transaction);
+    else await runTransaction(db, operation);
   }
 
   async batchUpdateStatus(ids: string[], status: OrderStatus): Promise<void> {
@@ -537,28 +750,67 @@ export class FirestoreOrderRepository implements IOrderRepository {
     checkoutAttemptId?: string | null;
     reason: PaymentReconciliationReason;
     severity: 'high' | 'critical';
+    lifecycleState?: PaymentReconciliationCaseLifecycleState;
     stripeStatus?: string | null;
     operatorVisibleMessage: string;
     nextAction: string;
+    recommendedAction?: string;
+    evidence?: Array<{ type: string; value: string; recordedAt: string }>;
+    repairAttempt?: { attemptedAt: string; error?: string | null };
     details?: Record<string, any>;
   }, transaction?: any): Promise<void> {
     const db = getUnifiedDb();
     const caseId = `${params.paymentIntentId}_${params.reason}`;
-    const operation = async (t: any) => {
-      const ref = doc(db, this.reconciliationCaseCollectionName, caseId);
-      const snap = await t.get(ref);
-      const payload: Omit<PaymentReconciliationCase, 'createdAt' | 'updatedAt'> & Record<string, any> = {
+    const buildPayload = (caseExists: boolean) => {
+      const recordedAt = new Date().toISOString();
+      const defaultEvidence = [
+        { type: 'paymentIntentId', value: params.paymentIntentId, recordedAt },
+        params.orderId ? { type: 'orderId', value: params.orderId, recordedAt } : null,
+        params.checkoutAttemptId ? { type: 'checkoutAttemptId', value: params.checkoutAttemptId, recordedAt } : null,
+        params.stripeStatus ? { type: 'stripeStatus', value: params.stripeStatus, recordedAt } : null,
+        { type: 'reason', value: params.reason, recordedAt },
+      ].filter(Boolean);
+      const payload: Record<string, any> = {
         id: caseId,
         paymentIntentId: params.paymentIntentId,
         orderId: params.orderId ?? null,
         checkoutAttemptId: params.checkoutAttemptId ?? null,
         reason: params.reason,
         severity: params.severity,
+        lifecycleState: params.lifecycleState || 'open',
         stripeStatus: params.stripeStatus ?? null,
         operatorVisibleMessage: params.operatorVisibleMessage,
         nextAction: params.nextAction,
+        recommendedAction: params.recommendedAction || params.nextAction,
+        evidence: params.evidence || defaultEvidence,
+        repairAttemptCount: caseExists ? undefined : 0,
         details: params.details || {},
       };
+      if (params.repairAttempt) {
+        payload.lifecycleState = params.lifecycleState || 'repair_attempted';
+        payload.repairAttemptCount = increment(1);
+        payload.lastRepairAttemptAt = params.repairAttempt.attemptedAt;
+        payload.lastRepairError = params.repairAttempt.error || null;
+      }
+      Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) delete payload[key];
+      });
+      return payload;
+    };
+
+    if (transaction) {
+      const ref = doc(db, this.reconciliationCaseCollectionName, caseId);
+      transaction.set(ref, {
+        ...buildPayload(true),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      return;
+    }
+
+    const operation = async (t: any) => {
+      const ref = doc(db, this.reconciliationCaseCollectionName, caseId);
+      const snap = await t.get(ref);
+      const payload = buildPayload(snap.exists());
 
       if (snap.exists()) {
         t.set(ref, {
@@ -576,6 +828,56 @@ export class FirestoreOrderRepository implements IOrderRepository {
 
     if (transaction) await operation(transaction);
     else await runTransaction(db, operation);
+  }
+
+  async getOpenReconciliationCases(options?: { limit?: number; reason?: PaymentReconciliationReason }): Promise<PaymentReconciliationCase[]> {
+    let q = query(
+      collection(getUnifiedDb(), this.reconciliationCaseCollectionName),
+      where('lifecycleState', 'in', ['open', 'in_progress', 'repair_attempted', 'blocked']),
+      orderBy('updatedAt', 'desc'),
+      limit(options?.limit || 50)
+    );
+
+    if (options?.reason) {
+      q = query(
+        collection(getUnifiedDb(), this.reconciliationCaseCollectionName),
+        where('lifecycleState', 'in', ['open', 'in_progress', 'repair_attempted', 'blocked']),
+        where('reason', '==', options.reason),
+        orderBy('updatedAt', 'desc'),
+        limit(options?.limit || 50)
+      );
+    }
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToReconciliationCase(d.id, d.data() as any));
+  }
+
+  async getStuckCheckoutStates(options?: { limit?: number }): Promise<{
+    openReconciliationCases: PaymentReconciliationCase[];
+    pendingPaidOrders: Order[];
+    reconcilingPaidOrders: Order[];
+  }> {
+    const limitVal = options?.limit || 50;
+    const openReconciliationCases = await this.getOpenReconciliationCases({ limit: limitVal });
+
+    const pendingPaidSnap = await getDocs(query(
+      collection(getUnifiedDb(), this.collectionName),
+      where('paymentState', '==', 'paid'),
+      where('status', '==', 'pending'),
+      limit(limitVal)
+    ));
+    const reconcilingPaidSnap = await getDocs(query(
+      collection(getUnifiedDb(), this.collectionName),
+      where('paymentState', '==', 'paid'),
+      where('reconciliationState', '==', 'needs_review'),
+      limit(limitVal)
+    ));
+
+    return {
+      openReconciliationCases,
+      pendingPaidOrders: pendingPaidSnap.docs.map((d: QueryDocumentSnapshot) => this.mapDocToOrder(d.id, d.data() as any)),
+      reconcilingPaidOrders: reconcilingPaidSnap.docs.map((d: QueryDocumentSnapshot) => this.mapDocToOrder(d.id, d.data() as any)),
+    };
   }
 
 

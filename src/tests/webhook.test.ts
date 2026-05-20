@@ -138,7 +138,7 @@ describe('Stripe Webhook Route - Reservation with Rollback', () => {
     expect(data.error).toBe('Internal server error processing webhook');
     
     // Assert retryable failure state was recorded
-    expect(mockStripe.markEventFailed).toHaveBeenCalledWith('evt_123', 'Database error during finalization');
+    expect(mockStripe.markEventFailed).toHaveBeenCalledWith('evt_123', 'Database error during finalization', null);
     expect(mockStripe.deleteEvent).not.toHaveBeenCalled();
   });
 });

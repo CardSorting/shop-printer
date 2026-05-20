@@ -23,6 +23,9 @@ function makeOrderRepo(overrides: Record<string, any> = {}) {
     getByIdempotencyKey: vi.fn().mockResolvedValue(null),
     getByPaymentTransactionIdTransactional: vi.fn(),
     guardedUpdateStatus: vi.fn(),
+    transitionPaymentState: vi.fn(),
+    transitionFulfillmentState: vi.fn(),
+    transitionReconciliationState: vi.fn(),
     updateStatus: vi.fn(),
     updateRiskScore: vi.fn(),
     updateMetadata: vi.fn(),
@@ -36,6 +39,9 @@ function makeOrderRepo(overrides: Record<string, any> = {}) {
   repo.guardedUpdateStatus.mockImplementation(async (id: string, _allowed: string[], status: string, _reason: string, transaction?: any) => {
     await repo.updateStatus(id, status, transaction);
   });
+  repo.transitionPaymentState.mockResolvedValue(undefined);
+  repo.transitionFulfillmentState.mockResolvedValue(undefined);
+  repo.transitionReconciliationState.mockResolvedValue(undefined);
   return repo;
 }
 
@@ -82,6 +88,7 @@ describe('financial recovery hardening', () => {
     const result = await service.cleanupExpiredOrders(60);
 
     expect(result.count).toBe(1);
+    expect(orderRepo.transitionPaymentState).toHaveBeenCalledWith('order-paid-cleanup', ['unpaid', 'requires_payment_method', 'processing'], 'paid', 'payment_finalized', expect.anything());
     expect(orderRepo.guardedUpdateStatus).toHaveBeenCalledWith('order-paid-cleanup', ['pending'], 'processing', 'payment_finalized', expect.anything());
     expect(orderRepo.guardedUpdateStatus).not.toHaveBeenCalledWith('order-paid-cleanup', expect.anything(), 'cancelled', expect.anything(), expect.anything());
     expect(orderRepo.createOrUpdateReconciliationCase).not.toHaveBeenCalledWith(expect.objectContaining({ reason: 'paid_not_finalized' }));
@@ -186,6 +193,89 @@ describe('financial recovery hardening', () => {
       orderId: 'order-missing',
       reason: 'dangling_payment_intent',
       severity: 'critical',
+    }));
+  });
+
+  it('moves a paid cancelled order into reconciliation state instead of leaving it cancelled', async () => {
+    const orderRepo = makeOrderRepo({
+      getByPaymentTransactionIdTransactional: vi.fn().mockResolvedValue({
+        id: 'order-paid-cancelled',
+        userId: 'u1',
+        status: 'cancelled',
+        paymentTransactionId: 'pi_paid_cancelled',
+        metadata: { inventoryReserved: true, inventoryReservationReleased: true },
+        items: [{ productId: 'p1', quantity: 1, isDigital: false }],
+      }),
+    });
+    const service = makeOrderService(orderRepo);
+
+    const result = await service.finalizeOrderPayment('pi_paid_cancelled', {
+      id: 'pi_paid_cancelled',
+      status: 'succeeded',
+      metadata: { orderId: 'order-paid-cancelled' },
+      charges: { data: [] },
+    });
+
+    expect(result.status).toBe('reconciling');
+    expect(orderRepo.transitionPaymentState).toHaveBeenCalledWith('order-paid-cancelled', ['unpaid', 'requires_payment_method', 'processing', 'failed', 'cancelled'], 'paid', 'stripe_succeeded_terminal_conflict', expect.anything());
+    expect(orderRepo.transitionReconciliationState).toHaveBeenCalledWith('order-paid-cancelled', ['none', 'needs_review'], 'needs_review', 'paid_terminal_conflict', expect.anything());
+    expect(orderRepo.guardedUpdateStatus).toHaveBeenCalledWith('order-paid-cancelled', ['cancelled', 'refunded'], 'reconciling', 'paid_terminal_conflict', expect.anything());
+    expect(orderRepo.createOrUpdateReconciliationCase).toHaveBeenCalledWith(expect.objectContaining({
+      paymentIntentId: 'pi_paid_cancelled',
+      orderId: 'order-paid-cancelled',
+      reason: 'paid_cancelled',
+      severity: 'critical',
+    }), expect.anything());
+  });
+
+  it('temporal chaos: verify finalization after cleanup cancellation repairs into paid reconciliation', async () => {
+    const orderRepo = makeOrderRepo({
+      getByPaymentTransactionIdTransactional: vi.fn().mockResolvedValue({
+        id: 'order-chaos-cleanup',
+        userId: 'u1',
+        status: 'cancelled',
+        paymentTransactionId: 'pi_chaos_success',
+        metadata: { inventoryReserved: true, inventoryReservationReleased: true },
+        items: [{ productId: 'p1', quantity: 1, isDigital: false }],
+      }),
+    });
+    const service = makeOrderService(orderRepo);
+
+    await service.finalizeOrderPayment('pi_chaos_success', {
+      id: 'pi_chaos_success',
+      status: 'succeeded',
+      metadata: { orderId: 'order-chaos-cleanup' },
+      charges: { data: [] },
+    });
+
+    expect(orderRepo.transitionPaymentState).toHaveBeenCalledWith('order-chaos-cleanup', expect.any(Array), 'paid', 'stripe_succeeded_terminal_conflict', expect.anything());
+    expect(orderRepo.transitionReconciliationState).toHaveBeenCalledWith('order-chaos-cleanup', ['none', 'needs_review'], 'needs_review', 'paid_terminal_conflict', expect.anything());
+    expect(orderRepo.createOrUpdateReconciliationCase).toHaveBeenCalledWith(expect.objectContaining({
+      reason: 'paid_cancelled',
+    }), expect.anything());
+  });
+
+  it('temporal chaos: finalization failure after Stripe success creates a repairable open case', async () => {
+    const orderRepo = makeOrderRepo({
+      getByPaymentTransactionIdTransactional: vi.fn().mockRejectedValue(new Error('transaction aborted after Stripe success')),
+    });
+    const service = makeOrderService(orderRepo);
+
+    await expect(service.finalizeOrderPayment('pi_finalization_failure', {
+      id: 'pi_finalization_failure',
+      status: 'succeeded',
+      metadata: { orderId: 'order-finalization-failure', checkoutKey: 'checkout-finalization-failure' },
+      charges: { data: [] },
+    })).rejects.toThrow('transaction aborted after Stripe success');
+
+    expect(orderRepo.createOrUpdateReconciliationCase).toHaveBeenCalledWith(expect.objectContaining({
+      paymentIntentId: 'pi_finalization_failure',
+      orderId: 'order-finalization-failure',
+      checkoutAttemptId: 'checkout-finalization-failure',
+      reason: 'paid_not_finalized',
+      severity: 'critical',
+      stripeStatus: 'succeeded',
+      nextAction: 'Retry finalization; if blocked, resolve from reconciliation with Stripe evidence.',
     }));
   });
 });

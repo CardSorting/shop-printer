@@ -51,6 +51,9 @@ describe('Security Hardening Proofs', () => {
         guardedUpdateStatus: vi.fn().mockImplementation(async (id, _allowed, status, _reason, transaction) => {
           return mockOrderRepo.updateStatus(id, status, transaction);
         }),
+        transitionPaymentState: vi.fn().mockResolvedValue(undefined),
+        transitionFulfillmentState: vi.fn().mockResolvedValue(undefined),
+        transitionReconciliationState: vi.fn().mockResolvedValue(undefined),
         recordCheckoutAttempt: vi.fn(),
         updateCheckoutAttempt: vi.fn(),
         createOrUpdateReconciliationCase: vi.fn(),

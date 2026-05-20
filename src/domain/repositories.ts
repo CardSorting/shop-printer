@@ -9,8 +9,11 @@ import type {
   CheckoutAttempt,
   Order,
   OrderStatus,
+  PaymentState,
   PaymentReconciliationCase,
   PaymentReconciliationReason,
+  FulfillmentState,
+  ReconciliationState,
   User,
   ProductStatus,
   Address,
@@ -81,6 +84,9 @@ export interface IOrderRepository {
   save(order: Order, transaction?: any): Promise<void>;
   updateStatus(id: string, status: OrderStatus, transaction?: any): Promise<void>;
   guardedUpdateStatus(id: string, allowedCurrentStatuses: OrderStatus[], status: OrderStatus, reason: string, transaction?: any): Promise<void>;
+  transitionPaymentState(id: string, allowedCurrentStates: PaymentState[], nextState: PaymentState, reason: string, transaction?: any): Promise<void>;
+  transitionFulfillmentState(id: string, allowedCurrentStates: FulfillmentState[], nextState: FulfillmentState, reason: string, transaction?: any): Promise<void>;
+  transitionReconciliationState(id: string, allowedCurrentStates: ReconciliationState[], nextState: ReconciliationState, reason: string, transaction?: any): Promise<void>;
   updatePaymentTransactionId(id: string, paymentTransactionId: string, transaction?: any): Promise<void>;
   recordCheckoutAttempt(attempt: Omit<CheckoutAttempt, 'createdAt' | 'updatedAt'>, transaction?: any): Promise<void>;
   updateCheckoutAttempt(idempotencyKey: string, updates: Partial<Omit<CheckoutAttempt, 'id' | 'createdAt' | 'updatedAt'>>, transaction?: any): Promise<void>;
@@ -92,11 +98,21 @@ export interface IOrderRepository {
     checkoutAttemptId?: string | null;
     reason: PaymentReconciliationReason;
     severity: 'high' | 'critical';
+    lifecycleState?: import('./models').PaymentReconciliationCaseLifecycleState;
     stripeStatus?: string | null;
     operatorVisibleMessage: string;
     nextAction: string;
+    recommendedAction?: string;
+    evidence?: Array<{ type: string; value: string; recordedAt: string }>;
+    repairAttempt?: { attemptedAt: string; error?: string | null };
     details?: Record<string, any>;
   }, transaction?: any): Promise<void>;
+  getOpenReconciliationCases(options?: { limit?: number; reason?: PaymentReconciliationReason }): Promise<PaymentReconciliationCase[]>;
+  getStuckCheckoutStates(options?: { limit?: number }): Promise<{
+    openReconciliationCases: PaymentReconciliationCase[];
+    pendingPaidOrders: Order[];
+    reconcilingPaidOrders: Order[];
+  }>;
   batchUpdateStatus?(ids: string[], status: OrderStatus): Promise<void>;
   addNote(orderId: string, note: import('./models').OrderNote, transaction?: any): Promise<void>;
   updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }, transaction?: any): Promise<void>;

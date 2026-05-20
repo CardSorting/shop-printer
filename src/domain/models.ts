@@ -317,6 +317,9 @@ export interface Order {
   items: OrderItem[];
   total: number; // cents
   status: OrderStatus;
+  paymentState?: PaymentState;
+  fulfillmentState?: FulfillmentState;
+  reconciliationState?: ReconciliationState;
   shippingAddress: Address;
   paymentTransactionId: string | null;
   idempotencyKey?: string | null;
@@ -371,6 +374,38 @@ export interface CheckoutAttempt {
   updatedAt: Date;
 }
 
+export type PaymentState =
+  | 'unpaid'
+  | 'requires_payment_method'
+  | 'processing'
+  | 'paid'
+  | 'failed'
+  | 'cancelled'
+  | 'partially_refunded'
+  | 'refunded';
+
+export type FulfillmentState =
+  | 'unfulfilled'
+  | 'processing'
+  | 'ready_for_pickup'
+  | 'delivery_started'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled';
+
+export type ReconciliationState =
+  | 'none'
+  | 'needs_review'
+  | 'in_progress'
+  | 'resolved';
+
+export type PaymentReconciliationCaseLifecycleState =
+  | 'open'
+  | 'in_progress'
+  | 'repair_attempted'
+  | 'resolved'
+  | 'blocked';
+
 export type PaymentReconciliationReason =
   | 'paid_not_finalized'
   | 'paid_cancelled'
@@ -386,9 +421,19 @@ export interface PaymentReconciliationCase {
   checkoutAttemptId?: string | null;
   reason: PaymentReconciliationReason;
   severity: 'high' | 'critical';
+  lifecycleState: PaymentReconciliationCaseLifecycleState;
   stripeStatus?: string | null;
   operatorVisibleMessage: string;
   nextAction: string;
+  recommendedAction: string;
+  evidence?: Array<{
+    type: string;
+    value: string;
+    recordedAt: string;
+  }>;
+  repairAttemptCount: number;
+  lastRepairAttemptAt?: Date | null;
+  lastRepairError?: string | null;
   details?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
@@ -1376,4 +1421,3 @@ export interface ProductStats {
   productWithMarginCount: number;
   updatedAt: Date;
 }
-

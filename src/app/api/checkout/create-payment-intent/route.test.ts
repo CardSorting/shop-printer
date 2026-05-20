@@ -5,6 +5,8 @@ const updatePaymentTransactionId = vi.fn();
 const updateOrderStatus = vi.fn();
 const updateCheckoutAttempt = vi.fn();
 const createOrUpdateReconciliationCase = vi.fn();
+const transitionPaymentState = vi.fn();
+const guardedUpdateStatus = vi.fn();
 const getOrderById = vi.fn();
 const getCheckoutAttempt = vi.fn();
 const getLatestCheckoutAttemptForUser = vi.fn();
@@ -22,6 +24,8 @@ vi.mock('@infrastructure/server/services', () => ({
       updatePaymentTransactionId,
       updateCheckoutAttempt,
       createOrUpdateReconciliationCase,
+      transitionPaymentState,
+      guardedUpdateStatus,
       getById: getOrderById,
       getCheckoutAttempt,
       getLatestCheckoutAttemptForUser,
@@ -56,6 +60,8 @@ describe('checkout create payment intent retry handling', () => {
     vi.clearAllMocks();
     updateCheckoutAttempt.mockResolvedValue(undefined);
     createOrUpdateReconciliationCase.mockResolvedValue(undefined);
+    transitionPaymentState.mockResolvedValue(undefined);
+    guardedUpdateStatus.mockResolvedValue(undefined);
     getCartByUserId.mockResolvedValue(null);
     saveCart.mockResolvedValue(undefined);
     cancelPaymentIntent.mockResolvedValue({});
@@ -200,10 +206,9 @@ describe('checkout create payment intent retry handling', () => {
     }));
 
     expect(response.status).toBe(500);
-    expect(updateOrderStatus).toHaveBeenCalledWith('order-rollback', 'cancelled', {
-      id: 'system',
-      email: 'system-rollback@dreambees.art',
-    });
+    expect(transitionPaymentState).toHaveBeenCalledWith('order-rollback', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'checkout_payment_intent_creation_rollback');
+    expect(guardedUpdateStatus).toHaveBeenCalledWith('order-rollback', ['pending'], 'cancelled', 'checkout_payment_intent_creation_rollback');
+    expect(updateOrderStatus).not.toHaveBeenCalled();
     expect(saveCart).toHaveBeenCalledWith({
       id: 'user-1',
       userId: 'user-1',
@@ -277,10 +282,9 @@ describe('checkout create payment intent retry handling', () => {
 
     expect(response.status).toBe(500);
     expect(cancelPaymentIntent).toHaveBeenCalledWith('pi_created_unmapped');
-    expect(updateOrderStatus).toHaveBeenCalledWith('order-mapping-failed', 'cancelled', {
-      id: 'system',
-      email: 'system-rollback@dreambees.art',
-    });
+    expect(transitionPaymentState).toHaveBeenCalledWith('order-mapping-failed', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'checkout_payment_intent_creation_rollback');
+    expect(guardedUpdateStatus).toHaveBeenCalledWith('order-mapping-failed', ['pending'], 'cancelled', 'checkout_payment_intent_creation_rollback');
+    expect(updateOrderStatus).not.toHaveBeenCalled();
     expect(saveCart).toHaveBeenCalled();
   });
 
@@ -326,5 +330,59 @@ describe('checkout create payment intent retry handling', () => {
       reason: 'paid_not_finalized',
       stripeStatus: 'succeeded',
     }));
+  });
+
+  it('does not restore the cart when a newer checkout attempt owns the user checkout state', async () => {
+    initiateCheckout.mockResolvedValue({
+      id: 'order-newer-attempt-guard',
+      userId: 'user-1',
+      status: 'pending',
+      total: 2500,
+      paymentTransactionId: null,
+      customerNote: 'Keep this note',
+      metadata: { fencingToken: 9 },
+      items: [{
+        productId: 'p1',
+        name: 'Print 1',
+        unitPrice: 2500,
+        quantity: 1,
+        imageUrl: '/print.png',
+        isDigital: false,
+        fulfilledQty: 0,
+      }],
+    });
+    createPaymentIntent.mockRejectedValue(new Error('Stripe unavailable'));
+    getOrderById.mockResolvedValue({
+      id: 'order-newer-attempt-guard',
+      userId: 'user-1',
+      status: 'cancelled',
+      paymentTransactionId: null,
+      metadata: { fencingToken: 9, inventoryReserved: true, inventoryReservationReleased: true },
+    });
+    getCheckoutAttempt.mockResolvedValue({
+      idempotencyKey: 'checkout:older-attempt',
+      orderId: 'order-newer-attempt-guard',
+      state: 'cancelled',
+      paymentIntentId: null,
+      fencingToken: 9,
+      cartOwnerId: 'order-newer-attempt-guard',
+    });
+    getLatestCheckoutAttemptForUser.mockResolvedValue({
+      idempotencyKey: 'checkout:newer-attempt',
+    });
+    const { POST } = await import('./route');
+
+    const response = await POST(new Request('https://example.test/api/checkout/create-payment-intent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        shippingAddress: { street: '1 Test St', city: 'Denver', state: 'CO', zip: '80202', country: 'US' },
+        idempotencyKey: 'checkout:older-attempt',
+      }),
+    }));
+
+    expect(response.status).toBe(500);
+    expect(saveCart).not.toHaveBeenCalled();
+    expect(updateCheckoutAttempt).toHaveBeenCalledWith('checkout:older-attempt', { state: 'restore_blocked' });
   });
 });

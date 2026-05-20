@@ -31,12 +31,8 @@ export class OrderManagementService {
   }
 
   async batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: { id: string, email: string }): Promise<void> {
-    if (this.orderRepo.batchUpdateStatus) {
-      await this.orderRepo.batchUpdateStatus(ids, status);
-    } else {
-      for (const id of ids) {
-        await this.updateOrderStatus(id, status, actor);
-      }
+    for (const id of ids) {
+      await this.updateOrderStatus(id, status, actor);
     }
     await this.audit.record({ 
       userId: actor.id, 
@@ -58,6 +54,7 @@ export class OrderManagementService {
     
     const { orders } = await this.orderRepo.getAll({ status: 'pending', to: cutoff });
     for (const order of orders) {
+      await this.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'order_management_cleanup');
       await this.orderRepo.guardedUpdateStatus(order.id, [order.status], 'cancelled', 'order_management_cleanup');
       await this.audit.record({ userId: 'system', userEmail: 'system@dreambees.art', action: 'order_status_changed', targetId: order.id, details: { from: 'pending', to: 'cancelled', reason: 'expired' } });
     }

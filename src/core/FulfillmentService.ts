@@ -27,6 +27,13 @@ export class FulfillmentService {
     private shippingRepo?: IShippingRepository
   ) {}
 
+  private fulfillmentTransitionFor(status: OrderStatus): { nextState: 'processing' | 'shipped' | 'delivered' | 'unfulfilled'; allowed: Array<'unfulfilled' | 'processing' | 'ready_for_pickup' | 'delivery_started' | 'shipped' | 'delivered'> } {
+    if (status === 'processing') return { nextState: 'processing', allowed: ['unfulfilled'] };
+    if (status === 'shipped') return { nextState: 'shipped', allowed: ['unfulfilled', 'processing'] };
+    if (status === 'delivered') return { nextState: 'delivered', allowed: ['ready_for_pickup', 'delivery_started', 'shipped'] };
+    return { nextState: 'unfulfilled', allowed: ['unfulfilled'] };
+  }
+
   private readonly DEFAULT_RULES: ShippingRule[] = [
     { id: '1', name: 'Standard Post', conditions: { maxWeightLbs: 1 }, preferredCarrier: 'USPS', preferredService: 'Ground Advantage', priority: 10 },
     { id: '2', name: 'Bulk Freight', conditions: { minWeightLbs: 10 }, preferredCarrier: 'UPS', preferredService: 'Ground', priority: 20 },
@@ -152,7 +159,8 @@ export class FulfillmentService {
 
     if (order.fulfillmentMethod === 'shipping' && trackingNumber) {
        // Production Hardening: Use atomic field updates instead of full-document replace
-       await this.orderRepo.updateStatus(orderId, 'shipped');
+       await this.orderRepo.transitionFulfillmentState(orderId, ['unfulfilled', 'processing'], 'shipped', 'fulfillment_service_shipped');
+       await this.orderRepo.guardedUpdateStatus(orderId, [order.status], 'shipped', 'fulfillment_service_shipped');
        await this.orderRepo.updateFulfillment(orderId, {
          trackingNumber,
          shippingCarrier: order.shippingCarrier || 'Standard',
@@ -169,7 +177,9 @@ export class FulfillmentService {
     };
     const status = next[order.status];
     if (status) { 
-      await this.orderRepo.updateStatus(orderId, status); 
+      const fulfillmentTransition = this.fulfillmentTransitionFor(status);
+      await this.orderRepo.transitionFulfillmentState(orderId, fulfillmentTransition.allowed, fulfillmentTransition.nextState, 'fulfillment_service_advance');
+      await this.orderRepo.guardedUpdateStatus(orderId, [order.status], status, 'fulfillment_service_advance'); 
       await this.recordFulfillmentEvent(orderId, status as any, 'Progressed', `Moved to ${status}`); 
     }
   }
