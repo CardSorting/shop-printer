@@ -135,7 +135,7 @@ export class AuditService {
           ip,
           userAgent,
           nodeVersion,
-          location: params.location || 'Unknown',
+          location: params.location || 'unknown',
           createdAt: serverTimestamp(),
           clientCreatedAt: now.toISOString()
         });
@@ -194,13 +194,25 @@ export class AuditService {
       const snapshot = await getDocs(q);
       if (options?.signal?.aborted) return [];
 
-      return snapshot.docs.map((d: QueryDocumentSnapshot) => {
+      const logs = snapshot.docs.map((d: QueryDocumentSnapshot) => {
         const data = d.data() as any;
         return {
           ...data,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
         } as AuditEntry;
       });
+
+      const search = options?.query?.trim().toLowerCase();
+      if (!search) return logs;
+      return logs.filter((log: AuditEntry) => [
+        log.userEmail,
+        log.userId,
+        log.action,
+        log.targetId,
+        log.details,
+        log.correlationId,
+        log.location,
+      ].some(value => String(value ?? '').toLowerCase().includes(search)));
     } catch (err) {
       logger.error('Failed to retrieve audit logs', { err });
       return [];
@@ -244,6 +256,7 @@ export class AuditService {
         const userAgent = log.userAgent || 'unknown';
         const nodeVersion = log.nodeVersion || 'browser'; // Fallback for legacy logs
         
+        const location = log.location === 'Unknown' ? 'unknown' : log.location || 'unknown';
         const payload = [
           id,
           log.action,
@@ -255,7 +268,7 @@ export class AuditService {
           userAgent,
           createdAtStr,
           nodeVersion,
-          log.location || 'unknown'
+          location
         ].join('|');
         
         const actualHash = crypto.createHash('sha256').update(payload).digest('hex');

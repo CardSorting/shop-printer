@@ -431,15 +431,15 @@ export function createApiClientServices() {
             getSubscribers: (signal?: AbortSignal) => request<import('@domain/models').Subscriber[]>('/api/admin/blog/subscribers', { signal }),
         },
         shippingService: {
-            getAllClasses: (signal?: AbortSignal) => request<ShippingClass[]>('/api/admin/shipping/classes', { signal }),
+            getAllClasses: (signal?: AbortSignal) => request<ShippingClass[]>('/api/shipping/classes', { signal }),
             saveClass: (data: Partial<ShippingClass>, _actor: { id: string; email: string }) => request<ShippingClass>('/api/admin/shipping/classes', { method: 'POST', body: JSON.stringify(data) }),
             deleteClass: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/shipping/classes/${id}`, { method: 'DELETE' }),
             
-            getAllZones: (signal?: AbortSignal) => request<ShippingZone[]>('/api/admin/shipping/zones', { signal }),
+            getAllZones: (signal?: AbortSignal) => request<ShippingZone[]>('/api/shipping/zones', { signal }),
             saveZone: (data: Partial<ShippingZone>, _actor: { id: string; email: string }) => request<ShippingZone>('/api/admin/shipping/zones', { method: 'POST', body: JSON.stringify(data) }),
             deleteZone: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/shipping/zones/${id}`, { method: 'DELETE' }),
             
-            getAllRates: (signal?: AbortSignal) => request<ShippingRate[]>('/api/admin/shipping/rates', { signal }),
+            getAllRates: (signal?: AbortSignal) => request<ShippingRate[]>('/api/shipping/rates', { signal }),
             saveRate: (data: Partial<ShippingRate>, _actor: { id: string; email: string }) => request<ShippingRate>('/api/admin/shipping/rates', { method: 'POST', body: JSON.stringify(data) }),
             deleteRate: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/shipping/rates/${id}`, { method: 'DELETE' }),
         },
