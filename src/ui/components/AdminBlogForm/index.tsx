@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { 
   ChevronLeft, Type, AlignLeft, Layout, User, Sparkles
 } from 'lucide-react';
@@ -176,7 +177,9 @@ export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
             <div className="bg-white rounded-[3rem] p-16 border border-gray-100 shadow-sm animate-in fade-in duration-500 max-w-5xl mx-auto">
                <div className="space-y-16">
                  {formData.featuredImageUrl && (
-                   <img src={formData.featuredImageUrl} alt="" className="w-full h-[500px] object-cover rounded-[2.5rem] shadow-2xl" />
+                   <div className="relative h-[500px] w-full overflow-hidden rounded-[2.5rem] shadow-2xl">
+                     <Image src={formData.featuredImageUrl} alt="" fill sizes="(min-width: 1024px) 80vw, 100vw" className="object-cover" />
+                   </div>
                  )}
                  <div className="space-y-6 text-center max-w-3xl mx-auto">
                     <span className="px-4 py-2 rounded-full bg-primary-50 text-primary-600 text-[10px] font-black uppercase tracking-widest">

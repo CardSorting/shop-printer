@@ -8,6 +8,7 @@ export default function AuditLogsPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [integrityMessage, setIntegrityMessage] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
 
   async function loadLogs() {
@@ -40,9 +41,9 @@ export default function AuditLogsPage() {
       const res = await fetch('/api/admin/audit', { method: 'POST' });
       const result = await res.json();
       if (result.valid) {
-        alert(`Forensic Integrity Verified: Successfully validated ${result.total} blocks. Zero corruption detected.`);
+        setIntegrityMessage(`Forensic integrity verified: ${result.total} blocks validated with zero corruption detected.`);
       } else {
-        alert(`CRITICAL CORRUPTION DETECTED: ${result.reason} at block ${result.corruptedId}`);
+        setIntegrityMessage(`Critical corruption detected: ${result.reason} at block ${result.corruptedId}.`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');
@@ -78,6 +79,12 @@ export default function AuditLogsPage() {
           </div>
         }
       />
+
+      {integrityMessage && (
+        <div className="rounded-xl border border-primary-100 bg-primary-50 px-4 py-3 text-sm font-bold text-primary-700">
+          {integrityMessage}
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
         <div className="p-4 border-b bg-gray-50/50 flex items-center gap-3">

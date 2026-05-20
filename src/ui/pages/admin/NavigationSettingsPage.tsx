@@ -1,5 +1,3 @@
-"use client";
-
 'use client';
 
 /**
@@ -14,6 +12,7 @@ export function NavigationSettingsPage() {
   const [menu, setMenu] = useState<NavigationMenu | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/navigation?id=main-nav')
@@ -33,7 +32,7 @@ export function NavigationSettingsPage() {
       body: JSON.stringify(menu),
     });
     setSaving(false);
-    alert('Navigation updated successfully!');
+    setStatusMessage('Navigation updated successfully.');
   };
 
   if (loading || !menu) return <div>Loading setup...</div>;
@@ -56,6 +55,12 @@ export function NavigationSettingsPage() {
           {saving ? 'Saving...' : 'Save Settings'}
         </button>
       </div>
+
+      {statusMessage && (
+        <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">
+          {statusMessage}
+        </div>
+      )}
 
       <div className="grid gap-8">
         {/* Categories Editor */}

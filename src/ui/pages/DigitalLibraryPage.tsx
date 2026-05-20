@@ -9,6 +9,7 @@
  */
 import { useAuth } from '../hooks/useAuth';
 import { useServices } from '../hooks/useServices';
+import Image from 'next/image';
 import { 
   Download, 
   FileText, 
@@ -287,8 +288,8 @@ function ProductGroup({ item, viewMode, onAssetSelect, userId }: { item: any, vi
    if (viewMode === 'list') {
       return (
          <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 flex flex-col md:flex-row md:items-center gap-8 group hover:shadow-2xl hover:border-primary-100 transition-all">
-            <div className="w-24 h-24 rounded-3xl overflow-hidden shrink-0 border border-gray-50 shadow-sm">
-               <img src={item.productImageUrl} alt="" className="w-full h-full object-cover" />
+            <div className="relative w-24 h-24 rounded-3xl overflow-hidden shrink-0 border border-gray-50 shadow-sm">
+               <Image src={item.productImageUrl} alt="" fill sizes="96px" className="object-cover" />
             </div>
             <div className="flex-1">
                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
@@ -316,7 +317,7 @@ function ProductGroup({ item, viewMode, onAssetSelect, userId }: { item: any, vi
    return (
       <div className="group bg-white rounded-[4rem] border border-gray-100 shadow-sm hover:shadow-[0_40px_80px_-15px_rgba(0,0,0,0.1)] hover:-translate-y-3 transition-all duration-700 overflow-hidden flex flex-col">
          <div className="relative h-64">
-            <img src={item.productImageUrl} alt={item.productName} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+            <Image src={item.productImageUrl} alt={item.productName} fill sizes="(min-width: 1024px) 25vw, (min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-1000 group-hover:scale-110" />
             <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
             <div className="absolute bottom-8 left-8 right-8">
                <h3 className="text-2xl font-black text-white leading-tight mb-2 drop-shadow-md">{item.productName}</h3>
@@ -364,7 +365,7 @@ function AssetDetailOverlay({ asset, product, userId, onClose }: { asset: any, p
          
          <div className="relative w-full max-w-4xl bg-white rounded-[4rem] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 slide-in-from-bottom-10 duration-500">
             <div className="md:w-2/5 relative h-64 md:h-auto bg-gray-900">
-               <img src={product.productImageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-50" />
+               <Image src={product.productImageUrl} alt="" fill sizes="(min-width: 768px) 40vw, 100vw" className="object-cover opacity-50" />
                <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-transparent to-transparent" />
                <div className="absolute bottom-10 left-10 right-10">
                   <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center text-white mb-6 border border-white/20">

@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import type { KnowledgebaseArticle } from '@domain/models';
 
 export const SocialPreview: React.FC<{ formData: Partial<KnowledgebaseArticle> }> = ({ formData }) => {
@@ -8,7 +9,9 @@ export const SocialPreview: React.FC<{ formData: Partial<KnowledgebaseArticle> }
           <h4 className="text-xs font-black uppercase tracking-widest text-gray-900">Facebook / Open Graph</h4>
           <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
             {formData.featuredImageUrl && (
-              <img src={formData.featuredImageUrl} alt="Preview" className="w-full aspect-[1.91/1] object-cover" />
+              <div className="relative aspect-[1.91/1] w-full">
+                <Image src={formData.featuredImageUrl} alt="Preview" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+              </div>
             )}
             <div className="p-6 bg-[#f0f2f5]">
               <p className="text-[10px] text-gray-500 uppercase font-bold tracking-tight">dreambeesart.com</p>
@@ -21,8 +24,8 @@ export const SocialPreview: React.FC<{ formData: Partial<KnowledgebaseArticle> }
       <div className="space-y-6">
           <h4 className="text-xs font-black uppercase tracking-widest text-gray-900">Twitter Card</h4>
           <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm p-4 flex gap-4">
-            <div className="w-24 h-24 rounded-2xl overflow-hidden shrink-0">
-              <img src={formData.featuredImageUrl || '/assets/generated/generic_tcg_strategy_1778177431609.png'} alt="" className="w-full h-full object-cover" />
+            <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0">
+              <Image src={formData.featuredImageUrl || '/assets/generated/generic_tcg_strategy_1778177431609.png'} alt="" fill sizes="96px" className="object-cover" />
             </div>
             <div className="flex-1 min-w-0 py-2">
               <h3 className="text-sm font-bold text-gray-900 line-clamp-2">{formData.metaTitle || formData.title || 'Post Title'}</h3>

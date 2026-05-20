@@ -4,11 +4,13 @@ import { useAuth } from '../hooks/useAuth';
 import { useServices } from '../hooks/useServices';
 import { Package, Heart, MapPin, Settings, Star, ChevronRight, LogOut, ShieldCheck, Clock, Tag, HardDrive, Download } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { formatCurrency, formatDate } from '@utils/formatters';
 import type { Order } from '@domain/models';
 import { logger } from '@utils/logger';
 import { OrderTimeline } from '../components/OrderTimeline';
+import { DEFAULT_PRODUCT_IMAGE } from '@utils/imageFallback';
 
 export function AccountPage() {
   const { user, signOut } = useAuth();
@@ -204,8 +206,8 @@ function OrderCard({ order }: { order: Order }) {
         
         {firstItem && (
           <div className="flex items-center gap-4 mt-2 mb-6 bg-white border border-gray-100 shadow-sm p-4 rounded-2xl group-hover:border-gray-200 transition-colors">
-            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-50 border border-gray-100">
-              <img src={firstItem.imageUrl} alt={firstItem.name} className="h-full w-full object-cover" />
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-50 border border-gray-100">
+              <Image src={firstItem.imageUrl || DEFAULT_PRODUCT_IMAGE} alt={firstItem.name} fill sizes="56px" className="object-cover" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-black text-gray-900">{firstItem.name}</p>

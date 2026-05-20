@@ -4,6 +4,7 @@
 'use client';
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Sparkles, Calendar, Clock, ArrowRight } from 'lucide-react';
 import type { KnowledgebaseArticle } from '@domain/models';
 
@@ -62,10 +63,13 @@ export function BlogHero({ post }: { post: KnowledgebaseArticle }) {
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-gray-900/30 z-10" />
         {post.featuredImageUrl ? (
-          <img 
+          <Image 
             src={post.featuredImageUrl} 
             alt={post.title} 
-            className="w-full h-full object-cover transition-transform duration-[20s] ease-out group-hover:scale-110"
+            fill
+            sizes="100vw"
+            priority
+            className="object-cover transition-transform duration-[20s] ease-out group-hover:scale-110"
           />
         ) : (
           <div className="w-full h-full bg-gray-800 flex items-center justify-center">
@@ -76,4 +80,3 @@ export function BlogHero({ post }: { post: KnowledgebaseArticle }) {
     </div>
   );
 }
-

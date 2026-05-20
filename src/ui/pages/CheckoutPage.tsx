@@ -5,6 +5,7 @@
  */
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   AlertCircle,
   ArrowLeft,
@@ -659,7 +660,7 @@ export function CheckoutPage() {
                 {cartItems.map((item) => (
                   <div key={item.productId} className="flex items-center gap-5">
                     <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-md">
-                      <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                      <Image src={item.imageUrl} alt={item.name} fill sizes="80px" className="object-cover" />
                       <span className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-[10px] font-black text-white ring-4 ring-white shadow-lg">{item.quantity}</span>
                     </div>
                     <div className="min-w-0 flex-1">

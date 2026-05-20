@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { 
   Sparkles, Search, Share2, Calendar, 
   CheckCircle2, ChevronLeft, Image as ImageIcon, X, Clock 
@@ -163,7 +164,7 @@ export const Sidebar: React.FC<EditorState & { libraryImages: string[] }> = ({
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Featured Image</label>
                    {formData.featuredImageUrl ? (
                      <div className="relative aspect-video rounded-2xl overflow-hidden group border border-gray-100">
-                       <img src={formData.featuredImageUrl} alt="" className="w-full h-full object-cover" />
+                       <Image src={formData.featuredImageUrl} alt="" fill sizes="(min-width: 1024px) 25vw, 100vw" className="object-cover" />
                        <button 
                         onClick={() => setFormData({ ...formData, featuredImageUrl: '' })}
                         className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-white font-black text-[9px] uppercase tracking-widest gap-2"
@@ -206,9 +207,9 @@ export const Sidebar: React.FC<EditorState & { libraryImages: string[] }> = ({
                            key={i}
                            type="button"
                            onClick={() => setFormData({ ...formData, featuredImageUrl: url })}
-                           className="aspect-square rounded-lg overflow-hidden border border-gray-100 hover:border-primary-600 transition-all"
+                           className="relative aspect-square rounded-lg overflow-hidden border border-gray-100 hover:border-primary-600 transition-all"
                          >
-                           <img src={url} alt="" className="w-full h-full object-cover" />
+                           <Image src={url} alt="" fill sizes="96px" className="object-cover" />
                          </button>
                        ))}
                      </div>

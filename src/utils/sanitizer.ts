@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify';
 import type { Order, Product, User } from '@domain/models';
+import { DEFAULT_PRODUCT_IMAGE } from './imageFallback';
 
 const isServer = typeof window === 'undefined';
 let purify: any;
@@ -95,7 +96,7 @@ export class Sanitizer {
  */
 export function sanitizeImageUrl(url?: string | null): string {
   if (!url || typeof url !== 'string' || url.trim() === '') {
-    return '/placeholders/product-image.webp';
+    return DEFAULT_PRODUCT_IMAGE;
   }
   
   // Basic validation - ensure it starts with http, https, or relative path /
@@ -103,5 +104,5 @@ export function sanitizeImageUrl(url?: string | null): string {
     return url;
   }
   
-  return '/placeholders/product-image.webp';
+  return DEFAULT_PRODUCT_IMAGE;
 }

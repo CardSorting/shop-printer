@@ -8,6 +8,7 @@ export function OrderTrackingPage() {
   const [orderId, setOrderId] = useState('');
   const [tracking, setTracking] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleTrack = async () => {
     if (!orderId.trim()) return;
@@ -18,6 +19,7 @@ export function OrderTrackingPage() {
         throw new Error('Order not found');
       }
       const data = await response.json();
+      setError(null);
       
       // Map API fields if necessary to match the UI component's expectations
       setTracking({
@@ -31,7 +33,7 @@ export function OrderTrackingPage() {
     } catch (error) {
       console.error(error);
       setTracking(null);
-      alert('Order tracking information could not be found.');
+      setError('Order tracking information could not be found. Check the order ID or tracking number and try again.');
     } finally {
       setLoading(false);
     }
@@ -63,6 +65,12 @@ export function OrderTrackingPage() {
              {loading ? 'Searching...' : 'Track Now'}
            </button>
         </div>
+
+        {error && (
+          <div className="mx-auto mb-8 max-w-xl rounded-2xl border border-amber-100 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-800">
+            {error}
+          </div>
+        )}
 
         {tracking ? (
           <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-500">

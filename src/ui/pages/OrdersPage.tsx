@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ArrowRight,
   Calendar,
@@ -24,6 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SLIDE_UP_VARIANTS } from '@ui/animations';
 import type { Order, OrderStatus } from '@domain/models';
 import { logger } from '@utils/logger';
+import { DEFAULT_PRODUCT_IMAGE } from '@utils/imageFallback';
 import {
   formatDate,
   formatMoney,
@@ -309,8 +311,8 @@ export function OrdersPage() {
                                     animate="animate"
                                     className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-white bg-white/50 p-4 shadow-sm transition hover:shadow-md"
                                   >
-                                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-100 shadow-sm">
-                                      <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-100 shadow-sm">
+                                      <Image src={item.imageUrl || DEFAULT_PRODUCT_IMAGE} alt={item.name} fill sizes="64px" className="object-cover" />
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-2">

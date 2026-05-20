@@ -3,6 +3,7 @@ import React from 'react';
 import { Search, TrendingUp, Hash, ChevronRight, Sparkles, BookOpen } from 'lucide-react';
 import type { KnowledgebaseCategory, KnowledgebaseArticle } from '@domain/models';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface DiscoverySidebarProps {
   categories: KnowledgebaseCategory[];
@@ -105,11 +106,13 @@ export function DiscoverySidebar({
           {trendingPosts.slice(2, 5).map((post) => (
             <Link key={post.id} href={`/blog/${post.slug}`} className="group block space-y-3">
                <div className="flex items-center gap-3">
-                  <div className="h-6 w-6 rounded-full overflow-hidden border border-gray-100">
-                    <img 
+                  <div className="relative h-6 w-6 rounded-full overflow-hidden border border-gray-100">
+                    <Image 
                       src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${post.authorName || 'Staff'}`} 
                       alt="Author" 
-                      className="h-full w-full object-cover"
+                      fill
+                      sizes="24px"
+                      className="object-cover"
                     />
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">{post.authorName}</span>
@@ -140,8 +143,8 @@ export function DiscoverySidebar({
            ].map((contributor, i) => (
              <div key={i} className="flex items-start justify-between group cursor-pointer gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="shrink-0 h-12 w-12 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden group-hover:border-primary-200 transition-all shadow-sm">
-                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${contributor.name}`} alt={contributor.name} />
+                  <div className="relative shrink-0 h-12 w-12 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden group-hover:border-primary-200 transition-all shadow-sm">
+                    <Image src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${contributor.name}`} alt={contributor.name} fill sizes="48px" />
                   </div>
                   <div className="space-y-1">
                     <h5 className="text-xs font-black text-gray-900 group-hover:text-primary-600 transition-colors">{contributor.name}</h5>

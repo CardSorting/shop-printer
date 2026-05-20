@@ -34,6 +34,8 @@ export default function BlogDashboard() {
   const [activeView, setActiveView] = useState<DashboardHubView>('editorial');
   const [showGuide, setShowGuide] = useState(false);
   const [showAudit, setShowAudit] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const isMounted = React.useRef(true);
 
   React.useEffect(() => {
@@ -122,11 +124,13 @@ export default function BlogDashboard() {
       if (isMounted.current) {
         setPosts(updatedPosts.articles);
         setSelectedPosts([]);
+        setStatusMessage(`Bulk ${action} completed for ${selectedPosts.length} posts.`);
+        setActionError(null);
       }
     } catch (err) {
       if (isMounted.current) {
         console.error(`Bulk ${action} failed:`, err);
-        alert(`Failed to perform bulk ${action}.`);
+        setActionError(`Failed to perform bulk ${action}.`);
       }
     } finally {
       if (isMounted.current) {
@@ -143,10 +147,13 @@ export default function BlogDashboard() {
       const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
       if (isMounted.current) {
         setPosts(updatedPosts.articles);
+        setStatusMessage('Entry deleted.');
+        setActionError(null);
       }
     } catch (err) {
       if (isMounted.current) {
         console.error('Delete failed:', err);
+        setActionError('Failed to delete entry.');
       }
     } finally {
       if (isMounted.current) {
@@ -162,7 +169,8 @@ export default function BlogDashboard() {
       const data = await res.json();
       if (data.success) {
         if (isMounted.current) {
-          alert(`Successfully published ${data.publishedCount} scheduled posts.`);
+          setStatusMessage(`Successfully published ${data.publishedCount} scheduled posts.`);
+          setActionError(null);
         }
         const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
         if (isMounted.current) {
@@ -172,6 +180,7 @@ export default function BlogDashboard() {
     } catch (err) {
       if (isMounted.current) {
         console.error('Sync failed:', err);
+        setActionError('Failed to sync scheduled posts.');
       }
     } finally {
       if (isMounted.current) {
@@ -249,6 +258,14 @@ export default function BlogDashboard() {
         </div>
 
         {showGuide && <StrategyGuide onClose={() => setShowGuide(false)} />}
+
+        {(statusMessage || actionError) && (
+          <div className={`rounded-2xl border px-5 py-4 text-sm font-bold ${
+            actionError ? 'border-red-100 bg-red-50 text-red-700' : 'border-green-100 bg-green-50 text-green-700'
+          }`}>
+            {actionError || statusMessage}
+          </div>
+        )}
 
         {activeView === 'editorial' && (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">

@@ -2,7 +2,9 @@
  * [LAYER: UTILS]
  * Utility to sanitize image URLs and prevent common path corruption artifacts.
  */
-export function sanitizeImageUrl(url: string | undefined | null, fallback = 'https://placehold.co/800x1000?text=No+Image'): string {
+import { DEFAULT_PRODUCT_IMAGE } from './imageFallback';
+
+export function sanitizeImageUrl(url: string | undefined | null, fallback = DEFAULT_PRODUCT_IMAGE): string {
   if (!url || typeof url !== 'string' || url.trim().length < 3) {
     return fallback;
   }

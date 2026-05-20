@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { TrendingUp, ArrowRight, Clock } from 'lucide-react';
 import type { KnowledgebaseArticle } from '@domain/models';
 
@@ -40,11 +41,13 @@ export function TrendingSection({ posts }: TrendingSectionProps) {
 
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="h-6 w-6 rounded-lg overflow-hidden ring-2 ring-white shadow-sm">
-                    <img 
+                  <div className="relative h-6 w-6 rounded-lg overflow-hidden ring-2 ring-white shadow-sm">
+                    <Image 
                       src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${post.authorName || 'Staff'}`} 
                       alt="Author" 
-                      className="h-full w-full object-cover"
+                      fill
+                      sizes="24px"
+                      className="object-cover"
                     />
                   </div>
                   <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest">{post.authorName || 'Staff'}</span>

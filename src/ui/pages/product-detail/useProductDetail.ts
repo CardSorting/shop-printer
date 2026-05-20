@@ -268,7 +268,7 @@ export function useProductDetail(initialProduct?: Product | null) {
 
     return uniqueImages.length > 0 
       ? uniqueImages 
-      : [{ url: 'https://placehold.co/800x1000?text=No+Image', alt: 'No image' }];
+      : [{ url: sanitizeImageUrl(null), alt: 'No image' }];
   }, [product, selectedVariant]);
 
   const currentImage = allImages[selectedImageIndex]?.url || allImages[0]?.url;

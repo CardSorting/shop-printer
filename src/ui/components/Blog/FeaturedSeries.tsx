@@ -1,8 +1,10 @@
 'use client';
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, BookOpen, Clock, Sparkles } from 'lucide-react';
 import type { KnowledgebaseArticle } from '@domain/models';
+import { DEFAULT_PRODUCT_IMAGE } from '@utils/imageFallback';
 
 interface FeaturedSeriesProps {
   title: string;
@@ -50,10 +52,12 @@ export function FeaturedSeries({ title, subtitle, posts }: FeaturedSeriesProps) 
               className="group relative h-[450px] rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500"
             >
               <div className="absolute inset-0 z-0">
-                <img 
-                  src={post.featuredImageUrl} 
+                <Image 
+                  src={post.featuredImageUrl || DEFAULT_PRODUCT_IMAGE} 
                   alt={post.title} 
-                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-40 group-hover:opacity-60"
+                  fill
+                  sizes="(min-width: 1024px) 25vw, (min-width: 768px) 50vw, 100vw"
+                  className="object-cover transition-transform duration-1000 group-hover:scale-110 opacity-40 group-hover:opacity-60"
                 />
                 <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/40 to-transparent" />
               </div>
