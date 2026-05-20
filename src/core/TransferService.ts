@@ -1,68 +1,59 @@
 import type { Transfer } from '@domain/models';
 import type { ITransferRepository, IProductRepository } from '@domain/repositories';
 import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
+import { DomainError } from '@domain/errors';
+import { AuditService } from './AuditService';
 
 export class TransferService {
   constructor(
     private transferRepo: ITransferRepository,
-    private productRepo: IProductRepository
+    private productRepo: IProductRepository,
+    private audit: AuditService
   ) {}
 
   async getAllTransfers(): Promise<Transfer[]> {
-    const transfers = await this.transferRepo.getAll();
-    
-    // Initial Seed for production hardening (persists to physical SQLite DB)
-    if (transfers.length === 0) {
-      const initialSeed: Transfer = {
-        id: 'TR-8042',
-        source: 'Kanto Distribution',
-        status: 'in_transit',
-        items: [
-          { productId: '1', name: 'Charizard Base Set', quantity: 10 },
-          { productId: '2', name: 'Blastoise Base Set', quantity: 5 }
-        ],
-        itemsCount: 15,
-        receivedCount: 0,
-        expectedAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(),
-      };
-      
-      if (this.transferRepo.create) {
-        await this.transferRepo.create(initialSeed);
-        return [initialSeed];
-      }
-    }
-
-
-    return transfers;
+    return this.transferRepo.getAll();
   }
 
-  async receiveTransfer(id: string): Promise<void> {
-    const transfers = await this.transferRepo.getAll();
-    const transfer = transfers.find(t => t.id === id);
-    
-    if (!transfer) throw new Error('Transfer not found');
-    if (transfer.status === 'received') return;
+  async receiveTransfer(id: string, actor: { id: string; email: string }): Promise<Transfer> {
+    return await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const transfer = await this.transferRepo.getById(id, transaction);
+      if (!transfer) throw new DomainError('Transfer not found');
+      if (transfer.status === 'cancelled') throw new DomainError('Cancelled transfers cannot be received');
+      if (transfer.status === 'received') return transfer;
 
-    await runTransaction(getUnifiedDb(), async (transaction: any) => {
-      // Hardened Logic: Atomic Inventory Restocking
       const restockingUpdates = transfer.items.map(item => ({
         id: item.productId,
         delta: item.quantity
       }));
 
-      // Update each product's stock within the transaction
-      for (const update of restockingUpdates) {
-        await this.productRepo.updateStock(update.id, update.delta, transaction);
-      }
+      await this.productRepo.batchUpdateStock(restockingUpdates, transaction);
 
-      // Update transfer status within the same transaction
-      await this.transferRepo.update(id, { 
-        status: 'received', 
-        receivedCount: transfer.itemsCount 
+      const receivedTransfer: Transfer = {
+        ...transfer,
+        status: 'received',
+        receivedCount: transfer.itemsCount
+      };
+
+      await this.transferRepo.update(id, {
+        status: 'received',
+        receivedCount: transfer.itemsCount
       }, transaction);
+
+      await this.audit.recordWithTransaction(transaction, {
+        userId: actor.id,
+        userEmail: actor.email,
+        action: 'inventory_transfer_received',
+        targetId: id,
+        details: {
+          source: transfer.source,
+          itemsCount: transfer.itemsCount,
+          productIds: transfer.items.map((item) => item.productId),
+        }
+      });
+
+      return receivedTransfer;
     });
   }
 }
-
 

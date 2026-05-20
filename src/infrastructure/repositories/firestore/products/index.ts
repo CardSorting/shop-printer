@@ -36,7 +36,7 @@ import type {
   ProductStats
 } from '@domain/models';
 
-import { ProductNotFoundError, InsufficientStockError } from '@domain/errors';
+import { DomainError, ProductNotFoundError, InsufficientStockError } from '@domain/errors';
 import { 
   mapDocToProduct, 
   applyDerivedFields, 
@@ -175,17 +175,24 @@ export class FirestoreProductRepository implements IProductRepository {
     });
   }
 
-  async batchCreate(products: ProductDraft[]): Promise<Product[]> {
+  async batchCreate(products: ProductDraft[], transaction?: Transaction): Promise<Product[]> {
     const db = getUnifiedDb();
-    return await runTransaction(db, async (transaction: Transaction) => {
+    const operation = async (transaction: Transaction) => {
       const results: Product[] = [];
       const now = serverTimestamp();
       const accumulatedDeltas: Record<string, number> = {};
+      const reservedHandles = new Set<string>();
 
       for (const draft of products) {
         const id = crypto.randomUUID();
         const baseHandle = draft.handle || draft.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        const handle = await this.ensureUniqueHandle(baseHandle, undefined);
+        let handle = await this.ensureUniqueHandle(baseHandle, undefined);
+        let suffix = 1;
+        while (reservedHandles.has(handle)) {
+          handle = await this.ensureUniqueHandle(`${baseHandle}-${suffix}`, undefined);
+          suffix += 1;
+        }
+        reservedHandles.add(handle);
         
         const variants = draft.variants?.map(v => ({ 
           ...v, 
@@ -219,7 +226,9 @@ export class FirestoreProductRepository implements IProductRepository {
       }
       applyStatsDeltas(transaction, accumulatedDeltas);
       return results;
-    });
+    };
+
+    return transaction ? operation(transaction) : runTransaction(getUnifiedDb(), operation);
   }
 
   async update(id: string, updates: ProductUpdate, transaction?: any): Promise<Product> {
@@ -354,13 +363,16 @@ export class FirestoreProductRepository implements IProductRepository {
       const snapshots = await Promise.all(Array.from(productIds).map(id => t.get(doc(db, this.collectionName, id))));
       const productMap = new Map<string, any>();
       snapshots.forEach(snap => { if (snap.exists()) productMap.set(snap.id, snap.data()); });
+      for (const id of productIds) {
+        if (!productMap.has(id)) throw new ProductNotFoundError(id);
+      }
 
       const accumulatedDeltas: Record<string, number> = {};
       const finalUpdates = new Map<string, any>();
 
       for (const update of updates) {
         const data = finalUpdates.get(update.id) || productMap.get(update.id);
-        if (!data) continue;
+        if (!data) throw new ProductNotFoundError(update.id);
 
         const oldProduct = mapDocToProduct(update.id, data);
         const workingData = { ...data };
@@ -368,14 +380,13 @@ export class FirestoreProductRepository implements IProductRepository {
         if (update.variantId) {
           const variants = [...(workingData.variants || [])];
           const vIdx = variants.findIndex((v: any) => v.id === update.variantId);
-          if (vIdx !== -1) {
-            const current = variants[vIdx].stock || 0;
-            if (current + update.delta < 0) throw new InsufficientStockError(update.id, Math.abs(update.delta), current);
-            variants[vIdx].stock = current + update.delta;
-            variants[vIdx].updatedAt = serverTimestamp();
-            workingData.variants = variants;
-            workingData.stock = variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
-          }
+          if (vIdx === -1) throw new DomainError(`Variant ${update.variantId} not found in product ${update.id}`);
+          const current = variants[vIdx].stock || 0;
+          if (current + update.delta < 0) throw new InsufficientStockError(update.id, Math.abs(update.delta), current);
+          variants[vIdx].stock = current + update.delta;
+          variants[vIdx].updatedAt = serverTimestamp();
+          workingData.variants = variants;
+          workingData.stock = variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
         } else {
           const current = workingData.stock || 0;
           if (current + update.delta < 0) throw new InsufficientStockError(update.id, Math.abs(update.delta), current);
@@ -407,12 +418,16 @@ export class FirestoreProductRepository implements IProductRepository {
       const snapshots = await Promise.all(Array.from(productIds).map(id => t.get(doc(db, this.collectionName, id))));
       const productMap = new Map<string, any>();
       snapshots.forEach(snap => { if (snap.exists()) productMap.set(snap.id, snap.data()); });
+      for (const id of productIds) {
+        if (!productMap.has(id)) throw new ProductNotFoundError(id);
+      }
 
       const accumulatedDeltas: Record<string, number> = {};
+      const finalUpdates = new Map<string, any>();
 
       for (const update of updates) {
-        const data = productMap.get(update.id);
-        if (!data) continue;
+        const data = finalUpdates.get(update.id) || productMap.get(update.id);
+        if (!data) throw new ProductNotFoundError(update.id);
 
         const oldProduct = mapDocToProduct(update.id, data);
         const workingData = { ...data };
@@ -420,18 +435,18 @@ export class FirestoreProductRepository implements IProductRepository {
         if (update.variantId) {
           const variants = [...(workingData.variants || [])];
           const vIdx = variants.findIndex((v: any) => v.id === update.variantId);
-          if (vIdx !== -1) {
-            variants[vIdx].stock = update.stock;
-            variants[vIdx].updatedAt = serverTimestamp();
-            workingData.variants = variants;
-            workingData.stock = variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
-          }
+          if (vIdx === -1) throw new DomainError(`Variant ${update.variantId} not found in product ${update.id}`);
+          variants[vIdx].stock = update.stock;
+          variants[vIdx].updatedAt = serverTimestamp();
+          workingData.variants = variants;
+          workingData.stock = variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
         } else {
           workingData.stock = update.stock;
         }
 
         workingData.updatedAt = serverTimestamp();
         const enriched = applyDerivedFields({ ...workingData, id: update.id });
+        finalUpdates.set(update.id, enriched);
         t.update(doc(db, this.collectionName, update.id), enriched);
 
         const newProduct = mapDocToProduct(update.id, enriched);

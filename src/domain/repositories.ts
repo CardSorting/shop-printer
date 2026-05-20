@@ -53,7 +53,7 @@ export interface IProductRepository {
   batchSetInventory?(updates: { id: string; variantId?: string; stock: number }[]): Promise<void>;
   batchDelete?(ids: string[]): Promise<void>;
   batchUpdate?(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]>;
-  batchCreate?(products: ProductDraft[]): Promise<Product[]>;
+  batchCreate?(products: ProductDraft[], transaction?: any): Promise<Product[]>;
   getStats(): Promise<import('./models').ProductStats>;
   getDetailedStats(): Promise<import('./models').ProductStats>; // Keep for compatibility but can alias
   getLowStockProducts(limit: number): Promise<Product[]>;
@@ -219,6 +219,7 @@ export interface IDiscountRepository {
 
 export interface ITransferRepository {
   getAll(): Promise<Transfer[]>;
+  getById(id: string, transaction?: any): Promise<Transfer | null>;
   update(id: string, updates: Partial<Transfer>, transaction?: any): Promise<void>;
   create?(transfer: Transfer, transaction?: any): Promise<void>;
 }

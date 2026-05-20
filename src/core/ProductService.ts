@@ -21,7 +21,7 @@ import type {
   ProductUpdate,
 } from '@domain/models';
 import { AuditService } from './AuditService';
-import { ProductNotFoundError } from '@domain/errors';
+import { DomainError, ProductNotFoundError } from '@domain/errors';
 import { logger } from '@utils/logger';
 import { Sanitizer } from '@utils/sanitizer';
 import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
@@ -410,32 +410,36 @@ export class ProductService {
   }
 
   async batchUpdateInventory(updates: { id: string; variantId?: string; stock: number }[], actor: { id: string, email: string }): Promise<void> {
-    // Production Hardening: Use transactional batch updates to set absolute stock levels.
-    // This eliminates the race condition where calculating deltas outside a transaction
-    // could overwrite concurrent order deductions.
-    const productUpdates = updates.map(update => {
-      if (update.variantId) {
-        // For variant updates, we need to find the product and update its variant array.
-        // batchUpdate handles this transactionally by re-fetching the product.
-        // We'll perform a manual variant merge here, which batchUpdate will then
-        // apply within its transaction substrate.
-        return {
-          id: update.id,
-          updates: { 
-            _variantStockUpdate: { variantId: update.variantId, stock: update.stock } 
-          } as any
-        };
-      }
-      return {
-        id: update.id,
-        updates: { stock: update.stock }
-      };
+    if (updates.length === 0) throw new DomainError('Inventory updates must not be empty');
+    updates.forEach((update, index) => {
+      if (!update.id?.trim()) throw new DomainError(`updates[${index}].id is required`);
+      if (update.variantId !== undefined && !update.variantId.trim()) throw new DomainError(`updates[${index}].variantId must not be empty`);
+      if (!Number.isInteger(update.stock) || update.stock < 0) throw new DomainError(`updates[${index}].stock must be a non-negative integer`);
     });
 
-    if (this.repo.batchUpdate) {
-      await this.repo.batchUpdate(productUpdates as any);
+    if (this.repo.batchSetInventory) {
+      await this.repo.batchSetInventory(updates);
     } else {
-      await Promise.all(productUpdates.map(u => this.repo.update(u.id, u.updates as any)));
+      const productUpdates = updates.map(update => {
+        if (update.variantId) {
+          return {
+            id: update.id,
+            updates: {
+              _variantStockUpdate: { variantId: update.variantId, stock: update.stock }
+            } as any
+          };
+        }
+        return {
+          id: update.id,
+          updates: { stock: update.stock }
+        };
+      });
+
+      if (this.repo.batchUpdate) {
+        await this.repo.batchUpdate(productUpdates as any);
+      } else {
+        await Promise.all(productUpdates.map(u => this.repo.update(u.id, u.updates as any)));
+      }
     }
 
     await this.audit.record({
@@ -469,17 +473,13 @@ export class ProductService {
     return await runTransaction(getUnifiedDb(), async (transaction: any) => {
       let created: Product[];
       
-      // 1. Create the products within the repository context (passing the transaction)
+      // Create the products and audit record in the same transaction.
       if (this.repo.batchCreate) {
-        created = await this.repo.batchCreate(products);
+        created = await this.repo.batchCreate(products, transaction);
       } else {
-        // Fallback if the repo doesn't support batchCreate directly in transaction
-        // (though FirestoreProductRepository does)
-        created = await Promise.all(products.map(p => this.repo.create(p)));
+        throw new DomainError('Batch product creation requires transactional repository support');
       }
 
-      // 2. Record the forensic audit entry WITHIN the same transaction
-      // This ensures the audit chain remains unbroken even if the process crashes midway.
       await this.audit.recordWithTransaction(transaction, {
         userId: actor.id,
         userEmail: actor.email,

@@ -176,7 +176,7 @@ export function getServiceContainer() {
     discountService: new DiscountService(repos.discountRepo, new AuditService(), repos.orderRepo),
     settingsService: new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
     shippingService: new ShippingService(repos.shippingRepo, new AuditService()),
-    transferService: new TransferService(repos.transferRepo, repos.productRepo),
+    transferService: new TransferService(repos.transferRepo, repos.productRepo, new AuditService()),
     purchaseOrderService: new PurchaseOrderService(repos.purchaseOrderRepo, repos.productRepo, repos.inventoryLevelRepo, new AuditService()),
     supplierService: new SupplierService(repos.supplierRepo, new AuditService()),
     collectionService: new CollectionService(repos.collectionRepo, new AuditService()),
@@ -302,7 +302,7 @@ export function getInitialServices() {
       return shippingServiceInstance;
     })(),
     transferService: (() => {
-      if (!transferServiceInstance) transferServiceInstance = new TransferService(transferRepoInstance!, productRepoInstance!);
+      if (!transferServiceInstance) transferServiceInstance = new TransferService(transferRepoInstance!, productRepoInstance!, getAuditService());
       return transferServiceInstance;
     })(),
     purchaseOrderService: getPurchaseOrderService(),

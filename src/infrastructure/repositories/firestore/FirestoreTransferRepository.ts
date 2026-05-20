@@ -5,6 +5,7 @@
 import { 
   collection, 
   doc, 
+  getDoc,
   getDocs, 
   setDoc, 
   updateDoc, 
@@ -32,6 +33,13 @@ export class FirestoreTransferRepository implements ITransferRepository {
     const q = query(collection(getUnifiedDb(), this.collectionName), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToTransfer(d.id, d.data() as any));
+  }
+
+  async getById(id: string, transaction?: any): Promise<Transfer | null> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, id);
+    const snapshot = transaction ? await transaction.get(docRef) : await getDoc(docRef);
+    if (!snapshot.exists()) return null;
+    return this.mapDocToTransfer(snapshot.id, snapshot.data() as DocumentData);
   }
 
   async update(id: string, updates: Partial<Transfer>, transaction?: any): Promise<void> {
