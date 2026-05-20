@@ -30,6 +30,7 @@ import type { IOrderRepository } from '@domain/repositories';
 import type {
   Address,
   CheckoutAttempt,
+  CheckoutAttemptState,
   Order,
   OrderItem,
   OrderStatus,
@@ -351,6 +352,23 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
   async updateStatus(id: string, status: OrderStatus, transaction?: any): Promise<void> {
+    const paymentSensitiveStatuses: OrderStatus[] = [
+      'pending',
+      'confirmed',
+      'processing',
+      'ready_for_pickup',
+      'delivery_started',
+      'shipped',
+      'delivered',
+      'cancelled',
+      'refunded',
+      'partially_refunded',
+      'reconciling',
+    ];
+    if (paymentSensitiveStatuses.includes(status)) {
+      throw new Error(`Direct order status write rejected for payment-sensitive status ${status}. Use guarded state transition helpers.`);
+    }
+
     const db = getUnifiedDb();
     const docRef = doc(db, this.collectionName, id);
 
@@ -783,13 +801,13 @@ export class FirestoreOrderRepository implements IOrderRepository {
         nextAction: params.nextAction,
         recommendedAction: params.recommendedAction || params.nextAction,
         evidence: params.evidence || defaultEvidence,
-        repairAttemptCount: caseExists ? undefined : 0,
+        repairAttemptCount: caseExists ? increment(0) : 0,
         details: params.details || {},
       };
       if (params.repairAttempt) {
         payload.lifecycleState = params.lifecycleState || 'repair_attempted';
         payload.repairAttemptCount = increment(1);
-        payload.lastRepairAttemptAt = params.repairAttempt.attemptedAt;
+        payload.lastRepairAttemptAt = new Date(params.repairAttempt.attemptedAt);
         payload.lastRepairError = params.repairAttempt.error || null;
       }
       Object.keys(payload).forEach(key => {
@@ -856,6 +874,8 @@ export class FirestoreOrderRepository implements IOrderRepository {
     openReconciliationCases: PaymentReconciliationCase[];
     pendingPaidOrders: Order[];
     reconcilingPaidOrders: Order[];
+    paidCancelledOrdersMissingReview: Order[];
+    stuckCheckoutAttempts: CheckoutAttempt[];
   }> {
     const limitVal = options?.limit || 50;
     const openReconciliationCases = await this.getOpenReconciliationCases({ limit: limitVal });
@@ -872,11 +892,28 @@ export class FirestoreOrderRepository implements IOrderRepository {
       where('reconciliationState', '==', 'needs_review'),
       limit(limitVal)
     ));
+    const paidCancelledSnap = await getDocs(query(
+      collection(getUnifiedDb(), this.collectionName),
+      where('paymentState', '==', 'paid'),
+      where('status', '==', 'cancelled'),
+      limit(limitVal)
+    ));
+    const stuckAttemptStates: CheckoutAttemptState[] = ['reserved', 'payment_intent_created', 'reconciling', 'restore_blocked'];
+    const stuckAttemptSnap = await getDocs(query(
+      collection(getUnifiedDb(), this.checkoutAttemptCollectionName),
+      where('state', 'in', stuckAttemptStates),
+      orderBy('updatedAt', 'desc'),
+      limit(limitVal)
+    ));
 
     return {
       openReconciliationCases,
       pendingPaidOrders: pendingPaidSnap.docs.map((d: QueryDocumentSnapshot) => this.mapDocToOrder(d.id, d.data() as any)),
       reconcilingPaidOrders: reconcilingPaidSnap.docs.map((d: QueryDocumentSnapshot) => this.mapDocToOrder(d.id, d.data() as any)),
+      paidCancelledOrdersMissingReview: paidCancelledSnap.docs
+        .map((d: QueryDocumentSnapshot) => this.mapDocToOrder(d.id, d.data() as any))
+        .filter((order: Order) => order.reconciliationState !== 'needs_review' && order.reconciliationState !== 'in_progress'),
+      stuckCheckoutAttempts: stuckAttemptSnap.docs.map((d: QueryDocumentSnapshot) => this.mapDocToCheckoutAttempt(d.id, d.data() as any)),
     };
   }
 
@@ -906,7 +943,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
     else await updateDoc(docRef, data);
   }
 
-  async markForReconciliation(orderId: string, notes: string[], appendOnly = false): Promise<void> {
+  async markForReconciliation(orderId: string, notes: string[], appendOnly = false, transaction?: any): Promise<void> {
     const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
     const payload: Record<string, any> = {
       reconciliationNotes: arrayUnion(...notes),
@@ -914,7 +951,8 @@ export class FirestoreOrderRepository implements IOrderRepository {
     };
     // appendOnly=true: used during resolution to record notes without re-locking the order
     if (!appendOnly) payload.reconciliationRequired = true;
-    await updateDoc(docRef, payload);
+    if (transaction) transaction.update(docRef, payload);
+    else await updateDoc(docRef, payload);
   }
 
   async clearReconciliationFlag(orderId: string, transaction?: any): Promise<void> {
@@ -1231,8 +1269,9 @@ export class FirestoreOrderRepository implements IOrderRepository {
       }
 
       totalShippingRevenue += data.shippingAmount || 0;
-      // In a real app, costs would be tracked in fulfillments
-      const totalCost = (data.fulfillments || []).reduce((sum: number, f: any) => sum + (f.cost || 0), 0);
+      const trackedCost = (data.fulfillments || []).reduce((sum: number, f: any) => sum + (f.costCents || f.cost || 0), 0);
+      const metadataCost = data.metadata?.shippingCostCents || data.metadata?.postageCostCents || data.metadata?.labelCostCents || 0;
+      const totalCost = trackedCost || metadataCost;
       totalShippingCost += totalCost;
 
       // Carrier stats

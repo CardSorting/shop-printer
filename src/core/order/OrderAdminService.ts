@@ -17,6 +17,36 @@ export class OrderAdminService {
     private audit: AuditService
   ) {}
 
+  private isPaidPaymentState(order: Order): boolean {
+    return order.paymentState === 'paid' || order.paymentState === 'partially_refunded' || order.paymentState === 'refunded';
+  }
+
+  private async movePaidCancellationToReconciliation(order: Order, reason: string, transaction?: any): Promise<void> {
+    await this.orderRepo.transitionReconciliationState(order.id, ['none', 'needs_review'], 'needs_review', reason, transaction);
+    await this.orderRepo.guardedUpdateStatus(order.id, [order.status], 'reconciling', reason, transaction);
+    if (order.paymentTransactionId) {
+      await this.orderRepo.createOrUpdateReconciliationCase({
+        paymentIntentId: order.paymentTransactionId,
+        orderId: order.id,
+        checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
+        reason: 'paid_cancelled',
+        severity: 'critical',
+        stripeStatus: null,
+        operatorVisibleMessage: `Cancellation was requested for paid order ${order.id}.`,
+        nextAction: 'Review Stripe payment and choose an explicit refund or fulfillment resolution.',
+        details: {
+          requestedAction: 'cancelled',
+          previousStatus: order.status,
+          paymentState: order.paymentState,
+        },
+      }, transaction);
+    }
+    await this.orderRepo.markForReconciliation(order.id, [
+      `Cancellation requested for paid order ${order.id}.`,
+      'Automatic cancellation was blocked; manual refund or fulfillment decision is required.',
+    ], false, transaction);
+  }
+
   async resolveReconciliation(
     id: string,
     resolutionAction: OrderStatus,
@@ -65,18 +95,16 @@ export class OrderAdminService {
 
     assertValidOrderStatusTransition(order.status, status);
     if (status === 'cancelled') {
+      if (this.isPaidPaymentState(order)) {
+        await this.movePaidCancellationToReconciliation(order, 'admin_paid_order_cancellation_blocked');
+        throw new Error('Cannot automatically cancel a paid order. Order moved to reconciliation.');
+      }
       await this.releaseInventoryReservation(order);
-      await this.orderRepo.transitionPaymentState(id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'admin_order_cancelled').catch(error => {
-        logger.error('Failed to transition payment state during cancellation', { orderId: id, error });
-      });
-      await this.orderRepo.transitionFulfillmentState(id, ['unfulfilled', 'processing', 'ready_for_pickup', 'delivery_started'], 'cancelled', 'admin_order_cancelled').catch(error => {
-        logger.error('Failed to transition fulfillment state during cancellation', { orderId: id, error });
-      });
+      await this.orderRepo.transitionPaymentState(id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'admin_order_cancelled');
+      await this.orderRepo.transitionFulfillmentState(id, ['unfulfilled', 'processing', 'ready_for_pickup', 'delivery_started'], 'cancelled', 'admin_order_cancelled');
     }
     if (status === 'refunded' || status === 'partially_refunded') {
-      await this.orderRepo.transitionPaymentState(id, ['paid', 'partially_refunded'], status === 'refunded' ? 'refunded' : 'partially_refunded', 'admin_order_refund_state').catch(error => {
-        logger.error('Failed to transition payment state during refund status update', { orderId: id, error });
-      });
+      await this.orderRepo.transitionPaymentState(id, ['paid', 'partially_refunded'], status === 'refunded' ? 'refunded' : 'partially_refunded', 'admin_order_refund_state');
     }
 
     await this.orderRepo.guardedUpdateStatus(id, [order.status], status, 'admin_order_status_update');
@@ -126,6 +154,11 @@ export class OrderAdminService {
         // Production Hardening: Verify status transition safety WITHIN the transaction
         try {
           assertValidOrderStatusTransition(order.status, status);
+          if (status === 'cancelled' && this.isPaidPaymentState(order)) {
+            await this.movePaidCancellationToReconciliation(order, 'admin_batch_paid_order_cancellation_blocked', transaction);
+            logger.warn(`[batchUpdateOrderStatus] Paid order ${id} moved to reconciliation instead of cancellation.`);
+            continue;
+          }
           validIds.push(id);
 
           if (status === 'cancelled') {

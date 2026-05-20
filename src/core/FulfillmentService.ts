@@ -34,6 +34,22 @@ export class FulfillmentService {
     return { nextState: 'unfulfilled', allowed: ['unfulfilled'] };
   }
 
+  private estimateFulfillmentCost(order: Order): number {
+    const explicitFulfillmentCost = (order.fulfillments || []).reduce((sum, fulfillment) => {
+      const value = Number((fulfillment as any).costCents ?? (fulfillment as any).cost ?? 0);
+      return Number.isFinite(value) && value > 0 ? sum + value : sum;
+    }, 0);
+    if (explicitFulfillmentCost > 0) return explicitFulfillmentCost;
+
+    const metadataCost = Number(
+      order.metadata?.shippingCostCents ??
+      order.metadata?.postageCostCents ??
+      order.metadata?.labelCostCents ??
+      0
+    );
+    return Number.isFinite(metadataCost) && metadataCost > 0 ? metadataCost : 0;
+  }
+
   private readonly DEFAULT_RULES: ShippingRule[] = [
     { id: '1', name: 'Standard Post', conditions: { maxWeightLbs: 1 }, preferredCarrier: 'USPS', preferredService: 'Ground Advantage', priority: 10 },
     { id: '2', name: 'Bulk Freight', conditions: { minWeightLbs: 10 }, preferredCarrier: 'UPS', preferredService: 'Ground', priority: 20 },
@@ -91,7 +107,7 @@ export class FulfillmentService {
     let fulfilledCount = 0;
     let onTimeCount = 0;
     let shippingRevenue = 0;
-    const estimatedCost = 0;
+    let shippingCost = 0;
 
     const carrierStats: Record<string, { totalTransitDays: number; count: number; breaches: number }> = {};
 
@@ -126,13 +142,15 @@ export class FulfillmentService {
           if (transitDays > 5) carrierStats[carrier].breaches++; // Industrialized threshold
         }
       }
+
+      shippingCost += this.estimateFulfillmentCost(order);
     }
 
     const performance: LogisticsPerformance = {
       avgFulfillmentTimeHours: fulfilledCount > 0 ? Math.round(totalFulfillmentHours / fulfilledCount * 10) / 10 : 24,
       onTimeDeliveryRate: orders.length > 0 ? Math.round((onTimeCount / orders.length) * 1000) / 10 : 100,
       carrierPerformance: {},
-      shippingProfitability: shippingRevenue - estimatedCost // In a real app, estimatedCost would come from a carrier API
+      shippingProfitability: shippingRevenue - shippingCost
     };
 
     for (const [carrier, stats] of Object.entries(carrierStats)) {

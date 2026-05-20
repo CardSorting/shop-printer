@@ -112,13 +112,15 @@ export interface IOrderRepository {
     openReconciliationCases: PaymentReconciliationCase[];
     pendingPaidOrders: Order[];
     reconcilingPaidOrders: Order[];
+    paidCancelledOrdersMissingReview: Order[];
+    stuckCheckoutAttempts: CheckoutAttempt[];
   }>;
   batchUpdateStatus?(ids: string[], status: OrderStatus): Promise<void>;
   addNote(orderId: string, note: import('./models').OrderNote, transaction?: any): Promise<void>;
   updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }, transaction?: any): Promise<void>;
   updateRiskScore(orderId: string, score: number, transaction?: any): Promise<void>;
   recordRefund(orderId: string, amount: number, transaction?: any): Promise<void>;
-  markForReconciliation(orderId: string, notes: string[], appendOnly?: boolean): Promise<void>;
+  markForReconciliation(orderId: string, notes: string[], appendOnly?: boolean, transaction?: any): Promise<void>;
   clearReconciliationFlag(orderId: string, transaction?: any): Promise<void>;
   updateMetadata(orderId: string, metadata: Record<string, any>, transaction?: any): Promise<void>;
   addFulfillmentEvent(orderId: string, event: import('./models').OrderFulfillmentEvent, transaction?: any): Promise<void>;

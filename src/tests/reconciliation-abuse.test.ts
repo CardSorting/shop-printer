@@ -152,6 +152,40 @@ describe('Reconciliation Abuse Case Proofs', () => {
                 svc.resolveReconciliation('order-recon-1', 'refunded', '', 'evidence.png', { id: 'a', email: 'a@e' })
             ).rejects.toThrow(); // DomainError or similar from requireString
         });
+
+        it('PROVE: admin cancellation of a paid order moves it to reconciliation instead of cancelled', async () => {
+            const order = makeReconcilingOrder({
+                status: 'processing',
+                reconciliationRequired: false,
+                reconciliationState: 'none',
+                paymentState: 'paid',
+                paymentTransactionId: 'pi_paid_admin_cancel',
+            });
+            const orderRepo = makeOrderRepo(order);
+
+            const svc = new OrderService(
+                orderRepo as any,
+                { getById: vi.fn(), batchUpdateStock: vi.fn() } as any,
+                { getByUserId: vi.fn() } as any,
+                { getByCode: vi.fn() } as any,
+                mockPayment as any,
+                mockAudit as any,
+                mockLocker as any,
+            );
+
+            await expect(
+                svc.updateOrderStatus('order-recon-1', 'cancelled', { id: 'admin1', email: 'a@e.com' })
+            ).rejects.toThrow('Cannot automatically cancel a paid order');
+
+            expect(orderRepo.transitionReconciliationState).toHaveBeenCalledWith('order-recon-1', ['none', 'needs_review'], 'needs_review', 'admin_paid_order_cancellation_blocked', undefined);
+            expect(orderRepo.guardedUpdateStatus).toHaveBeenCalledWith('order-recon-1', ['processing'], 'reconciling', 'admin_paid_order_cancellation_blocked', undefined);
+            expect(orderRepo.createOrUpdateReconciliationCase).toHaveBeenCalledWith(expect.objectContaining({
+                paymentIntentId: 'pi_paid_admin_cancel',
+                reason: 'paid_cancelled',
+                severity: 'critical',
+            }), undefined);
+            expect(orderRepo.transitionPaymentState).not.toHaveBeenCalledWith('order-recon-1', expect.anything(), 'cancelled', expect.anything());
+        });
     });
 
     describe('Point 2 — Double Refund Blocked by Reconciliation State', () => {
