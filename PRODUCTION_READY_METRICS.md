@@ -1,72 +1,86 @@
-# 🛡️ Industrial Hardening & Production Report
+# DreamBeesArt Readiness and Verification Report
 
-**Engine**: DreamBeesArt V3 (Industrialized)
-**Status**: ✅ PRODUCTION READY
-**Substrate**: Google Cloud Firestore (Distributed NoSQL)
-**Framework**: Next.js 15 (App Router)
+- **Engine**: DreamBeesArt Commerce Engine
+- **Current status**: Architecture and Core workflows are strongly documented and locally benchmarked. Production capacity still requires staging or emulator load validation with Firestore, Stripe, hosting, and realistic network latency.
+- **Substrate**: Google Cloud Firestore
+- **Framework**: Next.js `15.5.18` App Router
 
----
+## Verification Snapshot
 
-## 📊 Core Resilience Metrics
+| Area | Current evidence | Notes |
+| --- | --- | --- |
+| Checkout integrity | `OrderCheckoutService`, checkout workflow phases, reconciliation cases, and focused checkout tests. | Covers idempotency, payment mapping, rollback, and unsafe-state escalation. |
+| Core throughput | `npm run benchmark:order-flow` with raw output in `.wiki/architecture/order-flow-throughput-results.json`. | Core orchestration benchmark only, not production Firestore/Stripe capacity. |
+| API surface | 136 `src/app/api/**/route.ts` files. | Public, customer, admin, checkout, webhook, support, concierge, and system routes. |
+| App surface | 59 `src/app/**/page.tsx` files. | Storefront, account, admin, support, blog, and operational pages. |
+| Tests | 45 test/spec files across Vitest and Playwright. | Includes checkout, security, admin inventory, chaos regression, and ecommerce flows. |
+| Persistence | Firestore repositories under `src/infrastructure/repositories/firestore/`. | Business code depends on Domain repository contracts. |
+| Security | Signed HTTP-only sessions, admin guards, same-origin mutation policy, rate limits, idempotency keys, and checkout locks. | Production secret, rate, CSP, and backup settings still need environment-specific review. |
 
-| Category | Status | Implementation |
-| :--- | :--- | :--- |
-| **Transactional Integrity** | 100% | Atomic operations for checkout, cart, and refunds via `OrderService`. |
-| **Idempotency** | Hardened | Stripe PaymentIntent tracking with UI attempt keys to prevent double-charging. |
-| **Type Safety** | 100% | Strict TypeScript 6 across all layers. Zero `any` in critical paths. |
-| **Security** | Hardened | Signed HTTP-only cookies, Rate-limiting, and CSRF Origin matching. |
-| **SEO Authority** | High | Canonical handles, JSON-LD, and Automated Sitemap/Robots. |
-| **Fulfillment** | Industrial | Streaming-first digital ingestion and atomic fulfillment state machine. |
+## Local Benchmark Baseline
 
----
+| Flow | Max clean concurrency tested | Throughput | p95 latency | Failures |
+| --- | ---: | ---: | ---: | ---: |
+| Cart add-to-cart | 200 | 31,150.57 ops/sec | 7.40 ms | 0 |
+| Checkout reservation | 200 | 22,495.54 ops/sec | 10.39 ms | 0 |
+| Full order + payment finalization | 100 | 11,125.71 ops/sec | 9.47 ms | 0 |
 
-## ✅ Industrialized Modules
+Benchmark command:
 
-### 1. Hardened Transaction Pipeline
-- **Atomic Rollbacks**: Automatic discount usage decrements during cancellations.
-- **Inventory Guards**: Optimistic stock checks combined with transactional writes.
-- **Refund Orchestration**: `RefundService` with full repository injection for ACID compliance.
+```bash
+npm run benchmark:order-flow
+```
 
-### 2. Support CRM (Interaction Hardening)
-- **Agent Collision**: Real-time heartbeat mechanism prevents response overlap.
-- **Macros**: Pre-defined response templates with dynamic variable injection.
-- **Audit Logging**: Full traceability for all ticket status changes and internal notes.
+## Industrialized Modules
 
-### 3. Digital Vault (Asset Hardening)
-- **Streaming Ingestion**: Memory-efficient processing for massive file uploads.
-- **Secure Locker**: Ephemeral, authenticated download links for customers via `DigitalLibraryPage.tsx`.
-- **Atomic Fulfillment**: Digital ownership assigned atomically upon payment confirmation.
+### Checkout and Orders
 
----
+- Per-user checkout lock: `checkout_lock:{userId}`.
+- Order idempotency mapping.
+- PaymentIntent-to-order mapping.
+- Payment finalization via webhook or verification route.
+- Reconciliation cases for unsafe paid/local mismatches.
+- Forensic timeline support for operator investigation.
 
-## 🏗️ Architectural Compliance (Joy-Zoning)
+### Merchant Operations
 
-The engine has been audited for compliance with the 4-layer Joy-Zoning architecture:
+- Admin dashboard, orders, product management, bulk editor, inventory, receiving, suppliers, discounts, analytics, support, files, blog, audit, settings, and operations planning.
+- Shared admin navigation in `src/ui/navigation/adminNavigation.ts`.
+- Firestore-backed repositories and Core services wired through `src/core/container.ts`.
 
-1. **Domain (Pure)**: All business rules (Validation, Status Transitions, Cart Calculations) are pure TypeScript. Verified zero I/O leakage.
-2. **Core (Orchestrated)**: Services coordinate domain rules and infrastructure adapters. Dependency injection verified via `container.ts`.
-3. **Infrastructure (Isolated)**: Concrete adapters for Firestore, Stripe, and Auth are isolated from business logic.
-4. **UI (Predictable)**: React components consume the client-side API facade, ensuring a consistent request lifecycle.
+### Support, Concierge, and Marketing
 
----
+- Support CRM tickets, macros, and knowledgebase routes.
+- Concierge insight and chat surfaces.
+- Lifecycle marketing strategy, campaign intelligence, and campaign service orchestration.
+- Suppression-oriented marketing governance documented in `.wiki/architecture/lifecycle-marketing-concierge.md`.
 
-## 📋 Operational Readiness
+### Digital Fulfillment
 
-### Deployment Checklist
-- [x] **Secret Rotation**: Rotate `SESSION_SECRET` (minimum 32 characters).
-- [x] **Database Isolation**: Production environment variables configured for `shopmore-1e34b`.
-- [x] **Stripe Verification**: Idempotency keys propagated to Stripe for all high-risk mutations.
-- [ ] **Backup Policy**: Establish Firestore backup/export schedule via Google Cloud Console.
+- Customer vault route and UI.
+- Authenticated download route.
+- Firestore digital access repository.
+- Admin digital asset management component.
 
-### Monitoring Strategy
-- **Audit Service**: Monitor `src/core/AuditService.ts` logs for high-risk operations.
-- **Performance**: Track Next.js Vitals and Firestore read/write quotas.
-- **Security**: Monitor `UnauthorizedError` and `RateLimitError` spikes in production logs.
+## Readiness Caveats
 
----
+Before making a production-scale claim, validate:
 
-## 📝 Conclusion
+- Firestore transaction latency and quota behavior under staged load.
+- Stripe test-mode latency, webhook retries, and webhook/verification races.
+- Hot inventory document contention for popular products.
+- Shared order stats update behavior under sustained checkout traffic.
+- Hosting cold starts, API route guard overhead, and CDN/runtime configuration.
+- Firestore scheduled backups and restore procedure.
+- Production `SESSION_SECRET`, allowed origins, CSP, and rate-limit values.
 
-**Production Readiness**: 100% (Industrialized)
+## Documentation Links
 
-The DreamBeesArt engine is now a high-integrity commerce platform, verified for security, performance, and operational sovereignty.
+- [Project State](.wiki/architecture/project-state.md)
+- [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md)
+- [Checkout Orchestration](docs/checkout-orchestration.md)
+- [Commerce Engine Whitepaper](docs/dreambeesart-commerce-engine-whitepaper.md)
+
+## Conclusion
+
+DreamBeesArt has a concrete and documented architecture with a locally benchmarked Core checkout/order pipeline. The strongest verified evidence is at the application orchestration layer. The remaining production-readiness work is external-capacity validation and environment hardening, not a rewrite of the Core order model.

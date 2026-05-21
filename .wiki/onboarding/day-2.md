@@ -1,24 +1,25 @@
 # Day 2 Operations: Extending the Engine
 
-Once you have initialized the ShopMore engine, use this guide to perform common development and operational tasks.
+Once you have initialized the DreamBeesArt engine, use this guide to perform common development and operational tasks.
 
 ## 🏗 Building New Features
 
 When adding new capabilities, follow the **Joy-Zoning Workflow**:
 
 1. **Domain**: Define your models in `src/domain/models.ts` and rules in `src/domain/rules.ts`.
-2. **Infrastructure**: If new storage is required, update `src/infrastructure/sqlite/schema.ts` and create a repository in `src/infrastructure/repositories/sqlite/`.
+2. **Infrastructure**: If new storage is required, add or extend a Firestore repository in `src/infrastructure/repositories/firestore/` and expose the contract through `src/domain/repositories.ts`.
 3. **Core**: Create or update a service in `src/core/` to orchestrate the new logic. Wire it into `src/core/container.ts`.
 4. **API**: Create a Next.js route in `src/app/api/` to expose the service.
 5. **UI**: Build the interface in `src/ui/pages/` using the shared components in `src/ui/components/admin/`.
 
 ## 🗄 Database Management
 
-ShopMore uses SQLite for sovereign data management.
+DreamBeesArt currently uses Firestore for application persistence.
 
-- **Migrations**: New tables should be added to `src/infrastructure/sqlite/database.ts` within the `initDatabase` or `applyMigrations` logic.
+- **Schema changes**: Update Domain models, repository interfaces, Firestore mappers, and API parsers together.
 - **Seeding**: Update `src/infrastructure/services/SeedDataLoader.ts` to include mock data for new features.
-- **Backups**: Simply copy the `DreamBees.db` file. For production, use a tool like `litestream` for real-time replication.
+- **Backups**: Use Firestore export/scheduled backup tooling for production data. Do not document or rely on local SQLite file copies for the current architecture.
+- **Indexes**: Add Firestore composite indexes when new queries require them, then document the query path in the relevant wiki page.
 
 ## 🔐 Security & Permissions
 

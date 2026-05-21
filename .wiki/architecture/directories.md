@@ -1,6 +1,6 @@
 # Directory Dictionary
 
-This document maps the ShopMore workspace and defines the structural constraints for each directory.
+This document maps the DreamBeesArt workspace and defines the structural constraints for each directory.
 
 ## Root Directory
 
@@ -8,6 +8,7 @@ This document maps the ShopMore workspace and defines the structural constraints
 | :--- | :--- |
 | `/src` | All application source code. |
 | `/.wiki` | The Knowledge Ledger (Documentation). |
+| `/docs` | Long-form technical documentation and whitepapers. |
 | `/public` | Static assets (images, fonts). |
 | `/e2e` | Playwright end-to-end tests. |
 | `/scripts` | Operational and onboarding scripts. |
@@ -22,9 +23,11 @@ The "Brain" of the application.
 - **`errors.ts`**: Centralized domain error taxonomy.
 
 ### `/core`
-The "Heart" of the application.
-- **`services/`**: Orchestration services (Order, Product, etc.).
-- **`container.ts`**: The dependency injection registry.
+The application orchestration layer.
+- **`OrderService.ts`**: Compatibility facade for checkout, order reads, logistics, fulfillment workflow, and admin order mutations.
+- **`order/`**: Split order sub-services for checkout, admin reconciliation, logistics, reads, fulfillment workflow, and forensics.
+- **`marketing/`**: Lifecycle campaign strategy, intelligence, personalization, and delivery orchestration.
+- **`container.ts`**: Firestore/Stripe/Firebase/Brevo service composition and singleton/factory service access.
 
 ### `/infrastructure`
 The "Limbs" of the application.
@@ -36,7 +39,7 @@ The "Limbs" of the application.
 ### `/app`
 The "Nervous System" (Next.js App Router).
 - **`api/`**: Protected and public API endpoints.
-- **`(storefront)/`**: Customer-facing pages and layouts.
+- **Top-level route folders**: Customer-facing pages and layouts.
 - **`admin/`**: Merchant-facing management dashboard.
 
 ### `/ui`

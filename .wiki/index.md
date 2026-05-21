@@ -12,6 +12,7 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 
 ### Architecture
 - [Overview](./architecture/overview.md) — Joy-Zoning dependency graph, request/session flow, and structural rationale.
+- [Project State](./architecture/project-state.md) — concrete snapshot of implemented storefront, admin, Core, Infrastructure, tests, and benchmark surfaces.
 - [Directories](./architecture/directories.md) — top-level directory dictionary with constraints.
 - [Schemas](./architecture/schemas.md) — domain models, repository contracts, service interfaces, API guard behavior.
 - [Decisions](./architecture/decisions.md) — ADRs protecting architectural intent.
@@ -33,6 +34,10 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 ### Ledger
 - [Changelog](./changelog.md) — granular forensic citations for verified structural changes.
 
+### Long-Form Docs
+- [Documentation Index](../docs/index.md) — long-form technical documents outside the wiki ledger.
+- [Commerce Engine Whitepaper](../docs/dreambeesart-commerce-engine-whitepaper.md) — project thesis, architecture, reliability model, benchmark evidence, and roadmap implications.
+
 ## Current Verified State
 
 - **Transactional Hardening Verified**: Finalized production-grade transactional atomicity for the commerce engine. Implemented atomic discount usage decrements during cancellations and refunds. Transitioned all critical inventory and order logic to strict transactional point-reads (`t.get`).
@@ -43,7 +48,8 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 - **SEO & Navigation Hardening Verified**: Canonical handle-based routing active for `/products/[handle]` and `/collections/[slug]`. Automated `sitemap.ts` and `robots.ts` orchestration implemented. JSON-LD structured data injected.
 - **Concierge & Operational Intelligence Verified**: Production-grade support desk with triage intelligence and outcome tracking. Automated "Operational Digest" generates natural-language business insights. Team collaboration (assignment, activity feed) and customer continuity (session syncing) are fully functional and ground-truth verified.
 - **Concierge Lifecycle Marketing Verified**: Autonomous lifecycle campaign strategy documented for welcome, cart recovery, browse assist, post-purchase care, review/referral, replenishment, win-back, VIP loyalty, and sunset suppression. Concierge tools now support customer investigation, lifecycle planning, playbook drafting, activation, optimization, enrollment, and suppression governance.
-- **Framework/Runtime Stack**: Next.js `15.0.5`, React `18.3.1`, TypeScript `6.0.2`, ESLint `10.2.1`, Tailwind CSS `4.2.4`.
+- **Order Flow Benchmark Documented**: Core cart, checkout reservation, and full order/payment/finalization throughput is documented with raw benchmark output and a reproducible `npm run benchmark:order-flow` script.
+- **Framework/Runtime Stack**: Next.js `15.5.18`, React `18.3.1`, TypeScript `~6.0.2`, ESLint `10.2.1`, Tailwind CSS `4.2.4`.
 - **Persistence Layer**: Google Cloud Firestore (Distributed NoSQL).
 - **Security Configuration**: Signed HTTP-only session cookies with HMAC-SHA256 signatures and production `SESSION_SECRET` length enforcement.
 - **API Boundary Hardening**: Lightweight mutation throttling (rate-limiting) implemented in `apiGuards.ts`. Mutation-origin policy enforces same-origin for `POST/PUT/DELETE` requests.
@@ -85,10 +91,19 @@ graph TD
 
 - `README.md`
 - `PRODUCTION_READY_METRICS.md`
-- `SHOPMORE_ROADMAP.md`
+- `docs/index.md`
+- `docs/dreambeesart-commerce-engine-whitepaper.md`
 - `.wiki/index.md`
+- `.wiki/architecture/project-state.md`
 - `.wiki/architecture/overview.md`
 - `.wiki/architecture/directories.md`
-- `.wiki/architecture/schemas.md`
-- `.wiki/agent/agent-memory.md`
-- `.wiki/agent/patterns.md`
+- `.wiki/architecture/decisions.md`
+- `.wiki/architecture/risk-map.md`
+- `.wiki/architecture/product-management.md`
+- `.wiki/architecture/support-crm.md`
+- `.wiki/architecture/digital-fulfillment.md`
+- `.wiki/architecture/seo-routing.md`
+- `.wiki/onboarding/getting-started.md`
+- `.wiki/onboarding/day-2.md`
+- `.wiki/onboarding/walkthrough.md`
+- `.wiki/onboarding/troubleshooting.md`

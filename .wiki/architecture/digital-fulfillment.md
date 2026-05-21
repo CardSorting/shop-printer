@@ -1,6 +1,6 @@
 # Digital Fulfillment & Asset Management
 
-ShopMore implements a high-integrity "Digital Vault" for the secure distribution and management of digital products.
+DreamBeesArt implements a "Digital Vault" for secure distribution and management of purchased digital products.
 
 ## The "Digital Vault" Architecture
 
@@ -23,5 +23,5 @@ To support massive file uploads without exhausting server memory, the ingestion 
 ## Technical Implementation
 
 - **Storage Strategy**: Pluggable storage adapters (Local Filesystem, S3, or Cloud Storage) with a consistent core interface.
-- **Security**: Ephemeral signed URLs for downloads, backed by the `SovereignLocker` session management.
+- **Security**: Authenticated download routes issue ephemeral access through server-side checks and digital-access records.
 - **Performance**: Zero-copy streaming where possible to minimize CPU overhead during delivery.

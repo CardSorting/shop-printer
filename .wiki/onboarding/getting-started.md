@@ -1,11 +1,12 @@
-# Getting Started with ShopMore
+# Getting Started with DreamBeesArt
 
-This guide provides the definitive onboarding path for developers and merchants initializing the ShopMore engine.
+This guide provides the onboarding path for developers initializing the DreamBeesArt commerce workspace.
 
 ## 🛠 System Prerequisites
 
-- **Node.js**: `v20.x` or higher (Long Term Support recommended).
-- **Architecture**: Native build tools are required for `better-sqlite3`. If you encounter ABI errors after a Node version change, run `npm rebuild better-sqlite3`.
+- **Node.js**: `22.x` expected by `package.json`.
+- **Firebase project**: Firestore and Authentication enabled.
+- **Stripe account**: Required for real checkout/payment flows.
 - **Operating System**: macOS, Linux, or WSL2.
 
 ---
@@ -22,7 +23,7 @@ This command orchestrates the following industrial operations:
 1. **Environment Verification**: Confirms Node.js compatibility.
 2. **Sovereign Environment**: Copies `.env.example` to `.env` and generates a high-entropy `SESSION_SECRET`.
 3. **Dependency Saturation**: Executes `npm install` to populate the workspace.
-4. **Substrate Seeding**: Initializes the SQLite database with baseline TCG product metadata.
+4. **Seed Data**: Runs project setup and seed helpers for local development data when configured.
 
 ---
 
@@ -45,7 +46,7 @@ Once initialized, inspect these core architectural entry points:
 
 - **Domain Integrity**: `src/domain/models.ts` (Business logic contracts).
 - **Service Orchestration**: `src/core/container.ts` (Dependency injection).
-- **Infrastructure Adapters**: `src/infrastructure/server/services.ts`.
+- **Infrastructure Adapters**: `src/infrastructure/repositories/firestore/`, `src/infrastructure/services/`, and `src/infrastructure/firebase/bridge.ts`.
 - **Client Facade**: `src/ui/apiClientServices.ts` (Type-safe UI-to-API bridge).
 
 ---
@@ -60,6 +61,12 @@ npm run lint
 
 # Execute a full production-grade build
 npm run build
+
+# Execute unit/integration tests
+npm run test
+
+# Reproduce the Core order-flow benchmark
+npm run benchmark:order-flow
 ```
 
 For common issues, refer to the [Troubleshooting Guide](./troubleshooting.md).

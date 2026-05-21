@@ -1,88 +1,138 @@
-# DreamBeesArt: The Sovereign Commerce Engine
+# DreamBeesArt Commerce Engine
 
-DreamBeesArt is a neutral, high-performance, and deeply industrialized e-commerce engine designed for merchants who prioritize data ownership and operational sovereignty. Built on a hardened TypeScript substrate, DreamBeesArt provides an industry-leading alternative to SaaS platforms, offering absolute control over the entire commerce lifecycle.
+DreamBeesArt is a Next.js commerce application for a collectible/art storefront with a hardened order pipeline, merchant admin console, support CRM, digital fulfillment, lifecycle marketing, and concierge-assisted customer operations.
 
----
+The project is trying to prove a practical alternative to generic hosted commerce tooling: keep the merchant-facing workflows in one TypeScript codebase, keep business rules testable, store operational data in Firestore, and make checkout/order state recoverable under retries, webhooks, and partial failures.
 
-## 🏗 Architecture (Joy-Zoning)
+## Current Project Shape
 
-DreamBeesArt adheres to a strict layered architecture (Clean Architecture / DDD) to ensure business logic remains pure, testable, and decoupled from infrastructure.
+| Area | Current implementation |
+| --- | --- |
+| Storefront | Home, product listing/detail, collections, search, cart, checkout, account, orders, wishlist, support, blog, and digital vault pages. |
+| Checkout and orders | `OrderCheckoutService` coordinates cart reservation, order creation, Stripe PaymentIntent creation, payment finalization, rollback, reconciliation, and forensic timelines. |
+| Admin console | Dashboard, orders, products, bulk editor, inventory, receiving/purchase orders, suppliers, collections, taxonomy, discounts, analytics, support tickets, settings, files, blog, audit, and operations planning routes. |
+| Persistence | Firestore repositories implement Domain repository contracts for products, carts, orders, discounts, settings, suppliers, inventory, support, marketing, wishlists, and digital access. |
+| Security | Signed HTTP-only sessions, admin route guards, same-origin mutation policy, rate-limit guards, idempotency keys, and checkout locks. |
+| Test coverage | Vitest unit/integration tests plus Playwright e2e tests for checkout, security, admin inventory, shopping flow, chaos regression, and commerce workflows. |
+
+Repository snapshot:
+
+- 136 API route files under `src/app/api`.
+- 59 App Router page files under `src/app`.
+- 45 test/spec files across unit, integration, API, and e2e coverage.
+- Firestore-backed service container in `src/core/container.ts`.
+- Documentation ledger in `.wiki/` and long-form docs in `docs/`.
+
+## Architecture
+
+The codebase follows a layered TypeScript architecture:
 
 | Layer | Path | Responsibility |
-| :--- | :--- | :--- |
-| **Domain** | `src/domain/` | Pure business logic: models, rules, and repository contracts. **Zero dependencies.** |
-| **Core** | `src/core/` | Application orchestration: services coordinate domain logic and infrastructure adapters. |
-| **Infrastructure** | `src/infrastructure/` | Adapters for Firestore, Stripe, and server-side utilities. |
-| **UI** | `src/ui/` | React 18 components, Next.js pages, and high-fidelity layouts. |
-| **Plumbing** | `src/utils/` | Stateless helpers, formatters, and global constants. |
+| --- | --- | --- |
+| Domain | `src/domain/` | Models, repository contracts, pure rules, validation, calculations, and typed errors. |
+| Core | `src/core/` | Application services and workflow orchestration. |
+| Infrastructure | `src/infrastructure/` | Firestore repositories, Firebase/Auth bridges, Stripe/Brevo/storage adapters, server guards, and session helpers. |
+| App Router | `src/app/` | Next.js pages and API transport boundaries. |
+| UI | `src/ui/` | React pages, reusable components, checkout components, admin components, hooks, and browser API facade. |
+| Utils | `src/utils/` | Stateless formatters, validators, logging, SEO, navigation, and image helpers. |
 
----
+The main design rule is that Domain stays free of I/O and framework imports. Core owns orchestration. Infrastructure and App Router adapt real transport/storage/payment behavior into those contracts.
 
-## ✨ Industrial Features
+## Checkout Architecture
 
-### 🛒 Customer Experience
-- **Hardened Transaction Pipeline**: Atomic checkout and refund logic with strict inventory guards.
-- **Idempotency Guards**: Distributed order creation protected by atomic payment-intent tracking.
-- **Handle-Based Routing**: Canonical, SEO-optimized URLs for products and collections.
-- **Digital Locker**: Secure, authenticated access to purchased digital assets via signed URLs.
+Checkout is intentionally explicit because it is the highest-risk workflow in the system.
 
-### 🛡 Merchant Administration
-- **Support CRM**: Full-stack interaction management with agent collision detection and "Quick Reply" macros.
-- **Inventory Intelligence**: Automated stock health tracking, restock recommendations, and supplier management.
-- **Audit Logging**: Full traceability for all administrative status changes and high-risk operations.
-- **Bulk Operations**: High-speed spreadsheet-style editor for mass inventory and metadata updates.
-- **Sovereign Analytics**: Real-time sales, conversion, AOV, and customer LTV insights.
+Core flow:
 
----
+1. Validate shipping address and acquire `checkout_lock:{userId}`.
+2. Create or resume the idempotent checkout attempt.
+3. Read cart, verify product price/availability, reserve stock, create pending order, record checkout attempt, and clear cart.
+4. Create or resume Stripe PaymentIntent.
+5. Persist the payment mapping and wait for webhook or success-page verification.
+6. Finalize payment into paid/fulfilled state or route unsafe states into reconciliation.
 
-## 🚀 Quick Start
+Key implementation files:
 
-### 1. Prerequisites
-- **Node.js**: 22.x (LTS)
-- **Firebase Project**: Firestore and Authentication enabled.
-- **Stripe Account**: For payment processing.
+- `src/core/order/OrderCheckoutService.ts`
+- `src/core/order/checkoutWorkflow.ts`
+- `src/core/order/checkoutForensics.ts`
+- `src/infrastructure/repositories/firestore/FirestoreOrderRepository.ts`
+- `src/app/api/checkout/create-payment-intent/route.ts`
+- `src/app/api/checkout/verify/route.ts`
+- `src/app/api/webhooks/stripe/route.ts`
 
-### 2. Initialization
+See [Checkout Orchestration](docs/checkout-orchestration.md) and [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md).
+
+## Benchmark Baseline
+
+A reproducible Core-level benchmark exists for cart, checkout, and full order/payment/finalization flows:
+
 ```bash
-npm install
-# Configure your .env (see .env.example)
-npm run setup
+npm run benchmark:order-flow
 ```
 
-### 3. Launch
+Latest local benchmark summary:
+
+| Flow | Max clean concurrency tested | Throughput | p95 latency | Failures |
+| --- | ---: | ---: | ---: | ---: |
+| Cart add-to-cart | 200 | 31,150.57 ops/sec | 7.40 ms | 0 |
+| Checkout reservation | 200 | 22,495.54 ops/sec | 10.39 ms | 0 |
+| Full order + payment finalization | 100 | 11,125.71 ops/sec | 9.47 ms | 0 |
+
+These numbers measure Core orchestration with in-memory adapters and a mocked Firebase transaction bridge. They are a repeatable application baseline, not a Firestore or Stripe production capacity claim.
+
+## Quick Start
+
+Prerequisites:
+
+- Node.js 22.x expected by `package.json`.
+- Firebase project with Firestore and Authentication enabled.
+- Stripe account for payment flows.
+- Environment variables configured for Firebase, Stripe, session signing, and any optional email/AI integrations.
+
+Install and run:
+
 ```bash
+npm install
+npm run setup
 npm run dev
 ```
 
----
+Useful verification commands:
 
-## 🛠 Tech Stack
+```bash
+npm run lint
+npm run build
+npm run test
+npm run test:e2e
+npm run benchmark:order-flow
+```
 
-- **Framework**: Next.js 15 (App Router) + React 18
-- **Logic**: TypeScript 6 (Strict Mode)
-- **Persistence**: Google Cloud Firestore (Distributed NoSQL)
-- **Styling**: Tailwind CSS 4
-- **Security**: Signed HTTP-only session cookies & Rate-limiting guards
-- **Testing**: Playwright (E2E) & Vitest (Unit/Integration)
+## Documentation
 
----
+Start here:
 
-## 📖 Knowledge Base
-
-For deep technical dives and operational guides, refer to the internal **[Knowledge Ledger](.wiki/index.md)**:
-
+- [Knowledge Ledger](.wiki/index.md)
+- [Project State](.wiki/architecture/project-state.md)
 - [Architecture Overview](.wiki/architecture/overview.md)
-- [Support CRM Design](.wiki/architecture/support-crm.md)
-- [Digital Fulfillment Strategy](.wiki/architecture/digital-fulfillment.md)
-- [Hardened SEO & Routing](.wiki/architecture/seo-routing.md)
+- [Directory Dictionary](.wiki/architecture/directories.md)
+- [Schemas](.wiki/architecture/schemas.md)
+- [Risk Map](.wiki/architecture/risk-map.md)
+- [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md)
+- [Checkout Orchestration](docs/checkout-orchestration.md)
+- [Whitepaper](docs/dreambeesart-commerce-engine-whitepaper.md)
 
----
+## Tech Stack
 
-> [!NOTE]
-> **Adversarial Reliability**: Known critical findings are mitigated and regression-protected under current threat assumptions. The system has been hardened against Negative Price Hijacking, Stale Price Hijacking, and CSRF/Origin bypasses. Next validation target is adversarial reliability, chaos testing, and formal external review.
+- Next.js `15.5.18` App Router
+- React `18.3.1`
+- TypeScript `~6.0.2`
+- Firebase `12.13.0` and Firebase Admin `13.9.0`
+- Stripe SDK `17.2.0`
+- Tailwind CSS `4.2.4`
+- Vitest `3.2.4`
+- Playwright `1.59.1`
 
----
+## License
 
-## 📄 License
-
-MIT © [DreamBeesArt Contributors](LICENSE)
+MIT. See [LICENSE](LICENSE).

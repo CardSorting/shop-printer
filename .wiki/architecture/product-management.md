@@ -26,21 +26,25 @@ This page documents the verified backend and admin UI product-management shape f
 - `cost` and `compareAtPrice` are optional non-negative whole-number cent values and share the product price maximum.
 - Product draft/update validation accepts the expanded category set.
 
-## Verified SQLite persistence
+## Verified Firestore persistence
 
-`src/infrastructure/sqlite/schema.ts` adds nullable columns for `compareAtPrice`, `cost`, `sku`, `manufacturer`, `supplier`, `manufacturerSku`, and `barcode` to `ProductTable`.
+Product persistence is implemented through `src/infrastructure/repositories/firestore/FirestoreProductRepository.ts` and the product repository helpers under `src/infrastructure/repositories/firestore/products/`.
 
-`src/infrastructure/sqlite/database.ts` creates those columns for new databases and applies additive `ALTER TABLE products ADD COLUMN ...` migrations for existing SQLite catalogs. It also creates indexes for product management lookups:
+The Firestore product repository persists optional intake and pricing metadata on product create/update and keeps search keywords in sync with product identity fields:
 
-- `idx_products_sku_unique` on `products.sku`, unique.
-- `idx_products_supplier` on `products.supplier`.
-- `idx_products_manufacturer` on `products.manufacturer`.
+- `sku`
+- `manufacturer`
+- `supplier`
+- `manufacturerSku`
+- `barcode`
+- `cost`
+- `compareAtPrice`
 
 ## Verified repository behavior
 
-`src/infrastructure/repositories/sqlite/SQLiteProductRepository.ts` maps the new nullable columns into optional Domain `Product` fields, persists them on create, whitelists them on update, and includes `sku`, `manufacturer`, `supplier`, `manufacturerSku`, and `barcode` in product search for both SQL fallback and in-memory catalog index paths.
+`src/infrastructure/repositories/firestore/products/index.ts` maps Domain product fields to Firestore documents, persists intake metadata, and regenerates search keywords when product identity fields change.
 
-Duplicate SKU writes are translated into `InvalidProductError('SKU must be unique')` when SQLite reports the SKU unique constraint through either the index name or `products.sku` constraint message.
+`src/infrastructure/repositories/firestore/products/ProductMapper.ts` generates normalized search keywords from product name, handle, and SKU so admin search can find products through operational identifiers.
 
 ## Verified API boundary behavior
 

@@ -1,6 +1,6 @@
 # SEO & Navigation Architecture
 
-ShopMore prioritizes search engine authority and seamless navigation discovery through a robust, handle-based routing architecture.
+DreamBeesArt prioritizes search engine authority and seamless navigation discovery through a handle-based routing architecture.
 
 ## Canonical Routing Strategy
 
@@ -8,7 +8,7 @@ ShopMore prioritizes search engine authority and seamless navigation discovery t
 The platform has transitioned from legacy ID-based routes to clean, search-engine-friendly handles:
 - **Products**: `/products/[handle]` (e.g., `/products/charizard-base-set-1`)
 - **Collections**: `/collections/[slug]` (e.g., `/collections/rare-holos`)
-- **Pages**: `/pages/[slug]`
+- **Support Articles**: `/support/articles/[slug]`
 
 ### 2. Taxonomy Synchronization
 The `TaxonomyService` ensures that category and collection handles are consistent across the storefront, admin panel, and search results. This prevents "route leakage" and ensures that crawlers see a unified structure.

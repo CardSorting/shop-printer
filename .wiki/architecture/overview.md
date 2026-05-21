@@ -1,6 +1,8 @@
 # Architectural Overview
 
-ShopMore is engineered with a strict emphasis on **Joy-Zoning**—a structural philosophy that ensures every line of code has a clear, deterministic home. This isolation of concerns prevents "spiral debt" and ensures the engine remains maintainable as it scales.
+DreamBeesArt is engineered with a strict layered architecture so every major behavior has a deterministic home. The project is a Firestore-backed commerce workspace for storefront selling, checkout/order recovery, merchant operations, support, digital fulfillment, lifecycle marketing, and concierge intelligence.
+
+See [Project State](./project-state.md) for the current file-level implementation snapshot.
 
 ## The Joy-Zoning Layers
 
@@ -10,6 +12,16 @@ ShopMore is engineered with a strict emphasis on **Joy-Zoning**—a structural p
 | **Core** | Service orchestration and business workflow coordination. | **No low-level mechanics.** Delegates to injected adapters. |
 | **Infrastructure** | Concrete adapters for DB, Auth, Payments, and HTTP routes. | **Implementation details.** Translates between HTTP/DB and Core. |
 | **UI** | Presentation, client-side state, and user interaction. | **No direct Infra access.** Communicates via Core services or API. |
+
+## Current Implementation Snapshot
+
+| Surface | Current state |
+| :--- | :--- |
+| Storefront | 59 App Router page files, covering home, products, collections, search, cart, checkout, account, orders, wishlist, support, blog, and digital vault. |
+| API | 136 route files under `src/app/api`, covering public storefront, auth, checkout, orders, admin, support, concierge, marketing, downloads, webhooks, and system cleanup. |
+| Persistence | Firestore repositories implement product, cart, order, discount, settings, inventory, purchase order, supplier, support, campaign, wishlist, and digital access contracts. |
+| Tests | 45 test/spec files across Vitest and Playwright. |
+| Benchmarking | `npm run benchmark:order-flow` records Core cart, checkout, and order-flow throughput. |
 
 ## Request Lifecycle
 
@@ -25,5 +37,6 @@ The request lifecycle is designed to be deterministic and forensic-ready.
 ## Core Philosophy: Operational Sovereignty
 
 - **Data Ownership**: All transactional and customer data is stored in a sovereign Firestore database, ensuring full privacy and cloud-native scalability.
-- **Aesthetic Neutrality**: The UI is designed to be a high-performance blank canvas, allowing merchants to project their branding without engine-level interference.
-- **Headless-First**: Every action in the Admin Panel is backed by a clean, documented API route, enabling future headless integrations.
+- **Recoverable Checkout**: Payment and order state are explicit, idempotent, and reconciliation-aware.
+- **Operator Reality**: Admin workflows are designed around daily merchant jobs such as receiving stock, resolving orders, answering support, and auditing risky changes.
+- **API-Backed Admin**: Admin screens are backed by API routes and Core services, which keeps UI behavior traceable to server-side contracts.

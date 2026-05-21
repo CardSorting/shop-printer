@@ -23,9 +23,10 @@ Constraint: Core may wire Infrastructure but should not implement low-level DB/c
 
 Infrastructure adapts the outside world.
 
-- SQLite persistence lives under `src/infrastructure/sqlite/` and `src/infrastructure/repositories/sqlite/`.
+- Firestore persistence lives under `src/infrastructure/repositories/firestore/`.
 - External/service adapters live under `src/infrastructure/services/`.
-- Server composition bridge lives at `src/infrastructure/server/services.ts` and initializes SQLite once before returning Core services.
+- Firebase bridge behavior lives at `src/infrastructure/firebase/bridge.ts`.
+- Service composition lives in `src/core/container.ts`.
 - Session cookie integrity lives at `src/infrastructure/server/session.ts`.
 - Shared API guard behavior lives at `src/infrastructure/server/apiGuards.ts`.
 - Next API routes under `src/app/api/` translate HTTP requests into Core service calls.
@@ -41,7 +42,7 @@ Admin-protected routes:
 - `src/app/api/admin/orders/route.ts` - Global order management
 - `src/app/api/admin/tickets/route.ts` - Support CRM ticketing
 - `src/app/api/support/macros/route.ts` - CRM response macros
-- `src/app/api/downloads/route.ts` - Secure digital fulfillment
+- `src/app/api/downloads/[assetId]/route.ts` - Secure digital fulfillment
 - `src/app/api/products/route.ts` - Product creation and bulk listing
 - `src/app/api/products/[id]/route.ts` - Product updates and deletion
 
@@ -76,7 +77,7 @@ sequenceDiagram
   participant Guards as src/infrastructure/server/apiGuards.ts
   participant Session as src/infrastructure/server/session.ts
   participant Services as Core services
-  participant DB as SQLite repositories
+  participant DB as Firestore repositories
 
   Browser->>ApiClient: call cart/order/product/admin method
   ApiClient->>Route: fetch JSON; session cookie sent by browser
@@ -85,7 +86,7 @@ sequenceDiagram
   Session-->>Guards: verified User or null
   Guards-->>Route: User / throws Domain/Auth error
   Route->>Services: invoke service with trusted identity/data
-  Services->>DB: repository operation
+  Services->>DB: repository operation through Domain contract
   DB-->>Services: Domain model data
   Services-->>Route: result
   Route-->>ApiClient: JSON response

@@ -1,6 +1,6 @@
 # Support CRM Architecture
 
-The ShopMore Support CRM is an enterprise-grade ticketing and interaction management system designed to handle high-volume customer inquiries with professional efficiency.
+The DreamBeesArt Support CRM is a ticketing and interaction management system for customer support, returns, internal notes, macros, and knowledgebase-assisted resolution.
 
 ## Core Components
 
@@ -21,11 +21,11 @@ The ShopMore Support CRM is an enterprise-grade ticketing and interaction manage
 ## Data Flow
 
 1. **Submission**: Customer submits a ticket via the `/support` portal or order dashboard.
-2. **Ingestion**: Core `TicketService` validates the payload and persists the ticket to the `support_tickets` table.
+2. **Ingestion**: API routes validate the payload and persist the ticket through the Firestore ticket repository.
 3. **Assignment**: Tickets are queued for admin review or auto-assigned based on load.
 4. **Resolution**: Agents interact via the Admin CRM, using macros and real-time collision guards.
 5. **Feedback Loop**: Once solved, customers can provide satisfaction ratings, which are tracked in the CRM metrics.
 
 ## Security & Sovereignty
 - **Role-Based Access**: Only users with `admin` or `support_agent` roles can access the CRM.
-- **Data Locality**: All ticket data, attachments, and logs are stored in the sovereign SQLite database, ensuring full privacy and ownership.
+- **Data Locality**: Ticket data, message threads, macros, and knowledgebase records are stored through Firestore-backed repository adapters in this workspace.

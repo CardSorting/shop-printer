@@ -1,20 +1,31 @@
 # Troubleshooting
 
-## Native SQLite binding fails with `ERR_DLOPEN_FAILED`
+## Firebase or Firestore credentials are missing
 
-Observed failure mode: `better-sqlite3` native binary compiled for a different Node ABI than the active runtime.
+Observed failure mode: API routes that touch repositories fail during Firebase Admin initialization or Firestore access.
+
+Check:
+
+- Firebase project variables are present in `.env`.
+- Server-side Firebase Admin credentials are configured for the current environment.
+- Firestore is enabled for the selected project.
+- Local seed/setup commands are not pointed at production unless explicitly intended.
+
+Recovery depends on the environment. For local work, verify `.env` first, then rerun:
+
+```bash
+npm run build
+```
+
+## Dependency/runtime mismatch after Node changes
+
+Observed failure mode: packages compiled or installed under a different Node runtime behave inconsistently.
 
 Recovery:
 
 ```bash
-npm rebuild better-sqlite3
+npm install
 npm run build
-```
-
-Verification:
-
-```bash
-node -e "const sqlite = require('better-sqlite3'); const db = new sqlite(':memory:'); console.log('ok', process.version, process.versions.modules); db.close();"
 ```
 
 ## Production session errors
