@@ -72,6 +72,12 @@ export class RefundService {
       // Format: refund:{orderId}:{refundAttemptId}:{amount}
       const refundIdempotencyKey = `refund:${orderId}:${refundAttemptId}:${safeAmount}`;
       
+      const processedRefundKeys = order.metadata?.processedRefundKeys || [];
+      if (processedRefundKeys.includes(refundIdempotencyKey)) {
+        logger.info(`[RefundService] Duplicate refund attempt detected. Key ${refundIdempotencyKey} already transactionally processed. Returning success (idempotent resume).`);
+        return;
+      }
+      
       const result = await this.payment.refundPayment(order.paymentTransactionId, safeAmount, refundIdempotencyKey);
       
       if (result.success) {
@@ -82,6 +88,14 @@ export class RefundService {
             await this.orderRepo.transitionPaymentState(orderId, ['paid', 'partially_refunded'], nextPaymentState, 'refund_processed', transaction);
             await this.orderRepo.guardedUpdateStatus(orderId, [order.status], nextStatus, 'refund_processed', transaction);
             await this.orderRepo.recordRefund(orderId, safeAmount, transaction);
+
+            // 1.5 Update order metadata with the processed refund idempotency key
+            const currentMetadata = order.metadata || {};
+            const nextKeys = [...(currentMetadata.processedRefundKeys || []), refundIdempotencyKey];
+            await this.orderRepo.updateMetadata(orderId, {
+              ...currentMetadata,
+              processedRefundKeys: nextKeys
+            }, transaction);
 
             // 2. Restock inventory (physical items only)
             if (isFullRefund && this.productRepo) {

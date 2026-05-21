@@ -30,19 +30,7 @@ async function transitionCheckoutAttempt(
         paymentIntentId?: string | null;
     }
 ) {
-    const transition = (services.orderRepo as any).transitionCheckoutAttemptPhase;
-    if (typeof transition === 'function') {
-        await transition.call(services.orderRepo, params);
-        return;
-    }
-    await services.orderRepo.updateCheckoutAttempt(params.attemptId, {
-        currentPhase: params.nextPhase,
-        authoritySource: params.authoritySource,
-        waitingFor: params.waitingFor,
-        lastTransitionAt: new Date().toISOString(),
-        lastTransitionReason: params.reason,
-        ...(params.paymentIntentId !== undefined ? { paymentIntentId: params.paymentIntentId } : {}),
-    });
+    await services.orderRepo.transitionCheckoutAttemptPhase(params);
 }
 
 /**
@@ -91,61 +79,12 @@ export async function POST(request: Request) {
                 total: order.total
             });
 
-            // Transition payment state and order status to cancelled in RECOVER_OR_RECONCILE phase
-            await services.orderRepo.updateMetadata(order.id, {
-                ...(order.metadata || {}),
-                currentPhase: 'RECOVER_OR_RECONCILE',
-                authoritySource: 'local',
-                waitingFor: 'none'
-            }).catch(() => {});
-            await services.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'high_value_step_up_failure').catch(rollbackErr => {
-                logger.error(`FATAL: Payment state rollback failed for high-value order ${order.id}.`, rollbackErr);
-            });
-            await services.orderRepo.guardedUpdateStatus(order.id, ['pending'], 'cancelled', 'high_value_step_up_failure').catch(rollbackErr => {
-                logger.error(`FATAL: Status rollback failed for high-value order ${order.id}.`, rollbackErr);
-            });
-            await services.orderRepo.updateCheckoutAttempt(idempotencyKey, {
-                state: 'cancelled',
-                paymentIntentId: null,
-                currentPhase: 'RECOVER_OR_RECONCILE',
-                authoritySource: 'local',
-                waitingFor: 'none'
-            }).catch(attemptErr => {
-                logger.error(`FATAL: Checkout attempt cancel failed for high-value order ${order.id}.`, attemptErr);
-            });
-
-            // Restore physical product stock reservations
-            const physicalItems = order.items.filter(item => !item.isDigital);
-            if (physicalItems.length > 0 && order.metadata?.inventoryReserved) {
-                const { coalesceStockUpdates } = await import('@domain/rules');
-                const stockUpdates = coalesceStockUpdates(physicalItems.map(item => ({
-                    id: item.productId,
-                    variantId: item.variantId,
-                    delta: item.quantity
-                })));
-
-                if (stockUpdates.length > 0) {
-                    await services.productRepo.batchUpdateStock(stockUpdates).catch(stockErr => {
-                        logger.error(`FATAL: Failed to restore stock during high-value step-up rollback for order ${order.id}.`, stockErr);
-                    });
-                }
-
-                // Update metadata so cart restoration can verify stock is released
-                await services.orderRepo.updateMetadata(order.id, {
-                    ...(order.metadata || {}),
-                    inventoryReservationReleased: true,
-                    inventoryReservationReleasedAt: new Date().toISOString(),
-                    currentPhase: 'RECOVER_OR_RECONCILE',
-                    authoritySource: 'local',
-                    waitingFor: 'none'
-                }).catch(metaErr => {
-                    logger.error(`FATAL: Failed to update metadata for stock release during high-value rollback for order ${order.id}.`, metaErr);
-                });
-            }
-
-            // Restore cart
-            const stripeService = new StripeService();
-            await restoreCartAfterUnpaidCheckoutFailure(services, stripeService, order, idempotencyKey, null);
+            await services.orderService.rollbackUnpaidCheckout(
+                order.id,
+                idempotencyKey,
+                null,
+                'high_value_step_up_failure'
+            );
 
             return jsonError(stepUpErr, 'High-value checkout requires a fresh session.');
         }
@@ -292,54 +231,63 @@ export async function POST(request: Request) {
         logger.error(`CRITICAL: Stripe PI creation failed for order ${order.id}. Rolling back.`, stripeErr);
 
         if (createdPaymentIntentId) {
-          await stripeService.cancelPaymentIntent(createdPaymentIntentId).catch(cancelErr => {
-            logger.error(`FATAL: Failed to cancel dangling Stripe PI ${createdPaymentIntentId} for rolled back order ${order.id}.`, cancelErr);
-          });
-          await services.orderRepo.createOrUpdateReconciliationCase({
-            paymentIntentId: createdPaymentIntentId,
-            orderId: order.id,
-            checkoutAttemptId: idempotencyKey,
-            reason: 'finalization_failure',
-            severity: 'critical',
-            stripeStatus: 'unknown_after_local_persistence_failure',
-            operatorVisibleMessage: `PaymentIntent ${createdPaymentIntentId} was created for order ${order.id}, but local checkout persistence did not complete.`,
-            nextAction: 'Verify the Stripe PaymentIntent terminal state and confirm local rollback or repair the mapping.',
-            failureClassification: 'local_persistence_failure',
-            lastObservedStripeState: 'created_before_local_failure',
-            lastObservedLocalState: `status:${order.status};paymentTransactionId:${order.paymentTransactionId || 'null'}`,
-            blockingProductionReadiness: true,
-          }).catch(caseErr => {
-            logger.error('FATAL: Failed to create local persistence reconciliation case after PaymentIntent side effect', { orderId: order.id, paymentIntentId: createdPaymentIntentId, caseErr });
-          });
+          let stripeStatus = 'unknown_after_local_persistence_failure';
+          try {
+            await stripeService.cancelPaymentIntent(createdPaymentIntentId);
+            stripeStatus = 'canceled';
+          } catch (cancelErr) {
+            logger.error(`FATAL: Failed to cancel dangling Stripe PI ${createdPaymentIntentId} for rolled back order ${order.id}. Checking actual status.`, cancelErr);
+            try {
+              const actualPi = await stripeService.getPaymentIntent(createdPaymentIntentId);
+              stripeStatus = actualPi.status;
+            } catch (getErr) {
+              logger.error(`Failed to fetch status for dangling PI ${createdPaymentIntentId}`, getErr);
+            }
+          }
+
+          if (stripeStatus === 'succeeded') {
+            await services.orderRepo.createOrUpdateReconciliationCase({
+              paymentIntentId: createdPaymentIntentId,
+              orderId: order.id,
+              checkoutAttemptId: idempotencyKey,
+              reason: 'paid_not_finalized',
+              severity: 'critical',
+              stripeStatus: 'succeeded',
+              operatorVisibleMessage: `PaymentIntent ${createdPaymentIntentId} succeeded for order ${order.id}, but local checkout persistence did not complete.`,
+              nextAction: 'Verify the Stripe PaymentIntent terminal state and confirm local rollback or repair the mapping.',
+              failureClassification: 'local_persistence_failure',
+              lastObservedStripeState: 'succeeded',
+              lastObservedLocalState: `status:${order.status};paymentTransactionId:${order.paymentTransactionId || 'null'}`,
+              blockingProductionReadiness: true,
+            }).catch(caseErr => {
+              logger.error('FATAL: Failed to create local persistence reconciliation case after PaymentIntent side effect', { orderId: order.id, paymentIntentId: createdPaymentIntentId, caseErr });
+            });
+          } else {
+            await services.orderRepo.createOrUpdateReconciliationCase({
+              paymentIntentId: createdPaymentIntentId,
+              orderId: order.id,
+              checkoutAttemptId: idempotencyKey,
+              reason: 'finalization_failure',
+              severity: 'critical',
+              stripeStatus,
+              operatorVisibleMessage: `PaymentIntent ${createdPaymentIntentId} was created in status ${stripeStatus} for order ${order.id}, but local checkout persistence did not complete.`,
+              nextAction: 'Verify the Stripe PaymentIntent terminal state and confirm local rollback or repair the mapping.',
+              failureClassification: 'local_persistence_failure',
+              lastObservedStripeState: stripeStatus,
+              lastObservedLocalState: `status:${order.status};paymentTransactionId:${order.paymentTransactionId || 'null'}`,
+              blockingProductionReadiness: true,
+            }).catch(caseErr => {
+              logger.error('FATAL: Failed to create local persistence reconciliation case after PaymentIntent side effect', { orderId: order.id, paymentIntentId: createdPaymentIntentId, caseErr });
+            });
+          }
         }
         
-        await services.orderRepo.updateMetadata(order.id, {
-          ...(order.metadata || {}),
-          currentPhase: 'RECOVER_OR_RECONCILE',
-          authoritySource: 'local',
-          waitingFor: 'none'
-        }).catch(() => {});
-
-        await services.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], createdPaymentIntentId ? 'cancelled' : 'failed', 'checkout_payment_intent_creation_rollback').catch(rollbackErr => {
-            logger.error(`FATAL: Payment state rollback failed for order ${order.id}. Manual reconciliation required.`, rollbackErr);
-        });
-        await services.orderRepo.guardedUpdateStatus(order.id, ['pending'], 'cancelled', 'checkout_payment_intent_creation_rollback').catch(rollbackErr => {
-            logger.error(`FATAL: Rollback failed for order ${order.id}. Manual reconciliation required.`, rollbackErr);
-        });
-        await services.orderRepo.updateCheckoutAttempt(idempotencyKey, {
-          state: 'cancelled',
-          paymentIntentId: createdPaymentIntentId,
-          currentPhase: 'RECOVER_OR_RECONCILE',
-          authoritySource: 'local',
-          waitingFor: 'none'
-        }).catch(attemptErr => {
-          logger.error('FATAL: Failed to mark checkout attempt cancelled after unpaid checkout rollback', {
-            orderId: order.id,
-            paymentIntentId: createdPaymentIntentId,
-            attemptErr,
-          });
-        });
-        await restoreCartAfterUnpaidCheckoutFailure(services, stripeService, order, idempotencyKey, createdPaymentIntentId);
+        await services.orderService.rollbackUnpaidCheckout(
+            order.id,
+            idempotencyKey,
+            createdPaymentIntentId,
+            'checkout_payment_intent_creation_rollback'
+        );
 
         throw stripeErr;
     }
@@ -348,147 +296,4 @@ export async function POST(request: Request) {
   }
 }
 
-async function restoreCartAfterUnpaidCheckoutFailure(
-  services: Awaited<ReturnType<typeof getServerServices>>,
-  stripeService: StripeService,
-  order: Order,
-  checkoutAttemptId: string,
-  paymentIntentId: string | null
-): Promise<void> {
-    try {
-        if (paymentIntentId) {
-            const pi = await stripeService.getPaymentIntent(paymentIntentId);
-            if (!['canceled'].includes(pi.status)) {
-                await services.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' }).catch(() => {});
-                await transitionCheckoutAttempt(services, {
-                    attemptId: checkoutAttemptId,
-                    expectedPhases: ['RECOVER_OR_RECONCILE', 'CREATE_OR_RESUME_PAYMENT_INTENT', 'AWAIT_PAYMENT_CONFIRMATION'],
-                    nextPhase: 'RECOVER_OR_RECONCILE',
-                    authoritySource: 'operator',
-                    waitingFor: 'operator',
-                    reason: 'cart_restore_blocked_by_stripe_state',
-                    orderId: order.id,
-                    paymentIntentId,
-                }).catch(() => {});
-                await services.orderRepo.createOrUpdateReconciliationCase({
-                    paymentIntentId,
-                    orderId: order.id,
-                    checkoutAttemptId,
-                    reason: pi.status === 'succeeded' ? 'paid_not_finalized' : 'dangling_payment_intent',
-                    severity: 'critical',
-                    stripeStatus: pi.status,
-                    operatorVisibleMessage: `Checkout rollback for order ${order.id} could not safely restore cart because PaymentIntent ${paymentIntentId} is ${pi.status}.`,
-                    nextAction: 'Inspect Stripe payment state before restoring cart, cancelling, fulfilling, or refunding.',
-                    details: { restoreBlocked: true },
-                    failureClassification: pi.status === 'succeeded' ? 'stripe_local_mismatch' : 'operator_required',
-                    lastObservedStripeState: pi.status,
-                    lastObservedLocalState: `status:${order.status};paymentState:${order.paymentState || 'unknown'}`,
-                    blockingProductionReadiness: true,
-                }).catch(caseErr => {
-                    logger.error('FATAL: Failed to record restore-blocked reconciliation case', { orderId: order.id, paymentIntentId, caseErr });
-                });
-                logger.warn('Skipping checkout cart restore because PaymentIntent is not safely cancelled', {
-                    userId: order.userId,
-                    orderId: order.id,
-                    paymentIntentId,
-                    stripeStatus: pi.status,
-                });
-                const audit = new AuditService();
-                await audit.record({
-                    userId: order.userId,
-                    userEmail: order.customerEmail || 'unknown@dreambees.art',
-                    action: 'checkout_rollback_failed',
-                    targetId: order.id,
-                    details: { reason: 'payment_intent_not_canceled', stripeStatus: pi.status, paymentIntentId },
-                    correlationId: checkoutAttemptId || undefined
-                }).catch(() => {});
-                return;
-            }
-        }
-
-        const restoredCart: Cart = {
-            id: order.userId,
-            userId: order.userId,
-            items: order.items.map(item => ({
-                productId: item.productId,
-                variantId: item.variantId,
-                variantTitle: item.variantTitle,
-                productHandle: item.productHandle,
-                name: item.name,
-                priceSnapshot: item.unitPrice,
-                quantity: item.quantity,
-                imageUrl: item.imageUrl || '',
-                isDigital: item.isDigital,
-                shippingClassId: item.shippingClassId,
-            })),
-            note: order.customerNote,
-            updatedAt: new Date(),
-        };
-
-        const restored = await runTransaction(getUnifiedDb(), async (transaction: any) => {
-            const currentOrder = await services.orderRepo.getById(order.id, transaction);
-            if (!currentOrder) return { ok: false, reason: 'order_missing' };
-
-            const finalizedStatuses: OrderStatus[] = ['confirmed', 'processing', 'shipped', 'delivered', 'ready_for_pickup', 'delivery_started', 'refunded', 'partially_refunded'];
-            if (finalizedStatuses.includes(currentOrder.status)) return { ok: false, reason: 'order_finalized' };
-            if (currentOrder.status !== 'cancelled') return { ok: false, reason: `order_status_${currentOrder.status}` };
-            if (currentOrder.paymentTransactionId && currentOrder.paymentTransactionId !== paymentIntentId) return { ok: false, reason: 'payment_intent_mismatch' };
-            if (currentOrder.metadata?.inventoryReserved && !currentOrder.metadata?.inventoryReservationReleased) return { ok: false, reason: 'reservation_still_active' };
-
-            const attempt = await services.orderRepo.getCheckoutAttempt(checkoutAttemptId, transaction);
-            if (!attempt) return { ok: false, reason: 'attempt_missing' };
-            if (attempt.orderId !== order.id) return { ok: false, reason: 'attempt_order_mismatch' };
-            if (attempt.state === 'paid') return { ok: false, reason: 'attempt_paid' };
-            if (attempt.paymentIntentId && attempt.paymentIntentId !== paymentIntentId) return { ok: false, reason: 'attempt_payment_intent_mismatch' };
-            if (attempt.fencingToken !== (currentOrder.metadata?.fencingToken ?? null)) return { ok: false, reason: 'fencing_token_mismatch' };
-            if (attempt.cartOwnerId !== currentOrder.id) return { ok: false, reason: 'cart_owner_mismatch' };
-
-            const latestAttempt = await services.orderRepo.getLatestCheckoutAttemptForUser(order.userId, transaction);
-            if (latestAttempt && latestAttempt.idempotencyKey !== checkoutAttemptId) return { ok: false, reason: 'newer_checkout_attempt_exists' };
-
-            const existingCart = await services.cartRepo.getByUserId(order.userId, transaction);
-            if (existingCart && existingCart.items.length > 0) return { ok: false, reason: 'cart_not_empty' };
-
-            await services.cartRepo.save(restoredCart, transaction);
-            await services.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restored' }, transaction);
-            
-            const audit = new AuditService();
-            await audit.recordWithTransaction(transaction, {
-                userId: order.userId,
-                userEmail: order.customerEmail || 'unknown@dreambees.art',
-                action: 'checkout_rollback_success',
-                targetId: order.id,
-                details: { checkoutAttemptId, cartItemsCount: restoredCart.items.length },
-                correlationId: checkoutAttemptId || undefined
-            });
-
-            return { ok: true, reason: 'restored' };
-        });
-
-        if (!restored.ok) {
-            await services.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' }).catch(() => {});
-            logger.warn('cart_restore_rejected', {
-                userId: order.userId,
-                orderId: order.id,
-                checkoutAttemptId,
-                reason: restored.reason,
-            });
-            logger.warn('Skipping checkout cart restore because restore guard failed', {
-                userId: order.userId,
-                orderId: order.id,
-                reason: restored.reason,
-            });
-            const audit = new AuditService();
-            await audit.record({
-                userId: order.userId,
-                userEmail: order.customerEmail || 'unknown@dreambees.art',
-                action: 'checkout_rollback_failed',
-                targetId: order.id,
-                details: { reason: restored.reason, checkoutAttemptId },
-                correlationId: checkoutAttemptId || undefined
-            }).catch(() => {});
-        }
-    } catch (restoreErr) {
-        logger.error(`FATAL: Failed to restore cart after unpaid checkout rollback for order ${order.id}.`, restoreErr);
-    }
-}
+// Local helper removed. Rollback and cart restoration now fully delegated to OrderCheckoutService.

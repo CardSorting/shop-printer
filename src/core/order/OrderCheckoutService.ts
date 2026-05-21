@@ -8,7 +8,7 @@ import type {
   IProductRepository,
   IShippingRepository,
 } from '@domain/repositories';
-import type { Address, CheckoutAuthoritySource, CheckoutWaitingFor, CheckoutWorkflowPhase, Order, OrderStatus } from '@domain/models';
+import type { Address, Cart, CheckoutAuthoritySource, CheckoutWaitingFor, CheckoutWorkflowPhase, Order, OrderStatus } from '@domain/models';
 import { CartEmptyError, CheckoutInProgressError, DomainError, OrderNotFoundError, PaymentFailedError } from '@domain/errors';
 import {
   assertValidOrderItems,
@@ -51,7 +51,7 @@ export class OrderCheckoutService {
     logger.info(`[CHECKOUT-WORKFLOW] [Attempt: ${idempotencyKey}] Transitioned ${oldPhase || 'INIT'} -> ${newPhase} | Auth: ${authority} | Wait: ${waitingFor}`, details);
   }
 
-  private async transitionCheckoutAttemptPhase(params: {
+  private  async transitionCheckoutAttemptPhase(params: {
     attemptId: string;
     expectedPhases: CheckoutWorkflowPhase[];
     nextPhase: CheckoutWorkflowPhase;
@@ -60,22 +60,9 @@ export class OrderCheckoutService {
     reason: string;
     orderId?: string | null;
     paymentIntentId?: string | null;
+    actor?: string;
   }, transaction?: any): Promise<void> {
-    const transition = (this.orderRepo as any).transitionCheckoutAttemptPhase;
-    if (typeof transition === 'function') {
-      await transition.call(this.orderRepo, params, transaction);
-      return;
-    }
-
-    await this.orderRepo.updateCheckoutAttempt(params.attemptId, {
-      currentPhase: params.nextPhase,
-      authoritySource: params.authoritySource,
-      waitingFor: params.waitingFor,
-      lastTransitionAt: new Date().toISOString(),
-      lastTransitionReason: params.reason,
-      ...(params.orderId !== undefined ? { orderId: params.orderId as any } : {}),
-      ...(params.paymentIntentId !== undefined ? { paymentIntentId: params.paymentIntentId } : {}),
-    }, transaction);
+    await this.orderRepo.transitionCheckoutAttemptPhase(params, transaction);
   }
 
   async initiateCheckout(
@@ -125,12 +112,17 @@ export class OrderCheckoutService {
             order = existing;
             resumedFromExisting = true;
             // Persist progress to CREATE_OR_RESUME_ATTEMPT
-            await this.orderRepo.updateCheckoutAttempt(idempotencyKey, {
-              currentPhase: 'CREATE_OR_RESUME_ATTEMPT',
+            await this.transitionCheckoutAttemptPhase({
+              attemptId: idempotencyKey,
+              expectedPhases: ['ACQUIRE_RESERVATION'],
+              nextPhase: 'CREATE_OR_RESUME_ATTEMPT',
               authoritySource: 'local',
               waitingFor: 'none',
-              lastTransitionAt: new Date().toISOString(),
-              lastTransitionReason: 'checkout_retry_resumed_existing_order',
+              reason: 'checkout_retry_resumed_existing_order',
+              orderId: existing.id,
+              actor: 'user',
+            }).catch(err => {
+              logger.warn('Failed to transition checkout attempt on resumption', { idempotencyKey, err });
             });
           } else {
             logger.info('Duplicate checkout attempt, returning existing order', { userId, idempotencyKey });
@@ -402,6 +394,7 @@ export class OrderCheckoutService {
             reason: 'payment_intent_created_by_processor',
             orderId: order.id,
             paymentIntentId: paymentResult.transactionId,
+            actor: 'user',
           })).catch(err => {
             logger.error('FATAL: Failed to attach payment intent to checkout attempt', { orderId: order.id, transactionId: paymentResult.transactionId, err });
           });
@@ -418,6 +411,7 @@ export class OrderCheckoutService {
             reason: 'payment_intent_ready_for_confirmation',
             orderId: order.id,
             paymentIntentId: paymentResult.transactionId,
+            actor: 'user',
           })).catch(err => {
             logger.error('FATAL: Failed to move checkout attempt into payment confirmation wait', { orderId: order.id, transactionId: paymentResult.transactionId, err });
           });
@@ -430,7 +424,7 @@ export class OrderCheckoutService {
               correlationId: attemptId,
             },
             charges: { data: [] },
-          });
+          }, 'user');
           return finalizedOrder;
         } catch (finalizationErr) {
           this.logPhaseTransition(attemptId, 'FINALIZE_PAYMENT', 'RECOVER_OR_RECONCILE', 'operator', 'operator', { error: finalizationErr instanceof Error ? finalizationErr.message : 'Unknown finalization error' });
@@ -483,7 +477,7 @@ export class OrderCheckoutService {
     }
   }
 
-  async finalizeOrderPayment(paymentIntentId: string, stripePi?: any): Promise<Order> {
+  async finalizeOrderPayment(paymentIntentId: string, stripePi?: any, actor?: string): Promise<Order> {
     const db = getUnifiedDb();
     if (stripePi && stripePi.status && stripePi.status !== 'succeeded') {
       throw new PaymentFailedError('Cannot finalize an order for a payment that has not succeeded.');
@@ -502,12 +496,13 @@ export class OrderCheckoutService {
       if (isSafelyFinalizedCheckoutState({
         paymentState: nonTxOrder.paymentState,
         fulfillmentState: nonTxOrder.fulfillmentState,
-      })) {
+      }) || nonTxOrder.reconciliationState === 'resolved') {
         logger.info('checkout_finalize_early_exit', {
           orderId: nonTxOrder.id,
           paymentIntentId,
           paymentState: nonTxOrder.paymentState,
           fulfillmentState: nonTxOrder.fulfillmentState,
+          reconciliationState: nonTxOrder.reconciliationState,
         });
         return nonTxOrder;
       }
@@ -522,6 +517,20 @@ export class OrderCheckoutService {
     try {
       const finalizedOrder = await runTransaction(db, async (transaction: any) => {
         let order = await this.orderRepo.getByPaymentTransactionIdTransactional(paymentIntentId, transaction);
+        
+        if (order && (order.reconciliationState === 'resolved' || order.metadata?.reconciliationResolvedAt)) {
+          logger.info('checkout_finalize_tx_early_exit_resolved', { orderId: order.id, paymentIntentId });
+          return order;
+        }
+
+        const caseId = `${paymentIntentId}_paid_cancelled`;
+        const existingCase = typeof this.orderRepo.getReconciliationCase === 'function'
+          ? await this.orderRepo.getReconciliationCase(caseId, transaction)
+          : null;
+        if (existingCase && existingCase.lifecycleState === 'resolved') {
+          logger.info('checkout_finalize_tx_early_exit_case_resolved', { caseId, paymentIntentId });
+          return order;
+        }
         
         if (!order) {
           // Webhook Synchronous Race Fallback
@@ -558,6 +567,13 @@ export class OrderCheckoutService {
 
         const attemptId = order.idempotencyKey || order.metadata?.checkoutAttemptId || stripePi?.metadata?.checkoutKey || paymentIntentId;
         finalizedAttemptId = attemptId;
+
+        let attempt: any = null;
+        if (typeof this.orderRepo.getCheckoutAttempt === 'function') {
+          attempt = await this.orderRepo.getCheckoutAttempt(attemptId, transaction);
+        }
+        const isStaleAttempt = attempt && (attempt.state === 'cancelled' || attempt.state === 'restored' || attempt.state === 'restore_blocked');
+
         this.logPhaseTransition(attemptId, 'AWAIT_PAYMENT_CONFIRMATION', 'FINALIZE_PAYMENT', 'stripe', 'none', { paymentIntentId });
         await this.transitionCheckoutAttemptPhase({
           attemptId,
@@ -568,24 +584,41 @@ export class OrderCheckoutService {
           reason: 'local_finalization_started',
           orderId: order.id,
           paymentIntentId,
+          actor,
         }, transaction).catch(err => {
           logger.warn('checkout_phase_transition_nonblocking_failure', { attemptId, paymentIntentId, err });
         });
 
-        if (order.status !== 'pending') {
-          if (stripePi?.status === 'succeeded' && (order.status === 'cancelled' || order.status === 'refunded')) {
-            this.logPhaseTransition(attemptId, 'FINALIZE_PAYMENT', 'RECOVER_OR_RECONCILE', 'operator', 'operator', { conflict: 'paid_terminal_conflict', orderStatus: order.status });
-            terminalPaymentConflict.current = { orderId: order.id, previousStatus: order.status };
-            logger.error('Payment succeeded for terminal order. Moving order to reconciliation.', {
+        if (order.status !== 'pending' || isStaleAttempt) {
+          if (!isStaleAttempt && (
+            isSafelyFinalizedCheckoutState({ paymentState: order.paymentState, fulfillmentState: order.fulfillmentState }) ||
+            (order.paymentState === 'paid' && ['processing', 'confirmed', 'delivered', 'ready_for_pickup', 'delivery_started'].includes(order.status))
+          )) {
+            logger.info('Order already finalized inside transaction, returning existing state', { orderId: order.id, status: order.status });
+            return order;
+          }
+          const previousStatus = order.status;
+          if (stripePi?.status === 'succeeded') {
+            this.logPhaseTransition(attemptId, 'FINALIZE_PAYMENT', 'RECOVER_OR_RECONCILE', 'operator', 'operator', { 
+              conflict: isStaleAttempt ? 'paid_stale_attempt_conflict' : 'paid_terminal_conflict', 
+              orderStatus: previousStatus,
+              attemptState: attempt?.state
+            });
+            terminalPaymentConflict.current = { orderId: order.id, previousStatus };
+            logger.error('Payment succeeded for stale checkout attempt or terminal order. Moving order to reconciliation.', {
               orderId: order.id,
-              status: order.status,
+              status: previousStatus,
+              attemptState: attempt?.state,
               paymentIntentId
             });
-            if (order.status === 'cancelled') {
-              await this.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed', 'cancelled'], 'paid', 'stripe_succeeded_terminal_conflict', transaction);
+            const transitionReason = isStaleAttempt ? 'stripe_succeeded_stale_conflict' : 'stripe_succeeded_terminal_conflict';
+            if (previousStatus === 'cancelled' || isStaleAttempt) {
+              await this.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed', 'cancelled'], 'paid', transitionReason, transaction);
             }
-            await this.orderRepo.transitionReconciliationState(order.id, ['none', 'needs_review'], 'needs_review', 'paid_terminal_conflict', transaction);
-            await this.orderRepo.guardedUpdateStatus(order.id, ['cancelled', 'refunded'], 'reconciling', 'paid_terminal_conflict', transaction);
+            const reconciliationReason = isStaleAttempt ? 'paid_stale_conflict' : 'paid_terminal_conflict';
+            await this.orderRepo.transitionReconciliationState(order.id, ['none', 'needs_review'], 'needs_review', reconciliationReason, transaction);
+            const allowedPreviousStatuses: OrderStatus[] = previousStatus === 'cancelled' || previousStatus === 'refunded' ? ['cancelled', 'refunded'] : [previousStatus];
+            await this.orderRepo.guardedUpdateStatus(order.id, allowedPreviousStatuses, 'reconciling', reconciliationReason, transaction);
             await this.orderRepo.createOrUpdateReconciliationCase({
               paymentIntentId,
               orderId: order.id,
@@ -593,29 +626,44 @@ export class OrderCheckoutService {
               reason: 'paid_cancelled',
               severity: 'critical',
               stripeStatus: stripePi?.status || 'succeeded',
-              operatorVisibleMessage: `Payment ${paymentIntentId} succeeded after order ${order.id} was ${order.status}.`,
+              operatorVisibleMessage: isStaleAttempt
+                ? `Payment ${paymentIntentId} succeeded for order ${order.id} after the checkout attempt was already cancelled/rolled back.`
+                : `Payment ${paymentIntentId} succeeded after order ${order.id} reached terminal status ${previousStatus}.`,
               nextAction: 'Verify Stripe payment and decide whether to fulfill with restored inventory or refund.',
               details: {
-                previousStatus: order.status,
+                previousStatus,
+                attemptState: attempt?.state || null,
+                isStaleAttempt,
                 metadataOrderId: stripePi?.metadata?.orderId,
               },
               failureClassification: 'operator_required',
               lastObservedStripeState: stripePi?.status || 'succeeded',
-              lastObservedLocalState: `status:${order.status};paymentState:${order.paymentState || 'unknown'};reconciliationState:${order.reconciliationState || 'unknown'}`,
+              lastObservedLocalState: `status:${previousStatus};paymentState:${order.paymentState || 'unknown'};reconciliationState:${order.reconciliationState || 'unknown'}`,
             }, transaction);
-            await this.orderRepo.updateCheckoutAttempt(attemptId, {
-              currentPhase: 'RECOVER_OR_RECONCILE',
-              authoritySource: 'operator',
-              waitingFor: 'operator',
-              state: 'reconciling',
-            }, transaction);
+            if (attempt) {
+              await this.transitionCheckoutAttemptPhase({
+                attemptId,
+                expectedPhases: ['FINALIZE_PAYMENT', 'AWAIT_PAYMENT_CONFIRMATION'],
+                nextPhase: 'RECOVER_OR_RECONCILE',
+                authoritySource: 'operator',
+                waitingFor: 'operator',
+                reason: isStaleAttempt ? 'stripe_succeeded_stale_conflict' : 'stripe_succeeded_terminal_conflict',
+                orderId: order.id,
+                paymentIntentId,
+                actor: actor || 'stripe-webhook',
+              }, transaction).catch(err => {
+                logger.warn('reconciliation_phase_transition_failure', { attemptId, err });
+              });
+              await this.orderRepo.updateCheckoutAttempt(attemptId, { state: 'reconciling' }, transaction);
+            }
             await this.audit.recordWithTransaction(transaction, {
               userId: 'system',
               userEmail: 'stripe-webhook@dreambees.art',
-              action: 'payment_received_on_cancelled_order',
+              action: isStaleAttempt ? 'payment_received_on_stale_attempt' : 'payment_received_on_cancelled_order',
               targetId: order.id,
               details: {
-                previousStatus: order.status,
+                previousStatus,
+                attemptState: attempt?.state || null,
                 paymentIntentId,
                 metadataOrderId: stripePi?.metadata?.orderId
               },
@@ -653,12 +701,20 @@ export class OrderCheckoutService {
             lastObservedStripeState: stripePi?.status || 'succeeded',
             lastObservedLocalState: `status:${order.status};paymentState:${order.paymentState || 'unknown'};reconciliationState:${order.reconciliationState || 'unknown'}`,
           }, transaction);
-          await this.orderRepo.updateCheckoutAttempt(attemptId, {
-            currentPhase: 'RECOVER_OR_RECONCILE',
+          await this.transitionCheckoutAttemptPhase({
+            attemptId,
+            expectedPhases: ['FINALIZE_PAYMENT'],
+            nextPhase: 'RECOVER_OR_RECONCILE',
             authoritySource: 'operator',
             waitingFor: 'operator',
-            state: 'reconciling',
-          }, transaction);
+            reason: 'fencing_token_mismatch',
+            orderId: order.id,
+            paymentIntentId,
+            actor: actor || 'stripe-webhook',
+          }, transaction).catch(err => {
+            logger.warn('reconciliation_phase_transition_failure', { attemptId, err });
+          });
+          await this.orderRepo.updateCheckoutAttempt(attemptId, { state: 'reconciling' }, transaction);
           await this.audit.recordWithTransaction(transaction, {
             userId: 'system',
             userEmail: 'stripe-webhook@dreambees.art',
@@ -803,6 +859,7 @@ export class OrderCheckoutService {
           reason: 'checkout_completed_after_payment_finalization',
           orderId: finalizedOrder.id,
           paymentIntentId,
+          actor,
         })).catch((err: any) => {
           logger.error('FATAL: Failed to mark checkout phase complete after finalization commit', { orderId: finalizedOrder.id, paymentIntentId, err });
         });
@@ -874,6 +931,159 @@ export class OrderCheckoutService {
       logger.error('CRITICAL: Failed to finalize order payment. System may be out of sync.', { paymentIntentId, err });
       throw err;
     }
+  }
+
+  async rollbackUnpaidCheckout(
+    orderId: string,
+    checkoutAttemptId: string,
+    paymentIntentId: string | null,
+    reason: string
+  ): Promise<void> {
+    const db = getUnifiedDb();
+    logger.info(`[CHECKOUT-WORKFLOW] [Attempt: ${checkoutAttemptId}] Initiating rollbackUnpaidCheckout for Order: ${orderId}, PI: ${paymentIntentId || 'null'}, Reason: ${reason}`);
+
+    await runTransaction(db, async (transaction: any) => {
+      const order = await this.orderRepo.getById(orderId, transaction);
+      if (!order) {
+        logger.warn('rollbackUnpaidCheckout: Order not found', { orderId });
+        return;
+      }
+
+      const finalizedStatuses: OrderStatus[] = ['confirmed', 'processing', 'shipped', 'delivered', 'ready_for_pickup', 'delivery_started', 'refunded', 'partially_refunded'];
+      if (finalizedStatuses.includes(order.status) || order.paymentState === 'paid') {
+        logger.info('rollbackUnpaidCheckout: Early exit, order already finalized or paid', {
+          orderId,
+          status: order.status,
+          paymentState: order.paymentState
+        });
+        return;
+      }
+
+      if (order.status === 'cancelled') {
+        logger.info('rollbackUnpaidCheckout: Order is already cancelled', { orderId });
+        return;
+      }
+
+      await this.orderRepo.updateMetadata(orderId, {
+        ...(order.metadata || {}),
+        currentPhase: 'RECOVER_OR_RECONCILE',
+        authoritySource: 'local',
+        waitingFor: 'none'
+      }, transaction);
+
+      await this.orderRepo.transitionPaymentState(
+        orderId,
+        ['unpaid', 'requires_payment_method', 'processing', 'failed'],
+        paymentIntentId ? 'cancelled' : 'failed',
+        reason,
+        transaction
+      );
+
+      await this.orderRepo.guardedUpdateStatus(orderId, ['pending'], 'cancelled', reason, transaction);
+
+      await this.orderRepo.updateCheckoutAttempt(checkoutAttemptId, {
+        state: 'cancelled',
+        paymentIntentId,
+      }, transaction).catch(err => {
+        logger.error('Failed to mark checkout attempt cancelled', { checkoutAttemptId, err });
+      });
+
+      await this.transitionCheckoutAttemptPhase({
+        attemptId: checkoutAttemptId,
+        expectedPhases: ['PREPARE_CHECKOUT', 'ACQUIRE_RESERVATION', 'CREATE_OR_RESUME_ATTEMPT', 'INITIALIZE_ORDER', 'CREATE_OR_RESUME_PAYMENT_INTENT', 'AWAIT_PAYMENT_CONFIRMATION', 'RECOVER_OR_RECONCILE'],
+        nextPhase: 'RECOVER_OR_RECONCILE',
+        authoritySource: 'local',
+        waitingFor: 'none',
+        reason: `rollback: ${reason}`,
+        orderId,
+        paymentIntentId,
+        actor: 'system',
+      }, transaction).catch(err => {
+        logger.info('checkout_failed_phase_already_advanced', { orderId, checkoutAttemptId, err });
+      });
+
+      const physicalItems = order.items.filter(item => !item.isDigital);
+      if (physicalItems.length > 0 && order.metadata?.inventoryReserved && !order.metadata?.inventoryReservationReleased) {
+        const stockUpdates = coalesceStockUpdates(physicalItems.map(item => ({
+          id: item.productId,
+          variantId: item.variantId,
+          delta: item.quantity
+        })));
+
+        if (stockUpdates.length > 0) {
+          await this.productRepo.batchUpdateStock(stockUpdates, transaction);
+        }
+
+        await this.orderRepo.updateMetadata(orderId, {
+          ...(order.metadata || {}),
+          inventoryReservationReleased: true,
+          inventoryReservationReleasedAt: new Date().toISOString(),
+          currentPhase: 'RECOVER_OR_RECONCILE',
+          authoritySource: 'local',
+          waitingFor: 'none'
+        }, transaction);
+      }
+
+      if (order.discountCode) {
+        const discount = await this.discountRepo.getByCode(order.discountCode, transaction);
+        if (discount) {
+          await this.discountRepo.decrementUsage(discount.id, transaction);
+          if (order.userId) {
+            await this.orderRepo.removeUserDiscountUsage(order.userId, order.discountCode, transaction);
+          }
+        }
+      }
+
+      // Stale attempt guard: prevent older attempts from restoring the cart if a newer checkout is active
+      if (typeof this.orderRepo.getLatestCheckoutAttemptForUser === 'function') {
+        const latestAttempt = await this.orderRepo.getLatestCheckoutAttemptForUser(order.userId, transaction);
+        if (latestAttempt && latestAttempt.idempotencyKey !== checkoutAttemptId) {
+          await this.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' }, transaction);
+          logger.warn('Skipping cart restore because a newer checkout attempt exists', {
+            userId: order.userId,
+            attemptId: checkoutAttemptId,
+            latestAttemptId: latestAttempt.idempotencyKey
+          });
+          return;
+        }
+      }
+
+      const existingCart = await this.cartRepo.getByUserId(order.userId, transaction);
+      if (!existingCart || existingCart.items.length === 0) {
+        const restoredCart: Cart = {
+          id: order.userId,
+          userId: order.userId,
+          items: order.items.map(item => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            variantTitle: item.variantTitle,
+            productHandle: item.productHandle,
+            name: item.name,
+            priceSnapshot: item.unitPrice,
+            quantity: item.quantity,
+            imageUrl: item.imageUrl || '',
+            isDigital: item.isDigital,
+            shippingClassId: item.shippingClassId,
+          })),
+          note: order.customerNote,
+          updatedAt: new Date(),
+        };
+        await this.cartRepo.save(restoredCart, transaction);
+        await this.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restored' }, transaction);
+
+        await this.audit.recordWithTransaction(transaction, {
+          userId: order.userId,
+          userEmail: order.customerEmail || 'unknown@dreambees.art',
+          action: 'checkout_rollback_success',
+          targetId: orderId,
+          details: { checkoutAttemptId, cartItemsCount: restoredCart.items.length, reason },
+          correlationId: checkoutAttemptId || undefined
+        });
+      } else {
+        await this.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' }, transaction);
+        logger.warn('Skipping cart restore because user cart is not empty', { userId: order.userId, orderId });
+      }
+    });
   }
 
   private normalizeLockResult(result: { success: boolean; fencingToken: number | null } | boolean): { success: boolean; fencingToken: number | null } {

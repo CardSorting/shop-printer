@@ -30,7 +30,7 @@ export type AuditAction =
   | 'discount_created' | 'discount_updated' | 'discount_deleted' | 'barter_discount_created'
   | 'auth_signin' | 'auth_signup' | 'auth_signout' | 'auth_password_reset' | 'auth_password_reset_requested'
   | 'staff_added' | 'staff_removed' | 'staff_role_updated'
-  | 'checkout_reconciliation_required' | 'payment_received_on_cancelled_order'
+  | 'checkout_reconciliation_required' | 'payment_received_on_cancelled_order' | 'payment_received_on_stale_attempt'
   | 'purchase_order.created' | 'purchase_order.submitted' | 'purchase_order.cancelled' | 'purchase_order.closed' | 'purchase_order.items_received'
   | 'supplier.created' | 'supplier.updated' | 'supplier.deleted'
   | 'collection.created' | 'collection.updated' | 'collection.deleted'
@@ -47,7 +47,8 @@ export type AuditAction =
   | 'shipping_class_saved' | 'shipping_class_deleted' | 'shipping_zone_saved' | 'shipping_zone_deleted' | 'shipping_rate_saved' | 'shipping_rate_deleted'
   | 'account_deletion_requested' | 'marketing_unsubscribe_requested'
   | 'blog.comment_deleted' | 'blog.comment_status_updated'
-  | 'checkout_resumed' | 'checkout_rollback_success' | 'checkout_rollback_failed';
+  | 'checkout_resumed' | 'checkout_rollback_success' | 'checkout_rollback_failed'
+  | 'reconciliation_operator_action';
 
 export interface AuditEntry {
   id: string;

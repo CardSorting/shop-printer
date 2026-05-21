@@ -122,9 +122,19 @@ export class OrderService {
     );
   }
 
-  finalizeOrderPayment(paymentIntentId: string, stripePi?: any): Promise<Order> {
-    return this.checkoutService.finalizeOrderPayment(paymentIntentId, stripePi);
+  finalizeOrderPayment(paymentIntentId: string, stripePi?: any, actor?: string): Promise<Order> {
+    return this.checkoutService.finalizeOrderPayment(paymentIntentId, stripePi, actor);
   }
+
+  rollbackUnpaidCheckout(
+    orderId: string,
+    checkoutAttemptId: string,
+    paymentIntentId: string | null,
+    reason: string
+  ): Promise<void> {
+    return this.checkoutService.rollbackUnpaidCheckout(orderId, checkoutAttemptId, paymentIntentId, reason);
+  }
+
 
   finalizeTrustedCheckout(
     userId: string,
@@ -213,12 +223,16 @@ export class OrderService {
         try {
           const paymentIntent = await stripeService.getPaymentIntent(order.paymentTransactionId);
           if (paymentIntent.status === 'succeeded') {
-            await Promise.resolve(this.orderRepo.updateCheckoutAttempt(order.idempotencyKey || order.metadata?.checkoutAttemptId || order.id, {
-              currentPhase: 'RECOVER_OR_RECONCILE',
+            await Promise.resolve((this.orderRepo as any).transitionCheckoutAttemptPhase?.({
+              attemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || order.id,
+              expectedPhases: ['PREPARE_CHECKOUT', 'ACQUIRE_RESERVATION', 'CREATE_OR_RESUME_ATTEMPT', 'INITIALIZE_ORDER', 'CREATE_OR_RESUME_PAYMENT_INTENT', 'AWAIT_PAYMENT_CONFIRMATION', 'RECOVER_OR_RECONCILE'],
+              nextPhase: 'RECOVER_OR_RECONCILE',
               authoritySource: 'stripe',
               waitingFor: 'verification',
-              lastTransitionAt: new Date().toISOString(),
-              lastTransitionReason: 'cleanup_observed_stripe_success',
+              reason: 'cleanup_observed_stripe_success',
+              orderId: order.id,
+              paymentIntentId: paymentIntent.id,
+              actor: 'system',
             })).catch(() => {});
             logger.info('cleanup_finalizing_stripe_succeeded_payment', {
               orderId: order.id,
@@ -454,5 +468,63 @@ export class OrderService {
         .map(itemFromCase),
       raw: state,
     };
+  }
+
+  async getReconciliationCasesReadModel(options?: { limit?: number }): Promise<any> {
+    return this.adminService.getReconciliationCasesReadModel(options);
+  }
+
+  async getForensicTimeline(attemptId: string): Promise<any> {
+    return this.adminService.getForensicTimeline(attemptId);
+  }
+
+  async handleReconciliationOperatorAction(params: {
+    caseId: string;
+    action: 'mark_resolved' | 'retry_recovery' | 'initiate_refund_review' | 'acknowledge_external' | 'escalate';
+    reason: string;
+    actor: { id: string; email: string };
+  }): Promise<void> {
+    await this.adminService.handleReconciliationOperatorAction(params);
+
+    if (params.action === 'retry_recovery') {
+      const kase = await this.orderRepo.getReconciliationCase(params.caseId);
+      if (kase && kase.reason === 'paid_not_finalized') {
+        try {
+          await this.finalizeOrderPayment(kase.paymentIntentId, null, params.actor.email);
+
+          await this.adminService.handleReconciliationOperatorAction({
+            caseId: params.caseId,
+            action: 'mark_resolved',
+            reason: `Automated recovery retry completed successfully: ${params.reason}`,
+            actor: params.actor,
+          });
+        } catch (error: any) {
+          logger.error('reconciliation_operator_action_retry_recovery_failed', { caseId: params.caseId, error });
+          
+          await this.orderRepo.createOrUpdateReconciliationCase({
+            paymentIntentId: kase.paymentIntentId,
+            reason: kase.reason,
+            severity: kase.severity,
+            lifecycleState: 'repair_attempted',
+            repairAttempt: {
+              attemptedAt: new Date().toISOString(),
+              error: error.message,
+            },
+            evidence: [
+              ...(kase.evidence || []),
+              {
+                type: 'recovery_failure',
+                value: `Automated recovery attempt failed: ${error.message}`,
+                recordedAt: new Date().toISOString()
+              }
+            ],
+            operatorVisibleMessage: kase.operatorVisibleMessage,
+            nextAction: 'Automated recovery failed. Manual intervention or escalation required.',
+          });
+
+          throw new Error(`Automated recovery failed: ${error.message}`);
+        }
+      }
+    }
   }
 }

@@ -80,7 +80,7 @@ describe('Stripe Webhook Route - Reservation with Rollback', () => {
     expect(response.status).toBe(200);
     expect(data.received).toBe(true);
     expect(mockStripe.tryProcessEvent).toHaveBeenCalledWith('evt_123', 'payment_intent.succeeded');
-    expect(mockOrderService.finalizeOrderPayment).toHaveBeenCalledWith('pi_123', expect.anything());
+    expect(mockOrderService.finalizeOrderPayment).toHaveBeenCalledWith('pi_123', expect.anything(), 'stripe-webhook');
     expect(mockStripe.deleteEvent).not.toHaveBeenCalled();
   });
 

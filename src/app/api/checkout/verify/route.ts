@@ -76,12 +76,13 @@ export async function GET(request: Request) {
           reason: 'verify_observed_stripe_success',
           orderId: order.id,
           paymentIntentId,
+          actor: 'user',
         }).catch((err: any) => {
           logger.info('checkout_verify_phase_already_advanced', { orderId: order.id, paymentIntentId, err });
         });
         // 2. Authoritatively finalize if not already done by webhook
         // (OrderService.finalizeOrderPayment is idempotent)
-        const finalizedOrder = await services.orderService.finalizeOrderPayment(paymentIntentId, pi);
+        const finalizedOrder = await services.orderService.finalizeOrderPayment(paymentIntentId, pi, 'user');
         
         return NextResponse.json({
             success: true,

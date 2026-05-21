@@ -1,6 +1,6 @@
 import * as crypto from 'node:crypto';
 import type { IDiscountRepository, IOrderRepository, IProductRepository } from '@domain/repositories';
-import type { Address, Order, OrderFulfillmentEvent, OrderNote, OrderStatus } from '@domain/models';
+import type { Address, Order, OrderFulfillmentEvent, OrderNote, OrderStatus, PaymentReconciliationCase } from '@domain/models';
 import { OrderNotFoundError, ProductNotFoundError } from '@domain/errors';
 import { assertValidOrderStatusTransition, calculateTax, coalesceStockUpdates, deriveTrackingUrl } from '@domain/rules';
 import { doc, getUnifiedDb, runTransaction, serverTimestamp } from '@infrastructure/firebase/bridge';
@@ -625,6 +625,240 @@ export class OrderAdminService {
       ...(order.metadata || {}),
       inventoryReservationReleased: true,
       inventoryReservationReleasedAt: new Date().toISOString(),
+    });
+  }
+
+  async getReconciliationCasesReadModel(options?: { limit?: number }): Promise<any> {
+    const limit = options?.limit || 50;
+    const openCases = await this.orderRepo.getOpenReconciliationCases({ limit });
+
+    const allItems = await Promise.all(
+      openCases.map(async (kase) => {
+        let amount: number | null = null;
+        let customerName: string | null = null;
+        let customerEmail: string | null = null;
+
+        let order: any = null;
+        if (kase.orderId) {
+          order = await this.orderRepo.getById(kase.orderId);
+          if (order) {
+            amount = order.total;
+            customerName = order.customerName || null;
+            customerEmail = order.customerEmail || null;
+          }
+        }
+
+        if (!order && kase.checkoutAttemptId) {
+          const attempt = await this.orderRepo.getCheckoutAttempt(kase.checkoutAttemptId);
+          if (attempt) {
+            customerName = attempt.checkoutOwner || attempt.cartOwner || null;
+          }
+        }
+
+        const ageMs = Date.now() - new Date(kase.createdAt).getTime();
+
+        let authoritativeSource: 'stripe' | 'local' = 'local';
+        if (kase.stripeStatus === 'succeeded' || ['paid_cancelled', 'paid_not_finalized'].includes(kase.reason)) {
+          authoritativeSource = 'stripe';
+        } else if (order && order.paymentState === 'paid' && ['confirmed', 'processing', 'shipped', 'delivered'].includes(order.status)) {
+          authoritativeSource = 'local';
+        }
+
+        return {
+          id: kase.id,
+          paymentIntentId: kase.paymentIntentId,
+          orderId: kase.orderId || null,
+          checkoutAttemptId: kase.checkoutAttemptId || null,
+          reason: kase.reason,
+          severity: kase.severity,
+          lifecycleState: kase.lifecycleState,
+          failureClassification: kase.failureClassification || 'operator_required',
+          customer: customerName || customerEmail ? { name: customerName || 'Unknown Customer', email: customerEmail || 'N/A' } : null,
+          amount,
+          ageMs,
+          recommendedAction: kase.recommendedAction || kase.nextAction,
+          nextAction: kase.nextAction,
+          authoritativeSource,
+          stripeStatus: kase.stripeStatus || null,
+          operatorVisibleMessage: kase.operatorVisibleMessage,
+          createdAt: kase.createdAt,
+          updatedAt: kase.updatedAt,
+        };
+      })
+    );
+
+    const criticalCases: any[] = [];
+    const highCases: any[] = [];
+    const byFailureClass: Record<string, any[]> = {};
+
+    allItems.forEach((item) => {
+      if (item.severity === 'critical') {
+        criticalCases.push(item);
+      } else {
+        highCases.push(item);
+      }
+
+      const fClass = item.failureClassification;
+      if (!byFailureClass[fClass]) {
+        byFailureClass[fClass] = [];
+      }
+      byFailureClass[fClass].push(item);
+    });
+
+    return {
+      cases: allItems,
+      grouped: {
+        bySeverity: {
+          critical: criticalCases,
+          high: highCases,
+        },
+        byFailureClass,
+      },
+    };
+  }
+
+  async getForensicTimeline(attemptId: string): Promise<any> {
+    const attempt = await this.orderRepo.getCheckoutAttempt(attemptId);
+    if (!attempt) {
+      throw new Error(`Checkout attempt with ID ${attemptId} not found.`);
+    }
+
+    const orderId = attempt.orderId;
+    const order = orderId ? await this.orderRepo.getById(orderId) : null;
+
+    const openCases = await this.orderRepo.getOpenReconciliationCases({ limit: 100 });
+    const reconCase = openCases.find(
+      (c) =>
+        c.checkoutAttemptId === attemptId ||
+        c.orderId === orderId ||
+        (attempt.paymentIntentId && c.paymentIntentId === attempt.paymentIntentId)
+    ) || null;
+
+    const { reconstructTimeline, renderTransitionStream, correlateGroupedEvents, runAuthoritativeDiagnostics } = await import('./checkoutForensics');
+
+    const timeline = reconstructTimeline(attempt);
+    const correlation = correlateGroupedEvents(attempt, order, reconCase);
+    const diagnostics = runAuthoritativeDiagnostics(attempt, order, reconCase);
+    const renderedMarkdown = renderTransitionStream(timeline);
+
+    return {
+      attemptId,
+      orderId,
+      paymentIntentId: attempt.paymentIntentId,
+      timeline,
+      correlation,
+      diagnostics,
+      renderedMarkdown,
+    };
+  }
+
+  async handleReconciliationOperatorAction(params: {
+    caseId: string;
+    action: 'mark_resolved' | 'retry_recovery' | 'initiate_refund_review' | 'acknowledge_external' | 'escalate';
+    reason: string;
+    actor: { id: string; email: string };
+  }): Promise<void> {
+    if (!params.reason || !params.reason.trim()) {
+      throw new Error('A reason is required to perform an operator action.');
+    }
+
+    const kase = await this.orderRepo.getReconciliationCase(params.caseId);
+    if (!kase) {
+      throw new Error(`Reconciliation case with ID ${params.caseId} not found.`);
+    }
+
+    if (kase.lifecycleState === 'resolved') {
+      if (params.action === 'mark_resolved' || params.action === 'acknowledge_external') {
+        logger.info('reconciliation_operator_action_already_resolved_idempotent', { caseId: params.caseId });
+        return;
+      }
+      throw new Error(`Stale action rejected: Reconciliation case ${params.caseId} is already resolved and cannot be modified.`);
+    }
+
+    const db = getUnifiedDb();
+    const recordedAt = new Date().toISOString();
+    const actionEvidence = {
+      type: 'operator_action',
+      value: `Action: ${params.action}, Reason: ${params.reason}, By: ${params.actor.email}`,
+      recordedAt,
+    };
+
+    const newEvidence = [...(kase.evidence || []), actionEvidence];
+
+    if (params.action === 'mark_resolved' || params.action === 'acknowledge_external') {
+      await runTransaction(db, async (transaction: any) => {
+        await this.orderRepo.createOrUpdateReconciliationCase({
+          paymentIntentId: kase.paymentIntentId,
+          reason: kase.reason,
+          severity: kase.severity,
+          lifecycleState: 'resolved',
+          evidence: newEvidence,
+          operatorVisibleMessage: `Resolved by operator: ${params.reason}`,
+          nextAction: 'None - Case is resolved.',
+          recommendedAction: 'None',
+        }, transaction);
+
+        if (kase.orderId) {
+          const order = await this.orderRepo.getById(kase.orderId, transaction);
+          if (order) {
+            await this.orderRepo.transitionReconciliationState(order.id, ['needs_review', 'in_progress', 'none'], 'resolved', 'operator_resolution', transaction);
+            await this.orderRepo.clearReconciliationFlag(order.id, transaction);
+          }
+        }
+      });
+    } else if (params.action === 'initiate_refund_review') {
+      await runTransaction(db, async (transaction: any) => {
+        await this.orderRepo.createOrUpdateReconciliationCase({
+          paymentIntentId: kase.paymentIntentId,
+          reason: kase.reason,
+          severity: kase.severity,
+          lifecycleState: 'in_progress',
+          evidence: newEvidence,
+          operatorVisibleMessage: kase.operatorVisibleMessage,
+          nextAction: 'refund_review_active',
+          recommendedAction: 'Review the refund review request manually using the RefundService.',
+        }, transaction);
+      });
+    } else if (params.action === 'escalate') {
+      await runTransaction(db, async (transaction: any) => {
+        await this.orderRepo.createOrUpdateReconciliationCase({
+          paymentIntentId: kase.paymentIntentId,
+          reason: kase.reason,
+          severity: kase.severity,
+          lifecycleState: 'blocked',
+          evidence: newEvidence,
+          operatorVisibleMessage: `Escalated: ${params.reason}`,
+          nextAction: 'Manual investigation escalated to senior support engineering.',
+          recommendedAction: 'Inspect the audit logs and Firestore raw document states.',
+        }, transaction);
+      });
+    } else if (params.action === 'retry_recovery') {
+      if (kase.reason !== 'paid_not_finalized') {
+        throw new Error(`Automated recovery is not supported for case reason '${kase.reason}'. Manual resolution is required.`);
+      }
+      await runTransaction(db, async (transaction: any) => {
+        await this.orderRepo.createOrUpdateReconciliationCase({
+          paymentIntentId: kase.paymentIntentId,
+          reason: kase.reason,
+          severity: kase.severity,
+          lifecycleState: 'repair_attempted',
+          evidence: newEvidence,
+          operatorVisibleMessage: kase.operatorVisibleMessage,
+          nextAction: 'Automated recovery attempt in progress.',
+        }, transaction);
+      });
+    }
+
+    await this.audit.record({
+      userId: params.actor.id,
+      userEmail: params.actor.email,
+      action: 'reconciliation_operator_action',
+      targetId: params.caseId,
+      details: {
+        action: params.action,
+        reason: params.reason,
+        caseReason: kase.reason,
+      },
     });
   }
 }

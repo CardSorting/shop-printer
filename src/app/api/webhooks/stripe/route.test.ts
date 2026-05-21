@@ -86,7 +86,7 @@ describe('Stripe webhook replay handling', () => {
     const body = await response.json();
 
     expect(body.received).toBe(true);
-    expect(finalizeOrderPayment).toHaveBeenCalledWith('pi_1', { id: 'pi_1' });
+    expect(finalizeOrderPayment).toHaveBeenCalledWith('pi_1', { id: 'pi_1' }, 'stripe-webhook');
     expect(markEventProcessed).toHaveBeenCalledWith('evt_1', 'payment_intent.succeeded', 'claim-token-1');
   });
 
@@ -118,7 +118,7 @@ describe('Stripe webhook replay handling', () => {
     const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
 
     expect(response.status).toBe(200);
-    expect(finalizeOrderPayment).toHaveBeenCalledWith('pi_1', { id: 'pi_1', status: 'succeeded', metadata: { orderId: 'o1' } });
+    expect(finalizeOrderPayment).toHaveBeenCalledWith('pi_1', { id: 'pi_1', status: 'succeeded', metadata: { orderId: 'o1' } }, 'stripe-webhook');
     expect(updateOrderStatus).not.toHaveBeenCalled();
     expect(markEventProcessed).toHaveBeenCalledWith('evt_failed_stale', 'payment_intent.payment_failed', null);
   });

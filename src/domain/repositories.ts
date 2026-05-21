@@ -94,7 +94,11 @@ export interface IOrderRepository {
   transitionReconciliationState(id: string, allowedCurrentStates: ReconciliationState[], nextState: ReconciliationState, reason: string, transaction?: any): Promise<void>;
   updatePaymentTransactionId(id: string, paymentTransactionId: string, transaction?: any): Promise<void>;
   recordCheckoutAttempt(attempt: Omit<CheckoutAttempt, 'createdAt' | 'updatedAt'>, transaction?: any): Promise<void>;
-  updateCheckoutAttempt(idempotencyKey: string, updates: Partial<Omit<CheckoutAttempt, 'id' | 'createdAt' | 'updatedAt'>>, transaction?: any): Promise<void>;
+  updateCheckoutAttempt(
+    idempotencyKey: string,
+    updates: Partial<Omit<CheckoutAttempt, 'id' | 'createdAt' | 'updatedAt' | 'currentPhase' | 'checkoutPhase' | 'authoritySource' | 'waitingFor'>>,
+    transaction?: any
+  ): Promise<void>;
   transitionCheckoutAttemptPhase(params: {
     attemptId: string;
     expectedPhases: CheckoutWorkflowPhase[];
@@ -105,6 +109,7 @@ export interface IOrderRepository {
     evidence?: CheckoutTransitionEvidence;
     orderId?: string | null;
     paymentIntentId?: string | null;
+    actor?: string;
   }, transaction?: any): Promise<void>;
   getCheckoutAttempt(idempotencyKey: string, transaction?: any): Promise<CheckoutAttempt | null>;
   getLatestCheckoutAttemptForUser(userId: string, transaction?: any): Promise<CheckoutAttempt | null>;
@@ -128,6 +133,7 @@ export interface IOrderRepository {
     blockingProductionReadiness?: boolean;
   }, transaction?: any): Promise<void>;
   getOpenReconciliationCases(options?: { limit?: number; reason?: PaymentReconciliationReason }): Promise<PaymentReconciliationCase[]>;
+  getReconciliationCase(caseId: string, transaction?: any): Promise<PaymentReconciliationCase | null>;
   getStuckCheckoutStates(options?: { limit?: number }): Promise<{
     openReconciliationCases: PaymentReconciliationCase[];
     pendingPaidOrders: Order[];

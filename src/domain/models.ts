@@ -361,6 +361,19 @@ export type CheckoutWorkflowPhase =
   | 'COMPLETE_CHECKOUT'
   | 'RECOVER_OR_RECONCILE';
 
+export type CheckoutPhase =
+  | 'preparing'
+  | 'reservation_acquired'
+  | 'attempt_active'
+  | 'payment_intent_ready'
+  | 'order_initialized'
+  | 'awaiting_payment'
+  | 'payment_confirmed'
+  | 'finalized'
+  | 'recovery_required'
+  | 'reconciliation_required'
+  | 'terminal';
+
 export type CheckoutAuthoritySource = 'local' | 'stripe' | 'operator';
 
 export type CheckoutWaitingFor =
@@ -409,6 +422,7 @@ export interface CheckoutAttempt {
   createdAt: Date;
   updatedAt: Date;
   currentPhase?: CheckoutWorkflowPhase;
+  checkoutPhase?: CheckoutPhase;
   authoritySource?: CheckoutAuthoritySource;
   waitingFor?: CheckoutWaitingFor;
   nextAction?: string;

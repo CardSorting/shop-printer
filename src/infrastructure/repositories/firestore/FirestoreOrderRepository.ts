@@ -32,6 +32,7 @@ import type {
   CheckoutAuthoritySource,
   CheckoutAttempt,
   CheckoutAttemptState,
+  CheckoutPhase,
   CheckoutTransitionEvidence,
   CheckoutWaitingFor,
   CheckoutWorkflowPhase,
@@ -47,7 +48,7 @@ import type {
   PaymentReconciliationCaseLifecycleState,
   PaymentReconciliationReason,
 } from '@domain/models';
-import { assertLegalCheckoutPhaseTransition } from '@core/order/checkoutWorkflow';
+import { assertLegalCheckoutPhaseTransition, assertLegalCheckoutPhaseTransitionNew, mapWorkflowPhaseToCheckoutPhase } from '@core/order/checkoutWorkflow';
 
 
 import { mapDoc, mapTimestamp } from './utils';
@@ -728,9 +729,16 @@ export class FirestoreOrderRepository implements IOrderRepository {
 
   async updateCheckoutAttempt(
     idempotencyKey: string,
-    updates: Partial<Omit<CheckoutAttempt, 'id' | 'createdAt' | 'updatedAt'>>,
+    updates: Partial<Omit<CheckoutAttempt, 'id' | 'createdAt' | 'updatedAt' | 'currentPhase' | 'checkoutPhase' | 'authoritySource' | 'waitingFor'>>,
     transaction?: any
   ): Promise<void> {
+    const forbiddenKeys: (keyof CheckoutAttempt)[] = ['currentPhase', 'checkoutPhase', 'authoritySource', 'waitingFor'];
+    for (const key of forbiddenKeys) {
+      if (key in updates) {
+        throw new Error(`Direct update of state-machine property '${key}' via updateCheckoutAttempt is prohibited. Use transitionCheckoutAttemptPhase instead.`);
+      }
+    }
+
     const db = getUnifiedDb();
     if (transaction) {
       const attemptRef = doc(db, this.checkoutAttemptCollectionName, idempotencyKey);
@@ -781,6 +789,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
     evidence?: CheckoutTransitionEvidence;
     orderId?: string | null;
     paymentIntentId?: string | null;
+    actor?: string;
   }, transaction?: any): Promise<void> {
     const db = getUnifiedDb();
     const attemptRef = doc(db, this.checkoutAttemptCollectionName, params.attemptId);
@@ -799,23 +808,37 @@ export class FirestoreOrderRepository implements IOrderRepository {
       }
       assertLegalCheckoutPhaseTransition(currentPhase, params.nextPhase, params.reason);
 
+      const oldCheckoutPhase = data.checkoutPhase as CheckoutPhase | undefined || mapWorkflowPhaseToCheckoutPhase(currentPhase, data.state, params.reason);
+      const nextCheckoutPhase = mapWorkflowPhaseToCheckoutPhase(
+        params.nextPhase, 
+        params.nextPhase === 'RECOVER_OR_RECONCILE' ? 'reconciling' : (params.nextPhase === 'COMPLETE_CHECKOUT' ? 'paid' : data.state),
+        params.reason
+      );
+      assertLegalCheckoutPhaseTransitionNew(oldCheckoutPhase, nextCheckoutPhase, params.reason);
+
       const payload: Record<string, any> = {
         currentPhase: params.nextPhase,
+        checkoutPhase: nextCheckoutPhase,
         authoritySource: params.authoritySource,
         waitingFor: params.waitingFor,
         lastTransitionAt: transitionAt,
         lastTransitionReason: params.reason,
         updatedAt: serverTimestamp(),
         [`phaseTransitions.${Date.now()}`]: {
-          oldPhase: currentPhase || null,
-          newPhase: params.nextPhase,
+          previousPhase: oldCheckoutPhase || null,
+          previousWorkflowPhase: currentPhase || null,
+          previousStatus: data.state || null,
+          nextPhase: nextCheckoutPhase,
+          nextWorkflowPhase: params.nextPhase,
+          nextStatus: params.nextPhase === 'COMPLETE_CHECKOUT' ? 'paid' : (params.nextPhase === 'RECOVER_OR_RECONCILE' ? 'cancelled' : data.state || null),
           authoritySource: params.authoritySource,
-          waitingFor: params.waitingFor,
+          actor: params.actor ?? 'system',
           reason: params.reason,
-          evidence: params.evidence || [],
+          attemptId: params.attemptId,
           orderId: params.orderId ?? data.orderId ?? null,
           paymentIntentId: params.paymentIntentId ?? data.paymentIntentId ?? null,
           transitionedAt: transitionAt,
+          evidence: params.evidence || [],
         },
       };
       if (params.orderId !== undefined) payload.orderId = params.orderId;
@@ -972,6 +995,13 @@ export class FirestoreOrderRepository implements IOrderRepository {
 
     const snapshot = await getDocs(q);
     return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToReconciliationCase(d.id, d.data() as any));
+  }
+
+  async getReconciliationCase(caseId: string, transaction?: any): Promise<PaymentReconciliationCase | null> {
+    const ref = doc(getUnifiedDb(), this.reconciliationCaseCollectionName, caseId);
+    const snap = transaction ? await transaction.get(ref) : await getDoc(ref);
+    if (!snap.exists()) return null;
+    return this.mapDocToReconciliationCase(snap.id, snap.data());
   }
 
   async getStuckCheckoutStates(options?: { limit?: number }): Promise<{

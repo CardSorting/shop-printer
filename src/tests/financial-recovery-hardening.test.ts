@@ -278,4 +278,73 @@ describe('financial recovery hardening', () => {
       nextAction: 'Retry finalization; if blocked, resolve from reconciliation with Stripe evidence.',
     }));
   });
+
+  it('proves that a stale checkout attempt cannot be finalized and moves to reconciling with stale conflict reason', async () => {
+    const order = {
+      id: 'order-stale-attempt',
+      userId: 'u1',
+      status: 'pending',
+      paymentTransactionId: 'pi_stale_attempt',
+      metadata: { inventoryReserved: true, checkoutAttemptId: 'attempt-stale-1' },
+      items: [{ productId: 'p1', quantity: 1, isDigital: false }],
+    };
+    const orderRepo = makeOrderRepo({
+      getByPaymentTransactionIdTransactional: vi.fn().mockResolvedValue(order),
+      getCheckoutAttempt: vi.fn().mockResolvedValue({ id: 'attempt-stale-1', state: 'cancelled' }),
+    });
+    const service = makeOrderService(orderRepo);
+
+    const result = await service.finalizeOrderPayment('pi_stale_attempt', {
+      id: 'pi_stale_attempt',
+      status: 'succeeded',
+      metadata: { orderId: 'order-stale-attempt' },
+      charges: { data: [] },
+    });
+
+    expect(result.status).toBe('reconciling');
+    expect(orderRepo.transitionPaymentState).toHaveBeenCalledWith(
+      'order-stale-attempt',
+      ['unpaid', 'requires_payment_method', 'processing', 'failed', 'cancelled'],
+      'paid',
+      'stripe_succeeded_stale_conflict',
+      expect.anything()
+    );
+    expect(orderRepo.transitionReconciliationState).toHaveBeenCalledWith(
+      'order-stale-attempt',
+      ['none', 'needs_review'],
+      'needs_review',
+      'paid_stale_conflict',
+      expect.anything()
+    );
+  });
+
+  it('proves that duplicate checkouts correctly reuse the authoritative attempt instead of double-allocating stock', async () => {
+    const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
+    const existingOrder = {
+      id: 'o-existing',
+      userId: 'u1',
+      status: 'pending',
+      paymentTransactionId: 'pi_existing',
+      idempotencyKey: 'dup-key-1',
+      total: 100,
+    };
+    const orderRepo = makeOrderRepo({
+      getByIdempotencyKey: vi.fn().mockResolvedValue(existingOrder),
+    });
+    const service = makeOrderService(orderRepo);
+
+    const order = await service.initiateCheckout(
+      'u1',
+      address as any,
+      'user@example.com',
+      'User',
+      undefined,
+      'dup-key-1'
+    );
+
+    expect(order.id).toBe('o-existing');
+    // Ensure getByIdempotencyKey was checked to reuse it
+    expect(orderRepo.getByIdempotencyKey).toHaveBeenCalledWith('dup-key-1');
+  });
 });
+

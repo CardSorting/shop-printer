@@ -58,6 +58,6 @@ describe('checkout verify authorization', () => {
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
     expect(updatePaymentTransactionId).toHaveBeenCalledWith('o1', 'pi_1');
-    expect(finalizeOrderPayment).toHaveBeenCalledWith('pi_1', { id: 'pi_1', status: 'succeeded', metadata: { orderId: 'o1' } });
+    expect(finalizeOrderPayment).toHaveBeenCalledWith('pi_1', { id: 'pi_1', status: 'succeeded', metadata: { orderId: 'o1' } }, 'user');
   });
 });

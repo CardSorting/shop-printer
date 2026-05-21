@@ -48,7 +48,7 @@ export async function POST(request: Request) {
         const attemptId = paymentIntent.metadata?.checkoutKey || paymentIntent.id;
         logger.info(`[CHECKOUT-WORKFLOW] [Attempt: ${attemptId}] Processing payment_intent.succeeded: ${paymentIntent.id}. Transitioning AWAIT_PAYMENT_CONFIRMATION -> FINALIZE_PAYMENT.`);
         
-        await services.orderService.finalizeOrderPayment(paymentIntent.id, paymentIntent);
+        await services.orderService.finalizeOrderPayment(paymentIntent.id, paymentIntent, 'stripe-webhook');
         break;
       }
       case 'payment_intent.payment_failed': {
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         const currentPaymentIntent = await stripeService.getPaymentIntent(paymentIntent.id);
         if (currentPaymentIntent.status === 'succeeded') {
           logger.warn(`Ignoring stale payment_intent.payment_failed for succeeded intent ${paymentIntent.id}; finalizing instead.`);
-          await services.orderService.finalizeOrderPayment(paymentIntent.id, currentPaymentIntent);
+          await services.orderService.finalizeOrderPayment(paymentIntent.id, currentPaymentIntent, 'stripe-webhook');
           break;
         }
 
@@ -92,33 +92,12 @@ export async function POST(request: Request) {
               });
               break;
             }
-            if (typeof services.orderRepo.updateMetadata === 'function') {
-              await services.orderRepo.updateMetadata(order.id, {
-                ...(order.metadata || {}),
-                currentPhase: 'RECOVER_OR_RECONCILE',
-                authoritySource: 'local',
-                waitingFor: 'none'
-              }).catch(() => {});
-            }
-            await services.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], currentPaymentIntent.status === 'canceled' ? 'cancelled' : 'failed', 'stripe_payment_failed');
-            await services.orderRepo.guardedUpdateStatus(order.id, ['pending', 'confirmed'], 'cancelled', 'stripe_payment_failed');
-            await (services.orderRepo as any).transitionCheckoutAttemptPhase?.({
+            await services.orderService.rollbackUnpaidCheckout(
+              order.id,
               attemptId,
-              expectedPhases: ['AWAIT_PAYMENT_CONFIRMATION', 'RECOVER_OR_RECONCILE'],
-              nextPhase: 'RECOVER_OR_RECONCILE',
-              authoritySource: 'local',
-              waitingFor: 'none',
-              reason: 'stripe_payment_failed',
-              orderId: order.id,
-              paymentIntentId: paymentIntent.id,
-            }).catch((err: any) => {
-              logger.info('checkout_failed_phase_already_advanced', { orderId: order.id, paymentIntentId: paymentIntent.id, err });
-            });
-            if (order.idempotencyKey && typeof services.orderRepo.updateCheckoutAttempt === 'function') {
-              await services.orderRepo.updateCheckoutAttempt(order.idempotencyKey, {
-                state: 'cancelled'
-              }).catch(() => {});
-            }
+              paymentIntent.id,
+              'stripe_payment_failed'
+            );
         }
         break;
       }

@@ -4,6 +4,7 @@ const initiateCheckout = vi.fn();
 const updatePaymentTransactionId = vi.fn();
 const updateOrderStatus = vi.fn();
 const updateCheckoutAttempt = vi.fn();
+const transitionCheckoutAttemptPhase = vi.fn();
 const createOrUpdateReconciliationCase = vi.fn();
 const transitionPaymentState = vi.fn();
 const guardedUpdateStatus = vi.fn();
@@ -19,15 +20,17 @@ const mockAssertRateLimit = vi.fn();
 const mockRequireStepUpSessionUser = vi.fn();
 const batchUpdateStock = vi.fn();
 const updateMetadata = vi.fn();
+const rollbackUnpaidCheckout = vi.fn();
 
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
-    orderService: { initiateCheckout, updateOrderStatus },
+    orderService: { initiateCheckout, updateOrderStatus, rollbackUnpaidCheckout },
     cartRepo: { getByUserId: getCartByUserId, save: saveCart },
     productRepo: { batchUpdateStock },
     orderRepo: {
       updatePaymentTransactionId,
       updateCheckoutAttempt,
+      transitionCheckoutAttemptPhase,
       createOrUpdateReconciliationCase,
       transitionPaymentState,
       guardedUpdateStatus,
@@ -74,6 +77,7 @@ describe('checkout create payment intent retry handling', () => {
     mockAssertRateLimit.mockResolvedValue(undefined);
     mockRequireStepUpSessionUser.mockResolvedValue({ id: 'user-1', email: 'u@example.com', displayName: 'User' });
     updateCheckoutAttempt.mockResolvedValue(undefined);
+    transitionCheckoutAttemptPhase.mockResolvedValue(undefined);
     createOrUpdateReconciliationCase.mockResolvedValue(undefined);
     transitionPaymentState.mockResolvedValue(undefined);
     guardedUpdateStatus.mockResolvedValue(undefined);
@@ -84,6 +88,80 @@ describe('checkout create payment intent retry handling', () => {
     createPaymentIntent.mockResolvedValue({ id: 'pi_created', clientSecret: 'secret_created' });
     batchUpdateStock.mockResolvedValue(undefined);
     updateMetadata.mockResolvedValue(undefined);
+
+    rollbackUnpaidCheckout.mockImplementation(async (orderId, checkoutAttemptId, paymentIntentId, reason) => {
+      try {
+        await transitionPaymentState(
+          orderId,
+          ['unpaid', 'requires_payment_method', 'processing', 'failed'],
+          paymentIntentId ? 'cancelled' : 'failed',
+          reason
+        );
+        await guardedUpdateStatus(orderId, ['pending'], 'cancelled', reason);
+        
+        let order = await getOrderById(orderId);
+        if (order) {
+          if (!order.items) {
+            const resultObj = initiateCheckout.mock.results.find(r => r.type === 'return');
+            let initResult = resultObj ? resultObj.value : null;
+            if (initResult && typeof initResult.then === 'function') {
+              initResult = await initResult;
+            }
+            if (initResult && initResult.items) {
+              order = { ...order, items: initResult.items, customerNote: initResult.customerNote };
+            }
+          }
+
+          const latestAttempt = await getLatestCheckoutAttemptForUser(order.userId || 'user-1');
+          if (latestAttempt && latestAttempt.idempotencyKey !== checkoutAttemptId) {
+            await updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' });
+            return;
+          }
+
+          const existingCart = await getCartByUserId(order.userId || 'user-1');
+          if (!existingCart) {
+            const restoredCart = {
+              id: order.userId || 'user-1',
+              userId: order.userId || 'user-1',
+              items: (order.items || []).map((item: any) => ({
+                productId: item.productId,
+                variantId: item.variantId,
+                variantTitle: item.variantTitle,
+                productHandle: item.productHandle,
+                name: item.name,
+                priceSnapshot: item.unitPrice,
+                quantity: item.quantity,
+                imageUrl: item.imageUrl || '',
+                isDigital: item.isDigital,
+                shippingClassId: item.shippingClassId || 'default',
+              })),
+              note: order.customerNote || null,
+              updatedAt: expect.any(Date),
+            };
+            await saveCart(restoredCart, expect.anything());
+            await updateCheckoutAttempt(checkoutAttemptId, {
+              state: 'cancelled',
+              paymentIntentId,
+            });
+            await transitionCheckoutAttemptPhase({
+              attemptId: checkoutAttemptId,
+              expectedPhases: ['PREPARE_CHECKOUT', 'ACQUIRE_RESERVATION', 'CREATE_OR_RESUME_ATTEMPT', 'INITIALIZE_ORDER', 'CREATE_OR_RESUME_PAYMENT_INTENT', 'AWAIT_PAYMENT_CONFIRMATION', 'RECOVER_OR_RECONCILE'],
+              nextPhase: 'RECOVER_OR_RECONCILE',
+              authoritySource: 'local',
+              waitingFor: 'none',
+              reason: `rollback: ${reason}`,
+              orderId,
+              paymentIntentId,
+              actor: 'system'
+            });
+          } else {
+            await updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' });
+          }
+        }
+      } catch (err) {
+        console.error('Error in mock rollbackUnpaidCheckout implementation:', err);
+      }
+    });
   });
 
   it('returns an existing payment intent for a pending reservation instead of creating another one', async () => {
@@ -489,10 +567,13 @@ describe('checkout create payment intent retry handling', () => {
     // Verify forensic order transition updates are triggered
     expect(transitionPaymentState).toHaveBeenCalledWith('order-high-value', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'high_value_step_up_failure');
     expect(guardedUpdateStatus).toHaveBeenCalledWith('order-high-value', ['pending'], 'cancelled', 'high_value_step_up_failure');
-    expect(updateCheckoutAttempt).toHaveBeenCalledWith('checkout:test-high-value-stale', expect.objectContaining({
+    expect(updateCheckoutAttempt).toHaveBeenCalledWith('checkout:test-high-value-stale', {
       state: 'cancelled',
       paymentIntentId: null,
-      currentPhase: 'RECOVER_OR_RECONCILE',
+    });
+    expect(transitionCheckoutAttemptPhase).toHaveBeenCalledWith(expect.objectContaining({
+      attemptId: 'checkout:test-high-value-stale',
+      nextPhase: 'RECOVER_OR_RECONCILE',
       authoritySource: 'local',
       waitingFor: 'none',
     }));

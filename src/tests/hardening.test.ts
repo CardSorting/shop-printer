@@ -79,8 +79,14 @@ describe('Security Hardening Proofs', () => {
           usageLimit: null,
           usageCount: 0,
           oncePerCustomer: true,
-          discountType: 'percentage',
-          discountValue: 10,
+          type: 'percentage',
+          value: 10,
+          selectionType: 'all_products',
+          combinesWith: {
+            orderDiscounts: false,
+            productDiscounts: false,
+            shippingDiscounts: false
+          },
           minimumRequirementType: 'none',
         }),
         incrementUsage: vi.fn(),
