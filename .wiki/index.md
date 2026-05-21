@@ -16,6 +16,7 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 - [Schemas](./architecture/schemas.md) — domain models, repository contracts, service interfaces, API guard behavior.
 - [Decisions](./architecture/decisions.md) — ADRs protecting architectural intent.
 - [Risk Map](./architecture/risk-map.md) — fragile surfaces, blast radius, and mandatory tests.
+- [Order Flow Throughput](./architecture/order-flow-throughput.md) — concrete cart, checkout, and full order-flow concurrency benchmark results.
 - [Admin Panel](./architecture/admin-panel.md) — features, merchant operations, and technical implementation.
 - [Product Management & Intake Metadata](./architecture/product-management.md) — SKU, supplier/manufacturer metadata, product category handling, and Firestore/API/admin form behavior.
 - [Support CRM](./architecture/support-crm.md) — Professional ticketing system, agent collision, macros, and knowledgebase routing.

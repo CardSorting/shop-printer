@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "start": "next start",
     "test": "vitest",
+    "benchmark:order-flow": "ORDER_FLOW_BENCHMARK=1 vitest run src/tests/order-flow-throughput.benchmark.test.ts --pool=forks --poolOptions.forks.singleFork",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",

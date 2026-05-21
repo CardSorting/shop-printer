@@ -1,0 +1,139 @@
+{
+  "generatedAt": "2026-05-21T07:26:53.720Z",
+  "node": "v23.5.0",
+  "runner": "vitest/jsdom with mocked Firebase transaction bridge and in-memory repositories",
+  "rows": [
+    {
+      "scenario": "cart_add_to_cart",
+      "totalOperations": 2000,
+      "concurrency": 25,
+      "durationMs": 76.21,
+      "throughputPerSecond": 26243.62,
+      "successCount": 2000,
+      "failureCount": 0,
+      "p50Ms": 0.66,
+      "p95Ms": 3.22,
+      "p99Ms": 3.87
+    },
+    {
+      "scenario": "cart_add_to_cart",
+      "totalOperations": 2000,
+      "concurrency": 50,
+      "durationMs": 76.26,
+      "throughputPerSecond": 26224.76,
+      "successCount": 2000,
+      "failureCount": 0,
+      "p50Ms": 1.24,
+      "p95Ms": 5.36,
+      "p99Ms": 7
+    },
+    {
+      "scenario": "cart_add_to_cart",
+      "totalOperations": 2000,
+      "concurrency": 100,
+      "durationMs": 83.81,
+      "throughputPerSecond": 23862.18,
+      "successCount": 2000,
+      "failureCount": 0,
+      "p50Ms": 2.54,
+      "p95Ms": 11.45,
+      "p99Ms": 20.57
+    },
+    {
+      "scenario": "cart_add_to_cart",
+      "totalOperations": 2000,
+      "concurrency": 200,
+      "durationMs": 64.2,
+      "throughputPerSecond": 31150.57,
+      "successCount": 2000,
+      "failureCount": 0,
+      "p50Ms": 7.04,
+      "p95Ms": 7.4,
+      "p99Ms": 7.51
+    },
+    {
+      "scenario": "checkout_reservation_only",
+      "totalOperations": 1000,
+      "concurrency": 25,
+      "durationMs": 53.61,
+      "throughputPerSecond": 18651.73,
+      "successCount": 1000,
+      "failureCount": 0,
+      "p50Ms": 0.85,
+      "p95Ms": 3.85,
+      "p99Ms": 6.19
+    },
+    {
+      "scenario": "checkout_reservation_only",
+      "totalOperations": 1000,
+      "concurrency": 50,
+      "durationMs": 41.89,
+      "throughputPerSecond": 23873.78,
+      "successCount": 1000,
+      "failureCount": 0,
+      "p50Ms": 1.54,
+      "p95Ms": 4.02,
+      "p99Ms": 4.08
+    },
+    {
+      "scenario": "checkout_reservation_only",
+      "totalOperations": 1000,
+      "concurrency": 100,
+      "durationMs": 40.66,
+      "throughputPerSecond": 24591.6,
+      "successCount": 1000,
+      "failureCount": 0,
+      "p50Ms": 3.05,
+      "p95Ms": 5.77,
+      "p99Ms": 5.77
+    },
+    {
+      "scenario": "checkout_reservation_only",
+      "totalOperations": 1000,
+      "concurrency": 200,
+      "durationMs": 44.45,
+      "throughputPerSecond": 22495.54,
+      "successCount": 1000,
+      "failureCount": 0,
+      "p50Ms": 8.6,
+      "p95Ms": 10.39,
+      "p99Ms": 10.39
+    },
+    {
+      "scenario": "full_order_payment_finalize",
+      "totalOperations": 500,
+      "concurrency": 25,
+      "durationMs": 47.24,
+      "throughputPerSecond": 10583.79,
+      "successCount": 500,
+      "failureCount": 0,
+      "p50Ms": 1.7,
+      "p95Ms": 4.04,
+      "p99Ms": 4.15
+    },
+    {
+      "scenario": "full_order_payment_finalize",
+      "totalOperations": 500,
+      "concurrency": 50,
+      "durationMs": 41.91,
+      "throughputPerSecond": 11929.32,
+      "successCount": 500,
+      "failureCount": 0,
+      "p50Ms": 3.26,
+      "p95Ms": 5.93,
+      "p99Ms": 5.94
+    },
+    {
+      "scenario": "full_order_payment_finalize",
+      "totalOperations": 500,
+      "concurrency": 100,
+      "durationMs": 44.94,
+      "throughputPerSecond": 11125.71,
+      "successCount": 500,
+      "failureCount": 0,
+      "p50Ms": 8.92,
+      "p95Ms": 9.47,
+      "p99Ms": 9.47
+    }
+  ]
+}
