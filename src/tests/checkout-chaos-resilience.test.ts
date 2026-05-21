@@ -20,7 +20,12 @@ import type {
   OrderNote,
 } from '@domain/models';
 import { CheckoutInProgressError, PaymentFailedError } from '@domain/errors';
-import { assertLegalCheckoutPhaseTransition, assertLegalCheckoutPhaseTransitionNew, mapWorkflowPhaseToCheckoutPhase } from '../core/order/checkoutWorkflow';
+import {
+  assertLegalCheckoutOperationalPhaseTransition,
+  assertLegalCheckoutPhaseTransition,
+  mapWorkflowPhaseToCheckoutPhase,
+} from '../core/order/checkoutWorkflow';
+import { expectFencingConflictDiagnostics } from './helpers/checkoutForensicAssertions';
 
 // Mock Firebase bridge for tests with serializable queue to prevent in-memory interleaving races
 vi.mock('@infrastructure/firebase/bridge', () => {
@@ -250,7 +255,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
         params.nextPhase === 'RECOVER_OR_RECONCILE' ? 'reconciling' : (params.nextPhase === 'COMPLETE_CHECKOUT' ? 'paid' : attempt.state),
         params.reason
       );
-      assertLegalCheckoutPhaseTransitionNew(oldCheckoutPhase as any, nextCheckoutPhase as any, params.reason);
+      assertLegalCheckoutOperationalPhaseTransition(oldCheckoutPhase as any, nextCheckoutPhase as any, params.reason);
 
       attempt.currentPhase = params.nextPhase;
       attempt.checkoutPhase = nextCheckoutPhase;
@@ -916,9 +921,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
     expect(rendered).toContain('fencing_token_mismatch');
 
     const correlation = correlateGroupedEvents(attempt, order, reconCase);
-    expect(correlation.fencingTokenMatches).toBe(false);
-    expect(correlation.stateAlignment).toBe('reconciliation_required');
-    expect(correlation.diagnoses.some(d => d.includes('CONFLICT: Fencing token mismatch'))).toBe(true);
+    expectFencingConflictDiagnostics(correlation);
 
     const summary = generateReconciliationEvidenceSummary(reconCase);
     expect(summary).toContain('Reconciliation Case: `fencing_token_mismatch`');

@@ -4,7 +4,10 @@ import { jsonError, requireSessionUser, requireString } from '@infrastructure/se
 import { StripeService } from '@infrastructure/services/StripeService';
 import { logger } from '@utils/logger';
 import { DomainError, OrderNotFoundError, UnauthorizedError } from '@domain/errors';
-import { isSafelyFinalizedCheckoutState } from '@core/order/checkoutWorkflow';
+import {
+  CHECKOUT_PAYMENT_WAIT_PHASES,
+  isSafelyFinalizedCheckoutState,
+} from '@core/order/checkoutWorkflow';
 
 /**
  * [LAYER: INTERFACE]
@@ -69,7 +72,7 @@ export async function GET(request: Request) {
         const attemptId = order.idempotencyKey || order.metadata?.checkoutAttemptId || pi.metadata?.checkoutKey || paymentIntentId;
         await (services.orderRepo as any).transitionCheckoutAttemptPhase?.({
           attemptId,
-          expectedPhases: ['CREATE_OR_RESUME_PAYMENT_INTENT', 'AWAIT_PAYMENT_CONFIRMATION', 'RECOVER_OR_RECONCILE'],
+          expectedPhases: [...CHECKOUT_PAYMENT_WAIT_PHASES, 'RECOVER_OR_RECONCILE'],
           nextPhase: 'AWAIT_PAYMENT_CONFIRMATION',
           authoritySource: 'stripe',
           waitingFor: 'verification',

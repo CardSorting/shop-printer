@@ -21,6 +21,26 @@ export class OrderAdminService {
     return order.paymentState === 'paid' || order.paymentState === 'partially_refunded' || order.paymentState === 'refunded';
   }
 
+  private reconciliationReasonLabel(reason: PaymentReconciliationCase['reason']): string {
+    return ({
+      paid_not_finalized: 'Paid but not finalized',
+      paid_cancelled: 'Paid after cancellation',
+      dangling_payment_intent: 'Stripe payment has no local order',
+      mapping_mismatch: 'Stripe/local order mapping mismatch',
+      finalization_failure: 'Local finalization failed',
+      fencing_token_mismatch: 'Checkout ownership conflict',
+    } as Record<PaymentReconciliationCase['reason'], string>)[reason] || reason;
+  }
+
+  private reconciliationNextStep(kase: PaymentReconciliationCase): string {
+    if (kase.nextAction) return kase.nextAction;
+    if (kase.reason === 'paid_not_finalized') return 'Retry finalization, then resolve the case if the order reaches paid fulfillment state.';
+    if (kase.reason === 'paid_cancelled') return 'Choose fulfillment with restored inventory or refund from Stripe evidence.';
+    if (kase.reason === 'mapping_mismatch') return 'Inspect Stripe metadata and local paymentTransactionId before remapping or refunding.';
+    if (kase.reason === 'dangling_payment_intent') return 'Find or recreate the local order mapping before fulfillment or refund.';
+    return 'Review Stripe evidence and local transition history before changing fulfillment, cancellation, or refund state.';
+  }
+
   private fulfillmentTransitionForStatus(status: OrderStatus): {
     nextState: 'processing' | 'shipped' | 'delivered' | 'ready_for_pickup' | 'delivery_started';
     allowed: Array<'unfulfilled' | 'processing' | 'ready_for_pickup' | 'delivery_started' | 'shipped' | 'delivered'>;
@@ -670,14 +690,15 @@ export class OrderAdminService {
           orderId: kase.orderId || null,
           checkoutAttemptId: kase.checkoutAttemptId || null,
           reason: kase.reason,
+          reasonLabel: this.reconciliationReasonLabel(kase.reason),
           severity: kase.severity,
           lifecycleState: kase.lifecycleState,
           failureClassification: kase.failureClassification || 'operator_required',
           customer: customerName || customerEmail ? { name: customerName || 'Unknown Customer', email: customerEmail || 'N/A' } : null,
           amount,
           ageMs,
-          recommendedAction: kase.recommendedAction || kase.nextAction,
-          nextAction: kase.nextAction,
+          recommendedAction: kase.recommendedAction || this.reconciliationNextStep(kase),
+          nextAction: this.reconciliationNextStep(kase),
           authoritativeSource,
           stripeStatus: kase.stripeStatus || null,
           operatorVisibleMessage: kase.operatorVisibleMessage,
@@ -706,6 +727,13 @@ export class OrderAdminService {
     });
 
     return {
+      summary: {
+        totalOpen: allItems.length,
+        critical: criticalCases.length,
+        high: highCases.length,
+        oldestAgeMs: allItems.reduce((oldest, item) => Math.max(oldest, item.ageMs), 0),
+        nextStep: criticalCases[0]?.nextAction || highCases[0]?.nextAction || 'No open reconciliation cases.',
+      },
       cases: allItems,
       grouped: {
         bySeverity: {

@@ -3,8 +3,8 @@ import {
   assertLegalCheckoutPhaseTransition,
   isLegalCheckoutPhaseTransition,
   isSafelyFinalizedCheckoutState,
-  isLegalCheckoutPhaseTransitionNew,
-  assertLegalCheckoutPhaseTransitionNew,
+  isLegalCheckoutOperationalPhaseTransition,
+  assertLegalCheckoutOperationalPhaseTransition,
   mapWorkflowPhaseToCheckoutPhase,
 } from '../core/order/checkoutWorkflow';
 import { OrderService } from '../core/OrderService';
@@ -224,7 +224,7 @@ describe('checkout state machine transitions and invariants integration', () => 
       attemptId: 'attempt-1',
       nextPhase: 'COMPLETE_CHECKOUT',
       actor: 'stripe-webhook',
-    }), undefined);
+    }));
   });
 
   it('proves awaiting_payment + verify success converges to finalized complete status', async () => {
@@ -257,7 +257,7 @@ describe('checkout state machine transitions and invariants integration', () => 
       attemptId: 'attempt-1',
       nextPhase: 'COMPLETE_CHECKOUT',
       actor: 'user',
-    }), undefined);
+    }));
   });
 
   it('proves webhook and verify racing converge cleanly to exactly one finalization (idempotence)', async () => {
@@ -312,25 +312,25 @@ describe('checkout state machine transitions and invariants integration', () => 
   });
 });
 
-describe('explicit new CheckoutPhase state contract and transitions', () => {
+describe('checkout operational phase contract', () => {
   it('verifies legal explicit phase transitions', () => {
-    expect(isLegalCheckoutPhaseTransitionNew('preparing', 'reservation_acquired')).toBe(true);
-    expect(isLegalCheckoutPhaseTransitionNew('reservation_acquired', 'attempt_active')).toBe(true);
-    expect(isLegalCheckoutPhaseTransitionNew('attempt_active', 'order_initialized')).toBe(true);
-    expect(isLegalCheckoutPhaseTransitionNew('order_initialized', 'payment_intent_ready')).toBe(true);
-    expect(isLegalCheckoutPhaseTransitionNew('payment_intent_ready', 'awaiting_payment')).toBe(true);
-    expect(isLegalCheckoutPhaseTransitionNew('awaiting_payment', 'payment_confirmed')).toBe(true);
-    expect(isLegalCheckoutPhaseTransitionNew('payment_confirmed', 'finalized')).toBe(true);
+    expect(isLegalCheckoutOperationalPhaseTransition('preparing', 'reservation_acquired')).toBe(true);
+    expect(isLegalCheckoutOperationalPhaseTransition('reservation_acquired', 'attempt_active')).toBe(true);
+    expect(isLegalCheckoutOperationalPhaseTransition('attempt_active', 'order_initialized')).toBe(true);
+    expect(isLegalCheckoutOperationalPhaseTransition('order_initialized', 'payment_intent_ready')).toBe(true);
+    expect(isLegalCheckoutOperationalPhaseTransition('payment_intent_ready', 'awaiting_payment')).toBe(true);
+    expect(isLegalCheckoutOperationalPhaseTransition('awaiting_payment', 'payment_confirmed')).toBe(true);
+    expect(isLegalCheckoutOperationalPhaseTransition('payment_confirmed', 'finalized')).toBe(true);
   });
 
   it('rejects illegal explicit transitions and regressions', () => {
-    expect(() => assertLegalCheckoutPhaseTransitionNew('finalized', 'preparing', 'regression_check'))
+    expect(() => assertLegalCheckoutOperationalPhaseTransition('finalized', 'preparing', 'regression_check'))
       .toThrow(/transition rejected/i);
-    expect(() => assertLegalCheckoutPhaseTransitionNew('terminal', 'preparing', 'regression_check'))
+    expect(() => assertLegalCheckoutOperationalPhaseTransition('terminal', 'preparing', 'regression_check'))
       .toThrow(/transition rejected/i);
-    expect(() => assertLegalCheckoutPhaseTransitionNew('awaiting_payment', 'preparing', 'regression_check'))
+    expect(() => assertLegalCheckoutOperationalPhaseTransition('awaiting_payment', 'preparing', 'regression_check'))
       .toThrow(/transition rejected/i);
-    expect(() => assertLegalCheckoutPhaseTransitionNew('preparing', 'awaiting_payment', 'skip_steps_check'))
+    expect(() => assertLegalCheckoutOperationalPhaseTransition('preparing', 'awaiting_payment', 'skip_steps_check'))
       .toThrow(/transition rejected/i);
   });
 
@@ -347,14 +347,14 @@ describe('explicit new CheckoutPhase state contract and transitions', () => {
 
 describe('checkout state machine bypass prevention and transition auditing', () => {
   it('proves direct stale phase mutation is rejected under the transition contract', () => {
-    expect(() => assertLegalCheckoutPhaseTransitionNew('finalized', 'preparing', 'cannot regress from finalized')).toThrow();
-    expect(() => assertLegalCheckoutPhaseTransitionNew('terminal', 'preparing', 'cannot regress from terminal')).toThrow();
-    expect(() => assertLegalCheckoutPhaseTransitionNew('finalized', 'attempt_active', 'cannot resume finalized')).toThrow();
+    expect(() => assertLegalCheckoutOperationalPhaseTransition('finalized', 'preparing', 'cannot regress from finalized')).toThrow();
+    expect(() => assertLegalCheckoutOperationalPhaseTransition('terminal', 'preparing', 'cannot regress from terminal')).toThrow();
+    expect(() => assertLegalCheckoutOperationalPhaseTransition('finalized', 'attempt_active', 'cannot resume finalized')).toThrow();
   });
 
   it('proves direct finalized cleanup is rejected', () => {
-    expect(() => assertLegalCheckoutPhaseTransitionNew('finalized', 'recovery_required', 'cannot rollback finalized')).toThrow();
-    expect(() => assertLegalCheckoutPhaseTransitionNew('finalized', 'terminal', 'cannot cancel finalized')).toThrow();
+    expect(() => assertLegalCheckoutOperationalPhaseTransition('finalized', 'recovery_required', 'cannot rollback finalized')).toThrow();
+    expect(() => assertLegalCheckoutOperationalPhaseTransition('finalized', 'terminal', 'cannot cancel finalized')).toThrow();
   });
 
   it('proves reconciliation-only terminal writes preserve transition evidence logging', async () => {
@@ -433,7 +433,7 @@ describe('checkout state machine bypass prevention and transition auditing', () 
       waitingFor: 'none',
       reason: 'checkout_completed_after_payment_finalization',
       actor: 'stripe-webhook',
-    }), undefined);
+    }));
   });
 
   describe('checkout state-machine updateCheckoutAttempt direct mutation rejection', () => {

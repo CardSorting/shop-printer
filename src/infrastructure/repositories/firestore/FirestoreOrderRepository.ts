@@ -48,7 +48,11 @@ import type {
   PaymentReconciliationCaseLifecycleState,
   PaymentReconciliationReason,
 } from '@domain/models';
-import { assertLegalCheckoutPhaseTransition, assertLegalCheckoutPhaseTransitionNew, mapWorkflowPhaseToCheckoutPhase } from '@core/order/checkoutWorkflow';
+import {
+  assertLegalCheckoutOperationalPhaseTransition,
+  assertLegalCheckoutPhaseTransition,
+  mapWorkflowPhaseToCheckoutPhase,
+} from '@core/order/checkoutWorkflow';
 
 
 import { mapDoc, mapTimestamp } from './utils';
@@ -814,7 +818,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
         params.nextPhase === 'RECOVER_OR_RECONCILE' ? 'reconciling' : (params.nextPhase === 'COMPLETE_CHECKOUT' ? 'paid' : data.state),
         params.reason
       );
-      assertLegalCheckoutPhaseTransitionNew(oldCheckoutPhase, nextCheckoutPhase, params.reason);
+      assertLegalCheckoutOperationalPhaseTransition(oldCheckoutPhase, nextCheckoutPhase, params.reason);
 
       const payload: Record<string, any> = {
         currentPhase: params.nextPhase,

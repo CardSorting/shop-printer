@@ -12,6 +12,10 @@ import type {
   PaymentReconciliationFailureClassification,
   OrderNote,
 } from '@domain/models';
+import {
+  expectFencingConflictDiagnostics,
+  expectTimelineRenderedForOperators,
+} from './helpers/checkoutForensicAssertions';
 
 // ─── Firebase Mocks ─────────────────────────────────────────────────────────
 
@@ -629,13 +633,10 @@ describe('Operator-Facing Reconciliation & Forensics Integration Tests', () => {
 
       // Verify diagnostics capture mismatched fencing tokens and active reconciliation cases
       expect(timeline.diagnostics.healthy).toBe(false);
-      expect(timeline.correlation.fencingTokenMatches).toBe(false);
-      expect(timeline.correlation.stateAlignment).toBe('reconciliation_required');
-      expect(timeline.correlation.diagnoses.some((d: string) => d.includes('CONFLICT: Fencing token mismatch'))).toBe(true);
+      expectFencingConflictDiagnostics(timeline.correlation);
 
       // Verify markdown formatting
-      expect(timeline.renderedMarkdown).toContain('### 🕒 Checkout Transition Timeline Stream');
-      expect(timeline.renderedMarkdown).toContain('| Timestamp | Actor / Auth | Workflow Transition | Status Change | Reason |');
+      expectTimelineRenderedForOperators(timeline.renderedMarkdown);
     });
   });
 

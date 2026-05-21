@@ -26,6 +26,23 @@ export interface EventCorrelationSummary {
   diagnoses: string[];
 }
 
+const RECONCILIATION_REASON_LABELS: Record<string, string> = {
+  paid_not_finalized: 'Paid but not finalized',
+  paid_cancelled: 'Paid after cancellation',
+  dangling_payment_intent: 'Stripe payment has no local order',
+  mapping_mismatch: 'Stripe/local order mapping mismatch',
+  finalization_failure: 'Local finalization failed',
+  fencing_token_mismatch: 'Checkout ownership conflict',
+};
+
+const FAILURE_CLASSIFICATION_LABELS: Record<string, string> = {
+  transient_external: 'External system pending',
+  local_persistence_failure: 'Local write failed',
+  stripe_local_mismatch: 'Stripe/local mismatch',
+  operator_required: 'Operator decision required',
+  terminal_unrecoverable: 'Cannot safely recover automatically',
+};
+
 /**
  * Deterministically reconstructs the timeline of transitions for a checkout attempt.
  * Parses the nested `phaseTransitions` collection and returns chronologically sorted events.
@@ -75,16 +92,16 @@ export function renderTransitionStream(events: TimelineEvent[]): string {
     return '> *No checkout transition logs found.*';
   }
 
-  let markdown = '### 🕒 Checkout Transition Timeline Stream\n\n';
+  let markdown = '### Checkout Transition Timeline Stream\n\n';
   markdown += '| Timestamp | Actor / Auth | Workflow Transition | Status Change | Reason |\n';
   markdown += '| :--- | :--- | :--- | :--- | :--- |\n';
 
   events.forEach((e) => {
     const time = e.timestamp.replace('T', ' ').substring(0, 19);
-    const actorStr = `👤 **${e.actor}** (${e.authoritySource})`;
-    const transitionStr = `\`${e.previousWorkflowPhase || 'INIT'}\` ➡️ \`${e.nextWorkflowPhase}\`  \n*(${e.previousPhase || 'init'} ➡️ ${e.nextPhase})*`;
+    const actorStr = `**${e.actor}** (${e.authoritySource})`;
+    const transitionStr = `\`${e.previousWorkflowPhase || 'INIT'}\` -> \`${e.nextWorkflowPhase}\`<br><small>${e.previousPhase || 'init'} -> ${e.nextPhase}</small>`;
     const statusStr = e.previousStatus || e.nextStatus
-      ? `\`${e.previousStatus || 'none'}\` ➡️ \`${e.nextStatus || 'none'}\``
+      ? `\`${e.previousStatus || 'none'}\` -> \`${e.nextStatus || 'none'}\``
       : '*No change*';
     const reasonStr = e.reason ? `_${e.reason}_` : '-';
 
@@ -178,18 +195,25 @@ export function generateReconciliationEvidenceSummary(reconciliationCase: Partia
     return '> *No active reconciliation case details provided.*';
   }
 
-  let markdown = `## 🔍 Reconciliation Case: \`${reconciliationCase.reason}\` [Severity: **${reconciliationCase.severity || 'UNKNOWN'}**]\n\n`;
-  markdown += `* **Status:** \`${reconciliationCase.lifecycleState || 'open'}\`\n`;
-  markdown += `* **Stripe Payment Status:** \`${reconciliationCase.stripeStatus || 'N/A'}\`\n`;
-  markdown += `* **Failure Classification:** \`${reconciliationCase.failureClassification || 'operator_required'}\`\n`;
-  markdown += `* **Operator Message:** _${reconciliationCase.operatorVisibleMessage || 'No description provided.'}_\n\n`;
+  const reason = reconciliationCase.reason || 'unknown';
+  const classification = reconciliationCase.failureClassification || 'operator_required';
+  const reasonLabel = RECONCILIATION_REASON_LABELS[reason] || reason;
+  const classificationLabel = FAILURE_CLASSIFICATION_LABELS[classification] || classification;
 
-  markdown += '### 🛠️ Actions\n';
-  markdown += `* **Next Operator Action:** ${reconciliationCase.nextAction || 'None specified.'}\n`;
-  markdown += `* **Recommended System Resolution:** ${reconciliationCase.recommendedAction || 'Review Stripe transaction evidence manually.'}\n\n`;
+  let markdown = `## Reconciliation Case: \`${reason}\`\n\n`;
+  markdown += `**Summary:** ${reasonLabel}. ${classificationLabel}.\n\n`;
+  markdown += `* **Status:** \`${reconciliationCase.lifecycleState || 'open'}\`\n`;
+  markdown += `* **Severity:** \`${reconciliationCase.severity || 'unknown'}\`\n`;
+  markdown += `* **Stripe:** \`${reconciliationCase.stripeStatus || 'unknown'}\`\n`;
+  markdown += `* **Local state:** \`${reconciliationCase.lastObservedLocalState || 'unknown'}\`\n`;
+  markdown += `* **Message:** ${reconciliationCase.operatorVisibleMessage || 'No description provided.'}\n\n`;
+
+  markdown += '### Actions\n';
+  markdown += `* **Next:** ${reconciliationCase.nextAction || 'Review the case and choose fulfillment, refund, or remap.'}\n`;
+  markdown += `* **Fallback:** ${reconciliationCase.recommendedAction || 'Review Stripe transaction evidence manually.'}\n\n`;
 
   if (reconciliationCase.details) {
-    markdown += '### 📊 Diagnostic Context Details\n';
+    markdown += '### Diagnostic Context Details\n';
     markdown += '```json\n';
     markdown += JSON.stringify(reconciliationCase.details, null, 2);
     markdown += '\n```\n';

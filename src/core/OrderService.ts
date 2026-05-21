@@ -26,6 +26,7 @@ import { OrderCheckoutService } from './order/OrderCheckoutService';
 import { OrderFulfillmentWorkflowService } from './order/OrderFulfillmentWorkflowService';
 import { OrderLogisticsService } from './order/OrderLogisticsService';
 import { OrderReadService } from './order/OrderReadService';
+import { CHECKOUT_RECOVERY_PHASES } from './order/checkoutWorkflow';
 import type { FulfillmentMethod, OrderActor } from './order/types';
 import { logger } from '@utils/logger';
 
@@ -225,7 +226,7 @@ export class OrderService {
           if (paymentIntent.status === 'succeeded') {
             await Promise.resolve((this.orderRepo as any).transitionCheckoutAttemptPhase?.({
               attemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || order.id,
-              expectedPhases: ['PREPARE_CHECKOUT', 'ACQUIRE_RESERVATION', 'CREATE_OR_RESUME_ATTEMPT', 'INITIALIZE_ORDER', 'CREATE_OR_RESUME_PAYMENT_INTENT', 'AWAIT_PAYMENT_CONFIRMATION', 'RECOVER_OR_RECONCILE'],
+              expectedPhases: CHECKOUT_RECOVERY_PHASES,
               nextPhase: 'RECOVER_OR_RECONCILE',
               authoritySource: 'stripe',
               waitingFor: 'verification',

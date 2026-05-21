@@ -1,21 +1,9 @@
 import type {
+  CheckoutPhase,
   CheckoutWorkflowPhase,
   FulfillmentState,
   PaymentState,
 } from '@domain/models';
-
-export type CheckoutPhase =
-  | 'preparing'
-  | 'reservation_acquired'
-  | 'attempt_active'
-  | 'payment_intent_ready'
-  | 'order_initialized'
-  | 'awaiting_payment'
-  | 'payment_confirmed'
-  | 'finalized'
-  | 'recovery_required'
-  | 'reconciliation_required'
-  | 'terminal';
 
 export const CHECKOUT_PHASE_TRANSITIONS: Record<CheckoutWorkflowPhase, CheckoutWorkflowPhase[]> = {
   PREPARE_CHECKOUT: ['ACQUIRE_RESERVATION'],
@@ -43,6 +31,26 @@ export const LEGAL_CHECKOUT_PHASE_TRANSITIONS: Record<CheckoutPhase, CheckoutPha
   terminal: [],
 };
 
+export const CHECKOUT_RECOVERY_PHASES: CheckoutWorkflowPhase[] = [
+  'PREPARE_CHECKOUT',
+  'ACQUIRE_RESERVATION',
+  'CREATE_OR_RESUME_ATTEMPT',
+  'INITIALIZE_ORDER',
+  'CREATE_OR_RESUME_PAYMENT_INTENT',
+  'AWAIT_PAYMENT_CONFIRMATION',
+  'RECOVER_OR_RECONCILE',
+];
+
+export const CHECKOUT_PAYMENT_INTENT_ENTRY_PHASES: CheckoutWorkflowPhase[] = [
+  'INITIALIZE_ORDER',
+  'CREATE_OR_RESUME_ATTEMPT',
+];
+
+export const CHECKOUT_PAYMENT_WAIT_PHASES: CheckoutWorkflowPhase[] = [
+  'CREATE_OR_RESUME_PAYMENT_INTENT',
+  'AWAIT_PAYMENT_CONFIRMATION',
+];
+
 export function isLegalCheckoutPhaseTransition(
   currentPhase: CheckoutWorkflowPhase | null | undefined,
   nextPhase: CheckoutWorkflowPhase
@@ -62,7 +70,7 @@ export function assertLegalCheckoutPhaseTransition(
   }
 }
 
-export function isLegalCheckoutPhaseTransitionNew(
+export function isLegalCheckoutOperationalPhaseTransition(
   current: CheckoutPhase | null | undefined,
   next: CheckoutPhase
 ): boolean {
@@ -71,15 +79,23 @@ export function isLegalCheckoutPhaseTransitionNew(
   return LEGAL_CHECKOUT_PHASE_TRANSITIONS[current]?.includes(next) ?? false;
 }
 
-export function assertLegalCheckoutPhaseTransitionNew(
+export function assertLegalCheckoutOperationalPhaseTransition(
   current: CheckoutPhase | null | undefined,
   next: CheckoutPhase,
   reason: string
 ): void {
-  if (!isLegalCheckoutPhaseTransitionNew(current, next)) {
+  if (!isLegalCheckoutOperationalPhaseTransition(current, next)) {
     throw new Error(`Checkout phase transition rejected: ${current || 'unset'} -> ${next} (${reason})`);
   }
 }
+
+/**
+ * Backwards-compatible aliases for existing tests/callers. New code should use
+ * the "operational phase" names to distinguish this simplified checkout view
+ * from the persisted workflow phase enum.
+ */
+export const isLegalCheckoutPhaseTransitionNew = isLegalCheckoutOperationalPhaseTransition;
+export const assertLegalCheckoutPhaseTransitionNew = assertLegalCheckoutOperationalPhaseTransition;
 
 export function mapWorkflowPhaseToCheckoutPhase(
   phase: CheckoutWorkflowPhase | null | undefined,

@@ -8,7 +8,7 @@ import type {
   IProductRepository,
   IShippingRepository,
 } from '@domain/repositories';
-import type { Address, Cart, CheckoutAuthoritySource, CheckoutWaitingFor, CheckoutWorkflowPhase, Order, OrderStatus } from '@domain/models';
+import type { Address, Cart, CheckoutWorkflowPhase, Order, OrderStatus, PaymentReconciliationReason } from '@domain/models';
 import { CartEmptyError, CheckoutInProgressError, DomainError, OrderNotFoundError, PaymentFailedError } from '@domain/errors';
 import {
   assertValidOrderItems,
@@ -24,7 +24,11 @@ import { AuditService } from '../AuditService';
 import { DiscountService } from '../DiscountService';
 import { logger } from '@utils/logger';
 import type { FulfillmentMethod } from './types';
-import { isSafelyFinalizedCheckoutState } from './checkoutWorkflow';
+import {
+  CHECKOUT_PAYMENT_INTENT_ENTRY_PHASES,
+  CHECKOUT_RECOVERY_PHASES,
+  isSafelyFinalizedCheckoutState,
+} from './checkoutWorkflow';
 
 export class OrderCheckoutService {
   private readonly RESERVATION_TTL_MS = 15 * 60 * 1000;
@@ -51,18 +55,34 @@ export class OrderCheckoutService {
     logger.info(`[CHECKOUT-WORKFLOW] [Attempt: ${idempotencyKey}] Transitioned ${oldPhase || 'INIT'} -> ${newPhase} | Auth: ${authority} | Wait: ${waitingFor}`, details);
   }
 
-  private  async transitionCheckoutAttemptPhase(params: {
-    attemptId: string;
-    expectedPhases: CheckoutWorkflowPhase[];
-    nextPhase: CheckoutWorkflowPhase;
-    authoritySource: CheckoutAuthoritySource;
-    waitingFor: CheckoutWaitingFor;
-    reason: string;
+  private async recordMappingReconciliationCase(params: {
+    paymentIntentId: string;
+    reason: Extract<PaymentReconciliationReason, 'mapping_mismatch' | 'dangling_payment_intent'>;
+    stripeStatus?: string | null;
     orderId?: string | null;
-    paymentIntentId?: string | null;
-    actor?: string;
-  }, transaction?: any): Promise<void> {
-    await this.orderRepo.transitionCheckoutAttemptPhase(params, transaction);
+    message: string;
+    nextAction: string;
+    details: Record<string, any>;
+    localState: string;
+  }): Promise<void> {
+    await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
+      paymentIntentId: params.paymentIntentId,
+      orderId: params.orderId ?? null,
+      reason: params.reason,
+      severity: 'critical',
+      stripeStatus: params.stripeStatus ?? null,
+      operatorVisibleMessage: params.message,
+      nextAction: params.nextAction,
+      details: params.details,
+      failureClassification: 'stripe_local_mismatch',
+      lastObservedStripeState: params.stripeStatus ?? null,
+      lastObservedLocalState: params.localState,
+    })).catch(err => {
+      logger.error(`FATAL: Failed to create ${params.reason} reconciliation case`, {
+        paymentIntentId: params.paymentIntentId,
+        err,
+      });
+    });
   }
 
   async initiateCheckout(
@@ -112,7 +132,7 @@ export class OrderCheckoutService {
             order = existing;
             resumedFromExisting = true;
             // Persist progress to CREATE_OR_RESUME_ATTEMPT
-            await this.transitionCheckoutAttemptPhase({
+            await this.orderRepo.transitionCheckoutAttemptPhase({
               attemptId: idempotencyKey,
               expectedPhases: ['ACQUIRE_RESERVATION'],
               nextPhase: 'CREATE_OR_RESUME_ATTEMPT',
@@ -385,9 +405,9 @@ export class OrderCheckoutService {
         try {
           this.logPhaseTransition(attemptId, 'CREATE_OR_RESUME_PAYMENT_INTENT', 'FINALIZE_PAYMENT', 'local', 'none', { transactionId: paymentResult.transactionId });
           await this.orderRepo.updatePaymentTransactionId(order.id, paymentResult.transactionId);
-          await Promise.resolve(this.transitionCheckoutAttemptPhase({
+          await Promise.resolve(this.orderRepo.transitionCheckoutAttemptPhase({
             attemptId,
-            expectedPhases: ['INITIALIZE_ORDER', 'CREATE_OR_RESUME_ATTEMPT'],
+            expectedPhases: CHECKOUT_PAYMENT_INTENT_ENTRY_PHASES,
             nextPhase: 'CREATE_OR_RESUME_PAYMENT_INTENT',
             authoritySource: 'local',
             waitingFor: 'none',
@@ -402,7 +422,7 @@ export class OrderCheckoutService {
             paymentIntentId: paymentResult.transactionId,
             state: 'payment_intent_created',
           })).catch(() => {});
-          await Promise.resolve(this.transitionCheckoutAttemptPhase({
+          await Promise.resolve(this.orderRepo.transitionCheckoutAttemptPhase({
             attemptId,
             expectedPhases: ['CREATE_OR_RESUME_PAYMENT_INTENT'],
             nextPhase: 'AWAIT_PAYMENT_CONFIRMATION',
@@ -575,7 +595,7 @@ export class OrderCheckoutService {
         const isStaleAttempt = attempt && (attempt.state === 'cancelled' || attempt.state === 'restored' || attempt.state === 'restore_blocked');
 
         this.logPhaseTransition(attemptId, 'AWAIT_PAYMENT_CONFIRMATION', 'FINALIZE_PAYMENT', 'stripe', 'none', { paymentIntentId });
-        await this.transitionCheckoutAttemptPhase({
+        await this.orderRepo.transitionCheckoutAttemptPhase({
           attemptId,
           expectedPhases: ['AWAIT_PAYMENT_CONFIRMATION'],
           nextPhase: 'FINALIZE_PAYMENT',
@@ -641,7 +661,7 @@ export class OrderCheckoutService {
               lastObservedLocalState: `status:${previousStatus};paymentState:${order.paymentState || 'unknown'};reconciliationState:${order.reconciliationState || 'unknown'}`,
             }, transaction);
             if (attempt) {
-              await this.transitionCheckoutAttemptPhase({
+              await this.orderRepo.transitionCheckoutAttemptPhase({
                 attemptId,
                 expectedPhases: ['FINALIZE_PAYMENT', 'AWAIT_PAYMENT_CONFIRMATION'],
                 nextPhase: 'RECOVER_OR_RECONCILE',
@@ -701,7 +721,7 @@ export class OrderCheckoutService {
             lastObservedStripeState: stripePi?.status || 'succeeded',
             lastObservedLocalState: `status:${order.status};paymentState:${order.paymentState || 'unknown'};reconciliationState:${order.reconciliationState || 'unknown'}`,
           }, transaction);
-          await this.transitionCheckoutAttemptPhase({
+          await this.orderRepo.transitionCheckoutAttemptPhase({
             attemptId,
             expectedPhases: ['FINALIZE_PAYMENT'],
             nextPhase: 'RECOVER_OR_RECONCILE',
@@ -801,38 +821,28 @@ export class OrderCheckoutService {
 
       if (mappingMismatch.current) {
         const conflict = mappingMismatch.current;
-        await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
+        await this.recordMappingReconciliationCase({
           paymentIntentId,
-          orderId: conflict.orderId,
           reason: 'mapping_mismatch',
-          severity: 'critical',
+          orderId: conflict.orderId,
           stripeStatus: stripePi?.status || null,
-          operatorVisibleMessage: `Payment ${paymentIntentId} metadata points to order ${conflict.orderId}, but that order is linked to ${conflict.existingPaymentIntentId}.`,
+          message: `Payment ${paymentIntentId} metadata points to order ${conflict.orderId}, but that order is linked to ${conflict.existingPaymentIntentId}.`,
           nextAction: 'Inspect Stripe/local mapping before finalizing, refunding, or remapping.',
           details: conflict,
-          failureClassification: 'stripe_local_mismatch',
-          lastObservedStripeState: stripePi?.status || null,
-          lastObservedLocalState: `existingPaymentIntentId:${conflict.existingPaymentIntentId}`,
-        })).catch(err => {
-          logger.error('FATAL: Failed to create mapping mismatch reconciliation case', { paymentIntentId, err });
+          localState: `existingPaymentIntentId:${conflict.existingPaymentIntentId}`,
         });
       }
 
       if (danglingPaymentIntent.current) {
-        await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
+        await this.recordMappingReconciliationCase({
           paymentIntentId,
-          orderId: danglingPaymentIntent.current.metadataOrderId || null,
           reason: 'dangling_payment_intent',
-          severity: 'critical',
+          orderId: danglingPaymentIntent.current.metadataOrderId || null,
           stripeStatus: stripePi?.status || null,
-          operatorVisibleMessage: `Payment ${paymentIntentId} succeeded but no local order mapping could be found.`,
+          message: `Payment ${paymentIntentId} succeeded but no local order mapping could be found.`,
           nextAction: 'Locate or recreate the local order mapping before fulfillment or refund.',
           details: danglingPaymentIntent.current,
-          failureClassification: 'stripe_local_mismatch',
-          lastObservedStripeState: stripePi?.status || null,
-          lastObservedLocalState: 'order_mapping_missing',
-        })).catch(err => {
-          logger.error('FATAL: Failed to create dangling payment intent reconciliation case', { paymentIntentId, err });
+          localState: 'order_mapping_missing',
         });
       }
 
@@ -850,7 +860,7 @@ export class OrderCheckoutService {
       }
 
       if (finalizedAttemptId && finalizedOrder.status !== 'reconciling') {
-        await Promise.resolve(this.transitionCheckoutAttemptPhase({
+        await Promise.resolve(this.orderRepo.transitionCheckoutAttemptPhase({
           attemptId: finalizedAttemptId,
           expectedPhases: ['FINALIZE_PAYMENT'],
           nextPhase: 'COMPLETE_CHECKOUT',
@@ -873,38 +883,28 @@ export class OrderCheckoutService {
 
       if (mappingMismatch.current) {
         const conflict = mappingMismatch.current;
-        await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
+        await this.recordMappingReconciliationCase({
           paymentIntentId,
-          orderId: conflict.orderId,
           reason: 'mapping_mismatch',
-          severity: 'critical',
+          orderId: conflict.orderId,
           stripeStatus: stripePi?.status || null,
-          operatorVisibleMessage: `Payment ${paymentIntentId} metadata points to order ${conflict.orderId}, but that order is linked to ${conflict.existingPaymentIntentId}.`,
+          message: `Payment ${paymentIntentId} metadata points to order ${conflict.orderId}, but that order is linked to ${conflict.existingPaymentIntentId}.`,
           nextAction: 'Inspect Stripe/local mapping before finalizing, refunding, or remapping.',
           details: conflict,
-          failureClassification: 'stripe_local_mismatch',
-          lastObservedStripeState: stripePi?.status || null,
-          lastObservedLocalState: `existingPaymentIntentId:${conflict.existingPaymentIntentId}`,
-        })).catch(caseErr => {
-          logger.error('FATAL: Failed to create mapping mismatch reconciliation case', { paymentIntentId, caseErr });
+          localState: `existingPaymentIntentId:${conflict.existingPaymentIntentId}`,
         });
       }
 
       if (danglingPaymentIntent.current) {
-        await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
+        await this.recordMappingReconciliationCase({
           paymentIntentId,
-          orderId: danglingPaymentIntent.current.metadataOrderId || null,
           reason: 'dangling_payment_intent',
-          severity: 'critical',
+          orderId: danglingPaymentIntent.current.metadataOrderId || null,
           stripeStatus: stripePi?.status || null,
-          operatorVisibleMessage: `Payment ${paymentIntentId} succeeded but no local order mapping could be found.`,
+          message: `Payment ${paymentIntentId} succeeded but no local order mapping could be found.`,
           nextAction: 'Locate or recreate the local order mapping before fulfillment or refund.',
           details: danglingPaymentIntent.current,
-          failureClassification: 'stripe_local_mismatch',
-          lastObservedStripeState: stripePi?.status || null,
-          lastObservedLocalState: 'order_mapping_missing',
-        })).catch(caseErr => {
-          logger.error('FATAL: Failed to create dangling payment intent reconciliation case', { paymentIntentId, caseErr });
+          localState: 'order_mapping_missing',
         });
       }
 
@@ -988,9 +988,9 @@ export class OrderCheckoutService {
         logger.error('Failed to mark checkout attempt cancelled', { checkoutAttemptId, err });
       });
 
-      await this.transitionCheckoutAttemptPhase({
+      await this.orderRepo.transitionCheckoutAttemptPhase({
         attemptId: checkoutAttemptId,
-        expectedPhases: ['PREPARE_CHECKOUT', 'ACQUIRE_RESERVATION', 'CREATE_OR_RESUME_ATTEMPT', 'INITIALIZE_ORDER', 'CREATE_OR_RESUME_PAYMENT_INTENT', 'AWAIT_PAYMENT_CONFIRMATION', 'RECOVER_OR_RECONCILE'],
+        expectedPhases: CHECKOUT_RECOVERY_PHASES,
         nextPhase: 'RECOVER_OR_RECONCILE',
         authoritySource: 'local',
         waitingFor: 'none',

@@ -11,27 +11,12 @@ import {
     requireIdempotencyKey
 } from '@infrastructure/server/apiGuards';
 import { StripeService } from '@infrastructure/services/StripeService';
-import { AuditService } from '@core/AuditService';
-import { getUnifiedDb, runTransaction } from '@infrastructure/firebase/bridge';
 import { logger } from '@utils/logger';
 import { DomainError } from '@domain/errors';
-import type { Cart, CheckoutAuthoritySource, CheckoutWaitingFor, CheckoutWorkflowPhase, Order, OrderStatus } from '@domain/models';
-
-async function transitionCheckoutAttempt(
-    services: Awaited<ReturnType<typeof getServerServices>>,
-    params: {
-        attemptId: string;
-        expectedPhases: CheckoutWorkflowPhase[];
-        nextPhase: CheckoutWorkflowPhase;
-        authoritySource: CheckoutAuthoritySource;
-        waitingFor: CheckoutWaitingFor;
-        reason: string;
-        orderId?: string | null;
-        paymentIntentId?: string | null;
-    }
-) {
-    await services.orderRepo.transitionCheckoutAttemptPhase(params);
-}
+import {
+  CHECKOUT_PAYMENT_INTENT_ENTRY_PHASES,
+  CHECKOUT_PAYMENT_WAIT_PHASES,
+} from '@core/order/checkoutWorkflow';
 
 /**
  * [LAYER: INTERFACE]
@@ -116,9 +101,9 @@ export async function POST(request: Request) {
           authoritySource: 'local',
           waitingFor: 'none'
         });
-        await transitionCheckoutAttempt(services, {
+        await services.orderRepo.transitionCheckoutAttemptPhase({
           attemptId: idempotencyKey,
-          expectedPhases: ['INITIALIZE_ORDER', 'CREATE_OR_RESUME_ATTEMPT'],
+          expectedPhases: CHECKOUT_PAYMENT_INTENT_ENTRY_PHASES,
           nextPhase: 'CREATE_OR_RESUME_PAYMENT_INTENT',
           authoritySource: 'local',
           waitingFor: 'none',
@@ -136,9 +121,9 @@ export async function POST(request: Request) {
           authoritySource: 'stripe',
           waitingFor: 'webhook'
         });
-        await transitionCheckoutAttempt(services, {
+        await services.orderRepo.transitionCheckoutAttemptPhase({
           attemptId: idempotencyKey,
-          expectedPhases: ['CREATE_OR_RESUME_PAYMENT_INTENT', 'AWAIT_PAYMENT_CONFIRMATION'],
+          expectedPhases: CHECKOUT_PAYMENT_WAIT_PHASES,
           nextPhase: 'AWAIT_PAYMENT_CONFIRMATION',
           authoritySource: 'stripe',
           waitingFor: 'webhook',
@@ -164,9 +149,9 @@ export async function POST(request: Request) {
           authoritySource: 'local',
           waitingFor: 'none'
         });
-        await transitionCheckoutAttempt(services, {
+        await services.orderRepo.transitionCheckoutAttemptPhase({
           attemptId: idempotencyKey,
-          expectedPhases: ['INITIALIZE_ORDER', 'CREATE_OR_RESUME_ATTEMPT'],
+          expectedPhases: CHECKOUT_PAYMENT_INTENT_ENTRY_PHASES,
           nextPhase: 'CREATE_OR_RESUME_PAYMENT_INTENT',
           authoritySource: 'local',
           waitingFor: 'none',
@@ -199,7 +184,7 @@ export async function POST(request: Request) {
           authoritySource: 'stripe',
           waitingFor: 'webhook'
         });
-        await transitionCheckoutAttempt(services, {
+        await services.orderRepo.transitionCheckoutAttemptPhase({
           attemptId: idempotencyKey,
           expectedPhases: ['CREATE_OR_RESUME_PAYMENT_INTENT'],
           nextPhase: 'AWAIT_PAYMENT_CONFIRMATION',
