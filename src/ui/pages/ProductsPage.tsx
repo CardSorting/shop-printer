@@ -179,7 +179,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
     try {
       const isCollectionType = resolvedType === 'collection';
       const result = await services.productService.getProducts({
-        category: !isCollectionType && selectedCategories.length > 0 ? selectedCategories[0] : undefined,
+        category: !isCollectionType && selectedCategories.length > 0 ? selectedCategories : undefined,
         collection: isCollectionType && collectionSlug ? collectionSlug : undefined,
         query: search.trim() || undefined,
         limit: 20,
@@ -256,6 +256,108 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
     }
   };
 
+  const renderFilters = () => {
+    const uniqueCategories = categories.filter(
+      (cat, idx, self) => self.findIndex(c => c.slug === cat.slug || c.name === cat.name) === idx
+    );
+
+    return (
+      <div className="space-y-12">
+        <section>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Product Type</h3>
+          <div className="space-y-3">
+            {uniqueCategories.map((cat) => (
+              <label key={cat.id} className="flex items-center gap-3 group cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedCategories.includes(cat.slug)}
+                  onChange={(e) => {
+                    const next = e.target.checked 
+                      ? [...selectedCategories, cat.slug]
+                      : selectedCategories.filter(slug => slug !== cat.slug);
+                    setSelectedCategories(next);
+                  }}
+                  className="h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">{cat.name}</span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Condition</h3>
+          <div className="space-y-3">
+            {conditions.map((cond) => (
+              <label key={cond} className="flex items-center gap-3 group cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedConditions.includes(cond)}
+                  onChange={(e) => {
+                    const next = e.target.checked 
+                      ? [...selectedConditions, cond]
+                      : selectedConditions.filter(c => c !== cond);
+                    setSelectedConditions(next);
+                  }}
+                  className="h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500 transition-all"
+                />
+                <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">{cond}</span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Availability</h3>
+          <div className="space-y-3">
+            {availabilityOptions.map((opt) => (
+              <label key={opt.value} className="flex items-center gap-3 group cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedAvailability.includes(opt.value)}
+                  onChange={(e) => {
+                    const next = e.target.checked 
+                      ? [...selectedAvailability, opt.value]
+                      : selectedAvailability.filter(a => a !== opt.value);
+                    setSelectedAvailability(next);
+                  }}
+                  className="h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500 transition-all"
+                />
+                <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">{opt.label}</span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Price Range</h3>
+          <div className="space-y-6">
+             <div className="flex items-center gap-4">
+                <div className="flex-1">
+                   <p className="text-[8px] font-black uppercase text-gray-400 mb-1">Min</p>
+                   <input 
+                     type="number" 
+                     value={priceRange[0]} 
+                     onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
+                     className="w-full bg-gray-50 border-none rounded-xl px-3 py-2 text-xs font-bold"
+                   />
+                </div>
+                <div className="flex-1">
+                   <p className="text-[8px] font-black uppercase text-gray-400 mb-1">Max</p>
+                   <input 
+                     type="number" 
+                     value={priceRange[1]} 
+                     onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+                     className="w-full bg-gray-50 border-none rounded-xl px-3 py-2 text-xs font-bold"
+                   />
+                </div>
+             </div>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {quickViewProduct && (
@@ -270,6 +372,64 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
           }}
         />
       )}
+
+      {/* Mobile Filter Drawer Overlay */}
+      {isFilterOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
+          {/* Backdrop with fade transition */}
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-out animate-in fade-in" 
+            onClick={() => setIsFilterOpen(false)}
+          />
+          
+          {/* Drawer Container */}
+          <div className="fixed inset-y-0 left-0 w-full max-w-md bg-white shadow-2xl flex flex-col z-50 h-full animate-in slide-in-from-left duration-300 ease-out">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-6 border-b border-gray-100 shrink-0">
+              <div className="flex items-center gap-2">
+                <Filter className="w-5 h-5 text-gray-900" />
+                <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider">Filters</h2>
+              </div>
+              <button 
+                onClick={() => setIsFilterOpen(false)}
+                className="p-3 rounded-full hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-900 focus:outline-none"
+                aria-label="Close filters"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Filter content - scrollable */}
+            <div className="flex-1 overflow-y-auto px-6 py-8 space-y-12">
+               {renderFilters()}
+            </div>
+
+            {/* Footer with actions */}
+            <div className="p-6 border-t border-gray-100 bg-gray-50 shrink-0 flex gap-4">
+              <button
+                onClick={() => {
+                  setSelectedCategories([]);
+                  setSelectedConditions([]);
+                  setSelectedAvailability([]);
+                  setPriceRange([0, 100000]);
+                  setSearch('');
+                  setSortBy('newest');
+                }}
+                className="flex-1 py-4 border-2 border-gray-200 rounded-2xl text-xs font-black uppercase tracking-widest text-gray-500 hover:bg-white hover:text-gray-900 transition-all"
+              >
+                Clear All
+              </button>
+              <button
+                onClick={() => setIsFilterOpen(false)}
+                className="flex-1 py-4 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Breadcrumbs */}
         <Breadcrumbs items={[{ label: 'Catalog' }]} />
@@ -353,12 +513,12 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
              </div>
              <div className="flex flex-wrap items-center gap-2">
                 {search && (
-                  <button 
-                    onClick={() => setSearch('')}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 transition-all border border-transparent shadow-lg shadow-gray-200"
-                  >
-                    "{search}" <X className="w-3 h-3" />
-                  </button>
+                   <button 
+                     onClick={() => setSearch('')}
+                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 transition-all border border-transparent shadow-lg shadow-gray-200"
+                   >
+                     "{search}" <X className="w-3 h-3" />
+                   </button>
                 )}
                 {selectedCategories.map(slug => {
                   const cat = categories.find(c => c.slug === slug);
@@ -409,104 +569,14 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
-          {/* Filter Sidebar */}
-          <aside className={`lg:col-span-3 space-y-12 sticky top-32 ${isFilterOpen ? 'block' : 'hidden lg:block'}`}>
-            <section>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Product Type</h3>
-              <div className="space-y-3">
-                {categories.map((cat) => (
-                  <label key={cat.id} className="flex items-center gap-3 group cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedCategories.includes(cat.slug)}
-                      onChange={(e) => {
-                        const next = e.target.checked 
-                          ? [...selectedCategories, cat.slug]
-                          : selectedCategories.filter(slug => slug !== cat.slug);
-                        setSelectedCategories(next);
-                      }}
-                      className="h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">{cat.name}</span>
-                  </label>
-                ))}
-              </div>
-            </section>
-
-            <section>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Condition</h3>
-              <div className="space-y-3">
-                {conditions.map((cond) => (
-                  <label key={cond} className="flex items-center gap-3 group cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedConditions.includes(cond)}
-                      onChange={(e) => {
-                        const next = e.target.checked 
-                          ? [...selectedConditions, cond]
-                          : selectedConditions.filter(c => c !== cond);
-                        setSelectedConditions(next);
-                      }}
-                      className="h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500 transition-all"
-                    />
-                    <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">{cond}</span>
-                  </label>
-                ))}
-              </div>
-            </section>
-
-            <section>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Availability</h3>
-              <div className="space-y-3">
-                {availabilityOptions.map((opt) => (
-                  <label key={opt.value} className="flex items-center gap-3 group cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedAvailability.includes(opt.value)}
-                      onChange={(e) => {
-                        const next = e.target.checked 
-                          ? [...selectedAvailability, opt.value]
-                          : selectedAvailability.filter(a => a !== opt.value);
-                        setSelectedAvailability(next);
-                      }}
-                      className="h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500 transition-all"
-                    />
-                    <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">{opt.label}</span>
-                  </label>
-                ))}
-              </div>
-            </section>
-
-            <section>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Price Range</h3>
-              <div className="space-y-6">
-                 <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                       <p className="text-[8px] font-black uppercase text-gray-400 mb-1">Min</p>
-                       <input 
-                         type="number" 
-                         value={priceRange[0]} 
-                         onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-                         className="w-full bg-gray-50 border-none rounded-xl px-3 py-2 text-xs font-bold"
-                       />
-                    </div>
-                    <div className="flex-1">
-                       <p className="text-[8px] font-black uppercase text-gray-400 mb-1">Max</p>
-                       <input 
-                         type="number" 
-                         value={priceRange[1]} 
-                         onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-                         className="w-full bg-gray-50 border-none rounded-xl px-3 py-2 text-xs font-bold"
-                       />
-                    </div>
-                 </div>
-              </div>
-            </section>
-            
+          {/* Desktop Filter Sidebar (Hidden on Mobile) */}
+          <aside className="hidden lg:block lg:col-span-3 space-y-12 sticky top-32">
+            {renderFilters()}
             <button 
               onClick={() => {
                 setSelectedCategories([]);
                 setSelectedConditions([]);
+                setSelectedAvailability([]);
                 setPriceRange([0, 100000]);
                 setSortBy('newest');
               }}

@@ -33,6 +33,7 @@ function makeOrderRepo(overrides: Record<string, any> = {}) {
     markForReconciliation: vi.fn(),
     createOrUpdateReconciliationCase: vi.fn(),
     updateCheckoutAttempt: vi.fn(),
+    transitionCheckoutAttemptPhase: vi.fn().mockResolvedValue(undefined),
     recordRefund: vi.fn(),
     ...overrides,
   };

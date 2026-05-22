@@ -145,7 +145,7 @@ class InMemoryProductRepository {
     stock: 1_000_000,
     category: 'benchmark',
     imageUrl: '/benchmark-card.png',
-    images: [],
+    media: [],
     tags: [],
     collections: [],
     isDigital: false,

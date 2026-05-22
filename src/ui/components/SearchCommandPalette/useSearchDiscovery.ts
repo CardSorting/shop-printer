@@ -133,35 +133,21 @@ export function useSearchDiscovery() {
         if ('cart'.includes(trimmedQuery)) actions.push({ id: 'action-cart', label: 'View Shopping Cart', href: '#', icon: ShoppingCart, isCart: true });
         if ('support'.includes(trimmedQuery) || 'help'.includes(trimmedQuery)) actions.push({ id: 'action-support', label: 'Contact Support', href: '/support', icon: ShieldCheck });
         if ('wishlist'.includes(trimmedQuery)) actions.push({ id: 'action-wishlist', label: 'My Favorites', href: '/wishlist', icon: Heart });
-        if ('journal'.includes(trimmedQuery) || 'blog'.includes(trimmedQuery)) actions.push({ id: 'action-blog', label: 'Browse Hive Journal', href: '/blog', icon: NotebookPen });
         
         if (!controller.signal.aborted) {
           setQuickActions(actions);
         }
 
-        // 2. Fetch Products & Articles
-        const [productResult, articleResult] = await Promise.all([
-          services.productService.getProducts({ 
-            query: query.trim(),
-            limit: 5,
-            signal: controller.signal
-          }),
-          services.knowledgebaseService.getArticles({
-            status: 'published',
-            type: 'blog',
-            signal: controller.signal
-          })
-        ]);
+        // 2. Fetch Products
+        const productResult = await services.productService.getProducts({ 
+          query: query.trim(),
+          limit: 5,
+          signal: controller.signal
+        });
 
         if (!controller.signal.aborted) {
           setResults(productResult.products);
-          
-          // Manual filter for articles (assuming search is small for now or repository supports it)
-          const matchedArticles = articleResult.articles.filter(a => 
-            a.title.toLowerCase().includes(trimmedQuery) || 
-            a.excerpt.toLowerCase().includes(trimmedQuery)
-          ).slice(0, 3);
-          setBlogResults(matchedArticles);
+          setBlogResults([]);
 
           // 3. Filter Categories
           const matchedCats = categories.filter(c => 

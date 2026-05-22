@@ -17,13 +17,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '',
     '/products',
     '/collections/all',
-    '/blog',
     '/support',
   ].map((route) => ({
     url: `${SITE_URL}${route}`,
     lastModified: new Date(),
-    changeFrequency: (route === '' || route === '/products' || route === '/blog') ? 'daily' as const : 'weekly' as const,
-    priority: route === '' ? 1 : route === '/products' ? 0.9 : route === '/blog' ? 0.9 : 0.8,
+    changeFrequency: (route === '' || route === '/products') ? 'daily' as const : 'weekly' as const,
+    priority: route === '' ? 1 : route === '/products' ? 0.9 : 0.8,
   }));
 
   // 2. Fetch all products
@@ -52,14 +51,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  // 4. Fetch all blog posts
-  const blogData = await services.knowledgebaseRepository.getArticles({ type: 'blog', status: 'published' });
-  const blogRoutes = blogData.articles.map((post) => ({
-    url: `${SITE_URL}/blog/${post.slug}`,
-    lastModified: post.updatedAt || post.publishedAt || new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.5,
-  }));
-
-  return [...staticRoutes, ...productRoutes, ...collectionRoutes, ...merchCollectionRoutes, ...blogRoutes];
+  return [...staticRoutes, ...productRoutes, ...collectionRoutes, ...merchCollectionRoutes];
 }

@@ -53,7 +53,7 @@ export class FirestoreProductRepository implements IProductRepository {
   private readonly collectionName = 'products';
 
   async getAll(options: {
-    category?: string;
+    category?: string | string[];
     collection?: string;
     query?: string;
     status?: ProductStatus | 'all';
@@ -67,7 +67,15 @@ export class FirestoreProductRepository implements IProductRepository {
       const baseColl = collection(db, this.collectionName);
       const constraints: any[] = [];
 
-      if (options.category) constraints.push(where('category', '==', options.category));
+      if (options.category) {
+        if (Array.isArray(options.category)) {
+          if (options.category.length > 0) {
+            constraints.push(where('category', 'in', options.category));
+          }
+        } else {
+          constraints.push(where('category', '==', options.category));
+        }
+      }
       if (options.query) {
         const searchStr = options.query.toLowerCase().trim();
         constraints.push(where('searchKeywords', 'array-contains', searchStr));

@@ -78,7 +78,7 @@ export class ProductService {
   ) {}
 
   async getProducts(options?: {
-    category?: string;
+    category?: string | string[];
     collection?: string;
     query?: string;
     status?: ProductStatus | 'all';

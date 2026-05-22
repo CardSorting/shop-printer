@@ -130,9 +130,12 @@ export function createApiClientServices() {
             updateUser: (id: string, updates: Partial<User>) => request<User>(`/api/auth/users/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
         },
         productService: {
-            getProducts: (options?: { category?: string; collection?: string; limit?: number; cursor?: string; query?: string; signal?: AbortSignal }) => {
+            getProducts: (options?: { category?: string | string[]; collection?: string; limit?: number; cursor?: string; query?: string; signal?: AbortSignal }) => {
                 const qs = new URLSearchParams();
-                if (options?.category) qs.set('category', options.category);
+                if (options?.category) {
+                    const catVal = Array.isArray(options.category) ? options.category.join(',') : options.category;
+                    qs.set('category', catVal);
+                }
                 if (options?.collection) qs.set('collection', options.collection);
                 if (options?.limit) qs.set('limit', String(options.limit));
                 if (options?.cursor) qs.set('cursor', options.cursor);

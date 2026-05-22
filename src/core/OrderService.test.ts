@@ -44,6 +44,7 @@ describe('OrderService', () => {
       updateFulfillment: vi.fn(),
       recordCheckoutAttempt: vi.fn(),
       updateCheckoutAttempt: vi.fn(),
+      transitionCheckoutAttemptPhase: vi.fn().mockResolvedValue(undefined),
       createOrUpdateReconciliationCase: vi.fn(),
     };
     mockProductRepo = {

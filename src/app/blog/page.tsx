@@ -3,7 +3,7 @@
  */
 'use client';
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, notFound } from 'next/navigation';
 import { useServices } from '@ui/hooks/useServices';
 import { BlogCard, NewsletterBox, TrendingPostItem, TopicPill, SeriesCard } from '@ui/components/BlogComponents';
 import { BlogHero } from '@ui/components/Blog/BlogHero';
@@ -343,15 +343,6 @@ function BlogContent() {
 }
 
 export default function BlogPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex flex-col items-center justify-center py-40 space-y-6 pt-28">
-        <Loader2 className="h-12 w-12 animate-spin text-primary-600" />
-        <p className="text-sm font-black uppercase tracking-widest text-gray-400">Loading the Hive Journal...</p>
-      </div>
-    }>
-      <BlogContent />
-    </Suspense>
-  );
+  notFound();
 }
 

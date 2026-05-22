@@ -55,24 +55,7 @@ export function HomePage() {
       }
     };
 
-    const loadBlog = async () => {
-      try {
-        const posts = await services.knowledgebaseService.getArticles({ 
-          type: 'blog', 
-          status: 'published',
-          signal: controller.signal
-        });
-        if (!controller.signal.aborted) {
-          setLatestPosts(posts.articles.slice(0, 3));
-        }
-      } catch (err: any) {
-        if (err.name === 'AbortError') return;
-        console.error('Failed to load blog posts for home', err);
-      }
-    };
-
     void loadInitial();
-    void loadBlog();
     return () => {
       controller.abort();
       loadMoreControllerRef.current?.abort();
@@ -374,66 +357,7 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Journal Highlights */}
-      <section className="py-24 bg-gray-50/50">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-end justify-between mb-16">
-            <div className="border-l-4 border-amber-400 pl-8">
-              <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-2 uppercase">The Journal</h2>
-              <p className="text-gray-500 font-medium text-lg">Strategy, stories, and art from the hive.</p>
-            </div>
-            <Link href="/blog" className="hidden sm:flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-primary-600 hover:text-primary-700 transition-colors group">
-              Enter the Journal <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {latestPosts.map((post) => (
-              <Link 
-                key={post.id} 
-                href={`/blog/${post.slug}`}
-                className="group flex flex-col bg-white rounded-3xl overflow-hidden border border-gray-100 hover:border-primary-100 hover:shadow-2xl hover:shadow-primary-500/5 transition-all duration-500"
-              >
-                <div className="relative aspect-video overflow-hidden">
-                  <Image 
-                    src={post.featuredImageUrl || post.ogImage || '/assets/generated/generic_tcg_strategy_1778177431609.png'} 
-                    fill 
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                    className="object-cover transition-transform duration-1000 group-hover:scale-110" 
-                    alt={post.title}
-                  />
-                  <div className="absolute top-4 left-4">
-                    <span className="px-3 py-1 rounded-lg bg-white/90 backdrop-blur-md text-[8px] font-black uppercase tracking-widest text-gray-900 shadow-sm">
-                      {post.categoryName}
-                    </span>
-                  </div>
-                </div>
-                <div className="p-8 flex-1 flex flex-col">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4 line-clamp-2 group-hover:text-primary-600 transition-colors">
-                    {post.title}
-                  </h3>
-                  <p className="text-sm text-gray-500 font-medium line-clamp-3 mb-6">
-                    {post.excerpt}
-                  </p>
-                  <div className="mt-auto flex items-center justify-between pt-6 border-t border-gray-50">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                      <BookOpen className="h-3.5 w-3.5" />
-                      Read Story
-                    </span>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                      {new Date(post.publishedAt || post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          <Link href="/blog" className="mt-12 sm:hidden w-full flex items-center justify-center py-5 rounded-2xl bg-gray-900 text-white font-black text-xs uppercase tracking-widest shadow-xl">
-            Enter the Journal
-          </Link>
-        </div>
-      </section>
 
       {/* The Heart of the Hive - Redesigned CTA */}
       <section className="py-32 bg-gray-900 text-white relative overflow-hidden">

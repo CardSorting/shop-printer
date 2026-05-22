@@ -6,8 +6,10 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const services = await getServerServices();
+        const categoryParam = searchParams.get('category');
+        const category = categoryParam ? (categoryParam.includes(',') ? categoryParam.split(',') : categoryParam) : undefined;
         const result = await services.productService.getProducts({
-            category: searchParams.get('category') ?? undefined,
+            category,
             collection: searchParams.get('collection') ?? undefined,
             query: searchParams.get('query') ?? undefined,
             limit: parseBoundedLimit(searchParams.get('limit')),

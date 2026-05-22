@@ -38,6 +38,7 @@ describe('OrderService Concurrency', () => {
       getByIdempotencyKey: vi.fn().mockResolvedValue(null),
       recordCheckoutAttempt: vi.fn(),
       updateCheckoutAttempt: vi.fn(),
+      transitionCheckoutAttemptPhase: vi.fn().mockResolvedValue(undefined),
       createOrUpdateReconciliationCase: vi.fn(),
       transitionPaymentState: vi.fn().mockResolvedValue(undefined),
       transitionFulfillmentState: vi.fn().mockResolvedValue(undefined),
