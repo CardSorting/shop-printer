@@ -207,22 +207,6 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: 'Content & Media',
     items: [
       {
-        id: 'pages',
-        href: '/admin/settings',
-        label: 'Pages',
-        description: 'Manage custom content pages',
-        icon: ClipboardCheck,
-        aliases: ['content', 'about', 'contact', 'legal', 'policy', 'tos', 'privacy'],
-      },
-      {
-        id: 'blog',
-        href: '/admin/blog',
-        label: 'Blog',
-        description: 'Manage articles and store updates',
-        icon: NotebookPen,
-        aliases: ['blog', 'posts', 'authors', 'articles', 'news', 'journal', 'writing'],
-      },
-      {
         id: 'files',
         href: '/admin/files',
         label: 'Files',
