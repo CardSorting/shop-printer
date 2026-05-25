@@ -45,6 +45,11 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
   const averageRating = Number((product as any).averageRating);
   const displayRating = Number.isFinite(averageRating) && Number.isFinite(reviewCount) && reviewCount > 0 ? averageRating : null;
 
+  // Get secondary image for hover swap if available
+  const secondaryImage = product.media && product.media.length > 1
+    ? product.media.find(m => m.position === 2)?.url || product.media[1]?.url
+    : null;
+
   const handleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -99,8 +104,19 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
             fill
             priority={priority}
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
+            className={`object-cover transition-all duration-700 ${
+              secondaryImage ? 'group-hover:opacity-0' : 'group-hover:scale-105'
+            }`}
           />
+          {secondaryImage && (
+            <Image
+              src={sanitizeImageUrl(secondaryImage)}
+              alt={`${product.name} - Alternate view`}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+              className="object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-700 ease-in-out group-hover:scale-105"
+            />
+          )}
         </Link>
 
         {/* Floating Badges */}

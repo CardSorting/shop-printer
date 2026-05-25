@@ -6,10 +6,11 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useServices } from '../hooks/useServices';
 import { useCart } from '../hooks/useCart';
-import type { Product } from '@domain/models';
+import type { Product, ProductCategory } from '@domain/models';
 import { Search, ChevronRight, PackageSearch, X, LayoutGrid, Grid3X3, Grid2X2 } from 'lucide-react';
 import { useWishlist } from '../hooks/useWishlist';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { getProductUrl, STORE_PATHS } from '@utils/navigation';
 import { logger } from '@utils/logger';
@@ -38,7 +39,22 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
   const [gridCols, setGridCols] = useState(3);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [collectionInfo, setCollectionInfo] = useState<{ name: string; description: string; imageUrl?: string } | null>(null);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const loadProductsControllerRef = useRef<AbortController | null>(null);
+
+  // Fetch taxonomy categories dynamically on mount
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/taxonomy/categories', { signal: controller.signal })
+      .then(res => res.json())
+      .then(data => {
+        if (!controller.signal.aborted && Array.isArray(data)) {
+          setCategories(data);
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   // Initialize state from URL
   useEffect(() => {
@@ -180,7 +196,16 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Breadcrumbs */}
-        <Breadcrumbs items={[{ label: 'Catalog' }]} />
+        <Breadcrumbs 
+          items={
+            collectionInfo 
+              ? [
+                  { label: 'Catalog', href: '/products' },
+                  { label: collectionInfo.name }
+                ]
+              : [{ label: 'Catalog' }]
+          } 
+        />
 
         {/* Header */}
         <div className="mb-16">
@@ -192,6 +217,38 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
              {collectionInfo?.description || 'Browse our curated collection of artist trading cards, prints, and TCG accessories. Every item is handcrafted by independent creators.'}
            </p>
         </div>
+
+        {/* Category Pills Navigation */}
+        {categories.length > 0 && (
+          <div className="mb-12 flex items-center gap-3 overflow-x-auto scrollbar-hide pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap border-b border-gray-100/60">
+            <Link
+              href="/products"
+              className={`px-5 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                !collectionSlug || collectionSlug === 'all'
+                  ? 'bg-gray-900 text-white shadow-lg shadow-gray-200'
+                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+              }`}
+            >
+              All Items
+            </Link>
+            {categories.map((cat) => {
+              const isActive = collectionSlug === cat.slug;
+              return (
+                <Link
+                  key={cat.id}
+                  href={`/collections/${cat.slug}`}
+                  className={`px-5 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                    isActive
+                      ? 'bg-gray-900 text-white shadow-lg shadow-gray-200'
+                      : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  {cat.name}
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
         {/* Search & Sort Bar */}
         <div className="flex flex-col lg:flex-row items-center gap-6 mb-16">
