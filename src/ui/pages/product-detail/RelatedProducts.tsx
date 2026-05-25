@@ -67,7 +67,18 @@ export function RelatedProducts({ products, loading, title = 'You May Also Like'
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{product.category}</p>
               <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-2 min-h-[2.5rem] mb-1">{product.name}</h3>
-              <p className="text-sm font-black text-gray-900">{formatCurrency(product.price)}</p>
+              {product.compareAtPrice !== undefined && product.compareAtPrice > product.price ? (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm font-black text-red-600">
+                    {formatCurrency(product.price)}
+                  </span>
+                  <span className="text-xs font-medium text-gray-400 line-through">
+                    {formatCurrency(product.compareAtPrice)}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-sm font-black text-gray-900">{formatCurrency(product.price)}</p>
+              )}
             </div>
           </Link>
         ))}
@@ -105,7 +116,18 @@ export function RecentlyViewed({ products, currentProductId }: RecentlyViewedPro
             </div>
             <div>
               <h3 className="text-xs font-bold text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1">{product.name}</h3>
-              <p className="text-xs font-bold text-gray-500 mt-0.5">{formatCurrency(product.price)}</p>
+              {product.compareAtPrice !== undefined && product.compareAtPrice > product.price ? (
+                <div className="flex items-baseline gap-1.5 mt-0.5">
+                  <span className="text-xs font-bold text-red-600">
+                    {formatCurrency(product.price)}
+                  </span>
+                  <span className="text-[10px] font-medium text-gray-400 line-through">
+                    {formatCurrency(product.compareAtPrice)}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-xs font-bold text-gray-500 mt-0.5">{formatCurrency(product.price)}</p>
+              )}
             </div>
           </Link>
         ))}
