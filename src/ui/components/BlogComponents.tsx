@@ -518,7 +518,7 @@ export function RelatedProducts({ products }: { products: Product[] }) {
           <Link 
             key={product.id}
             href={productPath(product)}
-            className="group bg-white rounded-4xl p-6 border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500"
+            className="group bg-white rounded-4xl p-6 border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 flex flex-col h-full"
           >
             <div className="relative h-48 overflow-hidden rounded-3xl mb-6 bg-gray-50">
               <Image src={sanitizeImageUrl(product.imageUrl)} alt={product.name} fill className="object-contain p-4 group-hover:scale-110 transition-transform duration-500" />
@@ -529,8 +529,8 @@ export function RelatedProducts({ products }: { products: Product[] }) {
               </div>
             </div>
             <h4 className="text-lg font-black text-gray-900 mb-2 group-hover:text-primary-600 transition-colors line-clamp-1">{product.name}</h4>
-            <p className="text-xs font-medium text-gray-400 line-clamp-2 leading-relaxed">{product.description}</p>
-            <div className="mt-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary-600 group-hover:gap-4 transition-all">
+            <p className="text-xs font-medium text-gray-400 line-clamp-2 leading-relaxed mb-6">{product.description}</p>
+            <div className="mt-auto pt-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary-600 group-hover:gap-4 transition-all border-t border-gray-50">
                <span>View Product</span>
                <ChevronRight className="h-3 w-3" />
             </div>

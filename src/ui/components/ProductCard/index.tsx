@@ -166,7 +166,7 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
 
       {/* Content Area */}
       <div className="mt-6 px-1 flex-1 flex flex-col">
-        <div className="flex items-center justify-between mb-2.5">
+        <div className="h-7 flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest">
               {product.category}
@@ -184,7 +184,7 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
           )}
         </div>
 
-        <h3 className="font-bold text-gray-900 text-lg leading-tight mb-2 group-hover:text-primary-600 transition-colors">
+        <h3 className="font-bold text-gray-900 text-lg leading-tight mb-2 group-hover:text-primary-600 transition-colors line-clamp-2 min-h-[2.85rem]">
           <Link href={`/products/${product.handle || product.id}`}>{product.name}</Link>
         </h3>
         

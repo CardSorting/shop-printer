@@ -619,7 +619,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
                 >
                   <meta itemProp="numberOfItems" content={products.length.toString()} />
                   {products.map((p, i) => (
-                    <div key={p.id} itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+                    <div key={p.id} className="h-full" itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
                       <meta itemProp="position" content={(i + 1).toString()} />
                       <meta itemProp="name" content={p.name} />
                       <link itemProp="url" href={getProductUrl(p)} />

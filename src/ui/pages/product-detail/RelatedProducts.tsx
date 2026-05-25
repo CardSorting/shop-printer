@@ -66,7 +66,7 @@ export function RelatedProducts({ products, loading, title = 'You May Also Like'
             </div>
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{product.category}</p>
-              <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-2 mb-1">{product.name}</h3>
+              <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-2 min-h-[2.5rem] mb-1">{product.name}</h3>
               <p className="text-sm font-black text-gray-900">{formatCurrency(product.price)}</p>
             </div>
           </Link>
