@@ -19,6 +19,8 @@ import { logger } from '@utils/logger';
 import { adminAuth, adminDb } from '../firebase/admin';
 import { Timestamp, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import { BLOG_AUTHORS, BLOG_SERIES, BLOG_POSTS } from './BlogSeedData';
 import { EXTENDED_SERIES, EXTENDED_POSTS } from './ExtendedBlogSeedData';
 
@@ -321,6 +323,147 @@ export async function seedProducts(): Promise<number> {
     });
     created++;
   }
+
+  // Parse and seed the cleaned CSV sheets
+  const csvFiles = [
+    'dreamshop_export-2026-05-26T01-10-59-261Z.csv',
+    'dreamshop_export-2026-05-26T01-24-39-869Z.csv',
+    'dreamshop_export-2026-05-26T02-03-37-515Z.csv'
+  ];
+
+  for (const filename of csvFiles) {
+    const filePath = path.join(process.cwd(), filename);
+    if (!fs.existsSync(filePath)) {
+      logger.warn(`CSV file not found during seeding: ${filePath}`);
+      continue;
+    }
+
+    try {
+      const text = fs.readFileSync(filePath, 'utf-8');
+      const lines = text.split(/\r?\n/);
+      if (lines.length < 2) continue;
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      
+      const handleIdx = headers.indexOf('Handle');
+      const titleIdx = headers.indexOf('Title');
+      const bodyIdx = headers.indexOf('Body (HTML)');
+      const vendorIdx = headers.indexOf('Vendor');
+      const typeIdx = headers.indexOf('Custom Product Type');
+      const tagsIdx = headers.indexOf('Tags');
+      const publishedIdx = headers.indexOf('Published');
+      const skuIdxCol = headers.indexOf('Variant SKU');
+      const priceIdxCol = headers.indexOf('Variant Price');
+      const compareAtPriceIdxCol = headers.indexOf('Variant Compare At Price');
+      const imageIdxCol = headers.indexOf('Image Src');
+      const qtyIdxCol = headers.indexOf('Variant Inventory Qty');
+      const gramsIdxCol = headers.indexOf('Variant Grams');
+      const requiresShippingIdxCol = headers.indexOf('Variant Requires Shipping');
+      const taxableIdxCol = headers.indexOf('Variant Taxable');
+      const barcodeIdxCol = headers.indexOf('Variant Barcode');
+      const costIdxCol = headers.indexOf('Cost');
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Custom CSV line parser
+        const values: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          if (char === '"') {
+            if (inQuotes && line[j + 1] === '"') {
+              current += '"';
+              j++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        values.push(current.trim());
+
+        // Trim values and remove surrounding quotes if any
+        const cleanedValues = values.map(val => {
+          if (val.startsWith('"') && val.endsWith('"')) {
+            return val.substring(1, val.length - 1);
+          }
+          return val;
+        });
+
+        const title = cleanedValues[titleIdx];
+        if (!title) continue;
+
+        const handle = cleanedValues[handleIdx] || title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const priceDollar = parseFloat(cleanedValues[priceIdxCol] || '0');
+        const price = Math.round(priceDollar * 100);
+
+        const compareAtPriceDollar = parseFloat(cleanedValues[compareAtPriceIdxCol] || '0');
+        const compareAtPrice = isNaN(compareAtPriceDollar) || compareAtPriceDollar <= 0 ? undefined : Math.round(compareAtPriceDollar * 100);
+
+        const costDollar = parseFloat(cleanedValues[costIdxCol] || '0');
+        const cost = isNaN(costDollar) || costDollar <= 0 ? undefined : Math.round(costDollar * 100);
+
+        const stock = parseInt(cleanedValues[qtyIdxCol] || '100', 10);
+        const weightGrams = parseInt(cleanedValues[gramsIdxCol] || '0', 10);
+        const imageUrl = cleanedValues[imageIdxCol] || '';
+
+        const tags = cleanedValues[tagsIdx] ? cleanedValues[tagsIdx].split(',').map(t => t.trim()).filter(Boolean) : [];
+        const isDigital = cleanedValues[requiresShippingIdxCol]?.toLowerCase() === 'false';
+        const isTaxable = cleanedValues[taxableIdxCol]?.toLowerCase() !== 'false';
+
+        const now = Timestamp.now();
+        const id = crypto.randomUUID();
+
+        const productDraft: any = {
+          name: title,
+          description: cleanedValues[bodyIdx] || `No description for ${title}`,
+          price,
+          category: 'other', // Board games categorized as 'other'
+          productType: cleanedValues[typeIdx] || 'Board Games',
+          vendor: cleanedValues[vendorIdx] || 'Other',
+          tags,
+          collections: ['new'],
+          handle,
+          seoTitle: title,
+          seoDescription: `Get the fun and exciting ${title}. Perfect for family game nights, parties, and gifts!`,
+          salesChannels: ['online_store'],
+          stock,
+          trackQuantity: true,
+          continueSellingWhenOutOfStock: false,
+          physicalItem: !isDigital,
+          weightGrams,
+          imageUrl,
+          status: cleanedValues[publishedIdx]?.toLowerCase() === 'true' ? 'active' : 'draft',
+          taxable: isTaxable,
+          media: imageUrl ? [{ id: 'med-1', url: imageUrl, altText: title, position: 1, createdAt: now } as any] : []
+        };
+
+        if (compareAtPrice !== undefined) productDraft.compareAtPrice = compareAtPrice;
+        if (cost !== undefined) productDraft.cost = cost;
+        if (cleanedValues[skuIdxCol]) productDraft.sku = cleanedValues[skuIdxCol];
+        if (cleanedValues[barcodeIdxCol]) productDraft.barcode = cleanedValues[barcodeIdxCol];
+
+        await adminDb.collection('products').doc(id).set({
+          ...productDraft,
+          id,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        created++;
+      }
+    } catch (err) {
+      logger.error(`Failed parsing or seeding CSV file: ${filename}`, err);
+    }
+  }
+
   return created;
 }
 
