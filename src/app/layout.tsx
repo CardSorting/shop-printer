@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Fraunces, Inter } from 'next/font/google';
 import { AuthProvider } from '@ui/hooks/useAuth';
 import { CartProvider } from '@ui/hooks/useCart';
 import { WishlistProvider } from '@ui/hooks/useWishlist';
@@ -15,6 +15,13 @@ const inter = Inter({
     variable: '--font-inter',
 });
 
+const fraunces = Fraunces({
+    subsets: ['latin'],
+    display: 'swap',
+    variable: '--font-display',
+    axes: ['SOFT', 'WONK', 'opsz'],
+});
+
 export const metadata: Metadata = buildRootLayoutMetadata(getAppSeoEngine().config);
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -24,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     };
 
     return (
-        <html lang="en" suppressHydrationWarning className={inter.variable}>
+        <html lang="en" suppressHydrationWarning className={`${inter.variable} ${fraunces.variable}`}>
             <head>
                 <link rel="preconnect" href="https://js.stripe.com" />
                 <link rel="dns-prefetch" href="https://js.stripe.com" />

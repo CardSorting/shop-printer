@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: var(--font-inter), 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
   --font-serif: 'Charter', 'Georgia', 'Cambria', 'Times New Roman', serif;
   --font-mono: ui-monospace, Consolas, monospace;
 
@@ -397,3 +397,4 @@ html {
 .editorial-mark:hover {
   background-size: 100% 0.8em;
 }
+

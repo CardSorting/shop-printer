@@ -1,0 +1,64 @@
+/**
+ * Scroll-driven motion via CSS custom properties.
+ * ParallaxMotion binds framer-motion values to --lp-* vars.
+ */
+
+.landing-parallax {
+  --lp-x: 0%;
+  --lp-y: 0%;
+  --lp-scale: 1;
+  --lp-rotate: 0deg;
+  --lp-opacity: 1;
+  --lp-filter: none;
+  --lp-scale-x: 1;
+  --lp-height: 0%;
+}
+
+.landing-parallax--transform {
+  transform: translate3d(var(--lp-x), var(--lp-y), 0) scale(var(--lp-scale)) rotate(var(--lp-rotate));
+  will-change: transform;
+}
+
+.landing-parallax--shift-x {
+  transform: translateX(var(--lp-x));
+  will-change: transform;
+}
+
+.landing-parallax--shift-y {
+  transform: translateY(var(--lp-y));
+  will-change: transform;
+}
+
+.landing-parallax--fade {
+  opacity: var(--lp-opacity);
+}
+
+.landing-parallax--filter {
+  filter: var(--lp-filter);
+}
+
+.landing-parallax--scale-x {
+  transform: scaleX(var(--lp-scale-x));
+  transform-origin: left;
+}
+
+.landing-parallax--height {
+  height: var(--lp-height);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-parallax--transform,
+  .landing-parallax--shift-x,
+  .landing-parallax--shift-y,
+  .landing-parallax--scale-x {
+    transform: none !important;
+  }
+
+  .landing-parallax--fade {
+    opacity: 1 !important;
+  }
+
+  .landing-parallax--filter {
+    filter: none !important;
+  }
+}
