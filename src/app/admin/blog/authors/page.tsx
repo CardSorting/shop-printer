@@ -42,7 +42,7 @@ export default function AuthorManagementPage() {
             <User className="h-10 w-10 text-primary-600" />
             Editorial Team
           </h1>
-          <p className="text-gray-500 font-medium mt-2">Manage the voices behind the DreamBees Art Journal.</p>
+          <p className="text-gray-500 font-medium mt-2">Manage the voices behind the WoodBine Journal.</p>
         </div>
         <button className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-primary-600 text-white font-black text-xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl shadow-primary-600/20">
           <UserPlus className="h-4 w-4" />

@@ -1,6 +1,6 @@
 /**
  * [LAYER: INFRASTRUCTURE]
- * Industrialized Seeding Infrastructure for DreamBeesArt.
+ * Industrialized Seeding Infrastructure for WoodBine.
  * Features: Admin SDK Integration, Forensic Lifecycle Seeding, and Relational Sovereignty.
  * Firestore Admin Version.
  */
@@ -118,8 +118,8 @@ const INITIAL_CATALOG: ProductDraft[] = [
 ];
 
 const INITIAL_CUSTOMERS = [
-  { email: 'admin@dreambees.art', passwordEnv: 'SEED_ADMIN_PASSWORD', displayName: 'System Admin', role: 'admin' as const },
-  { email: 'alchemist@dreambeesai.com', passwordEnv: 'SEED_ALCHEMIST_PASSWORD', displayName: 'Alchemist Admin', role: 'admin' as const },
+  { email: 'admin@woodbine.com', passwordEnv: 'SEED_ADMIN_PASSWORD', displayName: 'System Admin', role: 'admin' as const },
+  { email: 'alchemist@woodbine.com', passwordEnv: 'SEED_ALCHEMIST_PASSWORD', displayName: 'Alchemist Admin', role: 'admin' as const },
   { email: 'ash.ketchum@palette.town', displayName: 'Ash Ketchum', role: 'customer' as const },
   { email: 'misty.williams@cerulean.city', displayName: 'Misty Williams', role: 'customer' as const },
 ];
@@ -199,7 +199,7 @@ const DISCOUNTS: Partial<Discount>[] = [
   { id: 'disc-1', code: 'WELCOME10', type: 'percentage', value: 10, status: 'active', isAutomatic: false, startsAt: new Date(), usageCount: 50 },
 ];
 
-const MOCK_ACTOR = { id: 'system', email: 'admin@dreambees.art' };
+const MOCK_ACTOR = { id: 'system', email: 'admin@woodbine.com' };
 
 // ─────────────────────────────────────────────
 // SEEDING LOGIC
@@ -692,7 +692,7 @@ export async function seedDiscounts(): Promise<number> {
 export async function seedSettings(): Promise<number> {
   assertSeedingAllowed();
   const settings = [
-    { id: 'store_name', value: 'DreamBees Art' },
+    { id: 'store_name', value: 'WoodBine' },
     { id: 'currency', value: 'USD' },
   ];
   for (const s of settings) {

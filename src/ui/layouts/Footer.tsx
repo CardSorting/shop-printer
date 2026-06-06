@@ -5,25 +5,20 @@
  */
 import Link from 'next/link';
 import { 
-  Package, 
-  MessageCircle, 
-  Camera, 
   Users, 
   Globe, 
-  Mail, 
   CreditCard, 
-  ShieldCheck, 
-  ChevronDown,
+  Handshake,
+  Sparkles,
   Star,
-  Zap,
-  Lock,
+  ChevronDown,
   ArrowRight,
-  ShieldAlert,
   Headset,
-  Sparkles
+  Lock,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getProductUrl, getCollectionUrl, STORE_PATHS } from '@utils/navigation';
+import { SITE_BELONGING_LINE, SITE_COMMUNITY_LINE, SITE_GATHERING_LINE, SITE_TAGLINE } from '@utils/seo';
 import { BeeLogo } from '../components/Logo';
 
 
@@ -42,26 +37,24 @@ export function Footer() {
         {/* Trust Bar - Social Proof & Security */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-20">
           <div className="flex flex-col items-center p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-primary-100 transition-colors group">
-            <div className="flex text-yellow-400 mb-2">
-              {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-current" />)}
-            </div>
-            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">4.9/5 Rating</p>
-            <p className="text-xs text-gray-500 mt-1">From 10,000+ Collectors</p>
+            <Users className="w-6 h-6 text-primary-600 mb-2" />
+            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">All Welcome</p>
+            <p className="text-xs text-gray-500 mt-1">Regulars &amp; first-timers</p>
           </div>
           <div className="flex flex-col items-center p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-primary-100 transition-colors">
-            <Zap className="w-6 h-6 text-primary-600 mb-2" />
-            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Fast Shipping</p>
-            <p className="text-xs text-gray-500 mt-1">24h Order Processing</p>
+            <Handshake className="w-6 h-6 text-primary-600 mb-2" />
+            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Local Vendors</p>
+            <p className="text-xs text-gray-500 mt-1">Neighbors with a story</p>
           </div>
           <div className="flex flex-col items-center p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-primary-100 transition-colors">
-            <ShieldCheck className="w-6 h-6 text-green-600 mb-2" />
-            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Indie Artists</p>
-            <p className="text-xs text-gray-500 mt-1">100% Creator Supported</p>
+            <Sparkles className="w-6 h-6 text-green-600 mb-2" />
+            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Shared Space</p>
+            <p className="text-xs text-gray-500 mt-1">Historic warehouse room</p>
           </div>
           <div className="flex flex-col items-center p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-primary-100 transition-colors">
-            <Lock className="w-6 h-6 text-gray-900 mb-2" />
-            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Secure Pay</p>
-            <p className="text-xs text-gray-500 mt-1">SSL Encrypted Checkout</p>
+            <Star className="w-6 h-6 text-amber-500 mb-2 fill-amber-500" />
+            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Third Place</p>
+            <p className="text-xs text-gray-500 mt-1">Work, linger, belong</p>
           </div>
         </div>
 
@@ -69,22 +62,22 @@ export function Footer() {
           {/* Brand and Description */}
           <div className="lg:col-span-4 space-y-8">
             <div className="space-y-4">
-              <Link href={STORE_PATHS.HOME} rel="home" title="DreamBeesArt Home" className="flex items-center gap-3 text-primary-700 font-black text-3xl tracking-tighter hover:opacity-80 transition-opacity">
+              <Link href={STORE_PATHS.HOME} rel="home" title="WoodBine Home" className="flex items-center gap-3 text-primary-700 font-black text-3xl tracking-tighter hover:opacity-80 transition-opacity">
                 <BeeLogo className="w-12 h-12" />
-                DreamBeesArt
+                WoodBine
               </Link>
               <p className="text-gray-500 text-base leading-relaxed">
-                Founded by artists, for art lovers. We're building the go-to marketplace for fan art and artist-inspired merch — trading cards, prints, and TCG accessories from independent creators.
+                <span className="font-semibold text-gray-700">{SITE_TAGLINE}</span> {SITE_GATHERING_LINE} {SITE_COMMUNITY_LINE} {SITE_BELONGING_LINE}
               </p>
             </div>
             
 
 
-            <Link href="/support" title="Contact Support Hive" className="flex items-center gap-3 p-4 bg-primary-600 rounded-2xl text-white shadow-xl shadow-primary-600/20 group hover:bg-primary-700 transition-colors">
+            <Link href="/support" title="Contact WoodBine" className="flex items-center gap-3 p-4 bg-primary-600 rounded-2xl text-white shadow-xl shadow-primary-600/20 group hover:bg-primary-700 transition-colors">
               <Headset className="w-6 h-6" />
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider opacity-80">Need help?</p>
-                <p className="text-sm font-black">24/7 Expert Support</p>
+                <p className="text-xs font-bold uppercase tracking-wider opacity-80">Pull up a chair</p>
+                <p className="text-sm font-black">Hours, Events &amp; Questions</p>
               </div>
               <ArrowRight className="w-4 h-4 ml-auto group-hover:translate-x-1 transition-transform" />
             </Link>
@@ -93,12 +86,21 @@ export function Footer() {
           {/* Navigation Groups - Minimalist */}
           <div className="lg:col-span-8 flex flex-wrap justify-start lg:justify-end gap-16">
             <div className="space-y-4">
-              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Shop</h3>
+              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Visit</h3>
               <ul className="space-y-3">
-                <li><Link href={STORE_PATHS.PRODUCTS} title="Shop all art and accessories" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">All Products</Link></li>
-                <li><Link href="/collections/artist-cards" title="Browse handcrafted Artist Trading Cards" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Artist Trading Cards</Link></li>
-                <li><Link href="/collections/prints" title="Explore premium art prints" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Art Prints</Link></li>
-                <li><Link href="/collections/accessories" title="Shop TCG protection and gear" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">TCG Accessories</Link></li>
+                <li><Link href={STORE_PATHS.PRODUCTS} title="Browse vendors and menu" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Vendors &amp; Menu</Link></li>
+                <li><Link href="/collections/artist-cards" title="Full plates and sandos" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Full Plates</Link></li>
+                <li><Link href="/collections/prints" title="Cold drinks and bar" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Cold Drinks</Link></li>
+                <li><Link href="/collections/accessories" title="Coffee and work-friendly spots" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Coffee &amp; Work</Link></li>
+              </ul>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Community</h3>
+              <ul className="space-y-3">
+                <li><Link href="/blog" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Stories from the Hall</Link></li>
+                <li><Link href="/support" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Visit &amp; Connect</Link></li>
+                <li><Link href="/support?contact=true" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Private Events</Link></li>
               </ul>
             </div>
 
@@ -122,14 +124,14 @@ export function Footer() {
             <BeeLogo className="w-64 h-64 rotate-12" />
           </div>
           <div className="relative z-10 max-w-2xl">
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-6 leading-none uppercase">Join the Hive</h2>
+            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-6 leading-none uppercase">Join the Neighborhood Table</h2>
             <p className="text-primary-50 font-medium text-lg mb-10 max-w-lg">
-              Get the latest artist drops, limited editions, and sweet deals delivered straight to your inbox.
+              Vendor spotlights, community nights, and the stories behind the room—so you never miss a reason to come back and pull up a chair.
             </p>
             <form className="flex flex-col sm:flex-row gap-4" onSubmit={(e) => e.preventDefault()}>
               <input 
                 type="email" 
-                placeholder="honey@hive.com" 
+                placeholder="you@example.com" 
                 className="flex-1 px-8 py-5 rounded-2xl bg-white text-gray-900 font-bold placeholder:text-gray-300 focus:outline-hidden focus:ring-4 focus:ring-primary-400 transition-all"
               />
               <button className="px-10 py-5 rounded-2xl bg-gray-900 text-white font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl">
@@ -160,10 +162,10 @@ export function Footer() {
 
           <div className="text-right">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              © {currentYear || 2026} DreamBeesArt. All Rights Reserved.
+              © {currentYear || 2026} WoodBine. All Rights Reserved.
             </p>
             <p className="text-[10px] font-bold text-primary-500 mt-1 uppercase tracking-tighter">
-              Fan Art & Artist-Inspired Merch
+              {SITE_GATHERING_LINE}
             </p>
           </div>
         </div>

@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const product = await getProduct(handle);
     
     if (!product) {
-        return { title: 'Product Not Found | DreamBeesArt' };
+        return { title: 'Product Not Found | WoodBine' };
     }
     
     const description = productSeoDescription(product);

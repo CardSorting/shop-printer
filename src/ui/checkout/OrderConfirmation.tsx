@@ -63,7 +63,7 @@ const STATUS_CONTENT: Record<OrderStatus, { title: string; description: string }
   cancelled: { title: 'Cancelled', description: 'This order was cancelled. Please check your email for refund details.' },
   refunded: { title: 'Refunded', description: 'This order has been fully refunded.' },
   partially_refunded: { title: 'Partially Refunded', description: 'A partial refund has been issued for this order.' },
-  ready_for_pickup: { title: 'Ready for Pickup', description: 'Your order is ready at our physical location.' },
+  ready_for_pickup: { title: 'Ready at the Hall', description: 'Your order is ready for pickup at WoodBine—come grab it and stay if the room calls you.' },
   delivery_started: { title: 'Out for Delivery', description: 'Our local delivery team is on their way to you.' },
   reconciling: { title: 'Order Under Review', description: 'Your order is temporarily under review. Our team will follow up shortly. No further charges will be made.' },
 };
@@ -122,7 +122,9 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
               <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${context === 'detail' ? 'text-gray-400' : 'text-green-700'}`}>{context === 'detail' ? `Receipt for #${orderNumber}` : 'Success'}</p>
               <h1 className="mt-2 text-4xl font-black tracking-tight text-gray-900 md:text-6xl">{context === 'detail' ? statusContent.title : `Thank you${userName ? `, ${userName}` : ''}.`}</h1>
               <p className="mt-4 max-w-2xl text-lg font-medium leading-relaxed text-gray-600">
-                {context === 'detail' ? statusContent.description : 'Your order is confirmed and we’ve sent a digital receipt to'} <span className="font-black text-gray-900 underline decoration-primary-300 underline-offset-4">{context === 'detail' ? '' : displayEmail || 'your inbox'}</span>.
+                {context === 'detail'
+                  ? statusContent.description
+                  : <>Your order is in—and we&apos;re glad you&apos;re part of the room. A receipt is on its way to <span className="font-black text-gray-900 underline decoration-primary-300 underline-offset-4">{displayEmail || 'your inbox'}</span>.</>}
               </p>
             </div>
           </div>

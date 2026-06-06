@@ -18,6 +18,7 @@ import { MAX_CART_QUANTITY } from '@domain/rules';
 import { logger } from '@utils/logger';
 import { getProductUrl, STORE_PATHS } from '@utils/navigation';
 import { sanitizeImageUrl } from '@utils/imageSanitizer';
+import { SITE_CART_EMPTY_LINE } from '@utils/seo';
 
 
 function formatMoney(cents: number): string {
@@ -107,13 +108,15 @@ export function CartPage() {
             <Link href={STORE_PATHS.HOME} className="hover:text-primary-600 transition-colors">Home</Link>
 
             <ChevronRight className="h-3 w-3" />
-            <span className="text-gray-900">Your Shopping Cart</span>
+            <span className="text-gray-900">Your Order</span>
           </nav>
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
-              <h1 className="text-5xl font-black text-gray-900 tracking-tight mb-3">Shopping Cart</h1>
+              <h1 className="text-5xl font-black text-gray-900 tracking-tight mb-3">Your Order</h1>
               <p className="text-gray-500 font-medium text-lg">
-                You have <span className="text-gray-900 font-bold">{totalItems} items</span> in your bag.
+                {totalItems > 0
+                  ? <>You have <span className="text-gray-900 font-bold">{totalItems} items</span> ready from the hall.</>
+                  : SITE_CART_EMPTY_LINE}
               </p>
             </div>
             {totalItems > 0 && (
@@ -137,13 +140,13 @@ export function CartPage() {
                 <div className="mx-auto mb-8 flex h-32 w-32 items-center justify-center rounded-full bg-gray-50 text-gray-200 ring-8 ring-white shadow-inner">
                   <ShoppingBag className="h-16 w-16" />
                 </div>
-                <h2 className="text-4xl font-black text-gray-900 mb-4">Your cart is empty</h2>
+                <h2 className="text-4xl font-black text-gray-900 mb-4">Nothing on your tray yet</h2>
                 <p className="mx-auto mt-4 max-w-md text-gray-500 text-lg font-medium">
-                  Looks like you haven't added anything to your cart yet. Let's find some amazing cards for your collection!
+                  {SITE_CART_EMPTY_LINE}
                 </p>
                 <div className="mt-12 flex flex-wrap justify-center gap-4">
                   <Link href={STORE_PATHS.PRODUCTS} className="rounded-2xl bg-primary-600 px-10 py-5 text-lg font-black text-white shadow-2xl shadow-primary-200 transition hover:bg-primary-700 hover:-translate-y-1 active:translate-y-0 active:scale-95">
-                    Start Shopping
+                    Browse the Menu
                   </Link>
                   <Link href={STORE_PATHS.HOME} className="rounded-2xl border-2 border-gray-100 bg-white px-10 py-5 text-lg font-black text-gray-700 transition hover:bg-gray-50 hover:border-gray-200">
                     Back to Home
@@ -156,7 +159,7 @@ export function CartPage() {
             {featuredProducts.length > 0 && (
               <section>
                 <div className="mb-10 flex items-center justify-between">
-                  <h2 className="text-3xl font-black text-gray-900 tracking-tight">Handpicked for you</h2>
+                  <h2 className="text-3xl font-black text-gray-900 tracking-tight">What the room recommends</h2>
                   <Link href={STORE_PATHS.PRODUCTS} className="text-sm font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1">
                     View All <ChevronRight className="h-4 w-4" />
                   </Link>
@@ -277,7 +280,7 @@ export function CartPage() {
                        <LifeBuoy className="h-6 w-6" />
                     </div>
                     <h4 className="text-sm font-black text-gray-900 mb-1">Expert Support</h4>
-                    <p className="text-xs text-gray-500">Dedicated collector assistance</p>
+                    <p className="text-xs text-gray-500">Questions about your order? We know the room.</p>
                  </div>
               </div>
             </div>
@@ -391,7 +394,7 @@ export function CartPage() {
               </div>
               
               <Link href={STORE_PATHS.PRODUCTS} className="mt-8 flex items-center justify-center gap-2 text-sm font-bold text-gray-500 hover:text-primary-600 transition-colors group">
-                 <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Continue Shopping
+                 <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Back to the Menu
               </Link>
 
             </aside>

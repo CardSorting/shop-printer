@@ -28,8 +28,8 @@ export class BrevoEmailService implements IEmailService {
     from?: string;
     idempotencyKey?: string;
   }): Promise<void> {
-    const fromEmail = params.from || process.env.BREVO_FROM_EMAIL || 'support@dreambeesart.com';
-    const fromName = process.env.BREVO_FROM_NAME || 'Dream Bees Art';
+    const fromEmail = params.from || process.env.BREVO_FROM_EMAIL || 'support@woodbine.com';
+    const fromName = process.env.BREVO_FROM_NAME || 'WoodBine';
 
     // Point 9: Email Idempotency
     if (params.idempotencyKey) {
@@ -87,8 +87,8 @@ export class BrevoEmailService implements IEmailService {
   }
 
   async sendPasswordResetEmail(email: string, resetLink: string, idempotencyKey?: string): Promise<void> {
-    const fromEmail = process.env.BREVO_FROM_EMAIL || 'no-reply@dreambeesart.com';
-    const fromName = process.env.BREVO_FROM_NAME || 'Dream Bees Art';
+    const fromEmail = process.env.BREVO_FROM_EMAIL || 'no-reply@woodbine.com';
+    const fromName = process.env.BREVO_FROM_NAME || 'WoodBine';
 
     if (idempotencyKey) {
       if (await this.checkEmailIdempotency(idempotencyKey)) return;
@@ -155,13 +155,13 @@ export class BrevoEmailService implements IEmailService {
         <body>
           <div class="wrapper">
             <div class="header">
-              <a href="https://dreambeesart.com" class="logo">DREAMBEES ART</a>
+              <a href="https://woodbine.com" class="logo">WOODBINE</a>
             </div>
             <div class="container">
               <div class="content">
                 <h1>Reset your password</h1>
                 <p>Hello,</p>
-                <p>We received a request to reset the password for your DreamBees Art account. To proceed, please click the secure link below. This link will expire in 1 hour for your security.</p>
+                <p>We received a request to reset the password for your WoodBine account. To proceed, please click the secure link below. This link will expire in 1 hour for your security.</p>
                 
                 <div class="btn-container">
                   <a href="${resetLink}" class="button">Reset Password</a>
@@ -170,7 +170,7 @@ export class BrevoEmailService implements IEmailService {
                 <p>If you didn't request this, you can safely ignore this email. Your password will remain unchanged and your account is secure.</p>
                 
                 <div class="security-note">
-                  <strong>Security Alert:</strong> For your protection, never share this link with anyone. DreamBees Art will never ask for your password via email.
+                  <strong>Security Alert:</strong> For your protection, never share this link with anyone. WoodBine will never ask for your password via email.
                 </div>
 
                 <div class="divider"></div>
@@ -185,8 +185,8 @@ export class BrevoEmailService implements IEmailService {
                 <a href="#">TWITTER</a>
                 <a href="#">DISCORD</a>
               </div>
-              <p>&copy; ${new Date().getFullYear()} DreamBees Art &bull; 123 Artist Way, Salt Lake City, UT 84101</p>
-              <p style="margin-top: 12px;">You're receiving this because you're a member of the DreamBees community.</p>
+              <p>&copy; ${new Date().getFullYear()} WoodBine &bull; 123 Artist Way, Salt Lake City, UT 84101</p>
+              <p style="margin-top: 12px;">You're receiving this because you're a member of the WoodBine community.</p>
             </div>
           </div>
         </body>
@@ -195,7 +195,7 @@ export class BrevoEmailService implements IEmailService {
 
     try {
       await this.client.transactionalEmails.sendTransacEmail({
-        subject: 'Reset your password - Dream Bees Art',
+        subject: 'Reset your password - WoodBine',
         htmlContent: htmlContent,
         sender: { name: fromName, email: fromEmail },
         to: [{ email }],
@@ -219,8 +219,8 @@ export class BrevoEmailService implements IEmailService {
   }
 
   async sendPasswordChangedEmail(email: string, idempotencyKey?: string): Promise<void> {
-    const fromEmail = process.env.BREVO_FROM_EMAIL || 'no-reply@dreambeesart.com';
-    const fromName = process.env.BREVO_FROM_NAME || 'Dream Bees Art';
+    const fromEmail = process.env.BREVO_FROM_EMAIL || 'no-reply@woodbine.com';
+    const fromName = process.env.BREVO_FROM_NAME || 'WoodBine';
 
     if (idempotencyKey) {
       if (await this.checkEmailIdempotency(idempotencyKey)) return;
@@ -243,22 +243,22 @@ export class BrevoEmailService implements IEmailService {
           <div class="content">
             <h1>Security Update</h1>
             <p>Hello,</p>
-            <p>This is a confirmation that the password for your <strong>DreamBees Art</strong> account was recently changed.</p>
+            <p>This is a confirmation that the password for your <strong>WoodBine</strong> account was recently changed.</p>
             <p>If you made this change, you can safely ignore this email.</p>
             
             <div class="alert">
               <strong>Wait, I didn't do this!</strong><br/>
-              If you did not change your password, your account may have been compromised. Please contact our security hive immediately at support@dreambeesart.com.
+              If you did not change your password, your account may have been compromised. Please contact our security hive immediately at support@woodbine.com.
             </div>
           </div>
-          <div class="footer">&copy; ${new Date().getFullYear()} DreamBees Art</div>
+          <div class="footer">&copy; ${new Date().getFullYear()} WoodBine</div>
         </body>
       </html>
     `;
 
     try {
       await this.client.transactionalEmails.sendTransacEmail({
-        subject: 'Security Alert: Password Changed - DreamBees Art',
+        subject: 'Security Alert: Password Changed - WoodBine',
         htmlContent: htmlContent,
         sender: { name: fromName, email: fromEmail },
         to: [{ email }],

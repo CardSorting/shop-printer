@@ -253,11 +253,11 @@ export class OrderAdminService {
     for (const order of orders) {
       await this.updateOrderStatus(order.id, 'cancelled', {
         id: 'system',
-        email: 'system@dreambees.art'
+        email: 'system@woodbine.com'
       });
       await this.audit.record({
         userId: 'system',
-        userEmail: 'system@dreambees.art',
+        userEmail: 'system@woodbine.com',
         action: 'order_status_changed',
         targetId: order.id,
         details: { from: 'pending', to: 'cancelled', reason: 'expired', expirationMinutes }

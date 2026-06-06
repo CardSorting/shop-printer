@@ -187,7 +187,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
         const noteObjects: OrderNote[] = notes.map(txt => ({
           id: `note-${Math.random()}`,
           authorId: 'system',
-          authorEmail: 'system@dreambees.art',
+          authorEmail: 'system@woodbine.com',
           text: txt,
           createdAt: new Date(),
         }));

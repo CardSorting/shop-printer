@@ -1,6 +1,6 @@
-# DreamBeesArt Readiness and Verification Report
+# WoodBine Readiness and Verification Report
 
-- **Engine**: DreamBeesArt Commerce Engine
+- **Engine**: WoodBine CRM Platform
 - **Current status**: Architecture and Core workflows are strongly documented and locally benchmarked. Production capacity still requires staging or emulator load validation with Firestore, Stripe, hosting, and realistic network latency.
 - **Substrate**: Google Cloud Firestore
 - **Framework**: Next.js `15.5.18` App Router
@@ -79,8 +79,8 @@ Before making a production-scale claim, validate:
 - [Project State](.wiki/architecture/project-state.md)
 - [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md)
 - [Checkout Orchestration](docs/checkout-orchestration.md)
-- [Commerce Engine Whitepaper](docs/dreambeesart-commerce-engine-whitepaper.md)
+- [CRM Platform Whitepaper](docs/woodbine-crm-whitepaper.md)
 
 ## Conclusion
 
-DreamBeesArt has a concrete and documented architecture with a locally benchmarked Core checkout/order pipeline. The strongest verified evidence is at the application orchestration layer. The remaining production-readiness work is external-capacity validation and environment hardening, not a rewrite of the Core order model.
+WoodBine has a concrete and documented architecture with a locally benchmarked Core checkout/order pipeline. The strongest verified evidence is at the application orchestration layer. The remaining production-readiness work is external-capacity validation and environment hardening, not a rewrite of the Core order model.

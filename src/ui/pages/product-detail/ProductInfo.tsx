@@ -115,7 +115,7 @@ export function ProductInfo({ name, vendor, category, currentPrice, compareAtPri
           </div>
           <div>
             <p className="text-[11px] font-black text-gray-900 leading-none">30-day returns — no questions asked</p>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mt-1">Shop with 100% confidence</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mt-1">Order with confidence from the hall</p>
           </div>
         </div>
 

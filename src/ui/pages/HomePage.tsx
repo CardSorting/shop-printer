@@ -7,11 +7,25 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useServices } from '../hooks/useServices';
 import type { Product, KnowledgebaseArticle } from '@domain/models';
-import { ArrowRight, Sparkles, Shield, Truck, ShieldCheck, LifeBuoy, Star, Zap, TrendingUp, BookOpen } from 'lucide-react';
+import { ArrowRight, Sparkles, Shield, Users, Zap, MapPin, CalendarDays, Heart, Handshake } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
 import { ProductCardSkeleton } from '../components/ProductCard/ProductCardSkeleton';
 import { useCart } from '../hooks/useCart';
-import { HiveCell, FloatingBee } from '../components/Logo';
+import {
+  COMMUNITY_CHIPS,
+  COMMUNITY_PILLARS,
+  COMMUNITY_RITUALS,
+  ROOM_VOICES,
+  SITE_BELONGING_LINE,
+  SITE_COMMUNITY_PROMISE,
+  SITE_COMMUNITY_LINE,
+  SITE_CTA,
+  SITE_DESCRIPTION,
+  SITE_GATHERING_LINE,
+  SITE_MENU_LINE,
+  SITE_ROOM_ESSENCE,
+  SITE_VENDOR_LINE,
+} from '@utils/seo';
 import Image from 'next/image';
 
 export function HomePage() {
@@ -129,7 +143,7 @@ export function HomePage() {
           </div>
           <Image 
             src="/assets/generated/pro_circuit_handbook_featured_1778177228003.png" 
-            alt="Handcrafted Artist Trading Cards and fandom-inspired art prints collection" 
+            alt="WoodBine food hall in a restored Salt Lake warehouse" 
             fill
             priority
             sizes="100vw"
@@ -139,28 +153,37 @@ export function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32 relative z-20 text-center lg:text-left flex flex-col lg:flex-row items-center gap-12">
           <div className="flex-1 space-y-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-primary-200 text-xs font-black uppercase tracking-widest">
-              <Sparkles className="w-3 h-3" /> New Artist Drops
+              <Sparkles className="w-3 h-3" /> A Neighborhood Table
             </div>
             <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1]">
-              Art You Can <br />
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-primary-400 to-primary-200">Collect & Hold</span>
+              Old Hall. <br />
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-primary-400 to-primary-200">New Flavors.</span>
             </h1>
             <p className="text-lg md:text-xl text-gray-300 font-medium max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              Handcrafted Artist Trading Cards, stunning prints, and premium TCG accessories — all made by independent artists and inspired by the fandoms you love.
+              {SITE_DESCRIPTION}
             </p>
-            <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
+            <p className="text-base text-primary-200/90 font-semibold italic max-w-xl mx-auto lg:mx-0">
+              {SITE_GATHERING_LINE}
+            </p>
+            <p className="text-sm text-gray-400 font-medium max-w-xl mx-auto lg:mx-0 leading-relaxed">
+              {SITE_COMMUNITY_LINE}
+            </p>
+            <p className="text-xs text-primary-300/80 font-bold uppercase tracking-[0.2em] max-w-xl mx-auto lg:mx-0 pt-2">
+              {SITE_BELONGING_LINE}
+            </p>
+            <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start pt-2">
               <Link
                 href="/products"
                 className="w-full sm:w-auto inline-flex justify-center items-center gap-2 btn-honey-glazed text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-primary-500/20"
               >
-                Shop All Art
+                Taste
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
-                href="/collections/artist-cards"
+                href="/support"
                 className="w-full sm:w-auto inline-flex justify-center items-center gap-2 bg-gray-800 text-white border border-gray-700 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-700 transition-all"
               >
-                Artist Trading Cards
+                No Reservations — Just Good Company
               </Link>
             </div>
           </div>
@@ -173,7 +196,7 @@ export function HomePage() {
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover" 
-                    alt="Premium handcrafted Artist Trading Card featuring intricate custom artwork" 
+                    alt="Food and drinks at WoodBine food hall" 
                    />
                  </div>
                </div>
@@ -184,7 +207,7 @@ export function HomePage() {
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover" 
-                    alt="Limited edition TCG accessory box for protecting card collections" 
+                    alt="Vendors and seating inside the WoodBine warehouse" 
                    />
                  </div>
                </div>
@@ -199,40 +222,163 @@ export function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="flex items-center justify-center sm:justify-start gap-4 p-4 group">
               <div className="w-12 h-12 rounded-full bg-primary-50 flex items-center justify-center shrink-0 transition-transform group-hover:scale-110">
-                <HiveCell className="w-6 h-6 text-primary-600" />
+                <Heart className="w-6 h-6 text-primary-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-sm">Handcrafted</h3>
-                <p className="text-xs text-gray-500 font-medium">By indie artists</p>
+                <h3 className="font-bold text-gray-900 text-sm">All Welcome</h3>
+                <p className="text-xs text-gray-500 font-medium">Walk in, pull up a chair</p>
               </div>
             </div>
             <div className="flex items-center justify-center sm:justify-start gap-4 p-4 group">
               <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0 transition-transform group-hover:scale-110">
-                <Truck className="w-6 h-6 text-blue-600" />
+                <Handshake className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-sm">Fast Shipping</h3>
-                <p className="text-xs text-gray-500 font-medium">Free on orders $50+</p>
+                <h3 className="font-bold text-gray-900 text-sm">Local Vendors</h3>
+                <p className="text-xs text-gray-500 font-medium">Neighbors with a story</p>
               </div>
             </div>
             <div className="flex items-center justify-center sm:justify-start gap-4 p-4 group">
               <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center shrink-0 transition-transform group-hover:scale-110">
-                <Star className="w-6 h-6 text-amber-600" />
+                <Users className="w-6 h-6 text-amber-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-sm">Top Rated</h3>
-                <p className="text-xs text-gray-500 font-medium">Over 10,000+ reviews</p>
+                <h3 className="font-bold text-gray-900 text-sm">Shared Tables</h3>
+                <p className="text-xs text-gray-500 font-medium">Solo, crew, or new friends</p>
               </div>
             </div>
             <div className="flex items-center justify-center sm:justify-start gap-4 p-4 group">
               <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center shrink-0 transition-transform group-hover:scale-110">
-                <LifeBuoy className="w-6 h-6 text-green-600" />
+                <MapPin className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-sm">The Hive Help</h3>
-                <p className="text-xs text-gray-500 font-medium">Art experts ready</p>
+                <h3 className="font-bold text-gray-900 text-sm">Third Place</h3>
+                <p className="text-xs text-gray-500 font-medium">Work, linger, belong</p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Community narrative */}
+      <section className="py-20 bg-primary-50/40 border-b border-primary-100/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto text-center space-y-6">
+            <p className="text-[10px] font-black text-primary-600 uppercase tracking-[0.25em]">Built for Gathering</p>
+            <h2 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">
+              Food brings you in.
+              <br />
+              <span className="text-primary-700">People bring you back.</span>
+            </h2>
+            <p className="text-lg text-gray-600 font-medium leading-relaxed">
+              {SITE_ROOM_ESSENCE}
+            </p>
+            <p className="text-base text-gray-500 font-medium leading-relaxed italic">
+              {SITE_BELONGING_LINE}
+            </p>
+            <div className="flex flex-wrap justify-center gap-3 pt-4">
+              {COMMUNITY_CHIPS.map((chip) => (
+                <span
+                  key={chip}
+                  className="px-4 py-2 rounded-full bg-white border border-primary-100 text-[11px] font-black uppercase tracking-widest text-gray-700"
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Who shares this table */}
+      <section className="py-24 bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Who Shares This Table</p>
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
+              Everyone has a seat here.
+            </h2>
+            <p className="text-gray-500 font-medium">
+              WoodBine works because the room is mixed—vendors, regulars, and newcomers all eating from the same big, open floor.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {COMMUNITY_PILLARS.map((pillar) => (
+              <div
+                key={pillar.title}
+                className="rounded-3xl border border-gray-100 bg-gray-50/50 p-8 hover:border-primary-100 hover:shadow-lg transition-all"
+              >
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600 mb-3">{pillar.subtitle}</p>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-4">{pillar.title}</h3>
+                <p className="text-gray-600 font-medium leading-relaxed">{pillar.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Voices from the room */}
+      <section className="py-20 bg-gray-900 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-14 space-y-3 max-w-2xl mx-auto">
+            <p className="text-[10px] font-black text-primary-400 uppercase tracking-[0.25em]">Voices from the Room</p>
+            <h2 className="text-3xl md:text-4xl font-black tracking-tight">The hall, in their words.</h2>
+            <p className="text-gray-400 font-medium text-sm">Regulars, vendors, and first-timers—same room, different stories.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {ROOM_VOICES.map((voice) => (
+              <blockquote
+                key={voice.role}
+                className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm"
+              >
+                <p className="text-lg font-medium leading-relaxed text-gray-200">&ldquo;{voice.quote}&rdquo;</p>
+                <footer className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-primary-400">
+                  — {voice.role}
+                </footer>
+              </blockquote>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Community promise */}
+      <section className="py-24 bg-primary-600 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
+            <p className="text-[10px] font-black text-primary-200 uppercase tracking-[0.25em]">Our Promise to the Room</p>
+            <h2 className="text-3xl md:text-4xl font-black tracking-tight">This hall belongs to the people in it.</h2>
+            <p className="text-primary-100 font-medium">
+              Not a franchise. Not a food court. A community table we show up for—guests, vendors, and staff alike.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {SITE_COMMUNITY_PROMISE.map((promise) => (
+              <div key={promise.title} className="rounded-3xl border border-white/15 bg-white/10 p-8 backdrop-blur-sm">
+                <h3 className="text-xl font-black tracking-tight mb-4">{promise.title}</h3>
+                <p className="text-primary-50 font-medium leading-relaxed">{promise.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Hall rituals */}
+      <section className="py-20 bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
+            <div className="max-w-xl space-y-3">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">How the Room Works</p>
+              <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">Little rituals. Big belonging.</h2>
+              <p className="text-gray-500 font-medium">Community here isn&apos;t programmed—it emerges from the same faces, the same flavors, and the same open door.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {COMMUNITY_RITUALS.map((ritual) => (
+              <div key={ritual.title} className="rounded-2xl border border-gray-100 p-6 hover:border-primary-100 hover:shadow-md transition-all">
+                <h3 className="text-sm font-black uppercase tracking-widest text-primary-700 mb-3">{ritual.title}</h3>
+                <p className="text-sm text-gray-600 font-medium leading-relaxed">{ritual.body}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -241,30 +387,33 @@ export function HomePage() {
       <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-16 border-l-4 border-primary-500 pl-8">
-            <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-2 uppercase">Browse the Hive</h2>
-            <p className="text-gray-500 font-medium">Curated collection of handcrafted art, custom prints, and gear.</p>
+            <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-2 uppercase">Our Vendors</h2>
+            <p className="text-gray-500 font-medium max-w-2xl">{SITE_VENDOR_LINE}</p>
+            <p className="text-sm text-gray-400 font-medium max-w-2xl mt-3">
+              These are the neighbors fueling the room—each with their own counter, their own regulars, and a reason to stick around.
+            </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
             {[
               { 
                 href: "/collections/artist-cards", 
-                title: "Artist Cards", 
-                sub: "Hand-drawn originals",
+                title: "Full Plates", 
+                sub: "Gather around something hearty",
                 img: "/assets/generated/viral_blog_strategy_featured_1778177344526.png",
                 delay: "reveal-delay-1"
               },
               { 
                 href: "/collections/prints", 
-                title: "Art Prints", 
-                sub: "Museum-grade quality",
+                title: "Cold Drinks", 
+                sub: "Raise a glass with the room",
                 img: "/assets/generated/generic_tcg_strategy_1778177431609.png",
                 delay: "reveal-delay-2"
               },
               { 
                 href: "/collections/accessories", 
-                title: "TCG Accessories", 
-                sub: "Premium protection",
+                title: "Coffee & Work", 
+                sub: "Your corner of the hall",
                 img: "/assets/generated/generic_collecting_1778177444345.png",
                 delay: "reveal-delay-3"
               }
@@ -276,7 +425,7 @@ export function HomePage() {
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"
                     className="object-cover transition-transform duration-1000 group-hover:scale-110" 
-                    alt={`Shop ${col.title}: ${col.sub}`} 
+                    alt={`Explore ${col.title}: ${col.sub}`} 
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                 </div>
@@ -300,11 +449,11 @@ export function HomePage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-center justify-between mb-12">
             <div>
-              <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tighter mb-4">The Sweetest Picks</h2>
-              <p className="text-gray-500 font-medium">Handpicked from the hive. Most loved art this week.</p>
+              <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tighter mb-4">What the Room Is Ordering</h2>
+              <p className="text-gray-500 font-medium max-w-lg">{SITE_MENU_LINE}</p>
             </div>
             <Link href="/collections/all" className="group mt-4 sm:mt-0 flex items-center gap-2 text-sm font-black uppercase tracking-widest text-primary-600 hover:text-primary-700">
-              View All <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              View the Full Menu <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
 
@@ -346,7 +495,7 @@ export function HomePage() {
                       </>
                     ) : (
                       <>
-                        Load More <Zap className="w-4 h-4 text-amber-500 group-hover:text-white transition-colors" />
+                        Load More Favorites <Zap className="w-4 h-4 text-amber-500 group-hover:text-white transition-colors" />
                       </>
                     )}
                   </button>
@@ -359,7 +508,7 @@ export function HomePage() {
 
 
 
-      {/* The Heart of the Hive - Redesigned CTA */}
+      {/* Provisions, Pals & Play */}
       <section className="py-32 bg-gray-900 text-white relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0 hero-pattern"></div>
@@ -368,59 +517,55 @@ export function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-8">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-400 text-xs font-black uppercase tracking-widest">
-                <Sparkles className="w-3 h-3" /> The Heart of the Hive
+                <Users className="w-3 h-3" /> Your Third Place
               </div>
               <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
-                Art That Lasts <br />
-                <span className="text-transparent bg-clip-text bg-linear-to-r from-primary-400 to-primary-200">Beyond the Screen</span>
+                Provisions, Pals <br />
+                <span className="text-transparent bg-clip-text bg-linear-to-r from-primary-400 to-primary-200">&amp; Play</span>
               </h2>
               <div className="space-y-6 text-gray-300 text-lg font-medium leading-relaxed">
+                <p>{SITE_CTA}</p>
                 <p>
-                  At <strong className="text-white">DreamBeesArt</strong>, we believe that art should be more than just a digital file. Our mission is to bridge the gap between digital creativity and physical collectability through premium Artist Trading Cards (ATC), high-fidelity art prints, and professional-grade TCG accessories.
-                </p>
-                <p>
-                  Every piece in our marketplace is vetted for quality and originality. From limited-edition fandom-inspired prints to hand-drawn one-of-a-kind trading cards, we provide independent artists with a platform to reach collectors who value craftsmanship and archival quality. Whether you are looking to protect your most valuable cards or find the next centerpiece for your gallery wall, the Hive is your home for premium artistic expression.
+                  WoodBine is for the coworker you grab lunch with every Tuesday, the birthday dinner that turns into ping pong, and the quiet afternoon when you just need a good sandwich and a seat by the window. Bring your people—or come alone and leave with more than you walked in with. The best nights here rarely start with a plan; they start with showing up.
                 </p>
                 <p className="text-sm border-l-2 border-primary-500 pl-6 italic text-gray-400">
-                  Specializing in: Handcrafted Artist Trading Cards, Museum-Grade Art Prints, TCG Deck Boxes, Custom Card Sleeves, and Independent Artist Merch.
+                  Provisions, pals, and a good amount of play—all under one big, barrel roof. That&apos;s the whole point.
                 </p>
               </div>
               <div className="flex flex-wrap gap-x-12 gap-y-6 pt-10 border-t border-white/10">
                 <div className="flex flex-col">
-                  <span className="text-2xl font-black text-white tracking-tighter">Indie Artist</span>
-                  <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.2em]">Collective</span>
+                  <span className="text-2xl font-black text-white tracking-tighter">Regulars</span>
+                  <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.2em]">Welcome Back</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-2xl font-black text-white tracking-tighter">Archival</span>
-                  <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.2em]">Quality Guaranteed</span>
+                  <span className="text-2xl font-black text-white tracking-tighter">First-Timers</span>
+                  <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.2em]">Pull Up a Chair</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-2xl font-black text-white tracking-tighter">Global</span>
-                  <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.2em]">Collector Network</span>
+                  <span className="text-2xl font-black text-white tracking-tighter">Your Crew</span>
+                  <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.2em]">Events &amp; Play</span>
                 </div>
               </div>
             </div>
             <div className="relative">
               <div className="aspect-square rounded-4xl bg-linear-to-br from-primary-600 to-primary-800 p-px">
                 <div className="h-full w-full rounded-[calc(2.5rem-1px)] bg-gray-950 flex flex-col items-center justify-center text-center p-8 md:p-16 relative overflow-hidden">
-                   {/* Background Glow */}
                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 blur-3xl rounded-full"></div>
                    
                    <div className="w-20 h-20 rounded-2xl bg-primary-500/10 flex items-center justify-center mb-10 rotate-3 hover:rotate-0 transition-transform duration-500">
-                     <HiveCell className="w-10 h-10 text-primary-500" />
+                     <CalendarDays className="w-10 h-10 text-primary-500" />
                    </div>
-                   <h3 className="text-3xl md:text-4xl font-black mb-4 uppercase tracking-tight">Start Your Collection</h3>
-                   <p className="text-gray-400 mb-12 font-medium">Discover hand-inspected art pieces from independent creators worldwide.</p>
+                   <h3 className="text-3xl md:text-4xl font-black mb-4 uppercase tracking-tight">Pull Up a Chair</h3>
+                   <p className="text-gray-400 mb-12 font-medium">Hours, vendors, private events—or just come as you are. Someone&apos;s always glad you showed up.</p>
                    <Link 
-                    href="/products" 
+                    href="/support" 
                     className="w-full inline-flex justify-center items-center gap-2 btn-honey-glazed text-white px-10 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-105 transition-all shadow-2xl shadow-primary-500/20"
                    >
-                     Shop the Collection
+                     Join the Room
                      <ArrowRight className="w-4 h-4" />
                    </Link>
                 </div>
               </div>
-              {/* Decorative elements */}
               <div className="absolute -top-12 -right-12 w-64 h-64 bg-primary-500/20 blur-3xl rounded-full -z-10"></div>
               <div className="absolute -bottom-12 -left-12 w-64 h-64 bg-blue-500/10 blur-3xl rounded-full -z-10"></div>
             </div>

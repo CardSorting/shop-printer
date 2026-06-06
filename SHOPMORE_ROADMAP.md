@@ -1,4 +1,4 @@
-# ShopMore: The Open Source Commerce Engine (Audit & Roadmap)
+# ShopMore: The Open Source CRM Platform (Audit & Roadmap)
 
 ShopMore is designed to be the definitive open-source alternative to Shopify—a neutral, high-performance, and deeply customizable platform for modern merchants. This document outlines the forensic audit and strategic roadmap for achieving industrial-grade commerce sovereignty.
 

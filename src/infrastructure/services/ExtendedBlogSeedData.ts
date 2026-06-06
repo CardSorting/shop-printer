@@ -1,6 +1,6 @@
 /**
  * [LAYER: INFRASTRUCTURE]
- * Extended Seed Data for the DreamBeesArt Blog.
+ * Extended Seed Data for the WoodBine Blog.
  * 
  * This file adds specialized, niche-focused series and articles.
  */
@@ -158,7 +158,7 @@ export const EXTENDED_POSTS = [
     title: 'The Liquidity Index: Quantifying TCG Asset Health',
     slug: 'liquidity-index-tcg-health',
     excerpt: 'Why "Market Price" is a lie, and why "Liquidity" is the only metric that matters for high-stakes traders.',
-    content: '## The Liquidity Trap\n\nA card might be "worth" $5,000, but if there are only 2 buyers a year, your asset is effectively illiquid. We introduce the DreamBees Liquidity Index (DBLI).',
+    content: '## The Liquidity Trap\n\nA card might be "worth" $5,000, but if there are only 2 buyers a year, your asset is effectively illiquid. We introduce the WoodBine Liquidity Index (DBLI).',
     authorName: 'Sarah Strategist',
     authorId: 'auth-2',
     viewCount: 22000,
@@ -482,7 +482,7 @@ export const EXTENDED_POSTS = [
     title: 'The Ghost Writer AI: Maintaining Voice in a Post-LLM World',
     slug: 'ghost-writer-ai-maintaining-voice',
     excerpt: 'How to use AI as a collaborator without losing the "human soul" of your editorial brand.',
-    content: '## The Authenticity Gap\n\nReaders can smell AI-generated fluff from a mile away. We share the DreamBees "Hybrid Prompting" workflow that allows you to scale production by 10x while keeping your unique tone.',
+    content: '## The Authenticity Gap\n\nReaders can smell AI-generated fluff from a mile away. We share the WoodBine "Hybrid Prompting" workflow that allows you to scale production by 10x while keeping your unique tone.',
     authorName: 'Sarah Strategist',
     authorId: 'auth-2',
     viewCount: 24000,

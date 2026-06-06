@@ -1,6 +1,6 @@
 # Architectural Overview
 
-DreamBeesArt is engineered with a strict layered architecture so every major behavior has a deterministic home. The project is a Firestore-backed commerce workspace for storefront selling, checkout/order recovery, merchant operations, support, digital fulfillment, lifecycle marketing, and concierge intelligence.
+WoodBine is engineered with a strict layered architecture so every major behavior has a deterministic home. The project is a Firestore-backed platform for WoodBine food hall operations—vendor menus, ordering, customer support, events, and merchant administration.
 
 See [Project State](./project-state.md) for the current file-level implementation snapshot.
 

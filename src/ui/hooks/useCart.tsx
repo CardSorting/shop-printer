@@ -28,8 +28,8 @@ export interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-const GUEST_CART_KEY = 'DreamBees_guest_cart';
-const LEGACY_GUEST_CART_KEY = 'dreambees_guest_cart';
+const GUEST_CART_KEY = 'WoodBine_guest_cart';
+const LEGACY_GUEST_CART_KEY = 'woodbine_guest_cart';
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();

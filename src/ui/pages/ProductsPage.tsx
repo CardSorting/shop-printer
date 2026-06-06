@@ -13,6 +13,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { getProductUrl, STORE_PATHS } from '@utils/navigation';
+import { SITE_MENU_LINE, SITE_VENDOR_LINE } from '@utils/seo';
 import { logger } from '@utils/logger';
 import { ProductCard } from '../components/ProductCard';
 import { ProductCardSkeleton } from '../components/ProductCard/ProductCardSkeleton';
@@ -200,21 +201,21 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
           items={
             collectionInfo 
               ? [
-                  { label: 'Catalog', href: '/products' },
+                  { label: 'Vendors & Menu', href: '/products' },
                   { label: collectionInfo.name }
                 ]
-              : [{ label: 'Catalog' }]
+              : [{ label: 'Vendors & Menu' }]
           } 
         />
 
         {/* Header */}
         <div className="mb-16">
            <h1 className="text-6xl font-black text-gray-900 tracking-tighter mb-6">
-             {collectionInfo?.name || 'The Catalog'}
+             {collectionInfo?.name || 'Vendors & Menu'}
            </h1>
            <div className="h-1.5 w-24 bg-primary-600 rounded-full mb-8" />
            <p className="text-xl text-gray-500 font-medium max-w-2xl leading-relaxed">
-             {collectionInfo?.description || 'Browse our curated collection of artist trading cards, prints, and TCG accessories. Every item is handcrafted by independent creators.'}
+             {collectionInfo?.description || `${SITE_VENDOR_LINE} ${SITE_MENU_LINE}`}
            </p>
         </div>
 
@@ -229,7 +230,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
                   : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
-              All Items
+              All From the Hall
             </Link>
             {categories.map((cat) => {
               const isActive = collectionSlug === cat.slug;

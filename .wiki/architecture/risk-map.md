@@ -1,6 +1,6 @@
 # Risk Map & Operational Security
 
-This document identifies high-risk surfaces and the mitigation strategies implemented in DreamBeesArt.
+This document identifies high-risk surfaces and the mitigation strategies implemented in WoodBine.
 
 ## 1. High-Risk Surfaces
 

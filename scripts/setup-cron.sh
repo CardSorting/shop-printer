@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# DreamBeesArt Blog Automation - Firebase Cron Setup
+# WoodBine Blog Automation - Firebase Cron Setup
 # This script configures Google Cloud Scheduler to hit your Next.js cron endpoint.
 
 PROJECT_ID=$(gcloud config get-value project)
@@ -19,7 +19,7 @@ gcloud scheduler jobs create http blog-automation-daily \
     --http-method=GET \
     --location="$LOCATION" \
     --headers="Authorization=Bearer $CRON_SECRET" \
-    --description="Daily automated blog content generation for DreamBeesArt" \
+    --description="Daily automated blog content generation for WoodBine" \
     --time-zone="UTC"
 
 echo "------------------------------------------------"

@@ -1,7 +1,7 @@
-# DreamBees Concierge — Technical & Operational Documentation
+# WoodBine Concierge — Technical & Operational Documentation
 
 ## 1. Overview
-DreamBees Concierge is a production-grade customer operations and support intelligence system. It transitions beyond simple "AI chat" into a comprehensive workspace for storefront assistance, high-velocity triage, and strategic operational awareness.
+WoodBine Concierge is a production-grade customer operations and support intelligence system. It transitions beyond simple "AI chat" into a comprehensive workspace for storefront assistance, high-velocity triage, and strategic operational awareness.
 
 The system is built on the principle of **"Invisible AI"**, where the intelligence serves the operator and the customer without exposing technical abstractions.
 
@@ -100,7 +100,7 @@ The Concierge must run customer investigation and lifecycle planning before reco
 
 The Concierge has been graduated into a high-fidelity **Artisanal Bartering Engine**, designed to mirror the trust and negotiation dynamics of a boutique peer-to-peer marketplace (e.g., Facebook Marketplace).
 
-### 7.1 Marketplace Persona ("Sarah from DreamBees")
+### 7.1 Marketplace Persona ("Sarah from WoodBine")
 To embed **Operational Trust**, the Concierge utilizes a verified seller identity:
 - **Verified Profile**: Displayed with social proof badges: "100% Response Rate" and "9-6 PM Studio Hours."
 - **Live Studio Status**: Real-time indicators of current activity (e.g., *"🎨 In the studio • Packing orders"*).

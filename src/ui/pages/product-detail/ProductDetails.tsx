@@ -92,7 +92,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             <h3 className="text-2xl font-black text-gray-900 mb-8">Technical Specifications</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
               {[
-                { label: 'Merchant Vendor', value: product.vendor || 'DreamBees' },
+                { label: 'Merchant Vendor', value: product.vendor || 'WoodBine' },
                 { label: 'Category', value: product.category },
                 { label: 'Product Type', value: product.productType || 'Standard' },
                 { label: 'Weight (Metric)', value: product.weightGrams ? `${product.weightGrams}g` : '—' },

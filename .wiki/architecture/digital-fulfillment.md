@@ -1,6 +1,6 @@
 # Digital Fulfillment & Asset Management
 
-DreamBeesArt implements a "Digital Vault" for secure distribution and management of purchased digital products.
+WoodBine implements a "Digital Vault" for secure distribution and management of purchased digital products.
 
 ## The "Digital Vault" Architecture
 

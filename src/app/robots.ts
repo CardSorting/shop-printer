@@ -26,6 +26,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: 'https://dreambeesart.com/sitemap.xml',
+    sitemap: 'https://woodbine.com/sitemap.xml',
   };
 }

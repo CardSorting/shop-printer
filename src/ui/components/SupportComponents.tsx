@@ -266,7 +266,7 @@ export function KnowledgebaseArticleView({ article, relatedArticles, onBack, onA
                   </div>
                   <h3 className="text-2xl font-black tracking-tight">Feedback Received!</h3>
                   <p className="text-white/50 text-sm font-medium mt-2 max-w-sm mx-auto">
-                    Thank you for helping us build a better experience for the DreamBees community.
+                    Thank you for helping us make WoodBine a better room for everyone who pulls up a chair.
                   </p>
                 </div>
               )}

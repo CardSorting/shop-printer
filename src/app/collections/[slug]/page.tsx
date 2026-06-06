@@ -39,7 +39,7 @@ export async function generateMetadata({
   if (!resolved) {
     const fallbackTitle = slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     return {
-      title: `${fallbackTitle} | DreamBeesArt`,
+      title: `${fallbackTitle} | WoodBine`,
       alternates: {
         canonical: `/collections/${slug}`,
       },
@@ -49,12 +49,12 @@ export async function generateMetadata({
 
   const description = seoDescription(
     resolved.data.description,
-    `Shop ${resolved.data.name} at DreamBeesArt. Discover handcrafted artist trading cards, art prints, and collector accessories.`
+    `Shop ${resolved.data.name} at WoodBine. Discover handcrafted artist trading cards, art prints, and collector accessories.`
   );
   const images = resolved.type === 'collection' && resolved.data.imageUrl ? [absoluteUrl(resolved.data.imageUrl)] : [];
 
   return {
-    title: `${resolved.data.name} | DreamBeesArt`,
+    title: `${resolved.data.name} | WoodBine`,
     description,
     alternates: {
       canonical: `/collections/${slug}`,

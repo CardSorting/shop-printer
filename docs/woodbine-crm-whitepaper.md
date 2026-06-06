@@ -1,8 +1,8 @@
-# DreamBeesArt Commerce Engine Whitepaper
+# WoodBine CRM Platform Whitepaper
 
 ## Abstract
 
-DreamBeesArt is a TypeScript commerce engine built around a practical thesis: small and specialized merchants need more than a storefront, but they should not have to surrender operational truth to disconnected SaaS tools. This repository attempts to place storefront selling, checkout reliability, merchant administration, support, digital fulfillment, lifecycle marketing, and operational intelligence into one inspectable workspace.
+WoodBine is a TypeScript CRM platform built around a practical thesis: teams need more than disconnected SaaS tools for customer operations. This repository places support, lifecycle marketing, order management, merchant administration, digital fulfillment, and operational intelligence into one inspectable workspace.
 
 The system is not organized as a generic demo. It is organized as a merchant operating system for a collectible/art business, with strong emphasis on checkout correctness, recoverable payment state, administrative clarity, and future extensibility.
 
@@ -16,7 +16,7 @@ Commerce systems fail in predictable places:
 - Support, marketing, fulfillment, and order history live in separate systems with weak context.
 - Documentation drifts away from the code until operators and future developers cannot tell what is actually true.
 
-DreamBeesArt addresses those problems by keeping the core business workflows in source-controlled TypeScript, backed by explicit Domain contracts and Firestore adapters.
+WoodBine addresses those problems by keeping the core business workflows in source-controlled TypeScript, backed by explicit Domain contracts and Firestore adapters.
 
 ## Project Goals
 
@@ -30,7 +30,7 @@ The project is attempting to achieve five concrete outcomes.
 
 ## Architectural Model
 
-DreamBeesArt uses a layered architecture:
+WoodBine uses a layered architecture:
 
 | Layer | Path | Purpose |
 | --- | --- | --- |
@@ -57,7 +57,7 @@ This footprint matters because the project already spans both customer-facing an
 
 ## Checkout as the Reliability Center
 
-The checkout flow is the highest-risk workflow. DreamBeesArt treats it as a recoverable state machine rather than a simple submit button.
+The checkout flow is the highest-risk workflow. WoodBine treats it as a recoverable state machine rather than a simple submit button.
 
 The implementation centers on:
 
@@ -101,7 +101,7 @@ Those cases are not treated as generic errors. They become reconciliation cases 
 
 ## Merchant Operations
 
-DreamBeesArt includes a broad admin surface:
+WoodBine includes a broad admin surface:
 
 - Orders and order details.
 - Product management, product form, product search, and bulk editing.
@@ -188,7 +188,7 @@ The production benchmark still needed is a staging or emulator run with realisti
 
 ## Technical Tradeoffs
 
-DreamBeesArt chooses explicitness over minimalism.
+WoodBine chooses explicitness over minimalism.
 
 Benefits:
 
@@ -217,7 +217,7 @@ The next maturity steps are:
 
 ## Conclusion
 
-DreamBeesArt is attempting to be a self-owned commerce operations platform, not just a storefront. Its strongest current architectural asset is the explicit checkout/order recovery model. Its broadest product asset is the combined customer, merchant, support, fulfillment, and marketing surface in one repository.
+WoodBine is attempting to be a self-owned commerce operations platform, not just a storefront. Its strongest current architectural asset is the explicit checkout/order recovery model. Its broadest product asset is the combined customer, merchant, support, fulfillment, and marketing surface in one repository.
 
 The system is already concrete enough to document and benchmark at the Core boundary. The remaining gap before making production-scale claims is external-capacity validation against Firestore, Stripe, hosting, and realistic traffic patterns.
 

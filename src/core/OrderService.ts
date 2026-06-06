@@ -183,7 +183,7 @@ export class OrderService {
   updateOrderStatus(
     id: string,
     status: OrderStatus,
-    actor: OrderActor = { id: 'system', email: 'system@dreambees.art' }
+    actor: OrderActor = { id: 'system', email: 'system@woodbine.com' }
   ): Promise<void> {
     return this.adminService.updateOrderStatus(id, status, actor);
   }
@@ -299,7 +299,7 @@ export class OrderService {
       });
       await this.adminService.updateOrderStatus(order.id, 'cancelled', {
         id: 'system',
-        email: 'system@dreambees.art'
+        email: 'system@woodbine.com'
       });
       processed++;
     }

@@ -1,6 +1,6 @@
 # Support CRM Architecture
 
-The DreamBeesArt Support CRM is a ticketing and interaction management system for customer support, returns, internal notes, macros, and knowledgebase-assisted resolution.
+The WoodBine Support CRM is a ticketing and interaction management system for customer support, returns, internal notes, macros, and knowledgebase-assisted resolution.
 
 ## Core Components
 

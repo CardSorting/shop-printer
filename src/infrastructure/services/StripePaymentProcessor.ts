@@ -40,7 +40,7 @@ export class StripePaymentProcessor implements IPaymentProcessor {
           enabled: true,
           allow_redirects: 'never', // For synchronous processing in this context
         },
-        description: `DreamBeesArt order ${params.orderId}`,
+        description: `WoodBine order ${params.orderId}`,
         metadata: { orderId: params.orderId },
       }, {
         idempotencyKey: params.idempotencyKey,
@@ -49,7 +49,7 @@ export class StripePaymentProcessor implements IPaymentProcessor {
       if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'requires_capture') {
         await this.audit.record({
           userId: 'system',
-          userEmail: 'payments@dreambees.art',
+          userEmail: 'payments@woodbine.com',
           action: 'order_payment_finalized',
           targetId: params.orderId,
           details: { transactionId: paymentIntent.id, amount: params.amount, status: paymentIntent.status }
@@ -65,7 +65,7 @@ export class StripePaymentProcessor implements IPaymentProcessor {
       // Forensic: Record payment failure
       await this.audit.record({
         userId: 'system',
-        userEmail: 'payments-alerts@dreambees.art',
+        userEmail: 'payments-alerts@woodbine.com',
         action: 'order_payment_finalized', // Reusing for failed attempts
         targetId: params.orderId,
         details: { error: message, amount: params.amount, status: 'failed' }
@@ -90,7 +90,7 @@ export class StripePaymentProcessor implements IPaymentProcessor {
       const success = refund.status === 'succeeded' || refund.status === 'pending';
       await this.audit.record({
         userId: 'system',
-        userEmail: 'refunds@dreambees.art',
+        userEmail: 'refunds@woodbine.com',
         action: 'order_refunded',
         targetId: transactionId,
         details: { amount, status: refund.status, success }

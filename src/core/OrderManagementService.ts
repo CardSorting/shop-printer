@@ -80,7 +80,7 @@ export class OrderManagementService {
       }
       await this.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'order_management_cleanup');
       await this.orderRepo.guardedUpdateStatus(order.id, [order.status], 'cancelled', 'order_management_cleanup');
-      await this.audit.record({ userId: 'system', userEmail: 'system@dreambees.art', action: 'order_status_changed', targetId: order.id, details: { from: 'pending', to: 'cancelled', reason: 'expired' } });
+      await this.audit.record({ userId: 'system', userEmail: 'system@woodbine.com', action: 'order_status_changed', targetId: order.id, details: { from: 'pending', to: 'cancelled', reason: 'expired' } });
       processed++;
     }
     return { count: processed };

@@ -14,7 +14,7 @@ export const SocialPreview: React.FC<{ formData: Partial<KnowledgebaseArticle> }
               </div>
             )}
             <div className="p-6 bg-[#f0f2f5]">
-              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-tight">dreambeesart.com</p>
+              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-tight">woodbine.com</p>
               <h3 className="text-lg font-bold text-gray-900 mt-1 line-clamp-2">{formData.metaTitle || formData.title || 'Post Title'}</h3>
               <p className="text-sm text-gray-600 mt-2 line-clamp-3">{formData.metaDescription || formData.excerpt || 'Add a meta description to see how it looks on Facebook...'}</p>
             </div>
@@ -30,7 +30,7 @@ export const SocialPreview: React.FC<{ formData: Partial<KnowledgebaseArticle> }
             <div className="flex-1 min-w-0 py-2">
               <h3 className="text-sm font-bold text-gray-900 line-clamp-2">{formData.metaTitle || formData.title || 'Post Title'}</h3>
               <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{formData.metaDescription || formData.excerpt || 'Add content to preview...'}</p>
-              <p className="text-[10px] text-primary-600 font-bold mt-2">dreambeesart.com</p>
+              <p className="text-[10px] text-primary-600 font-bold mt-2">woodbine.com</p>
             </div>
           </div>
       </div>

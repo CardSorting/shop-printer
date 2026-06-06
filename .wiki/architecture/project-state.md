@@ -6,7 +6,7 @@ This page describes what the repository currently implements. It is intentionall
 
 ## Product Intent
 
-DreamBeesArt is a commerce engine for a collectible/art storefront. The project is attempting to combine storefront selling, checkout reliability, merchant operations, customer support, digital fulfillment, and lifecycle marketing in one inspectable TypeScript workspace.
+WoodBine is a food hall platform for a Salt Lake City gathering place. The project combines vendor menus, ordering, customer support, events, and merchant operations in one inspectable TypeScript workspace.
 
 The project direction is not a thin demo storefront. It is closer to a self-owned merchant operations system:
 
@@ -145,7 +145,7 @@ Production throughput still needs staging or emulator testing with real Firestor
 
 ## Known Documentation Corrections
 
-Older docs sometimes used the project codename `ShopMore` and mentioned SQLite backup/migration paths. The current repository state is DreamBeesArt with Firestore repositories and Firebase bridge code. New documentation should describe Firestore, not SQLite.
+Older docs sometimes used the project codename `ShopMore` and mentioned SQLite backup/migration paths. The current repository state is WoodBine with Firestore repositories and Firebase bridge code. New documentation should describe Firestore, not SQLite.
 
 ## Operating Principle
 

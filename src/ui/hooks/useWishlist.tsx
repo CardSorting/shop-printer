@@ -20,7 +20,7 @@ interface WishlistContextType {
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
-const RECENTLY_VIEWED_KEY = 'DreamBees_recently_viewed';
+const RECENTLY_VIEWED_KEY = 'WoodBine_recently_viewed';
 const MAX_RECENTLY_VIEWED = 10;
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines security best practices for the DreamBeesArt application, particularly around credential management and secret protection.
+This document outlines security best practices for the WoodBine application, particularly around credential management and secret protection.
 
 ## Environment Variables
 
@@ -18,7 +18,7 @@ The application uses SQLite for persistence and HTTP-only cookies for session st
 
 ```env
 SESSION_SECRET=replace_with_a_long_random_secret
-SQLITE_DATABASE_PATH=DreamBees.db
+SQLITE_DATABASE_PATH=WoodBine.db
 ```
 
 ## Security Practices

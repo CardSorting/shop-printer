@@ -121,7 +121,7 @@ export const Sidebar: React.FC<EditorState & { libraryImages: string[] }> = ({
                 <div className="space-y-4">
                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Search Result Preview</label>
                    <div className="p-6 bg-white border border-gray-100 rounded-2xl shadow-sm space-y-1">
-                      <p className="text-[10px] text-gray-500 truncate">dreambeesart.com › journal › {formData.slug || '...'}</p>
+                      <p className="text-[10px] text-gray-500 truncate">woodbine.com › journal › {formData.slug || '...'}</p>
                       <h4 className="text-lg text-[#1a0dab] hover:underline font-medium cursor-pointer truncate">
                         {formData.metaTitle || formData.title || 'Post Title'}
                       </h4>

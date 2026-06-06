@@ -47,7 +47,7 @@ export class PolicyEngineService {
         // Forensic: Record policy intervention
         this.audit.record({
           userId: 'system',
-          userEmail: 'policy-engine@dreambees.art',
+          userEmail: 'policy-engine@woodbine.com',
           action: 'settings_updated', // We can use a more specific action if we add it to AuditAction
           targetId: operation.id,
           details: { type: 'policy_intervention', tool: operation.tool, target: operation.target, risks: risks.filter(r => r.operationId === operation.id) }

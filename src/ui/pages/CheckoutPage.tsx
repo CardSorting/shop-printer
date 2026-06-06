@@ -34,6 +34,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
 import { useServices } from '../hooks/useServices';
 import { formatMoney } from '@utils/formatters';
+import { SITE_CART_EMPTY_LINE, SITE_GATHERING_LINE, SITE_NEWSLETTER_LINE } from '@utils/seo';
 import { calculateShipping, calculateTax } from '@domain/rules';
 import type { ShippingRate, ShippingZone } from '@domain/models';
 
@@ -323,11 +324,12 @@ export function CheckoutPage() {
           <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-gray-50 text-gray-200">
             <ShoppingBag className="h-12 w-12" />
           </div>
-          <h1 className="text-3xl font-black text-gray-900 mb-3">Your cart is empty</h1>
-          <p className="text-gray-500 mb-10 font-medium leading-relaxed">It looks like you haven't added any art to your cart yet. Let's find something special.</p>
+          <h1 className="text-3xl font-black text-gray-900 mb-3">Nothing on your tray yet</h1>
+          <p className="text-gray-500 mb-10 font-medium leading-relaxed">{SITE_CART_EMPTY_LINE}</p>
           <Link href="/products" className="inline-flex items-center justify-center w-full rounded-2xl bg-gray-900 px-8 py-5 text-sm font-black text-white shadow-xl transition-all hover:bg-black hover:-translate-y-1">
-            Browse Collections
+            Browse the Menu
           </Link>
+          <p className="mt-8 text-[10px] font-bold text-gray-300">{SITE_GATHERING_LINE}</p>
         </div>
       </div>
     );
@@ -345,7 +347,7 @@ export function CheckoutPage() {
 
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <Link href="/" className="text-2xl font-black tracking-tighter text-gray-900">DreamBees<span className="text-primary-600">Art</span></Link>
+          <Link href="/" className="text-2xl font-black tracking-tighter text-gray-900">WoodBine</Link>
           <div className="flex items-center gap-6">
             <div className="hidden items-center gap-2 rounded-full border border-green-100 bg-green-50 px-4 py-1.5 md:flex">
               <LockKeyhole className="h-3.5 w-3.5 text-green-600" />
@@ -413,7 +415,7 @@ export function CheckoutPage() {
                     />
                     <label className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50/50 p-4 transition hover:bg-gray-50 cursor-pointer">
                       <input type="checkbox" className="h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500" />
-                      <span className="text-xs font-bold text-gray-600">Keep me updated on new drops and collector news.</span>
+                      <span className="text-xs font-bold text-gray-600">{SITE_NEWSLETTER_LINE}</span>
                     </label>
                   </div>
                 </section>
@@ -630,7 +632,7 @@ export function CheckoutPage() {
                 <Link href="/privacy-policy" className="hover:text-gray-900 transition-colors">Privacy</Link>
                 <Link href="/terms" className="hover:text-gray-900 transition-colors">Terms</Link>
               </div>
-              <p className="mt-8 text-[10px] font-bold text-gray-300">© 2026 DreamBeesArt. Industrialized E-commerce Flow.</p>
+              <p className="mt-8 text-[10px] font-bold text-gray-300">© 2026 WoodBine. Come for the food, stay for the people.</p>
             </footer>
           </div>
         </main>
@@ -730,7 +732,7 @@ export function CheckoutPage() {
                   </div>
                   <div>
                     <p className="text-sm font-black text-gray-900">Unlock Free Shipping</p>
-                    <p className="text-xs font-bold text-gray-400">Add {formatMoney(freeShippingRemaining)} more to your cart.</p>
+                    <p className="text-xs font-bold text-gray-400">Add {formatMoney(freeShippingRemaining)} more—regulars know it&apos;s worth it.</p>
                   </div>
                 </div>
               ) : (
@@ -740,7 +742,7 @@ export function CheckoutPage() {
                   </div>
                   <div>
                     <p className="text-sm font-black">Free Shipping Unlocked</p>
-                    <p className="text-xs font-bold opacity-80">You've reached the $100.00 collector threshold.</p>
+                    <p className="text-xs font-bold opacity-80">You&apos;ve unlocked free shipping—more to share at the table.</p>
                   </div>
                 </div>
               )}

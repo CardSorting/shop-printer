@@ -4,7 +4,7 @@ import { Variants, type Transition } from 'framer-motion';
 
 /**
  * [LAYER: UI]
- * Centralized animation engine for the DreamBeesArt storefront.
+ * Centralized animation engine for the WoodBine storefront.
  * All motion variants and spring configs are defined here to ensure
  * visual consistency and prevent animation drift across components.
  */

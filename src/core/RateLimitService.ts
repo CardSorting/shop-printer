@@ -75,7 +75,7 @@ export class RateLimitService {
           // Forensic: Record rate-limit breach as potential abuse
           await this.audit.record({
             userId: 'system',
-            userEmail: 'security-alerts@dreambees.art',
+            userEmail: 'security-alerts@woodbine.com',
             action: 'security_alert',
             targetId: hashedKey,
             details: { type: 'rate_limit_breach', limit }

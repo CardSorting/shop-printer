@@ -1,6 +1,6 @@
-# Getting Started with DreamBeesArt
+# Getting Started with WoodBine
 
-This guide provides the onboarding path for developers initializing the DreamBeesArt commerce workspace.
+This guide provides the onboarding path for developers initializing the WoodBine commerce workspace.
 
 ## 🛠 System Prerequisites
 

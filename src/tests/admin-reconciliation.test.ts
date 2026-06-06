@@ -172,7 +172,7 @@ describe('Operator-Facing Reconciliation & Forensics Integration Tests', () => {
         const noteObjects: OrderNote[] = notes.map(txt => ({
           id: `note-${Math.random()}`,
           authorId: 'system',
-          authorEmail: 'system@dreambees.art',
+          authorEmail: 'system@woodbine.com',
           text: txt,
           createdAt: new Date(),
         }));

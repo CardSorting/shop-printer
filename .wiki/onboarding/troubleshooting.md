@@ -60,7 +60,7 @@ Check:
 
 ## ESLint scans generated Next output
 
-`eslint.config.js` intentionally ignores `dist`, `.next`, `DreamBees-tcg/.next`, and `next-env.d.ts`. If generated output appears under another nested path, add that generated path to `globalIgnores` rather than editing generated files.
+`eslint.config.js` intentionally ignores `dist`, `.next`, `WoodBine/.next`, and `next-env.d.ts`. If generated output appears under another nested path, add that generated path to `globalIgnores` rather than editing generated files.
 
 ## Tailwind utilities absent in build
 

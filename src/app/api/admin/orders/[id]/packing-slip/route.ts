@@ -63,7 +63,7 @@ export async function GET(
   <button onclick="window.print()">Print</button>
   <header>
     <div>
-      <h1>DreamBees Art</h1>
+      <h1>WoodBine</h1>
       <div class="muted">Packing Slip</div>
     </div>
     <div class="right">

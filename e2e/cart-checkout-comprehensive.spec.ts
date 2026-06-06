@@ -66,7 +66,7 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
         items: seededItems,
         updatedAt: new Date()
       };
-      localStorage.setItem('dreambees_guest_cart', JSON.stringify(cart));
+      localStorage.setItem('woodbine_guest_cart', JSON.stringify(cart));
     }, items);
   }
 

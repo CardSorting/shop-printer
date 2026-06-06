@@ -129,7 +129,7 @@ export function AdminDiscountForm() {
     setSaving(true);
     try {
       const user = await services.authService.getCurrentUser();
-      const actor = { id: user?.id || 'admin', email: user?.email || 'admin@dreambees.art' };
+      const actor = { id: user?.id || 'admin', email: user?.email || 'admin@woodbine.com' };
 
       const payload: DiscountDraft = {
         code: code.toUpperCase(),
@@ -176,7 +176,7 @@ export function AdminDiscountForm() {
     setSaving(true);
     try {
       const user = await services.authService.getCurrentUser();
-      await services.discountService.deleteDiscount(id!, { id: user?.id || 'admin', email: user?.email || 'admin@dreambees.art' });
+      await services.discountService.deleteDiscount(id!, { id: user?.id || 'admin', email: user?.email || 'admin@woodbine.com' });
       toast('success', 'Discount deleted');
       router.push('/admin/discounts');
     } catch (err) {

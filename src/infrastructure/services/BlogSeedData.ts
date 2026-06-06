@@ -1,6 +1,6 @@
 /**
  * [LAYER: INFRASTRUCTURE]
- * Specialized Seed Data for the DreamBeesArt Blog.
+ * Specialized Seed Data for the WoodBine Blog.
  * 
  * This file contains high-fidelity, pillar-style blog content for the Journal.
  */
@@ -294,7 +294,7 @@ export const BLOG_POSTS = [
     title: 'Community Sovereignty: Moving Beyond Discord',
     slug: 'community-sovereignty-beyond-discord',
     excerpt: 'Why owning your audience platform is the most critical survival tactic of 2026.',
-    content: '## The Platform Trap\n\nIn 2025, many creators lost their entire community due to arbitrary platform bans. In 2026, the trend is "Sovereignty." We explore how to build owned hubs that integrate directly with your personal brand.\n\n### Building the "Honeypot"\nWe analyze the DreamBees model for community engagement: shifting from reactive chat rooms to proactive, value-driven hubs.',
+    content: '## The Platform Trap\n\nIn 2025, many creators lost their entire community due to arbitrary platform bans. In 2026, the trend is "Sovereignty." We explore how to build owned hubs that integrate directly with your personal brand.\n\n### Building the "Honeypot"\nWe analyze the WoodBine model for community engagement: shifting from reactive chat rooms to proactive, value-driven hubs.',
     authorName: 'Sarah Strategist',
     authorId: 'auth-2',
     viewCount: 19800,

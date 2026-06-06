@@ -124,7 +124,7 @@ export default function AuditLogsPage() {
         <div>
           <h4 className="text-xs font-bold text-blue-900 uppercase tracking-tight">BroccoliQ Level 9 Forensics</h4>
           <p className="text-[10px] text-blue-700 leading-relaxed mt-0.5">
-            These logs are system-generated and reflect every critical mutation within the DreamBees engine. 
+            These logs are system-generated and reflect every critical mutation within the WoodBine engine. 
             Modifying or deleting these logs directly via the interface is restricted to Sovereign-level credentials.
           </p>
         </div>

@@ -6,7 +6,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 import nextPlugin from '@next/eslint-plugin-next'
 
 export default defineConfig([
-  globalIgnores(['dist', '.next', '.firebase', 'DreamBees-tcg/.next', 'next-env.d.ts']),
+  globalIgnores(['dist', '.next', '.firebase', 'WoodBine/.next', 'next-env.d.ts']),
   nextPlugin.configs['core-web-vitals'],
   {
     files: ['**/*.{ts,tsx}'],

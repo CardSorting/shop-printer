@@ -72,13 +72,15 @@ export function Navbar() {
           <Link href={STORE_PATHS.HOME} className={`flex items-center group shrink-0 transition-all duration-300 ${isSearchFocused ? 'hidden md:flex' : 'flex'}`}>
             <BeeLogo className="w-8 h-8 transition-transform group-hover:scale-110" />
             <span className="ml-2 text-lg font-black tracking-tighter text-gray-900 hidden sm:inline">
-              DreamBees
+              WoodBine
             </span>
           </Link>
 
           {/* Desktop Links - Hidden when search is focused on smaller screens */}
           <div className={`hidden lg:flex items-center gap-10 shrink-0 transition-all duration-500 ${isSearchFocused ? 'opacity-0 -translate-x-4 pointer-events-none w-0 overflow-hidden' : 'opacity-100 translate-x-0'}`}>
-            <Link href="/products" className="text-[12px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary-600 transition-colors">Shop</Link>
+            <Link href="/products" className="text-[12px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary-600 transition-colors">Menu</Link>
+            <Link href="/support" className="text-[12px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary-600 transition-colors">Visit</Link>
+            <Link href="/blog" className="text-[12px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary-600 transition-colors">Community</Link>
           </div>
 
           {/* Responsive Inline Search */}
@@ -91,7 +93,7 @@ export function Navbar() {
             </div>
             <input 
               type="text"
-              placeholder="Search art..."
+              placeholder="Search vendors & dishes..."
               className={`w-full pl-10 pr-4 py-2 text-[13px] font-medium bg-gray-100 border-2 border-transparent rounded-full outline-none transition-all duration-300 focus:bg-white focus:border-primary-500/20 focus:ring-4 focus:ring-primary-500/5 placeholder:text-gray-400`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -180,11 +182,15 @@ export function Navbar() {
               </button>
             </div>
             <div className="flex-1 flex flex-col gap-8">
-              <Link href="/products" onClick={() => setIsMenuOpen(false)} className="text-5xl font-black tracking-tighter text-gray-900">Shop</Link>
-              <Link href="/support" onClick={() => setIsMenuOpen(false)} className="text-5xl font-black tracking-tighter text-gray-900">Support</Link>
+              <Link href="/products" onClick={() => setIsMenuOpen(false)} className="text-5xl font-black tracking-tighter text-gray-900">Menu</Link>
+              <Link href="/blog" onClick={() => setIsMenuOpen(false)} className="text-5xl font-black tracking-tighter text-gray-900">Community</Link>
+              <Link href="/support" onClick={() => setIsMenuOpen(false)} className="text-5xl font-black tracking-tighter text-gray-900">Visit</Link>
             </div>
+            <p className="text-sm text-gray-400 font-medium leading-relaxed max-w-xs">
+              Come for the food, stay for the people—and the space.
+            </p>
             <div className="pt-10 border-t flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-300">
-              <span>DreamBeesArt</span>
+              <span>WoodBine</span>
               <div className="flex gap-4">
                 <Link href={STORE_PATHS.ACCOUNT}>Account</Link>
               </div>

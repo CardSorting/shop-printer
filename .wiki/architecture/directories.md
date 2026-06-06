@@ -1,6 +1,6 @@
 # Directory Dictionary
 
-This document maps the DreamBeesArt workspace and defines the structural constraints for each directory.
+This document maps the WoodBine workspace and defines the structural constraints for each directory.
 
 ## Root Directory
 

@@ -1,6 +1,6 @@
 # Day 2 Operations: Extending the Engine
 
-Once you have initialized the DreamBeesArt engine, use this guide to perform common development and operational tasks.
+Once you have initialized the WoodBine engine, use this guide to perform common development and operational tasks.
 
 ## 🏗 Building New Features
 
@@ -14,7 +14,7 @@ When adding new capabilities, follow the **Joy-Zoning Workflow**:
 
 ## 🗄 Database Management
 
-DreamBeesArt currently uses Firestore for application persistence.
+WoodBine currently uses Firestore for application persistence.
 
 - **Schema changes**: Update Domain models, repository interfaces, Firestore mappers, and API parsers together.
 - **Seeding**: Update `src/infrastructure/services/SeedDataLoader.ts` to include mock data for new features.

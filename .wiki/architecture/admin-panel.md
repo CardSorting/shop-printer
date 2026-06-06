@@ -1,6 +1,6 @@
 # Admin Panel & Merchant Operations
 
-The DreamBeesArt Admin Panel is a high-fidelity, production-grade merchant interface designed for high-velocity store management. It follows patterns established by industry leaders like Shopify and Stripe to provide a premium experience for store operators.
+The WoodBine Admin Panel is a high-fidelity, production-grade merchant interface designed for high-velocity store management. It follows patterns established by industry leaders like Shopify and Stripe to provide a premium experience for store operators.
 
 ## Core Features
 

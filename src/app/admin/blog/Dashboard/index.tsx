@@ -234,7 +234,7 @@ export default function BlogDashboard() {
           <div>
             <div className="flex items-center gap-3 text-primary-600 mb-2">
                <NotebookPen className="h-5 w-5" />
-               <span className="text-[10px] font-black uppercase tracking-[0.2em]">DreamBees Editorial</span>
+               <span className="text-[10px] font-black uppercase tracking-[0.2em]">WoodBine Editorial</span>
             </div>
             <h1 className="text-4xl font-black text-gray-900 tracking-tight capitalize">
               {activeView === 'editorial' ? 'Content Hub' : activeView}

@@ -11,7 +11,7 @@ export async function generateMetadata({ searchParams }: SearchProps): Promise<M
   const { q = '' } = await searchParams;
   const query = cleanSeoText(q);
   return {
-    title: query ? `Search: ${query} | DreamBeesArt` : 'Search Catalog | DreamBeesArt',
+    title: query ? `Search: ${query} | WoodBine` : 'Search Catalog | WoodBine',
     description: `Search our extensive catalog of trading cards, sets, and supplies. Results for ${query || 'all products'}.`,
     robots: {
       index: false,

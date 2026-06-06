@@ -123,7 +123,7 @@ export class OrderCheckoutService {
             logger.info('Pending duplicate order without payment transaction found. Resuming payment flow.', { userId, idempotencyKey, orderId: existing.id });
             await this.audit.record({
               userId,
-              userEmail: userEmail || 'unknown@dreambees.art',
+              userEmail: userEmail || 'unknown@woodbine.com',
               action: 'checkout_resumed',
               targetId: existing.id,
               details: { idempotencyKey, total: existing.total },
@@ -326,7 +326,7 @@ export class OrderCheckoutService {
           await this.cartRepo.clear(userId, transaction);
           await this.audit.recordWithTransaction(transaction, {
             userId,
-            userEmail: userEmail || 'unknown@dreambees.art',
+            userEmail: userEmail || 'unknown@woodbine.com',
             action: 'order_placed',
             targetId: createdOrder.id,
             details: { total, itemCount: cart.items.length, discountCode: validDiscountCode, hasCustomerNote: !!cart.note },
@@ -678,7 +678,7 @@ export class OrderCheckoutService {
             }
             await this.audit.recordWithTransaction(transaction, {
               userId: 'system',
-              userEmail: 'stripe-webhook@dreambees.art',
+              userEmail: 'stripe-webhook@woodbine.com',
               action: isStaleAttempt ? 'payment_received_on_stale_attempt' : 'payment_received_on_cancelled_order',
               targetId: order.id,
               details: {
@@ -737,7 +737,7 @@ export class OrderCheckoutService {
           await this.orderRepo.updateCheckoutAttempt(attemptId, { state: 'reconciling' }, transaction);
           await this.audit.recordWithTransaction(transaction, {
             userId: 'system',
-            userEmail: 'stripe-webhook@dreambees.art',
+            userEmail: 'stripe-webhook@woodbine.com',
             action: 'checkout_reconciliation_required',
             targetId: order.id,
             details: {
@@ -1073,7 +1073,7 @@ export class OrderCheckoutService {
 
         await this.audit.recordWithTransaction(transaction, {
           userId: order.userId,
-          userEmail: order.customerEmail || 'unknown@dreambees.art',
+          userEmail: order.customerEmail || 'unknown@woodbine.com',
           action: 'checkout_rollback_success',
           targetId: orderId,
           details: { checkoutAttemptId, cartItemsCount: restoredCart.items.length, reason },

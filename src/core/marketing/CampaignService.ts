@@ -160,7 +160,7 @@ export class CampaignService {
       const now = new Date();
       const channel = step?.channel || campaign.channels[0] || 'email';
       const customer = await this.getCustomerProfile(userId);
-      if (channel === 'email' && customer.email === 'unknown@dreambees.art') {
+      if (channel === 'email' && customer.email === 'unknown@woodbine.com') {
         logger.warn('Skipping campaign email because customer email is unavailable', { campaignId: campaign.id, userId });
         return;
       }
@@ -192,7 +192,7 @@ export class CampaignService {
       await this.campaignRepo.incrementMetrics(campaign.id, { sent: 1 });
       await this.audit.record({
         userId: 'system',
-        userEmail: 'system@dreambees.art',
+        userEmail: 'system@woodbine.com',
         action: 'campaign_executed',
         targetId: campaign.id,
         details: { userId, channel, stepIndex },
@@ -509,14 +509,14 @@ export class CampaignService {
       const snap = await getDoc(doc(getUnifiedDb(), 'users', userId));
       const data = snap.exists() ? snap.data() : null;
       return {
-        email: data?.email || 'unknown@dreambees.art',
+        email: data?.email || 'unknown@woodbine.com',
         name: data?.displayName,
         marketingConsent: data?.marketingConsent,
         marketingSuppressed: data?.marketingSuppressed,
       };
     } catch (error) {
       logger.warn('Failed to load customer profile for campaign execution', { userId, error });
-      return { email: 'unknown@dreambees.art' };
+      return { email: 'unknown@woodbine.com' };
     }
   }
 

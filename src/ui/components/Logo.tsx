@@ -2,7 +2,7 @@ import React from 'react';
 
 /**
  * [LAYER: UI]
- * High-fidelity vector logos for DreamBeesArt.
+ * High-fidelity vector logos for WoodBine.
  * Features: Stylized bee geometry, hexagonal hive motifs, and brand-aligned amber accents.
  */
 

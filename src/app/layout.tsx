@@ -6,7 +6,7 @@ import { WishlistProvider } from '@ui/hooks/useWishlist';
 import { ErrorBoundary } from '@ui/components/ErrorBoundary';
 import { StorefrontShell } from '@ui/layouts/StorefrontShell';
 import { CartDrawer } from '@ui/components/CartDrawer';
-import { absoluteUrl, DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from '@utils/seo';
+import { absoluteUrl, DEFAULT_OG_IMAGE, SITE_BELONGING_LINE, SITE_COMMUNITY_LINE, SITE_CTA, SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from '@utils/seo';
 import '@/index.css';
 
 const inter = Inter({
@@ -18,14 +18,14 @@ const inter = Inter({
 export const metadata: Metadata = {
     metadataBase: new URL(SITE_URL),
     title: {
-        default: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
-        template: '%s | DreamBeesArt',
+        default: `WoodBine | ${SITE_TAGLINE}`,
+        template: '%s | WoodBine',
     },
-    description: 'Discover handcrafted Artist Trading Cards, stunning art prints, and premium TCG accessories. Fan art and artist-inspired merch from independent creators you love.',
-    keywords: ['Artist Trading Cards', 'ATC', 'TCG Accessories', 'Handmade Art', 'Anime Art Prints', 'TCG Supplies'],
-    authors: [{ name: 'DreamBeesArt Team' }],
-    creator: 'DreamBeesArt',
-    publisher: 'DreamBeesArt',
+    description: `${SITE_DESCRIPTION} ${SITE_BELONGING_LINE}`,
+    keywords: ['Food Hall', 'Salt Lake City', 'Community Gathering', 'Local Vendors', 'Third Place', 'Warehouse Dining', 'WoodBine'],
+    authors: [{ name: 'WoodBine Team' }],
+    creator: 'WoodBine',
+    publisher: 'WoodBine',
     formatDetection: {
         email: false,
         address: false,
@@ -41,23 +41,23 @@ export const metadata: Metadata = {
         locale: 'en_US',
         url: SITE_URL,
         siteName: SITE_NAME,
-        title: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
-        description: 'Discover handcrafted Artist Trading Cards, stunning art prints, and premium TCG accessories from independent creators.',
+        title: `WoodBine | ${SITE_TAGLINE}`,
+        description: `${SITE_DESCRIPTION} ${SITE_COMMUNITY_LINE}`,
         images: [
             {
                 url: absoluteUrl(DEFAULT_OG_IMAGE),
                 width: 1200,
                 height: 630,
-                alt: 'DreamBeesArt Storefront',
+                alt: 'WoodBine Food Hall',
             },
         ],
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
-        description: 'Discover handcrafted Artist Trading Cards, stunning art prints, and premium TCG accessories from independent creators.',
+        title: `WoodBine | ${SITE_TAGLINE}`,
+        description: `${SITE_DESCRIPTION} ${SITE_COMMUNITY_LINE}`,
         images: [absoluteUrl(DEFAULT_OG_IMAGE)],
-        creator: '@DreamBeesArt',
+        creator: '@WoodBine',
     },
     robots: {
         index: true,
@@ -78,7 +78,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         '@type': 'WebSite',
         url: SITE_URL,
         name: SITE_NAME,
-        alternateName: 'Dream Bees Art',
+        alternateName: SITE_TAGLINE,
         potentialAction: {
             '@type': 'SearchAction',
             target: {

@@ -1,8 +1,10 @@
-# DreamBeesArt Commerce Engine
+# WoodBine
 
-DreamBeesArt is a Next.js commerce application for a collectible/art storefront with a hardened order pipeline, merchant admin console, support CRM, digital fulfillment, lifecycle marketing, and concierge-assisted customer operations.
+**Old Hall. New Flavors.**
 
-The project is trying to prove a practical alternative to generic hosted commerce tooling: keep the merchant-facing workflows in one TypeScript codebase, keep business rules testable, store operational data in Firestore, and make checkout/order state recoverable under retries, webhooks, and partial failures.
+WoodBine is a Salt Lake City food hall anchored in a historic, beautifully restored warehouse—a neighborhood table where independent vendors, regulars, and first-timers gather for cold drinks, full plates, and the best kind of company.
+
+Come for the food, stay for the people—and the space. No membership, no dress code—just show up.
 
 ## Current Project Shape
 
@@ -120,7 +122,7 @@ Start here:
 - [Risk Map](.wiki/architecture/risk-map.md)
 - [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md)
 - [Checkout Orchestration](docs/checkout-orchestration.md)
-- [Whitepaper](docs/dreambeesart-commerce-engine-whitepaper.md)
+- [Whitepaper](docs/woodbine-crm-whitepaper.md)
 
 ## Tech Stack
 

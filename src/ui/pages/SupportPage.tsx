@@ -350,7 +350,7 @@ export function SupportPage() {
               href="/" 
               className="w-full inline-flex items-center justify-center rounded-2xl bg-gray-50 border border-gray-200 px-6 py-4 text-sm font-black text-gray-900 hover:bg-gray-100 transition-colors"
             >
-              Continue Shopping
+              Continue to WoodBine
             </Link>
           </div>
         </div>
@@ -383,7 +383,7 @@ export function SupportPage() {
           className="inline-flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-gray-900 mb-8 transition-colors group"
         >
           <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-          Back to Store
+          Back to WoodBine
         </Link>
       )}
 
@@ -393,9 +393,9 @@ export function SupportPage() {
           <div className="text-center space-y-8 max-w-3xl mx-auto">
             <div className="space-y-4">
               <h1 className="text-5xl md:text-6xl font-black text-gray-900 tracking-tight leading-tight">
-                Support <span className="text-primary-600 italic">Hub</span>
+                Visit &amp; <span className="text-primary-600 italic">Connect</span>
               </h1>
-              <p className="text-lg font-medium text-gray-500">Search articles or select a common task below to get started.</p>
+              <p className="text-lg font-medium text-gray-500">Hours, events, vendors, and answers—everything you need before you pull up a chair.</p>
             </div>
             
             <div className="relative group">
@@ -404,7 +404,7 @@ export function SupportPage() {
                 type="text"
                 value={activeSearch}
                 onChange={(e) => setActiveSearch(e.target.value)}
-                placeholder="Search for answers (e.g. 'returns', 'tracking')..."
+                placeholder="Search for answers (e.g. 'hours', 'events', 'vendors')..."
                 className="w-full rounded-4xl border-2 border-gray-100 bg-white py-6 pl-16 pr-8 text-lg font-bold text-gray-900 shadow-xl shadow-gray-200/40 outline-none transition-all focus:border-primary-500 focus:ring-8 focus:ring-primary-500/5"
               />
               <SupportSearchOverlay 
@@ -486,7 +486,7 @@ export function SupportPage() {
             <div className="flex items-end justify-between mb-8">
               <div>
                 <h2 className="text-2xl font-black text-gray-900">Browse by Category</h2>
-                <p className="text-sm font-medium text-gray-500 mt-1">Detailed guides for every part of your journey</p>
+                <p className="text-sm font-medium text-gray-500 mt-1">Detailed guides for visiting, events, and life in the hall</p>
               </div>
               {user && (
                 <button 
@@ -519,7 +519,7 @@ export function SupportPage() {
             <div className="flex items-center justify-between mb-10">
               <div>
                 <h3 className="text-2xl font-black text-gray-900">Popular Articles</h3>
-                <p className="text-sm font-medium text-gray-500 mt-1">Most frequently asked questions from collectors</p>
+                <p className="text-sm font-medium text-gray-500 mt-1">What guests ask before their first—or fiftieth—visit</p>
               </div>
               <Link href="/support?all=true" className="text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 px-4 py-2">View All</Link>
             </div>
@@ -550,9 +550,9 @@ export function SupportPage() {
               <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-primary-600/20 blur-3xl group-hover:scale-150 transition-transform duration-1000" />
               <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                 <div className="space-y-6">
-                  <span className="inline-block px-4 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest text-primary-400 border border-white/5">Still need help?</span>
-                  <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">Talk to an expert collector.</h2>
-                  <p className="text-lg font-medium text-white/60 max-w-xl">Our team typically responds within 24 hours. Sign in to track existing tickets or open a new one.</p>
+                  <span className="inline-block px-4 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest text-primary-400 border border-white/5">Still have questions?</span>
+                  <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">Talk to someone who knows the room.</h2>
+                  <p className="text-lg font-medium text-white/60 max-w-xl">Our team typically responds within 24 hours. Whether it&apos;s a private event, a vendor question, or your first visit—we&apos;re glad you reached out.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 lg:justify-end">
                   <button 

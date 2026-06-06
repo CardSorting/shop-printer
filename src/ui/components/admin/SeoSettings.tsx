@@ -29,7 +29,7 @@ export function SeoSettings({
   seoDescription,
   handle,
   onChange,
-  baseUrl = 'dreambeesart.com',
+  baseUrl = 'woodbine.com',
   isEdit = false
 }: SeoSettingsProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -155,7 +155,7 @@ export function SeoSettings({
                 <span className="text-gray-400">› products › {displayHandle}</span>
               </p>
               <h3 className="text-xl font-medium text-[#1a0dab] hover:underline cursor-pointer leading-tight">
-                {displayTitle || 'Your Product Title'} | DreamBees Art
+                {displayTitle || 'Your Product Title'} | WoodBine
               </h3>
               <p className="max-w-xl text-sm leading-relaxed text-[#4d5156] line-clamp-2">
                 {displayDescription || 'Add a meta description to help customers find this product in search results.'}

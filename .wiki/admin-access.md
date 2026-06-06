@@ -1,6 +1,6 @@
 # Admin Access Guide
 
-This guide provides the necessary credentials and instructions to access the DreamBeesArt Admin Panel.
+This guide provides the necessary credentials and instructions to access the WoodBine Admin Panel.
 
 ## Credentials
 
@@ -8,7 +8,7 @@ The following admin user has been created in the Firestore database:
 
 | Detail | Value |
 |---|---|
-| **Email** | `admin@dreambees.art` |
+| **Email** | `admin@woodbine.com` |
 | **Password** | `admin-password-123` |
 | **Display Name** | Head Merchant |
 | **Role** | `admin` |

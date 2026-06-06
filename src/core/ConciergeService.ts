@@ -256,7 +256,7 @@ export class ConciergeService {
 
       await this.audit.record({
         userId: sessionData?.userId || 'anonymous',
-        userEmail: sessionData?.customerEmail || 'unknown@dreambees.art',
+        userEmail: sessionData?.customerEmail || 'unknown@woodbine.com',
         action: 'concierge_analyzed',
         targetId: sessionId,
         details: { category: parsedResult.category, urgency: parsedResult.urgency, escalationNeeded: parsedResult.escalationNeeded }
@@ -307,7 +307,7 @@ export class ConciergeService {
     
     await this.audit.record({
       userId: userId || 'anonymous',
-      userEmail: email || 'unknown@dreambees.art',
+      userEmail: email || 'unknown@woodbine.com',
       action: 'concierge_escalated',
       targetId: ticketRef.id,
       details: { originalSessionId: 'concierge_session', reason }
@@ -340,7 +340,7 @@ export class ConciergeService {
       }));
 
       const digestPrompt = `
-        Analyze the following recent customer session summaries for a DreamBees store.
+        Analyze the following recent customer session summaries for a WoodBine store.
         Identify the most significant friction points and strategic opportunities.
         
         SESSIONS:

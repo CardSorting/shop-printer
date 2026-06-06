@@ -1,6 +1,6 @@
-# DreamBeesArt Knowledge Ledger
+# WoodBine Knowledge Ledger
 
-Definitive architectural bridge for humans and autonomous agents working in `/Users/bozoegg/Desktop/DreamBeesArt`.
+Definitive architectural bridge for humans and autonomous agents working in `/Users/bozoegg/Desktop/WoodBine`.
 
 ## Navigation
 
@@ -36,7 +36,7 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 
 ### Long-Form Docs
 - [Documentation Index](../docs/index.md) — long-form technical documents outside the wiki ledger.
-- [Commerce Engine Whitepaper](../docs/dreambeesart-commerce-engine-whitepaper.md) — project thesis, architecture, reliability model, benchmark evidence, and roadmap implications.
+- [CRM Platform Whitepaper](../docs/woodbine-crm-whitepaper.md) — project thesis, architecture, reliability model, benchmark evidence, and roadmap implications.
 
 ## Current Verified State
 
@@ -92,7 +92,7 @@ graph TD
 - `README.md`
 - `PRODUCTION_READY_METRICS.md`
 - `docs/index.md`
-- `docs/dreambeesart-commerce-engine-whitepaper.md`
+- `docs/woodbine-crm-whitepaper.md`
 - `.wiki/index.md`
 - `.wiki/architecture/project-state.md`
 - `.wiki/architecture/overview.md`

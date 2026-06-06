@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Art Journal & Strategy Hive | DreamBeesArt',
-  description: 'Deep dives into the world of Artist Trading Cards, TCG strategies, and independent art creation. Insights from the DreamBeesArt hive.',
+  title: 'Stories from the Hall | WoodBine',
+  description: 'Vendor spotlights, community nights, and the people who make WoodBine a neighborhood table in Salt Lake City.',
   alternates: {
     canonical: '/blog',
   },
   openGraph: {
-    title: 'DreamBeesArt Journal | Art, Strategy & Fandom',
-    description: 'Explore our curated editorial hub for collectors and creators.',
+    title: 'WoodBine Journal | Stories from the Hall',
+    description: 'Meet the vendors, hear from regulars, and see what brings people back under the barrel roof.',
     type: 'website',
     images: ['/og-blog.png'],
   },

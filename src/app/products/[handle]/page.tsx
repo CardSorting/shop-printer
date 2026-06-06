@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     
     if (!product) {
         return {
-            title: 'Product Not Found | DreamBeesArt',
+            title: 'Product Not Found | WoodBine',
         };
     }
     

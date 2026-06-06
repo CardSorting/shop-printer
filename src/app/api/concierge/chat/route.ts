@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     // Production Hardening: Request Origin Validation
     const origin = req.headers.get('origin');
     const referer = req.headers.get('referer');
-    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'https://dreambees.art'];
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'https://woodbine.com'];
     
     if (origin && !allowedOrigins.some(o => origin.startsWith(o))) {
       logger.warn('Security Alert: Unauthorized Origin detected', { origin, sessionId: body.sessionId });
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
     const timeOfDay = now.getHours() < 12 ? 'morning' : now.getHours() < 17 ? 'afternoon' : 'evening';
-    contextString += `Atmospheric Context: It is a ${dayName} ${timeOfDay} at the DreamBees Studio.\n`;
+    contextString += `Atmospheric Context: It is a ${dayName} ${timeOfDay} at the WoodBine Studio.\n`;
     
     if (finalizedContext) {
       if (finalizedContext.currentPage) contextString += `Current Page: ${finalizedContext.currentPage}\n`;
@@ -693,7 +693,7 @@ export async function POST(req: NextRequest) {
             if (order) {
               await orderService.addOrderNote(orderId, noteText, {
                 id: 'concierge',
-                email: 'concierge@dreambees.art'
+                email: 'concierge@woodbine.com'
               });
               sessionUpdates.events.push({
                 type: 'note_added',
@@ -724,7 +724,7 @@ export async function POST(req: NextRequest) {
             const { orderService } = getInitialServices();
             await orderService.updateOrderStatus(orderId, 'cancelled', {
               id: 'concierge',
-              email: 'concierge@dreambees.art'
+              email: 'concierge@woodbine.com'
             });
             sessionUpdates.events.push({
               type: 'cancelled',
@@ -766,7 +766,7 @@ export async function POST(req: NextRequest) {
             
             await refundService.processRefund(orderId, amount, {
               id: 'concierge',
-              email: 'concierge@dreambeesart.com'
+              email: 'concierge@woodbine.com'
             }, idempotencyKey);
             sessionUpdates.events.push({
               type: 'refunded',
@@ -898,7 +898,7 @@ export async function POST(req: NextRequest) {
             const { orderService } = getInitialServices();
             await orderService.updateShippingAddress(orderId, address, {
               id: 'concierge',
-              email: 'concierge@dreambees.art'
+              email: 'concierge@woodbine.com'
             });
             sessionUpdates.events.push({
               type: 'note_added',
@@ -939,7 +939,7 @@ export async function POST(req: NextRequest) {
           const body = m[3];
           try {
             const { emailService } = getInitialServices();
-            await emailService.sendEmail({ to, subject, text: body, from: 'support@dreambees.art' });
+            await emailService.sendEmail({ to, subject, text: body, from: 'support@woodbine.com' });
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
@@ -960,7 +960,7 @@ export async function POST(req: NextRequest) {
             const { orderService } = getInitialServices();
             await orderService.applyDiscountToOrder(orderId, code, {
               id: 'concierge',
-              email: 'concierge@dreambees.art'
+              email: 'concierge@woodbine.com'
             });
             sessionUpdates.events.push({
               type: 'note_added',
@@ -1504,7 +1504,7 @@ export async function POST(req: NextRequest) {
             const { orderService } = getInitialServices();
             await orderService.swapOrderItem(orderId, oldId, newId, {
               id: 'concierge',
-              email: 'concierge@dreambees.art'
+              email: 'concierge@woodbine.com'
             });
             sessionUpdates.events.push({
               type: 'note_added',
@@ -1529,7 +1529,7 @@ export async function POST(req: NextRequest) {
             const { orderService } = getInitialServices();
             await orderService.upgradeShipping(orderId, carrier, service, {
               id: 'concierge',
-              email: 'concierge@dreambees.art'
+              email: 'concierge@woodbine.com'
             });
             sessionUpdates.events.push({
               type: 'note_added',
@@ -1603,7 +1603,7 @@ export async function POST(req: NextRequest) {
               newExpiry.setHours(newExpiry.getHours() + 12); // Extend by 12h
               await discountService.updateDiscount(discount.id, { endsAt: newExpiry }, {
                 id: 'concierge',
-                email: 'concierge@dreambees.art'
+                email: 'concierge@woodbine.com'
               });
               sessionUpdates.events.push({
                 type: 'note_added',
@@ -1635,7 +1635,7 @@ export async function POST(req: NextRequest) {
             
             await orderService.addOrderNote(orderId, `Split requested for items: ${itemIds.join(', ')}`, {
               id: 'concierge',
-              email: 'concierge@dreambees.art'
+              email: 'concierge@woodbine.com'
             });
 
             sessionUpdates.events.push({
@@ -1687,7 +1687,7 @@ export async function POST(req: NextRequest) {
             const { orderService } = getInitialServices();
             await orderService.setOrderHold(orderId, reason, {
               id: 'concierge',
-              email: 'concierge@dreambees.art'
+              email: 'concierge@woodbine.com'
             });
             sessionUpdates.events.push({
               type: 'note_added',
@@ -1708,7 +1708,7 @@ export async function POST(req: NextRequest) {
             const { orderService } = getInitialServices();
             await orderService.releaseOrderHold(orderId, {
               id: 'concierge',
-              email: 'concierge@dreambees.art'
+              email: 'concierge@woodbine.com'
             });
             sessionUpdates.events.push({
               type: 'note_added',
@@ -1738,7 +1738,7 @@ export async function POST(req: NextRequest) {
             
             await auditService.record({
               userId: 'system',
-              userEmail: 'privacy@dreambees.art',
+              userEmail: 'privacy@woodbine.com',
               action: 'marketing_unsubscribe_requested',
               targetId: email,
               details: { action: 'unsubscribe' }

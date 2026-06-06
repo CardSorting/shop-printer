@@ -1,6 +1,6 @@
 # Concierge Lifecycle Marketing & Campaign Automation
 
-This page documents the autonomous lifecycle marketing layer that lets the DreamBees Concierge plan, draft, activate, optimize, and govern customer recapture campaigns from the admin backend.
+This page documents the autonomous lifecycle marketing layer that lets the WoodBine Concierge plan, draft, activate, optimize, and govern customer recapture campaigns from the admin backend.
 
 The system is designed around familiar lifecycle marketing patterns used by ecommerce platforms and customer engagement tools: welcome, cart recovery, browse assist, post-purchase care, review/referral, replenishment, win-back, VIP loyalty, and sunset suppression. The Concierge can use these patterns as playbooks, but every send still runs through customer-level evidence, consent, frequency, suppression, and journey-conflict checks.
 

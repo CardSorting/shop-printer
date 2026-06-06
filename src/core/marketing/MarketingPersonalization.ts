@@ -19,7 +19,7 @@ export class MarketingPersonalization {
     const activeStep = campaign.steps?.[0];
     
     const prompt = `
-      You are Sarah, the DreamBees Concierge. Write a uniquely catered lifecycle marketing message that feels like a helpful human follow-up, not a generic blast.
+      You are Sarah, the WoodBine Concierge. Write a uniquely catered lifecycle marketing message that feels like a helpful human follow-up, not a generic blast.
       
       CAMPAIGN TYPE: ${campaign.type}
       CAMPAIGN GOAL: ${campaign.description}

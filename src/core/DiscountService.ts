@@ -289,7 +289,7 @@ export class DiscountService {
     const discount = await this.discountRepo.create(draft);
     await this.audit.record({
       userId: 'system',
-      userEmail: 'concierge@dreambees.art',
+      userEmail: 'concierge@woodbine.com',
       action: 'barter_discount_created',
       targetId: discount.id,
       details: { code, sessionId, percentage: safePercentage, requestedPercentage: percentage }

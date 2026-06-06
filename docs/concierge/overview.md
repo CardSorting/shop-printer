@@ -1,7 +1,7 @@
-# DreamBees Concierge — Technical & Operational Overview
+# WoodBine Concierge — Technical & Operational Overview
 
 ## Introduction
-The DreamBees Concierge is an industrialized customer support and sales assistance system designed for premium ecommerce environments. It focuses on **Operational Truth**, **Team Collaboration**, and **Invisible AI** to provide a calm and effective support experience.
+The WoodBine Concierge is an industrialized customer support and sales assistance system designed for premium ecommerce environments. It focuses on **Operational Truth**, **Team Collaboration**, and **Invisible AI** to provide a calm and effective support experience.
 
 ---
 

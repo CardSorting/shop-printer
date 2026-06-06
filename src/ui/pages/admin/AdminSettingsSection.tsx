@@ -809,7 +809,7 @@ export function AdminSettingsSection({ sectionId }: AdminSettingsSectionProps) {
                         defaultValue={settings.storefront_url || ''}
                         onBlur={(e) => saveSetting('storefront_url', e.target.value.trim())}
                         className="w-full rounded-xl border bg-gray-50 px-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition"
-                        placeholder="https://dreambeesart.com"
+                        placeholder="https://woodbine.com"
                       />
                     </div>
                   </div>

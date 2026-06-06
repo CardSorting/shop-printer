@@ -1,6 +1,6 @@
 # Data Schemas & Contracts
 
-DreamBeesArt utilizes a unified data model that flows from the Firestore substrate up to the React UI.
+WoodBine utilizes a unified data model that flows from the Firestore substrate up to the React UI.
 
 ## Core Domain Models
 

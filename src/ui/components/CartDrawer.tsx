@@ -15,6 +15,7 @@ import { useServices } from '../hooks/useServices';
 import { MAX_CART_QUANTITY } from '@domain/rules';
 import { logger } from '@utils/logger';
 import { sanitizeImageUrl } from '@utils/imageSanitizer';
+import { CART_GUEST_TIERS, SITE_CART_EMPTY_LINE } from '@utils/seo';
 
 function formatMoney(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -61,11 +62,9 @@ export function CartDrawer() {
 
   const items = cart?.items ?? [];
 
-  const collectorLevel = useMemo(() => {
-    if (subtotal >= 50000) return { label: 'Elite Collector', color: 'text-purple-600', bg: 'bg-purple-50' };
-    if (subtotal >= 25000) return { label: 'Vanguard', color: 'text-blue-600', bg: 'bg-blue-50' };
-    if (subtotal >= 10000) return { label: 'Artisan Patron', color: 'text-green-600', bg: 'bg-green-50' };
-    return { label: 'New Collector', color: 'text-gray-600', bg: 'bg-gray-50' };
+  const guestTier = useMemo(() => {
+    const tiers = [...CART_GUEST_TIERS].reverse();
+    return tiers.find((tier) => subtotal >= tier.minSubtotal) ?? CART_GUEST_TIERS[0];
   }, [subtotal]);
 
   const FREE_SHIPPING_THRESHOLD = 10000; // $100.00
@@ -86,7 +85,7 @@ export function CartDrawer() {
         {/* Header: Ultra-Compressed for Maximum Item Visibility */}
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 bg-white/80 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-2">
-            <h2 className="text-xs font-black text-gray-900 uppercase tracking-[0.2em]">Cart</h2>
+            <h2 className="text-xs font-black text-gray-900 uppercase tracking-[0.2em]">Your Order</h2>
             <div className="h-1 w-1 rounded-full bg-gray-200" />
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
               {totalItems} {totalItems === 1 ? 'item' : 'items'}
@@ -108,9 +107,9 @@ export function CartDrawer() {
           <div className="px-6 py-3 border-b border-gray-50 bg-gray-50/30">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <ShieldCheck className={`h-3 w-3 ${collectorLevel.color}`} />
-                <span className={`text-[9px] font-black uppercase tracking-widest ${collectorLevel.color}`}>
-                  {collectorLevel.label} Status
+                <ShieldCheck className={`h-3 w-3 ${guestTier.color}`} />
+                <span className={`text-[9px] font-black uppercase tracking-widest ${guestTier.color}`}>
+                  {guestTier.label}
                 </span>
               </div>
               {subtotal < FREE_SHIPPING_THRESHOLD && (
@@ -140,23 +139,22 @@ export function CartDrawer() {
                    <Plus className="h-5 w-5 text-primary-500" />
                 </div>
               </div>
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight">Your cart is empty</h3>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight">Nothing on your tray yet</h3>
               <p className="mt-3 text-sm text-gray-400 font-medium max-w-[280px] leading-relaxed">
-                Discover unique art pieces and start building your collection today.
+                {SITE_CART_EMPTY_LINE}
               </p>
               <button 
                 onClick={closeCart}
                 className="mt-12 group flex items-center gap-3 rounded-2xl bg-gray-900 px-10 py-4.5 text-sm font-black text-white hover:bg-black transition-all shadow-2xl hover:-translate-y-1 active:translate-y-0"
               >
-                Explore Gallery <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1.5" />
+                Browse the Menu <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1.5" />
               </button>
 
-              {/* Quick Links for non-technical discovery */}
               <div className="mt-12 flex flex-wrap justify-center gap-2">
-                {['Paintings', 'Digital Art', 'Sculptures', 'Limited Ed.'].map(cat => (
+                {['Full Plates', 'Cold Drinks', 'Coffee & Work', 'Private Events'].map((cat) => (
                   <Link
                     key={cat}
-                    href={`/collections/${cat.toLowerCase().replace(' ', '-')}`}
+                    href="/products"
                     onClick={closeCart}
                     className="px-4 py-2 rounded-xl border border-gray-100 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 hover:border-gray-200 transition-all"
                   >
@@ -251,7 +249,7 @@ export function CartDrawer() {
               <div className="pt-8 border-t border-gray-50 pb-4">
                 <details className="group" open={!!cart?.note}>
                   <summary className="flex cursor-pointer items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 select-none hover:text-gray-900 transition-colors">
-                    <span>Add a gift note or instructions</span>
+                    <span>Add a note for your table or group</span>
                     <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
                   </summary>
                   <div className="mt-5 overflow-hidden animate-in fade-in slide-in-from-top-3 duration-300">

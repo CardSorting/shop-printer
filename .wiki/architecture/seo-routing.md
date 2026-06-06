@@ -1,6 +1,6 @@
 # SEO & Navigation Architecture
 
-DreamBeesArt prioritizes search engine authority and seamless navigation discovery through a handle-based routing architecture.
+WoodBine prioritizes search engine authority and seamless navigation discovery through a handle-based routing architecture.
 
 ## Canonical Routing Strategy
 

@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-This document tracks the critical architectural decisions that define the DreamBeesArt engine.
+This document tracks the critical architectural decisions that define the WoodBine engine.
 
 ## ADR 1: Firestore as the Current Persistence Substrate
 - **Decision**: Use Firestore repositories as the current production persistence adapter.

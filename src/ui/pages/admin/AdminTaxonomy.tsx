@@ -259,7 +259,7 @@ export function AdminTaxonomy() {
                       else if (name === 'seoDescription') setEditItem(prev => ({ ...prev!, description: value }));
                       // Note: seoTitle is not supported yet for categories in the model, but we show it in preview
                     }}
-                    baseUrl="dreambeesart.com/collections"
+                    baseUrl="woodbine.com/collections"
                   />
                 </div>
               )}

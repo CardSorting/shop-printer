@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
 export const metadata: Metadata = {
-  title: 'Reset Password | Dream Bees Art',
-  description: 'Set a new password for your Dream Bees Art account.',
+  title: 'Reset Password | WoodBine',
+  description: 'Set a new password for your WoodBine account.',
 };
 
 export default function Page() {
