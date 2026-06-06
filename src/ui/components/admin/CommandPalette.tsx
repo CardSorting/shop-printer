@@ -18,6 +18,7 @@ import {
   NotebookPen,
   Globe,
   MapPin,
+  FileText,
   type LucideIcon,
 } from 'lucide-react';
 import { useServices } from '../../hooks/useServices';
@@ -92,6 +93,15 @@ const STATIC_ITEMS: PaletteItem[] = [
     href: '/admin/seo?tab=learn',
     group: 'Search & Visibility',
     keywords: ['help', 'guide', 'how to', 'tutorial', 'what is seo'],
+  },
+  {
+    id: 'seo-sitemap',
+    label: 'View sitemap',
+    description: 'Every page Google can crawl on your site',
+    icon: FileText,
+    action: () => window.open('/sitemap.xml', '_blank', 'noopener,noreferrer'),
+    group: 'Search & Visibility',
+    keywords: ['sitemap', 'xml', 'crawl', 'index', 'google'],
   },
 ];
 

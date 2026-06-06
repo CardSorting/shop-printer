@@ -23,6 +23,7 @@ import type {
 } from '@domain/seo/types';
 import { CrawlPolicyService } from './CrawlPolicyService';
 import { CatalogAuditService } from './CatalogAuditService';
+import { SeoAdminReportService } from './SeoAdminReportService';
 import { PageMetadataService } from './PageMetadataService';
 import { SeoHealthService } from './SeoHealthService';
 import { SeoPreviewService } from './SeoPreviewService';
@@ -37,6 +38,7 @@ export class SeoEngine {
   readonly crawl: CrawlPolicyService;
   readonly sitemap: SitemapPolicyService;
   readonly catalog: CatalogAuditService;
+  readonly adminReport: SeoAdminReportService;
 
   constructor(readonly config: SeoSiteConfig) {
     this.pages = new PageMetadataService(config);
@@ -46,6 +48,7 @@ export class SeoEngine {
     this.crawl = new CrawlPolicyService(config);
     this.sitemap = new SitemapPolicyService(config);
     this.catalog = new CatalogAuditService(config);
+    this.adminReport = new SeoAdminReportService(config);
   }
 
   absoluteUrl(pathOrUrl: string): string {

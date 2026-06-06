@@ -126,7 +126,7 @@ export function AdminCollectionCreate() {
                   onChange={handleInputChange}
                   required 
                   className="mt-1.5 w-full rounded-xl border bg-gray-50 px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-primary-500 focus:bg-white" 
-                  placeholder="e.g. Scarlet & Violet: 151" 
+                  placeholder="e.g. Patio Favorites" 
                 />
               </div>
               <div>
@@ -138,7 +138,7 @@ export function AdminCollectionCreate() {
                     value={formData.handle}
                     onChange={handleInputChange}
                     className="w-full rounded-xl border bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none transition focus:ring-2 focus:ring-primary-500 focus:bg-white" 
-                    placeholder="scarlet-violet-151" 
+                    placeholder="patio-favorites" 
                   />
                 </div>
                 <p className="mt-2 text-[10px] text-gray-400">Leave blank to automatically generate from the name.</p>
@@ -152,7 +152,7 @@ export function AdminCollectionCreate() {
                     onChange={handleInputChange}
                     rows={4} 
                     className="w-full rounded-xl border bg-gray-50 px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-primary-500 focus:bg-white" 
-                    placeholder="Marketing copy for this collection..." 
+                    placeholder="Dishes and drinks perfect for sunny afternoons on the WoodBine patio..." 
                   />
                   <span className={`absolute bottom-3 right-3 text-[10px] font-bold ${formData.description.length > 200 ? 'text-amber-600' : 'text-gray-400'}`}>
                     {formData.description.length} / 200+
@@ -176,6 +176,8 @@ export function AdminCollectionCreate() {
             seoTitle=""
             seoDescription=""
             pathPrefix="/collections"
+            listingKind="collection"
+            imageUrl={imageUrl}
             isEdit={false}
             onChange={(name: string, value: string) => setFormData(prev => ({ ...prev, [name]: value }))}
           />

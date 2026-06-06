@@ -43,9 +43,9 @@ export const SEO_GUIDES: readonly SeoGuideEntry[] = [
     summary:
       'Local search uses your address, phone, and hours — the same details people expect on Google Maps.',
     steps: [
-      'Ask your developer to add address and hours in site settings (.env).',
-      'Keep hours accurate — walk-ins are a core part of WoodBine.',
-      'Claim your Google Business Profile separately at business.google.com.',
+      'Open Search & Visibility → Local presence to see what is missing.',
+      'Confirm address and hours with your site administrator (Settings → deployment).',
+      'Claim your Google Business Profile at business.google.com — separate from this dashboard.',
     ],
     icon: 'map',
   },

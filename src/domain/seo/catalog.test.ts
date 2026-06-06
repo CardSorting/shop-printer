@@ -27,6 +27,7 @@ describe('domain/seo/catalog', () => {
     const summary = summarizeCatalogAudits(items);
     expect(summary.total).toBe(2);
     expect(summary.needsWork).toBe(1);
+    expect(summary.averageScore).toBeGreaterThan(0);
     expect(summary.items[0]?.name).toBe('Weak');
   });
 });

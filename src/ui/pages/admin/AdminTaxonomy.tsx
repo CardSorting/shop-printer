@@ -218,7 +218,7 @@ export function AdminTaxonomy() {
                     autoFocus
                     value={editItem.name}
                     onChange={(e) => setEditItem({ ...editItem, name: e.target.value })}
-                    placeholder="e.g. Trading Cards"
+                    placeholder="e.g. Appetizers"
                     className="w-full rounded-lg border bg-white px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
@@ -228,7 +228,7 @@ export function AdminTaxonomy() {
                     <input 
                       value={editItem.slug}
                       onChange={(e) => setEditItem({ ...editItem, slug: e.target.value })}
-                      placeholder="e.g. trading-cards"
+                      placeholder="e.g. appetizers"
                       className="w-full rounded-lg border bg-white px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
@@ -255,6 +255,7 @@ export function AdminTaxonomy() {
                     seoTitle=""
                     seoDescription=""
                     pathPrefix="/collections"
+                    listingKind="collection"
                     onChange={(name, value) => {
                       if (name === 'handle') setEditItem(prev => ({ ...prev!, slug: value }));
                       else if (name === 'seoDescription') setEditItem(prev => ({ ...prev!, description: value }));

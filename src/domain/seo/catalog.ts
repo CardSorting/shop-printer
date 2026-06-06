@@ -13,20 +13,22 @@ export interface CatalogListingAuditItem {
   editPath: string;
   score: number;
   grade: SeoGrade;
-  kind: 'product' | 'blog';
+  kind: 'product' | 'blog' | 'collection';
 }
 
 export interface CatalogSeoSummary {
   total: number;
   optimized: number;
   needsWork: number;
+  /** Mean score across all audited listings (0 when empty) */
+  averageScore: number;
   items: CatalogListingAuditItem[];
 }
 
 const OPTIMIZED_THRESHOLD = 65;
 
 export function auditCatalogListing(
-  item: ListingSeoInput & { id: string; editPath: string; publicPath: string; kind: 'product' | 'blog' }
+  item: ListingSeoInput & { id: string; editPath: string; publicPath: string; kind: 'product' | 'blog' | 'collection' }
 ): CatalogListingAuditItem {
   const health = auditListingSeo(item);
   return {
@@ -49,6 +51,9 @@ export function summarizeCatalogAudits(items: CatalogListingAuditItem[]): Catalo
     total: items.length,
     optimized: items.length - needsWorkItems.length,
     needsWork: needsWorkItems.length,
+    averageScore: items.length
+      ? Math.round(items.reduce((sum, item) => sum + item.score, 0) / items.length)
+      : 0,
     items: needsWorkItems.slice(0, 20),
   };
 }

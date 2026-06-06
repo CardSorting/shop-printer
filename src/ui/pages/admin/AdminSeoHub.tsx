@@ -13,6 +13,7 @@ import {
   BookOpen,
   UtensilsCrossed,
   Newspaper,
+  LayoutGrid,
 } from 'lucide-react';
 import { gradeLabel } from '@domain/seo/health';
 import { catalogGradeLabel } from '@domain/seo/catalog';
@@ -26,9 +27,12 @@ import { AdminPageHeader } from '@ui/components/admin/AdminComponents';
 import { SeoHubTabs, useSeoHubTab } from '@ui/components/admin/SeoHubTabs';
 import { SeoScoreBadge, SeoStatusBadge } from '@ui/components/admin/SeoStatusBadge';
 import { SEO_GLOSSARY } from '@domain/seo/glossary';
-import { buildQuickWins } from '@domain/seo/quickWins';
 import { SeoFaqAccordion } from '@ui/components/admin/SeoFaqAccordion';
 import { SeoWelcomeBanner } from '@ui/components/admin/SeoWelcomeBanner';
+import { SeoTrafficLight } from '@ui/components/admin/SeoTrafficLight';
+import { SeoScoreBreakdownPanel } from '@ui/components/admin/SeoScoreBreakdownPanel';
+import { SeoSetupProgressPanel } from '@ui/components/admin/SeoSetupProgressPanel';
+import type { SeoAdminReport } from '@core/seo/SeoAdminReportService';
 import type { CatalogListingAuditItem } from '@domain/seo/catalog';
 
 const GUIDE_ICONS = {
@@ -42,11 +46,12 @@ const GUIDE_ICONS = {
 interface AdminSeoHubProps {
   audit: SiteSeoAudit;
   snapshot: SeoAdminSnapshot;
+  report: SeoAdminReport;
   siteHost: string;
   homepagePreview: SeoGooglePreview;
 }
 
-export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: AdminSeoHubProps) {
+export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview }: AdminSeoHubProps) {
   const tab = useSeoHubTab();
   const publicPages = SEO_PAGE_CATALOG.filter((p) => p.audience === 'public');
   const privatePages = SEO_PAGE_CATALOG.filter((p) => p.audience === 'private');
@@ -56,13 +61,17 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
   const barColor =
     audit.grade === 'excellent' ? 'bg-green-500' : audit.grade === 'good' ? 'bg-amber-500' : 'bg-red-500';
 
-  const listingItems = [...snapshot.products.items, ...snapshot.blogPosts.items];
+  const listingItems = [
+    ...snapshot.products.items,
+    ...snapshot.blogPosts.items,
+    ...snapshot.collections.items,
+  ];
   const productListingItems = snapshot.products.items;
   const blogListingItems = snapshot.blogPosts.items;
+  const collectionListingItems = snapshot.collections.items;
   const localIncomplete = audit.items.filter((i) => !i.done).length;
-  const quickWins = buildQuickWins(listingItems, 5);
-  const indexedCount = publicPages.length;
-  const hiddenCount = privatePages.length;
+  const quickWins = report.quickWins;
+  const indexing = report.indexing;
 
   return (
     <div className="space-y-6 pb-16">
@@ -77,12 +86,17 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
       {tab === 'overview' && (
         <div className="space-y-6">
           <SeoWelcomeBanner />
+          <SeoSetupProgressPanel progress={report.setupProgress} />
+          <SeoScoreBreakdownPanel breakdown={report.scoreBreakdown} />
           <section className="overflow-hidden rounded-2xl border bg-white shadow-sm">
             <div className="grid gap-0 lg:grid-cols-3">
               <div className="border-b p-8 lg:col-span-1 lg:border-b-0 lg:border-r">
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Site health</p>
                 <p className={`mt-2 text-5xl font-black ${scoreColor}`}>{audit.score}</p>
                 <p className="mt-1 text-sm font-bold text-gray-600">{gradeLabel(audit.grade)}</p>
+                <div className="mt-3">
+                  <SeoTrafficLight state={report.siteTrafficLight} showMessage />
+                </div>
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-gray-100">
                   <div className={`h-full transition-all ${barColor}`} style={{ width: `${audit.score}%` }} />
                 </div>
@@ -114,11 +128,16 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
                   <p className="mt-1 line-clamp-2 text-sm text-[#4d5156]">{homepagePreview.description}</p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-xl border p-4">
                     <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Menu listings</p>
                     <p className="mt-1 text-2xl font-black text-gray-900">{snapshot.products.optimized}/{snapshot.products.total}</p>
                     <p className="text-xs text-gray-500">{catalogGradeLabel(snapshot.products)}</p>
+                  </div>
+                  <div className="rounded-xl border p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Collections</p>
+                    <p className="mt-1 text-2xl font-black text-gray-900">{snapshot.collections.optimized}/{snapshot.collections.total}</p>
+                    <p className="text-xs text-gray-500">{catalogGradeLabel(snapshot.collections)}</p>
                   </div>
                   <div className="rounded-xl border p-4">
                     <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Blog stories</p>
@@ -165,17 +184,67 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
 
           <section className="rounded-2xl border bg-white p-5 shadow-sm">
             <h2 className="text-[10px] font-black uppercase tracking-widest text-gray-500">Indexing status</h2>
-            <p className="mt-1 text-xs text-gray-500">What can appear in Google vs. pages kept private on purpose.</p>
+            <p className="mt-1 text-xs text-gray-500">{indexing.merchantExplanation}</p>
             <div className="mt-4 flex flex-wrap gap-3">
               <div className="flex items-center gap-2 rounded-xl border border-green-100 bg-green-50/50 px-4 py-2">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
-                <span className="text-xs font-bold text-gray-900">{indexedCount} pages indexed</span>
+                <span className="text-xs font-bold text-gray-900">{indexing.indexedLabel}</span>
               </div>
               <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2">
                 <FileText className="h-4 w-4 text-gray-400" />
-                <span className="text-xs font-bold text-gray-600">{hiddenCount} hidden on purpose</span>
+                <span className="text-xs font-bold text-gray-600">{indexing.hiddenLabel}</span>
               </div>
             </div>
+          </section>
+
+          <section className="rounded-2xl border bg-white p-6 shadow-sm">
+            <h2 className="text-sm font-black text-gray-900">Where to edit</h2>
+            <p className="mt-1 text-xs text-gray-500">Same places Shopify merchants go — no code required.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {report.editDestinations.map((dest) => (
+                <Link
+                  key={dest.id}
+                  href={dest.href}
+                  className="rounded-xl border p-4 transition hover:border-primary-200 hover:bg-primary-50/20"
+                >
+                  <p className="text-sm font-bold text-gray-900">{dest.label}</p>
+                  <p className="mt-1 text-[11px] text-gray-500">{dest.description}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border bg-white p-6 shadow-sm">
+            <h2 className="text-sm font-black text-gray-900">Sitemap coverage</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              ~{report.sitemap.totalEstimatedUrls} URLs in your sitemap — Google uses this to discover pages.
+            </p>
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    <th className="py-2 pr-4">Page type</th>
+                    <th className="py-2 pr-4">Priority</th>
+                    <th className="py-2">Updates</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {[...report.sitemap.static, ...report.sitemap.dynamic].map((row) => (
+                    <tr key={row.id}>
+                      <td className="py-3 pr-4">
+                        <p className="font-bold text-gray-900">{row.label}</p>
+                        <p className="text-[10px] text-gray-500">{row.description}</p>
+                      </td>
+                      <td className="py-3 pr-4 font-mono text-gray-600">{row.priority.toFixed(2)}</td>
+                      <td className="py-3 capitalize text-gray-600">{row.changeFrequency}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Link href="/sitemap.xml" target="_blank" className="mt-4 inline-block text-xs font-bold text-primary-600 hover:text-primary-700">
+              View sitemap.xml →
+            </Link>
           </section>
 
           <div className="grid gap-6 lg:grid-cols-2">
@@ -255,6 +324,12 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
                 >
                   All stories
                 </Link>
+                <Link
+                  href="/admin/taxonomy"
+                  className="rounded-lg border px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-700 hover:bg-gray-50"
+                >
+                  Collections
+                </Link>
               </div>
             </div>
 
@@ -280,6 +355,14 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
                       <Newspaper className="h-3.5 w-3.5" /> Stories ({blogListingItems.length})
                     </h3>
                     <ListingRows items={blogListingItems} />
+                  </div>
+                )}
+                {collectionListingItems.length > 0 && (
+                  <div>
+                    <h3 className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500">
+                      <LayoutGrid className="h-3.5 w-3.5" /> Collections ({collectionListingItems.length})
+                    </h3>
+                    <ListingRows items={collectionListingItems} />
                   </div>
                 )}
               </div>
@@ -319,6 +402,18 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
               Site address, phone, and hours are configured in deployment settings. Also claim your profile on Google
               Business — that is separate from this dashboard.
             </p>
+            {report.siteRecommendations.length > 0 && (
+              <div className="mt-6 rounded-xl border border-amber-100 bg-amber-50/40 p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-800">Recommended next steps</p>
+                <ul className="mt-2 space-y-2">
+                  {report.siteRecommendations.slice(0, 4).map((rec) => (
+                    <li key={rec.id} className="text-xs text-amber-900">
+                      <span className="font-bold">{rec.title}</span> — {rec.detail}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
 
           <section className="rounded-2xl border bg-white p-6 shadow-sm">

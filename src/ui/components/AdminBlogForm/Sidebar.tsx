@@ -1,15 +1,27 @@
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { 
   Sparkles, Search, Share2, Calendar, 
   CheckCircle2, ChevronLeft, Image as ImageIcon, X, Clock 
 } from 'lucide-react';
 import type { EditorState } from './types';
 import { SocialPreview } from './SocialPreview';
+import { SeoBlogListingEditor } from '@ui/components/admin/SeoBlogListingEditor';
+import { listingNeedsSeoAttention } from '@domain/seo/helpers';
 
 export const Sidebar: React.FC<EditorState & { libraryImages: string[] }> = ({ 
   formData, setFormData, activeTab, setActiveTab, categories, authors, wordCount, libraryImages 
 }) => {
+  const searchListingReady = !listingNeedsSeoAttention({
+    name: formData.title || '',
+    description: formData.excerpt,
+    seoTitle: formData.metaTitle,
+    seoDescription: formData.metaDescription,
+    handle: formData.slug,
+    imageUrl: formData.featuredImageUrl,
+  });
+
   return (
     <div className="lg:col-span-4 space-y-8">
        {/* Tabbed Configuration */}
@@ -117,43 +129,16 @@ export const Sidebar: React.FC<EditorState & { libraryImages: string[] }> = ({
             )}
 
             {activeTab === 'seo' && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="space-y-4">
-                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Search Result Preview</label>
-                   <div className="p-6 bg-white border border-gray-100 rounded-2xl shadow-sm space-y-1">
-                      <p className="text-[10px] text-gray-500 truncate">woodbine.com › journal › {formData.slug || '...'}</p>
-                      <h4 className="text-lg text-[#1a0dab] hover:underline font-medium cursor-pointer truncate">
-                        {formData.metaTitle || formData.title || 'Post Title'}
-                      </h4>
-                      <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
-                        {formData.metaDescription || formData.excerpt || 'Enter a description to see how this post will appear in Google search results...'}
-                      </p>
-                   </div>
-                </div>
-
-                <div className="space-y-6 pt-6 border-t border-gray-50">
-                   <div className="space-y-3">
-                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">SEO Title</label>
-                     <input 
-                       type="text"
-                       value={formData.metaTitle}
-                       onChange={(e) => setFormData({ ...formData, metaTitle: e.target.value })}
-                       placeholder={formData.title}
-                       className="w-full h-12 px-5 rounded-xl bg-gray-50 text-xs font-bold outline-none border border-transparent focus:border-primary-100"
-                     />
-                   </div>
-
-                   <div className="space-y-3">
-                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">SEO Description</label>
-                     <textarea 
-                       value={formData.metaDescription}
-                       onChange={(e) => setFormData({ ...formData, metaDescription: e.target.value })}
-                       rows={3}
-                       className="w-full p-5 rounded-xl bg-gray-50 text-xs font-medium outline-none border border-transparent focus:border-primary-100 resize-none"
-                     />
-                   </div>
-                </div>
-              </div>
+              <SeoBlogListingEditor
+                title={formData.title || ''}
+                excerpt={formData.excerpt || ''}
+                metaTitle={formData.metaTitle || ''}
+                metaDescription={formData.metaDescription || ''}
+                slug={formData.slug || ''}
+                featuredImageUrl={formData.featuredImageUrl}
+                onMetaTitleChange={(metaTitle) => setFormData({ ...formData, metaTitle })}
+                onMetaDescriptionChange={(metaDescription) => setFormData({ ...formData, metaDescription })}
+              />
             )}
 
             {activeTab === 'social' && (
@@ -257,7 +242,7 @@ export const Sidebar: React.FC<EditorState & { libraryImages: string[] }> = ({
               { label: 'Compelling Title', met: !!formData.title },
               { label: 'Minimum 300 words', met: wordCount >= 300 },
               { label: 'Featured Image Set', met: !!formData.featuredImageUrl },
-              { label: 'SEO Description', met: !!formData.metaDescription || !!formData.excerpt },
+              { label: 'Search listing ready', met: searchListingReady },
               { label: 'Category Assigned', met: !!formData.categoryId },
               { label: 'Author Selected', met: !!formData.authorId }
             ].map((item, i) => (
@@ -277,13 +262,14 @@ export const Sidebar: React.FC<EditorState & { libraryImages: string[] }> = ({
 
        {/* Help Section */}
        <div className="bg-primary-50 rounded-[2.5rem] p-10 space-y-4">
-          <h4 className="text-[10px] font-black uppercase tracking-widest text-primary-600">Blogging Strategy</h4>
+          <h4 className="text-[10px] font-black uppercase tracking-widest text-primary-600">Search & stories</h4>
           <p className="text-xs font-medium text-primary-900 leading-relaxed">
-            Research shows that articles with at least <span className="font-bold underline">1,200 words</span> and a <span className="font-bold underline">compelling featured image</span> perform 40% better in search rankings.
+            Stories with a <span className="font-bold underline">featured image</span> and a strong{' '}
+            <span className="font-bold underline">search listing</span> help more people discover WoodBine on Google.
           </p>
-          <button className="text-[9px] font-black uppercase tracking-widest text-primary-600 flex items-center gap-2 hover:gap-3 transition-all">
-            View Strategy Guide <ChevronLeft className="h-3 w-3 rotate-180" />
-          </button>
+          <Link href="/admin/seo?tab=learn" className="text-[9px] font-black uppercase tracking-widest text-primary-600 flex items-center gap-2 hover:gap-3 transition-all">
+            Search & Visibility guide <ChevronLeft className="h-3 w-3 rotate-180" />
+          </Link>
        </div>
     </div>
   );

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { AdminBreadcrumb, ToastProvider, ShortcutsHelp, AdminNotificationBell } from '../components/admin/AdminComponents';
 import { CommandPalette } from '../components/admin/CommandPalette';
+import { SeoNavBadge } from '../components/admin/SeoNavBadge';
 import { ADMIN_NAV_GROUPS, ADMIN_QUICK_ACTIONS, ADMIN_UTILITY_NAV } from '../navigation/adminNavigation';
 import { useRecentPages } from '../hooks/useRecentPages';
 
@@ -263,6 +264,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                               )}
                               {!collapsed && id === 'orders' && (
                                 <OrderBadge />
+                              )}
+                              {!collapsed && id === 'seo' && (
+                                <SeoNavBadge />
                               )}
                             </Link>
                           );

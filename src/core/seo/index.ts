@@ -15,4 +15,6 @@ export { SeoPreviewService } from './SeoPreviewService';
 export { CrawlPolicyService } from './CrawlPolicyService';
 export { SitemapPolicyService } from './SitemapPolicyService';
 export { CatalogAuditService } from './CatalogAuditService';
+export { SeoAdminReportService } from './SeoAdminReportService';
+export type { SeoAdminReport } from './SeoAdminReportService';
 export type { SeoAdminSnapshot, CatalogListingAuditItem, CatalogSeoSummary } from './CatalogAuditService';

@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { listingAlertBody, listingAlertTitle } from '@domain/seo/merchant-ui';
+import { useSeoSnapshot } from '@ui/hooks/useSeoSnapshot';
 
 interface SeoListingsAlertProps {
   /** When set, used instead of fetching */
@@ -12,15 +13,9 @@ interface SeoListingsAlertProps {
 
 /** Shopify-style alert banner linking to Search & Visibility hub */
 export function SeoListingsAlert({ needsWork: needsWorkProp, compact = false }: SeoListingsAlertProps) {
-  const [needsWork, setNeedsWork] = useState(needsWorkProp ?? 0);
-
-  useEffect(() => {
-    if (needsWorkProp !== undefined) return;
-    fetch('/api/admin/seo/snapshot')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setNeedsWork(data?.snapshot?.combinedNeedsWork ?? 0))
-      .catch(() => setNeedsWork(0));
-  }, [needsWorkProp]);
+  const { data } = useSeoSnapshot();
+  const needsWork = needsWorkProp ?? data?.snapshot.combinedNeedsWork ?? 0;
+  const topQuickWin = data?.report.quickWins[0];
 
   if (needsWork <= 0) return null;
 
@@ -41,12 +36,13 @@ export function SeoListingsAlert({ needsWork: needsWorkProp, compact = false }: 
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
         <div>
-          <p className="text-sm font-bold text-gray-900">
-            {needsWork} search listing{needsWork === 1 ? '' : 's'} could rank better
-          </p>
-          <p className="mt-0.5 text-xs text-gray-600">
-            Add page titles and descriptions so Google and social previews look their best.
-          </p>
+          <p className="text-sm font-bold text-gray-900">{listingAlertTitle(needsWork)}</p>
+          <p className="mt-0.5 text-xs text-gray-600">{listingAlertBody(needsWork)}</p>
+          {topQuickWin && (
+            <Link href={topQuickWin.href} className="mt-2 inline-block text-xs font-bold text-primary-600 hover:text-primary-700">
+              Start with {topQuickWin.title} →
+            </Link>
+          )}
         </div>
       </div>
       <Link

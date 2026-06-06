@@ -1,6 +1,6 @@
 /**
  * [LAYER: CORE — SEO]
- * Audits product and blog catalogs for admin listing health views.
+ * Audits product, blog, and collection catalogs for admin listing health views.
  */
 
 import {
@@ -35,10 +35,28 @@ type BlogLike = {
   type?: string;
 };
 
+type CollectionLike = {
+  id: string;
+  name: string;
+  handle: string;
+  description?: string;
+  imageUrl?: string;
+  status?: string;
+};
+
+type CategoryLike = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  imageUrl?: string;
+};
+
 export interface SeoAdminSnapshot {
   siteScore: number;
   products: CatalogSeoSummary;
   blogPosts: CatalogSeoSummary;
+  collections: CatalogSeoSummary;
   combinedNeedsWork: number;
 }
 
@@ -85,14 +103,55 @@ export class CatalogAuditService {
     return summarizeCatalogAudits(items);
   }
 
-  buildAdminSnapshot(products: ProductLike[], posts: BlogLike[]): SeoAdminSnapshot {
+  auditCollections(collections: CollectionLike[], categories: CategoryLike[] = []): CatalogSeoSummary {
+    const merchItems = collections
+      .filter((c) => c.status === 'active' || !c.status)
+      .map((collection) =>
+        auditCatalogListing({
+          id: collection.id,
+          name: collection.name,
+          description: collection.description,
+          handle: collection.handle,
+          imageUrl: collection.imageUrl,
+          editPath: '/admin/collections',
+          publicPath: `/collections/${collection.handle}`,
+          kind: 'collection',
+        })
+      );
+
+    const categoryItems = categories.map((category) =>
+      auditCatalogListing({
+        id: category.id,
+        name: category.name,
+        description: category.description ?? undefined,
+        handle: category.slug,
+        imageUrl: category.imageUrl,
+        editPath: '/admin/taxonomy',
+        publicPath: `/collections/${category.slug}`,
+        kind: 'collection',
+      })
+    );
+
+    return summarizeCatalogAudits([...merchItems, ...categoryItems]);
+  }
+
+  buildAdminSnapshot(
+    products: ProductLike[],
+    posts: BlogLike[],
+    collections: CollectionLike[] = [],
+    categories: CategoryLike[] = []
+  ): SeoAdminSnapshot {
     const productSummary = this.auditProducts(products);
     const blogSummary = this.auditBlogPosts(posts);
+    const collectionSummary = this.auditCollections(collections, categories);
+
     return {
       siteScore: 0,
       products: productSummary,
       blogPosts: blogSummary,
-      combinedNeedsWork: productSummary.needsWork + blogSummary.needsWork,
+      collections: collectionSummary,
+      combinedNeedsWork:
+        productSummary.needsWork + blogSummary.needsWork + collectionSummary.needsWork,
     };
   }
 }

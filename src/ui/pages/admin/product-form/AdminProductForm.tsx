@@ -27,7 +27,9 @@ import { SkeletonPage, AdminConfirmDialog } from '../../../components/admin/Admi
 import { CategorySelect, TagInput } from '../../../components/admin/AdminInputs';
 import { SeoFormSectionNav } from '../../../components/admin/SeoFormSectionNav';
 import { SeoSettings } from '../../../components/admin/SeoSettings';
+import { SeoListingNudge } from '../../../components/admin/SeoListingNudge';
 import { scoreProductListing, SEO_LISTING_PASS_SCORE } from '@domain/seo/helpers';
+import { useSeoListingAudit } from '@ui/hooks/useSeoListingAudit';
 import { AdminMediaManager } from '../../../components/admin/AdminMediaManager';
 import { DigitalAssetManager } from '@ui/components/admin/DigitalAssetManager';
 
@@ -93,12 +95,26 @@ export function AdminProductForm() {
     return Math.round(((priceCents - costCents) / priceCents) * 1000) / 10;
   }, [costCents, priceCents]);
 
+  const listingScore = scoreProductListing(form);
+  const { trafficLight, recommendations } = useSeoListingAudit(
+    {
+      name: form.name,
+      description: form.description,
+      seoTitle: form.seoTitle,
+      seoDescription: form.seoDescription,
+      handle: form.handle,
+      imageUrl: form.imageUrl,
+    },
+    'product'
+  );
+  const topListingFix = recommendations[0]?.detail ?? recommendations[0]?.title;
+
   const setupChecklist = [
     { label: 'Has image', done: Boolean(form.imageUrl.trim()) },
     { label: 'Has SKU', done: Boolean(form.sku.trim()) },
     { label: 'Has price', done: priceCents > 0 },
     { label: 'Has cost', done: costCents !== undefined },
-    { label: 'Search listing ready', done: scoreProductListing(form) >= SEO_LISTING_PASS_SCORE },
+    { label: 'Search listing ready', done: listingScore >= SEO_LISTING_PASS_SCORE },
     { label: 'Published to online store', done: form.status === 'active' && form.salesChannels.includes('online_store') },
     { label: 'Digital assets configured', done: !form.isDigital || (form.isDigital && form.digitalAssets.length > 0) },
   ];
@@ -107,7 +123,7 @@ export function AdminProductForm() {
     { id: 'section-title', label: 'Title & description' },
     { id: 'section-media', label: 'Media' },
     { id: 'section-pricing', label: 'Pricing' },
-    { id: 'section-search-listing', label: 'Search listing', done: scoreProductListing(form) >= SEO_LISTING_PASS_SCORE },
+    { id: 'section-search-listing', label: 'Search listing', done: listingScore >= SEO_LISTING_PASS_SCORE },
   ];
 
   if (loadingProduct) return <SkeletonPage />;
@@ -464,7 +480,13 @@ export function AdminProductForm() {
         </aside>
       </form>
 
-      <AdminConfirmDialog 
+      <SeoListingNudge
+        score={listingScore}
+        trafficLight={trafficLight}
+        topFix={topListingFix}
+      />
+
+      <AdminConfirmDialog
         open={showConfirmDuplicate}
         onClose={() => setShowConfirmDuplicate(false)}
         onConfirm={() => {

@@ -46,6 +46,14 @@ export const SEO_PAGE_CATALOG: readonly SeoPageCatalogEntry[] = [
     category: 'content',
   },
   {
+    id: 'collections',
+    label: 'Menu collections',
+    description: 'Curated groups like appetizers, drinks, or seasonal picks.',
+    path: '/collections',
+    audience: 'public',
+    category: 'menu',
+  },
+  {
     id: 'cart',
     label: 'Cart',
     description: 'Hidden from search — checkout path only.',

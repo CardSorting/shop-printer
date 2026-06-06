@@ -5,8 +5,8 @@
  * Search engine listing editor — Shopify-style "Search engine listing preview"
  * for non-technical merchants. Powered by the centralized SEO engine.
  */
-import React, { useMemo, useState } from 'react';
-import { Search, ChevronDown, ChevronUp, AlertCircle, Info, Sparkles, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, ChevronDown, ChevronUp, AlertCircle, Info, Sparkles } from 'lucide-react';
 import { getAppSeoEngine } from '@infrastructure/seo';
 import { gradeLabel } from '@domain/seo/health';
 import { SEO_DESCRIPTION_MAX, SEO_TITLE_MAX } from '@domain/seo/constants';
@@ -14,6 +14,9 @@ import type { SeoPreviewChannel } from '@domain/seo/preview';
 import { HelpTooltip } from './AdminComponents';
 import { SeoListingPreview } from './SeoListingPreview';
 import { SeoHelpLink } from './SeoHelpLink';
+import { SeoTrafficLight } from './SeoTrafficLight';
+import { SeoChecklistPanel } from './SeoChecklistPanel';
+import { useSeoListingAudit } from '@ui/hooks/useSeoListingAudit';
 import { slugify } from '@utils/navigation';
 
 interface SeoSettingsProps {
@@ -27,6 +30,7 @@ interface SeoSettingsProps {
   imageUrl?: string;
   isEdit?: boolean;
   sectionId?: string;
+  listingKind?: 'product' | 'blog' | 'collection';
 }
 
 export function SeoSettings({
@@ -40,6 +44,7 @@ export function SeoSettings({
   imageUrl,
   isEdit = false,
   sectionId = 'section-search-listing',
+  listingKind = 'product',
 }: SeoSettingsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<SeoPreviewChannel>('google');
@@ -47,17 +52,16 @@ export function SeoSettings({
 
   const displayHandle = handle || slugify(name || 'product-handle') || 'product-handle';
 
-  const health = useMemo(
-    () =>
-      seo.health.auditListing({
-        name,
-        description,
-        seoTitle,
-        seoDescription,
-        handle: displayHandle,
-        imageUrl,
-      }),
-    [seo, name, description, seoTitle, seoDescription, displayHandle, imageUrl]
+  const { health, trafficLight, recommendations } = useSeoListingAudit(
+    {
+      name,
+      description,
+      seoTitle,
+      seoDescription,
+      handle: displayHandle,
+      imageUrl,
+    },
+    listingKind
   );
 
   const titleLength = (seoTitle || name || '').length;
@@ -112,6 +116,7 @@ export function SeoSettings({
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <SeoTrafficLight state={trafficLight} compact />
           {health.score < 85 && (
             <button
               type="button"
@@ -228,35 +233,7 @@ export function SeoSettings({
               </div>
 
               <div className="rounded-xl border bg-gray-50 p-5">
-                <h4 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                  SEO checklist
-                </h4>
-                <div className="space-y-3">
-                  {health.checklist.map((item) => (
-                    <div key={item.id} className="flex items-start gap-2">
-                      <div
-                        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                          item.done
-                            ? 'border-green-200 bg-green-100 text-green-600'
-                            : 'border-gray-200 bg-white text-gray-300'
-                        }`}
-                      >
-                        {item.done && <Check className="h-2.5 w-2.5" />}
-                      </div>
-                      <div>
-                        <span
-                          className={`text-[11px] font-medium ${item.done ? 'text-gray-900' : 'text-gray-400'}`}
-                        >
-                          {item.label}
-                        </span>
-                        {!item.done && item.hint && (
-                          <p className="mt-0.5 text-[10px] leading-relaxed text-gray-500">{item.hint}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
+                <SeoChecklistPanel checklist={health.checklist} recommendations={recommendations} />
                 {health.suggestions.length > 0 && (
                   <div className="mt-6 border-t border-gray-200 pt-6">
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-500">

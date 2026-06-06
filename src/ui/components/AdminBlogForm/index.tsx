@@ -10,6 +10,9 @@ import { useServices } from '../../hooks/useServices';
 import { Pipeline } from './Pipeline';
 import { Sidebar } from './Sidebar';
 import type { AdminBlogFormProps, EditorTab } from './types';
+import { useSeoListingAudit } from '../../hooks/useSeoListingAudit';
+import { scoreListing } from '@domain/seo/helpers';
+import { SeoListingNudge } from '../admin/SeoListingNudge';
 import { AdminConfirmDialog } from '../admin/AdminComponents';
 
 export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
@@ -134,6 +137,27 @@ export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
 
   const wordCount = formData.content?.split(/\s+/).filter(x => x).length || 0;
   const readingTime = Math.ceil(wordCount / 225);
+
+  const listingScore = scoreListing({
+    name: formData.title || '',
+    description: formData.excerpt,
+    seoTitle: formData.metaTitle,
+    seoDescription: formData.metaDescription,
+    handle: formData.slug,
+    imageUrl: formData.featuredImageUrl,
+  });
+  const { trafficLight, recommendations } = useSeoListingAudit(
+    {
+      name: formData.title || '',
+      description: formData.excerpt,
+      seoTitle: formData.metaTitle,
+      seoDescription: formData.metaDescription,
+      handle: formData.slug,
+      imageUrl: formData.featuredImageUrl,
+    },
+    'blog'
+  );
+  const topListingFix = recommendations[0]?.detail ?? recommendations[0]?.title;
 
   const sharedState = {
     formData, setFormData, activeTab, setActiveTab, 
@@ -285,6 +309,13 @@ export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
         </div>
       </div>
     </form>
+
+    <SeoListingNudge
+      score={listingScore}
+      trafficLight={trafficLight}
+      topFix={topListingFix}
+      onOpen={() => setActiveTab('seo')}
+    />
 
     <AdminConfirmDialog
       open={Boolean(pendingTemplate)}
