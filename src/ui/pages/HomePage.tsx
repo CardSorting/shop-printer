@@ -155,7 +155,7 @@ export function HomePage() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-primary-200 text-xs font-black uppercase tracking-widest">
               <Sparkles className="w-3 h-3" /> A Neighborhood Table
             </div>
-            <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1]">
+            <h1 data-seo-speakable className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1]">
               Old Hall. <br />
               <span className="text-transparent bg-clip-text bg-linear-to-r from-primary-400 to-primary-200">New Flavors.</span>
             </h1>

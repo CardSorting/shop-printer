@@ -70,6 +70,9 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   products: 'Products',
   inventory: 'Inventory',
   suppliers: 'Partners',
+  seo: 'Search & Visibility',
+  blog: 'Stories',
+  collections: 'Collections',
   settings: 'Settings',
   new: 'New',
   edit: 'Edit',
@@ -651,6 +654,8 @@ export function ShortcutsHelp({ onClose }: { onClose: () => void }) {
         { keys: ['G', 'O'], label: 'Go to Orders' },
         { keys: ['G', 'P'], label: 'Go to Products' },
         { keys: ['G', 'I'], label: 'Go to Inventory' },
+        { keys: ['G', 'S'], label: 'Search & Visibility' },
+        { keys: ['G', 'V'], label: 'Go to Partners' },
       ],
     },
   ];

@@ -40,6 +40,12 @@
       ],
       "@utils/*": [
         "./src/utils/*"
+      ],
+      "@seo": [
+        "./src/seo/index.ts"
+      ],
+      "@seo/*": [
+        "./src/seo/*"
       ]
     }
   },

@@ -175,6 +175,7 @@ export function AdminCollectionCreate() {
             handle={formData.handle}
             seoTitle=""
             seoDescription=""
+            pathPrefix="/collections"
             isEdit={false}
             onChange={(name: string, value: string) => setFormData(prev => ({ ...prev, [name]: value }))}
           />

@@ -1,7 +1,13 @@
 import { getServerServices } from '@infrastructure/server/services';
 import type { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
-import { productImages, productPath, productSeoDescription, productSeoTitle } from '@utils/seo';
+import {
+    buildPageMetadata,
+    menuItemSeoDescription,
+    productImages,
+    productPath,
+    productSeoTitle,
+} from '@utils/seo';
 
 type Props = {
     params: Promise<{ slug: string; handle: string }>;
@@ -25,27 +31,29 @@ async function getProduct(handle: string) {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-    const { slug, handle } = await params;
+    const { handle } = await params;
     const product = await getProduct(handle);
-    
+
     if (!product) {
-        return { title: 'Product Not Found | WoodBine' };
+        return buildPageMetadata({
+            title: 'Menu Item Not Found',
+            description: 'This dish or menu item is no longer available at WoodBine food hall.',
+            path: `/products/${handle}`,
+            noIndex: true,
+        });
     }
-    
-    const description = productSeoDescription(product);
-    
-    return {
-        title: productSeoTitle(product),
+
+    const description = menuItemSeoDescription(product);
+    const title = product.vendor
+        ? `${productSeoTitle(product)} — ${product.vendor}`
+        : productSeoTitle(product);
+
+    return buildPageMetadata({
+        title,
         description,
-        alternates: {
-            canonical: productPath(product),
-        },
-        openGraph: {
-            title: product.name,
-            description,
-            images: productImages(product),
-        },
-    };
+        path: productPath(product),
+        images: productImages(product),
+    });
 }
 
 export default async function Page({ params }: Props) {

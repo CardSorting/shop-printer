@@ -1,7 +1,15 @@
 import { ProductDetailPage } from '@ui/pages/product-detail';
 import { getServerServices } from '@infrastructure/server/services';
 import type { Metadata } from 'next';
-import { breadcrumbJsonLd, productImages, productJsonLd, productPath, productSeoDescription, productSeoTitle } from '@utils/seo';
+import { productToSeoContext } from '@core/seo';
+import { buildNextPageMetadata, getAppSeoEngine } from '@infrastructure/seo';
+import {
+    breadcrumbJsonLd,
+    menuItemJsonLd,
+    productImages,
+    productJsonLd,
+    productPath,
+} from '@utils/seo';
 
 import { notFound, permanentRedirect } from 'next/navigation';
 
@@ -9,16 +17,15 @@ type Props = {
     params: Promise<{ handle: string }>;
 };
 
+const seo = getAppSeoEngine();
+
 async function getProduct(handle: string) {
     const services = await getServerServices();
     try {
-        // Try handle first
         return await services.productService.getProductByHandle(handle);
     } catch {
-        // Fallback to ID
         try {
             const product = await services.productService.getProduct(handle);
-            // If we found it by ID and it has a handle, 301 redirect to the canonical handle URL
             if (product.handle && product.handle !== handle) {
                 permanentRedirect(productPath(product));
             }
@@ -32,34 +39,13 @@ async function getProduct(handle: string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { handle } = await params;
     const product = await getProduct(handle);
-    
+
     if (!product) {
-        return {
-            title: 'Product Not Found | WoodBine',
-        };
+        return buildNextPageMetadata(seo.pages.productNotFound(handle), seo.config);
     }
-    
-    const description = productSeoDescription(product);
-    
-    return {
-        title: productSeoTitle(product),
-        description,
-        alternates: {
-            canonical: productPath(product),
-        },
-        openGraph: {
-            title: product.name,
-            description,
-            images: productImages(product),
-            type: 'website',
-        },
-        twitter: {
-            card: 'summary_large_image',
-            title: product.name,
-            description,
-            images: productImages(product),
-        },
-    };
+
+    const input = seo.pages.product(productToSeoContext(product));
+    return buildNextPageMetadata({ ...input, images: productImages(product) }, seo.config);
 }
 
 export default async function Page({ params }: Props) {
@@ -70,10 +56,14 @@ export default async function Page({ params }: Props) {
     const jsonLd = [
         breadcrumbJsonLd([
             { name: 'Home', path: '/' },
-            { name: 'Catalog', path: '/products' },
+            { name: 'Vendors & Menu', path: '/products' },
+            ...(product.category
+                ? [{ name: product.category, path: `/collections/${product.category.toLowerCase().replace(/\s+/g, '-')}` }]
+                : []),
             { name: product.name, path: productPath(product) },
         ]),
         productJsonLd(product),
+        menuItemJsonLd(product),
     ];
 
     return (

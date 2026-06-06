@@ -1,19 +1,21 @@
 import type { Metadata } from 'next';
+import { buildNextPageMetadata, getAppSeoEngine } from '@infrastructure/seo';
+import { blogIndexJsonLd } from '@utils/seo';
 
-export const metadata: Metadata = {
-  title: 'Stories from the Hall | WoodBine',
-  description: 'Vendor spotlights, community nights, and the people who make WoodBine a neighborhood table in Salt Lake City.',
-  alternates: {
-    canonical: '/blog',
-  },
-  openGraph: {
-    title: 'WoodBine Journal | Stories from the Hall',
-    description: 'Meet the vendors, hear from regulars, and see what brings people back under the barrel roof.',
-    type: 'website',
-    images: ['/og-blog.png'],
-  },
-};
+const seo = getAppSeoEngine();
+
+export const metadata: Metadata = buildNextPageMetadata(seo.pages.blogIndex(), seo.config);
 
 export default function BlogLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  const blogLd = blogIndexJsonLd();
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogLd) }}
+      />
+      {children}
+    </>
+  );
 }

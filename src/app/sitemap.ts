@@ -1,55 +1,69 @@
 import { MetadataRoute } from 'next';
 import { getServerServices } from '@infrastructure/server/services';
-import { SITE_URL, productPath } from '@utils/seo';
+import { getAppSeoEngine } from '@infrastructure/seo';
+import { productPath } from '@utils/seo';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * [LAYER: APP]
- * Dynamic Sitemap Generator.
- * Ensuring search engines can crawl all handle-based products and collections.
- */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const services = await getServerServices();
+  const seo = getAppSeoEngine();
+  const now = new Date();
 
-  // 1. Static canonical routes. Account, cart, checkout, login, and search are intentionally excluded.
-  const staticRoutes = [
-    '',
-    '/products',
-    '/collections/all',
-    '/support',
-  ].map((route) => ({
-    url: `${SITE_URL}${route}`,
-    lastModified: new Date(),
-    changeFrequency: (route === '' || route === '/products') ? 'daily' as const : 'weekly' as const,
-    priority: route === '' ? 1 : route === '/products' ? 0.9 : 0.8,
-  }));
+  const staticRoutes = seo.sitemap.staticRoutes(now);
 
-  // 2. Fetch all products
   const productData = await services.productService.getProducts({ limit: 1000 });
-  const productRoutes = productData.products.filter((product) => product.status === 'active').map((product) => ({
-    url: `${SITE_URL}${productPath(product)}`,
-    lastModified: product.updatedAt,
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  }));
+  const productRoutes = productData.products
+    .filter((product) => product.status === 'active')
+    .map((product) =>
+      seo.sitemap.productRoute(
+        productPath(product),
+        product.updatedAt ? new Date(product.updatedAt) : undefined,
+        now
+      )
+    );
 
-  // 3. Fetch all categories
   const categories = await services.taxonomyService.getAllCategories();
-  const collectionRoutes = categories.map((category) => ({
-    url: `${SITE_URL}/collections/${category.slug}`,
-    lastModified: category.updatedAt,
-    changeFrequency: 'weekly' as const,
-    priority: 0.6,
-  }));
+  const collectionRoutes = categories.map((category) =>
+    seo.sitemap.collectionRoute(
+      `/collections/${category.slug}`,
+      category.updatedAt ? new Date(category.updatedAt) : undefined,
+      now
+    )
+  );
 
   const merchCollections = await services.collectionService.list({ status: 'active', limit: 1000 });
-  const merchCollectionRoutes = merchCollections.map((collection) => ({
-    url: `${SITE_URL}/collections/${collection.handle}`,
-    lastModified: collection.updatedAt,
-    changeFrequency: 'weekly' as const,
-    priority: 0.6,
-  }));
+  const merchCollectionRoutes = merchCollections.map((collection) =>
+    seo.sitemap.collectionRoute(
+      `/collections/${collection.handle}`,
+      collection.updatedAt ? new Date(collection.updatedAt) : undefined,
+      now
+    )
+  );
 
-  return [...staticRoutes, ...productRoutes, ...collectionRoutes, ...merchCollectionRoutes];
+  let articleRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const { articles } = await services.knowledgebaseRepository.getArticles({
+      type: 'blog',
+      status: 'published',
+      limit: 500,
+    });
+    articleRoutes = articles.map((article) =>
+      seo.sitemap.blogPostRoute(
+        `/blog/${article.slug}`,
+        article.updatedAt ? new Date(article.updatedAt) : undefined,
+        now
+      )
+    );
+  } catch {
+    articleRoutes = [];
+  }
+
+  return [
+    ...staticRoutes,
+    ...productRoutes,
+    ...collectionRoutes,
+    ...merchCollectionRoutes,
+    ...articleRoutes,
+  ];
 }

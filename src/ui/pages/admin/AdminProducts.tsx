@@ -46,9 +46,13 @@ import {
   Camera,
   Target,
   SearchCode,
-  Upload
+  Upload,
+  Globe,
 } from 'lucide-react';
 import { formatCurrency, humanizeCategory } from '@utils/formatters';
+import { productNeedsSeoAttention, scoreProductListing } from '@domain/seo/helpers';
+import { SeoListingsAlert } from '../../components/admin/SeoListingsAlert';
+import { SeoStatusBadge } from '../../components/admin/SeoStatusBadge';
 import {
   AdminPageHeader,
   AdminMetricCard,
@@ -171,6 +175,17 @@ function sortLabel(sort: ProductManagementSortKey) {
 /**
  * IDENTIFICATION BADGE — High-visibility product health indicator
  */
+function productSeoInput(product: ProductManagementProduct) {
+  return {
+    name: product.name,
+    description: product.description,
+    seoTitle: product.seoTitle,
+    seoDescription: product.seoDescription,
+    handle: product.handle,
+    imageUrl: product.imageUrl,
+  };
+}
+
 function HealthBadge({ product }: { product: ProductManagementProduct }) {
   const issues = [];
   if (!product.imageUrl || product.imageUrl.includes('placeholder')) issues.push({ label: 'No Photo', icon: Camera, color: 'bg-amber-100 text-amber-700' });
@@ -230,6 +245,7 @@ export function AdminProducts() {
   const [savingBulk, setSavingBulk] = useState(false);
   const [bulkPatch, setBulkPatch] = useState<BulkPatch>(EMPTY_BULK_PATCH);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [seoFilterOnly, setSeoFilterOnly] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const isMounted = useRef(true);
 
@@ -316,6 +332,16 @@ export function AdminProducts() {
     return PRODUCT_CATEGORIES.filter(c => c !== 'all');
   }, []);
 
+  const displayProducts = useMemo(() => {
+    if (!seoFilterOnly) return products;
+    return products.filter((product) => productNeedsSeoAttention(productSeoInput(product)));
+  }, [products, seoFilterOnly]);
+
+  const seoNeedsCount = useMemo(
+    () => products.filter((product) => productNeedsSeoAttention(productSeoInput(product))).length,
+    [products]
+  );
+
   const activeFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; value: string; onRemove: () => void }> = [];
     if (query.trim()) chips.push({ key: 'query', label: 'Search', value: query.trim(), onRemove: () => setQuery('') });
@@ -329,8 +355,9 @@ export function AdminProducts() {
     if (skuFilter !== 'all') chips.push({ key: 'sku', label: 'SKU', value: skuFilter === 'yes' ? 'Present' : 'Missing', onRemove: () => setSkuFilter('all') });
     if (imageFilter !== 'all') chips.push({ key: 'image', label: 'Photo', value: imageFilter === 'yes' ? 'Present' : 'Missing', onRemove: () => setImageFilter('all') });
     if (costFilter !== 'all') chips.push({ key: 'cost', label: 'Cost', value: costFilter === 'yes' ? 'Present' : 'Missing', onRemove: () => setCostFilter('all') });
+    if (seoFilterOnly) chips.push({ key: 'seo', label: 'Search listing', value: 'Needs attention', onRemove: () => setSeoFilterOnly(false) });
     return chips;
-  }, [category, costFilter, imageFilter, inventoryFilter, marginFilter, productTypeFilter, query, setupFilter, skuFilter, statusFilter, vendorFilter]);
+  }, [category, costFilter, imageFilter, inventoryFilter, marginFilter, productTypeFilter, query, seoFilterOnly, setupFilter, skuFilter, statusFilter, vendorFilter]);
 
   const hasAnyFilters = activeFilterChips.length > 0;
 
@@ -346,6 +373,7 @@ export function AdminProducts() {
     setSkuFilter('all');
     setImageFilter('all');
     setCostFilter('all');
+    setSeoFilterOnly(false);
   }
 
   const handleFilterChange = (key: string, value: any) => {
@@ -368,9 +396,9 @@ export function AdminProducts() {
   };
 
   const toggleAll = () => {
-    setSelectedIds(selectedIds.size === products.length
+    setSelectedIds(selectedIds.size === displayProducts.length
       ? new Set()
-      : new Set(products.map((product) => product.id)));
+      : new Set(displayProducts.map((product) => product.id)));
   };
 
   async function confirmDelete() {
@@ -532,6 +560,8 @@ export function AdminProducts() {
         </div>
       )}
 
+      <SeoListingsAlert />
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <AdminMetricCard label="Total products" value={overview?.totalProducts ?? '—'} icon={Package} color="info" onClick={() => setActiveView('all')} />
         <AdminMetricCard label="Active" value={overview?.statusCounts.active ?? '—'} icon={ArrowUpRight} color="success" onClick={() => setActiveView('active')} />
@@ -586,6 +616,22 @@ export function AdminProducts() {
                 {hasAnyFilters && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary-600 text-[10px] text-white">{activeFilterChips.length}</span>}
               </button>
               
+              <button
+                onClick={() => setSeoFilterOnly((prev) => !prev)}
+                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-bold transition-all active:scale-95 shadow-sm ${
+                  seoFilterOnly ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                title="Show only products with weak search listings"
+              >
+                <Globe className="h-4 w-4" />
+                Needs SEO
+                {seoNeedsCount > 0 && (
+                  <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] text-white ${seoFilterOnly ? 'bg-amber-600' : 'bg-gray-400'}`}>
+                    {seoNeedsCount}
+                  </span>
+                )}
+              </button>
+
               <div className="h-8 w-px bg-gray-200 mx-1 hidden sm:block" />
               
               <div className="flex rounded-xl border bg-gray-50 p-1 shadow-sm">
@@ -619,13 +665,13 @@ export function AdminProducts() {
                     <th className="w-12 px-4 py-3">
                       <input 
                         type="checkbox" 
-                        checked={selectedIds.size > 0 && selectedIds.size === products.length} 
+                        checked={selectedIds.size > 0 && selectedIds.size === displayProducts.length} 
                         onChange={toggleAll} 
                         className={`h-4 w-4 rounded border-gray-300 transition-colors ${isSelectionMode ? 'text-white focus:ring-white bg-primary-500' : 'text-primary-600 focus:ring-primary-500'}`} 
                       />
                     </th>
                     {isSelectionMode ? (
-                      <th colSpan={8} className="px-4 py-3 text-left">
+                      <th colSpan={9} className="px-4 py-3 text-left">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-black uppercase tracking-widest">{selectedIds.size} items selected</span>
                           <div className="flex items-center gap-3">
@@ -640,6 +686,7 @@ export function AdminProducts() {
                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest">Product</th>
                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest">Status</th>
                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest">Health</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest">Search</th>
                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest">Inventory</th>
                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest">Category</th>
                         <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest">Price</th>
@@ -650,8 +697,8 @@ export function AdminProducts() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {loading && [1, 2, 3, 4, 5, 6].map((i) => <SkeletonRow key={i} columns={9} />)}
-                  {!loading && products.map((product) => {
+                  {loading && [1, 2, 3, 4, 5, 6].map((i) => <SkeletonRow key={i} columns={10} />)}
+                  {!loading && displayProducts.map((product) => {
                     const isSelected = selectedIds.has(product.id);
                     return (
                       <tr key={product.id} className={`group transition-all duration-150 hover:bg-gray-50/80 ${isSelected ? 'bg-primary-50/40' : ''}`}>
@@ -680,6 +727,9 @@ export function AdminProducts() {
                         </td>
                         <td className="px-4 py-3.5"><AdminStatusBadge status={product.status} type="order" /></td>
                         <td className="px-4 py-3.5"><HealthBadge product={product} /></td>
+                        <td className="px-4 py-3.5">
+                          <SeoStatusBadge score={scoreProductListing(productSeoInput(product))} />
+                        </td>
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2">
                             <span className={`text-xs font-bold ${product.stock < 5 ? 'text-amber-600' : 'text-gray-900'}`}>{product.stock}</span>
@@ -710,7 +760,7 @@ export function AdminProducts() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 bg-gray-50/50">
-              {products.map((product) => {
+              {displayProducts.map((product) => {
                 const isSelected = selectedIds.has(product.id);
                 return (
                   <div 
@@ -741,6 +791,7 @@ export function AdminProducts() {
                         <span className={`text-[10px] font-black uppercase tracking-widest ${product.stock < 5 ? 'text-amber-600' : 'text-gray-400'}`}>{product.stock} Units</span>
                       </div>
                       <HealthBadge product={product} />
+                      <SeoStatusBadge score={scoreProductListing(productSeoInput(product))} />
                     </div>
                     
                     <div className={`absolute top-2 left-2 transition-all duration-300 ${isSelected ? 'scale-100 opacity-100' : 'scale-50 opacity-0 group-hover:opacity-100 group-hover:scale-100'}`}>
@@ -754,12 +805,12 @@ export function AdminProducts() {
             </div>
           )}
 
-          {!loading && products.length === 0 && (
+          {!loading && displayProducts.length === 0 && (
             <div className="py-20">
               {query || hasAnyFilters ? (
                 <AdminEmptyState 
-                  title="No products found" 
-                  description="We couldn't find any products matching your current filters or search term. Try expanding your search or clearing filters." 
+                  title={seoFilterOnly && products.length > 0 ? 'No products need SEO fixes' : 'No products found'} 
+                  description={seoFilterOnly && products.length > 0 ? 'Every product in this view passes the search listing checklist. Nice work!' : "We couldn't find any products matching your current filters or search term. Try expanding your search or clearing filters."} 
                   icon={SearchCode} 
                   action={<button onClick={clearAllFilters} className="rounded-xl bg-gray-900 px-6 py-2.5 text-xs font-bold text-white shadow-lg transition hover:bg-gray-800 active:scale-95">Clear all filters</button>}
                 />
@@ -789,7 +840,7 @@ export function AdminProducts() {
 
         {/* Footer Stats */}
         <div className="bg-gray-50 border-t px-6 py-3 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-           <div>Showing {products.length} products · Sorted by {sortLabel(sort)}</div>
+           <div>Showing {displayProducts.length} product{displayProducts.length === 1 ? '' : 's'}{seoFilterOnly ? ' needing SEO' : ''} · Sorted by {sortLabel(sort)}</div>
            <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-green-500" /> {overview?.statusCounts.active} Active</span>
               <span className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-amber-500" /> {overview?.lowStockCount} Low stock</span>

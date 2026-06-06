@@ -4,6 +4,8 @@ import { Plus, User, ArrowUpRight, Search, Edit2, Trash2, Sparkles, NotebookPen,
 import Link from 'next/link';
 import Image from 'next/image';
 import { sanitizeImageUrl } from '@utils/sanitizer';
+import { auditListingSeo } from '@domain/seo/health';
+import { SeoStatusBadge } from '@ui/components/admin/SeoStatusBadge';
 import type { DashboardState } from '../types';
 import type { KnowledgebaseArticle } from '@domain/models';
 
@@ -46,7 +48,14 @@ export const BlogTable: React.FC<Pick<DashboardState,
             ))
           ) : posts.map((post: KnowledgebaseArticle) => {
             const isSelected = selectedPosts.includes(post.id);
-            const hasSEO = !!post.metaTitle && !!post.metaDescription;
+            const seoHealth = auditListingSeo({
+              name: post.title,
+              description: post.excerpt,
+              seoTitle: post.metaTitle,
+              seoDescription: post.metaDescription,
+              handle: post.slug,
+              imageUrl: post.featuredImageUrl || post.ogImage,
+            });
             const isTopPerforming = (post.viewCount || 0) > 1000;
             
             return (
@@ -135,14 +144,7 @@ export const BlogTable: React.FC<Pick<DashboardState,
                 </td>
                 <td className="px-8 py-8">
                    <div className="flex items-center gap-4">
-                      <div className={`px-4 py-2 rounded-2xl flex items-center gap-3 border transition-all ${
-                        hasSEO 
-                          ? 'bg-primary-50/50 text-primary-600 border-primary-100 group-hover:bg-primary-600 group-hover:text-white' 
-                          : 'bg-gray-50/50 text-gray-400 border-gray-100 group-hover:border-amber-200 group-hover:text-amber-600'
-                      }`}>
-                         {hasSEO ? <Sparkles className="h-3 w-3" /> : <Search className="h-3 w-3" />}
-                         <span className="text-[9px] font-black uppercase tracking-widest">{hasSEO ? 'Optimized' : 'Needs SEO'}</span>
-                      </div>
+                      <SeoStatusBadge score={seoHealth.score} />
                    </div>
                 </td>
                 <td className="px-8 py-8 text-right">

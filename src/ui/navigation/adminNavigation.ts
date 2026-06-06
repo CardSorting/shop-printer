@@ -195,6 +195,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         description: 'Manage wholesale vendors and manufacturing partners',
         icon: Building2,
         aliases: ['partners', 'vendors', 'wholesalers', 'manufacturers', 'suppliers'],
+        shortcut: 'G V',
         contextualActions: [
           { label: 'Add partner', href: '/admin/suppliers/new', icon: Plus },
           { label: 'Browse directory', href: '/admin/suppliers', icon: Search }
@@ -220,6 +221,19 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     id: 'marketing',
     label: 'Marketing & Growth',
     items: [
+      {
+        id: 'seo',
+        href: '/admin/seo',
+        label: 'Search & Visibility',
+        description: 'How WoodBine appears on Google, maps, and social',
+        icon: Search,
+        aliases: ['seo', 'search', 'google', 'visibility', 'sitemap', 'meta tags', 'search engine'],
+        shortcut: 'G S',
+        contextualActions: [
+          { label: 'Fix listings', href: '/admin/seo?tab=listings', icon: Search },
+          { label: 'Local checklist', href: '/admin/seo?tab=local', icon: MapPin },
+        ],
+      },
       {
         id: 'discounts',
         href: '/admin/discounts',
@@ -340,6 +354,15 @@ export const ADMIN_QUICK_ACTIONS: AdminQuickAction[] = [
     description: 'Count and receive inbound stock',
     icon: Boxes,
     aliases: ['receiving', 'restock', 'receive transfer', 'stock intake', 'count shipment'],
+    group: 'Create',
+  },
+  {
+    id: 'seo-hub',
+    href: '/admin/seo',
+    label: 'Search & Visibility',
+    description: 'Google listings, sitemap, and local search health',
+    icon: Search,
+    aliases: ['seo', 'google', 'search visibility', 'sitemap'],
     group: 'Create',
   },
   {

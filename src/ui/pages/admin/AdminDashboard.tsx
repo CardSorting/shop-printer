@@ -27,7 +27,8 @@ import {
   Search,
   Settings as SettingsIcon,
   Tag,
-  MessageSquare
+  MessageSquare,
+  Globe,
 } from 'lucide-react';
 import { formatCurrency, formatShortDate, formatBytes } from '@utils/formatters';
 import { 
@@ -40,6 +41,7 @@ import {
   HelpTooltip,
   LogisticsHealthCard
 } from '../../components/admin/AdminComponents';
+import { SeoHealthWidget } from '../../components/admin/SeoHealthWidget';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -60,6 +62,7 @@ export function AdminDashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [customerCount, setCustomerCount] = useState(0);
   const [logisticsStats, setLogisticsStats] = useState<any>(null);
+  const [seoNeedsWork, setSeoNeedsWork] = useState(0);
   const controllerRef = useRef<AbortController | null>(null);
   const isMounted = useRef(true);
 
@@ -71,12 +74,13 @@ export function AdminDashboard() {
     if (isMounted.current) setLoading(true);
     setError(null);
     try {
-      const [dashSummary, users, progress, mediaRes, logistics] = await Promise.all([
+      const [dashSummary, users, progress, mediaRes, logistics, seoRes] = await Promise.all([
         services.orderQueryService.getAdminDashboardSummary(controller.signal),
         services.authService.getAllUsers(controller.signal),
         services.settingsService.getSetupProgress(controller.signal),
         fetch('/api/admin/media', { signal: controller.signal }).then(r => r.json()),
-        services.orderQueryService.getLogisticsInsights(controller.signal)
+        services.orderQueryService.getLogisticsInsights(controller.signal),
+        fetch('/api/admin/seo/snapshot', { signal: controller.signal }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
       
       if (!controller.signal.aborted && isMounted.current) {
@@ -84,6 +88,7 @@ export function AdminDashboard() {
         setCustomerCount(users.length);
         setSetupProgress(progress);
         setLogisticsStats(logistics);
+        setSeoNeedsWork(seoRes?.snapshot?.combinedNeedsWork ?? 0);
         if (mediaRes.files) {
           setMediaStats({
             count: mediaRes.files.length,
@@ -201,7 +206,14 @@ export function AdminDashboard() {
                      <ArrowRight className="h-4 w-4 text-gray-300 transition-transform group-hover:translate-x-1" />
                   </Link>
                 )}
-                {setupProgress?.hasProducts && setupProgress?.hasPaymentConfigured && (
+                {setupProgress?.hasProducts && seoNeedsWork > 0 && (
+                  <Link href="/admin/seo?tab=listings" className="flex items-center gap-4 rounded-lg bg-white p-4 shadow-xs ring-1 ring-black/5 transition hover:shadow-md cursor-pointer group">
+                     <div className="h-6 w-6 shrink-0 rounded-full border-2 border-amber-500 flex items-center justify-center"><Globe className="h-3 w-3 text-amber-600" /></div>
+                     <div className="flex-1"><p className="text-sm font-bold text-gray-900">Improve search listings</p><p className="text-xs text-gray-500">{seoNeedsWork} menu item{seoNeedsWork === 1 ? '' : 's'} or stor{seoNeedsWork === 1 ? 'y' : 'ies'} could rank better on Google.</p></div>
+                     <ArrowRight className="h-4 w-4 text-gray-300 transition-transform group-hover:translate-x-1" />
+                  </Link>
+                )}
+                {setupProgress?.hasProducts && setupProgress?.hasPaymentConfigured && seoNeedsWork === 0 && (
                    <div className="flex items-center gap-4 rounded-lg bg-green-50/50 p-4 shadow-xs ring-1 ring-green-600/10 transition">
                       <div className="h-6 w-6 shrink-0 rounded-full bg-green-500 flex items-center justify-center"><CheckCircle2 className="h-4 w-4 text-white" /></div>
                       <div className="flex-1"><p className="text-sm font-bold text-gray-900">Store is Operational</p><p className="text-xs text-gray-500">Your storefront is ready to handle high-velocity traffic.</p></div>
@@ -255,6 +267,8 @@ export function AdminDashboard() {
               ))}
             </div>
           </section>
+
+          <SeoHealthWidget />
 
           <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 border-b px-5 py-4 bg-gray-50/50">

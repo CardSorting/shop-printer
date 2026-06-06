@@ -1,38 +1,51 @@
 import React from 'react';
-import Image from 'next/image';
 import type { KnowledgebaseArticle } from '@domain/models';
+import { getAppSeoEngine } from '@infrastructure/seo';
+import { SeoListingPreview } from '../admin/SeoListingPreview';
 
 export const SocialPreview: React.FC<{ formData: Partial<KnowledgebaseArticle> }> = ({ formData }) => {
+  const seo = getAppSeoEngine();
+  const slug = formData.slug || 'story-slug';
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-      <div className="space-y-6">
-          <h4 className="text-xs font-black uppercase tracking-widest text-gray-900">Facebook / Open Graph</h4>
-          <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
-            {formData.featuredImageUrl && (
-              <div className="relative aspect-[1.91/1] w-full">
-                <Image src={formData.featuredImageUrl} alt="Preview" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-              </div>
-            )}
-            <div className="p-6 bg-[#f0f2f5]">
-              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-tight">woodbine.com</p>
-              <h3 className="text-lg font-bold text-gray-900 mt-1 line-clamp-2">{formData.metaTitle || formData.title || 'Post Title'}</h3>
-              <p className="text-sm text-gray-600 mt-2 line-clamp-3">{formData.metaDescription || formData.excerpt || 'Add a meta description to see how it looks on Facebook...'}</p>
-            </div>
-          </div>
+    <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
+      <div className="space-y-4">
+        <h4 className="text-xs font-black uppercase tracking-widest text-gray-900">Google & Facebook preview</h4>
+        <SeoListingPreview
+          input={{
+            name: formData.title || 'Post Title',
+            description: formData.excerpt,
+            seoTitle: formData.metaTitle,
+            seoDescription: formData.metaDescription,
+            handle: slug,
+            pathPrefix: '/blog',
+            imageUrl: formData.featuredImageUrl || formData.ogImage,
+          }}
+          activeChannel="social"
+          showTabs={false}
+        />
       </div>
 
-      <div className="space-y-6">
-          <h4 className="text-xs font-black uppercase tracking-widest text-gray-900">Twitter Card</h4>
-          <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm p-4 flex gap-4">
-            <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0">
-              <Image src={formData.featuredImageUrl || '/assets/generated/generic_tcg_strategy_1778177431609.png'} alt="" fill sizes="96px" className="object-cover" />
-            </div>
-            <div className="flex-1 min-w-0 py-2">
-              <h3 className="text-sm font-bold text-gray-900 line-clamp-2">{formData.metaTitle || formData.title || 'Post Title'}</h3>
-              <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{formData.metaDescription || formData.excerpt || 'Add content to preview...'}</p>
-              <p className="text-[10px] text-primary-600 font-bold mt-2">woodbine.com</p>
-            </div>
-          </div>
+      <div className="space-y-4">
+        <h4 className="text-xs font-black uppercase tracking-widest text-gray-900">X (Twitter) preview</h4>
+        <SeoListingPreview
+          input={{
+            name: formData.title || 'Post Title',
+            description: formData.excerpt,
+            seoTitle: formData.metaTitle,
+            seoDescription: formData.metaDescription,
+            handle: slug,
+            pathPrefix: '/blog',
+            imageUrl: formData.featuredImageUrl || formData.ogImage,
+          }}
+          activeChannel="twitter"
+          showTabs={false}
+        />
+        {!formData.featuredImageUrl && !formData.ogImage && (
+          <p className="text-[10px] text-gray-400">
+            Add a featured image for richer social cards on {seo.config.siteName}.
+          </p>
+        )}
       </div>
     </div>
   );

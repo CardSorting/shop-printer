@@ -1,31 +1,21 @@
 import { MetadataRoute } from 'next';
+import { getAppSeoEngine } from '@infrastructure/seo';
 
 /**
- * [LAYER: APP]
- * Robots.txt configuration.
- * Standard e-commerce configuration for crawling and indexing.
+ * Crawl directives — composed from centralized SEO crawl policy.
  */
 export default function robots(): MetadataRoute.Robots {
+  const policy = getAppSeoEngine().crawl.robotsPolicy();
+
   return {
     rules: [
       {
         userAgent: '*',
         allow: '/',
-        disallow: [
-          '/admin/',
-          '/account/',
-          '/checkout/',
-          '/cart/',
-          '/api/',
-          '/*?sort_by=', // Avoid indexing sorted pages
-          '/*?min_price=', // Avoid indexing price-filtered pages
-          '/*?max_price=', // Avoid indexing price-filtered pages
-          '/*?condition=', // Avoid indexing condition-filtered pages
-          '/*?availability=', // Avoid indexing availability-filtered pages
-          '/*?category=', // Avoid indexing category-filtered pages (handled by collections routes)
-        ],
+        disallow: [...policy.disallow],
       },
     ],
-    sitemap: 'https://woodbine.com/sitemap.xml',
+    sitemap: policy.sitemapUrl,
+    host: policy.host,
   };
 }

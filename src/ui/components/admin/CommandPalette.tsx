@@ -16,6 +16,8 @@ import {
   RefreshCw,
   BrainCircuit,
   NotebookPen,
+  Globe,
+  MapPin,
   type LucideIcon,
 } from 'lucide-react';
 import { useServices } from '../../hooks/useServices';
@@ -64,6 +66,33 @@ const STATIC_ITEMS: PaletteItem[] = [
     group: action.group === 'Create' ? 'Actions' : 'Storefront',
     keywords: action.aliases,
   })),
+  {
+    id: 'seo-fix-listings',
+    label: 'Fix search listings',
+    description: 'Menu items and stories that need better titles or descriptions',
+    icon: Globe,
+    href: '/admin/seo?tab=listings',
+    group: 'Search & Visibility',
+    keywords: ['seo', 'google', 'meta', 'listing', 'visibility', 'search engine'],
+  },
+  {
+    id: 'seo-local',
+    label: 'Check local presence',
+    description: 'Address, hours, and map listing checklist',
+    icon: MapPin,
+    href: '/admin/seo?tab=local',
+    group: 'Search & Visibility',
+    keywords: ['local seo', 'maps', 'google business', 'address', 'hours', 'near me'],
+  },
+  {
+    id: 'seo-learn',
+    label: 'Learn about search visibility',
+    description: 'Plain-language guides for non-technical merchants',
+    icon: NotebookPen,
+    href: '/admin/seo?tab=learn',
+    group: 'Search & Visibility',
+    keywords: ['help', 'guide', 'how to', 'tutorial', 'what is seo'],
+  },
 ];
 
 const RECENT_KEY = 'admin-palette-recent';

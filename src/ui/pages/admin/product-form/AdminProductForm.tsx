@@ -312,6 +312,7 @@ export function AdminProductForm() {
             seoTitle={form.seoTitle}
             seoDescription={form.seoDescription}
             handle={form.handle}
+            imageUrl={form.imageUrl}
             isEdit={isEdit}
             onChange={(name, value) => {
               setFieldValue(name as any, value);

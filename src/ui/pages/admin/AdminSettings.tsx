@@ -261,6 +261,21 @@ export function AdminSettings() {
                   </div>
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => router.push('/admin/seo')}
+                className="group flex items-start gap-4 rounded-xl border-2 border-primary-100 bg-primary-50/30 p-5 text-left shadow-sm transition hover:border-primary-300 hover:shadow-md active:scale-[0.98]"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-100 text-primary-600">
+                  <Search className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-gray-900 group-hover:text-primary-700">Search & Visibility</p>
+                  <p className="mt-1 text-xs text-gray-500 leading-relaxed font-medium">
+                    Google listings, local maps, and social previews
+                  </p>
+                </div>
+              </button>
             </div>
           </section>
         )}
