@@ -10,6 +10,7 @@ import {
   type CatalogSeoSummary,
 } from '@domain/seo/catalog';
 import type { SeoSiteConfig } from '@domain/seo/types';
+import { helpArticleEditHref, taxonomyCategoryEditHref } from '@domain/seo/admin-routes';
 
 type ProductLike = {
   id: string;
@@ -40,6 +41,8 @@ type CollectionLike = {
   name: string;
   handle: string;
   description?: string;
+  seoTitle?: string;
+  seoDescription?: string;
   imageUrl?: string;
   status?: string;
 };
@@ -49,6 +52,8 @@ type CategoryLike = {
   name: string;
   slug: string;
   description?: string | null;
+  seoTitle?: string;
+  seoDescription?: string;
   imageUrl?: string;
 };
 
@@ -57,8 +62,28 @@ export interface SeoAdminSnapshot {
   products: CatalogSeoSummary;
   blogPosts: CatalogSeoSummary;
   collections: CatalogSeoSummary;
+  helpArticles: CatalogSeoSummary;
   combinedNeedsWork: number;
 }
+
+type HelpArticleLike = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  featuredImageUrl?: string;
+  status?: string;
+  type?: string;
+};
+
+type HelpCategoryLike = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+};
 
 export class CatalogAuditService {
   constructor(private readonly config: SeoSiteConfig) {}
@@ -111,9 +136,11 @@ export class CatalogAuditService {
           id: collection.id,
           name: collection.name,
           description: collection.description,
+          seoTitle: collection.seoTitle,
+          seoDescription: collection.seoDescription,
           handle: collection.handle,
           imageUrl: collection.imageUrl,
-          editPath: '/admin/collections',
+          editPath: `/admin/collections/${collection.id}/edit`,
           publicPath: `/collections/${collection.handle}`,
           kind: 'collection',
         })
@@ -124,34 +151,80 @@ export class CatalogAuditService {
         id: category.id,
         name: category.name,
         description: category.description ?? undefined,
+        seoTitle: category.seoTitle,
+        seoDescription: category.seoDescription,
         handle: category.slug,
         imageUrl: category.imageUrl,
-        editPath: '/admin/taxonomy',
+        editPath: taxonomyCategoryEditHref(category.id),
         publicPath: `/collections/${category.slug}`,
-        kind: 'collection',
+        kind: 'category',
       })
     );
 
     return summarizeCatalogAudits([...merchItems, ...categoryItems]);
   }
 
+  auditHelpCenter(articles: HelpArticleLike[], categories: HelpCategoryLike[] = []): CatalogSeoSummary {
+    const articleItems = articles
+      .filter((a) => a.type === 'article' && a.status === 'published')
+      .map((article) =>
+        auditCatalogListing({
+          id: article.id,
+          name: article.title,
+          description: article.excerpt,
+          seoTitle: article.metaTitle,
+          seoDescription: article.metaDescription,
+          handle: article.slug,
+          imageUrl: article.featuredImageUrl,
+          editPath: helpArticleEditHref(article.id),
+          publicPath: `/support/articles/${article.slug}`,
+          kind: 'help',
+        })
+      );
+
+    const categoryItems = categories.map((category) =>
+      auditCatalogListing({
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        seoTitle: `${category.name} — Help Center`,
+        seoDescription:
+          category.description ||
+          `${category.name} articles for guests visiting WoodBine food hall in ${this.config.locality}.`,
+        handle: category.slug,
+        editPath: '/admin/support',
+        publicPath: `/support/categories/${category.slug}`,
+        kind: 'help-category',
+      })
+    );
+
+    return summarizeCatalogAudits([...articleItems, ...categoryItems]);
+  }
+
   buildAdminSnapshot(
     products: ProductLike[],
     posts: BlogLike[],
     collections: CollectionLike[] = [],
-    categories: CategoryLike[] = []
+    categories: CategoryLike[] = [],
+    helpArticles: HelpArticleLike[] = [],
+    helpCategories: HelpCategoryLike[] = []
   ): SeoAdminSnapshot {
     const productSummary = this.auditProducts(products);
     const blogSummary = this.auditBlogPosts(posts);
     const collectionSummary = this.auditCollections(collections, categories);
+    const helpSummary = this.auditHelpCenter(helpArticles, helpCategories);
 
     return {
       siteScore: 0,
       products: productSummary,
       blogPosts: blogSummary,
       collections: collectionSummary,
+      helpArticles: helpSummary,
       combinedNeedsWork:
-        productSummary.needsWork + blogSummary.needsWork + collectionSummary.needsWork,
+        productSummary.needsWork +
+        blogSummary.needsWork +
+        collectionSummary.needsWork +
+        helpSummary.needsWork,
     };
   }
 }

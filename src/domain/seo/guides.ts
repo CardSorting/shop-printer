@@ -28,14 +28,27 @@ export const SEO_GUIDES: readonly SeoGuideEntry[] = [
     id: 'search-listing',
     title: 'Edit a search engine listing',
     summary:
-      'Every menu item and story can have its own listing — the blue link and gray text people see on Google.',
+      'Every menu item, story, collection, and help article can have its own listing — the blue link and gray text people see on Google.',
     steps: [
-      'Open a product or blog post in admin.',
+      'Open a product, story, collection, or category in admin.',
       'Scroll to “Search engine listing.”',
       'Use “Suggest improvements” or write your own title and description.',
       'Check the live preview before saving.',
     ],
     icon: 'menu',
+  },
+  {
+    id: 'help-articles',
+    title: 'Help center & Visit pages',
+    summary:
+      'Articles under Visit & Connect (hours, directions, order help) appear in Google when titles and descriptions mention WoodBine and Salt Lake.',
+    steps: [
+      'Open Search & Visibility → Listings to see help articles that need work.',
+      'Open Visit & Connect → Help topics to edit category descriptions.',
+      'Open any article and scroll to “Search engine listing” for custom titles.',
+      'Include “WoodBine” and “Salt Lake” for local discovery.',
+    ],
+    icon: 'shield',
   },
   {
     id: 'local-maps',

@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     await requireAdminSession(req);
     const body = await readJsonObject(req);
     const kind = (body.kind as string) || 'product';
-    const validKind = ['product', 'blog', 'collection', 'homepage'].includes(kind) ? kind : 'product';
+    const validKind = ['product', 'blog', 'collection', 'category', 'help', 'help-category', 'homepage'].includes(kind) ? kind : 'product';
 
     const input = {
       name: requireString(body.name, 'name'),
@@ -25,7 +25,10 @@ export async function POST(req: Request) {
     };
 
     const seo = getAppSeoEngine();
-    const result = seo.adminReport.auditListingForKind(input, validKind as 'product' | 'blog' | 'collection' | 'homepage');
+    const result = seo.adminReport.auditListingForKind(
+      input,
+      validKind as 'product' | 'blog' | 'collection' | 'category' | 'help' | 'help-category' | 'homepage'
+    );
 
     return NextResponse.json(result);
   } catch (error) {

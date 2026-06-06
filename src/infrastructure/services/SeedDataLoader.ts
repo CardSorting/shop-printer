@@ -23,6 +23,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { BLOG_AUTHORS, BLOG_SERIES, BLOG_POSTS } from './BlogSeedData';
 import { EXTENDED_SERIES, EXTENDED_POSTS } from './ExtendedBlogSeedData';
+import { DEFAULT_FOOD_HALL_IMAGE, DEFAULT_PRODUCT_IMAGE } from '@utils/imageFallback';
 
 // ─────────────────────────────────────────────
 // COMPREHENSIVE MOCK DATA
@@ -37,7 +38,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     productType: 'Beverage',
     stock: 100,
     status: 'active',
-    imageUrl: '/assets/generated/scarlet_violet_booster_box_1778177072594.png',
+    imageUrl: DEFAULT_FOOD_HALL_IMAGE,
     sku: 'WB-DRK-001',
     handle: 'cold-brew-latte',
     collections: ['bestsellers', 'coffee'],
@@ -55,7 +56,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     productType: 'Food',
     stock: 40,
     status: 'active',
-    imageUrl: '/assets/generated/charizard_ex_holo_1778177088908.png',
+    imageUrl: DEFAULT_PRODUCT_IMAGE,
     sku: 'WB-ENT-001',
     handle: 'smoked-brisket-bowl',
     collections: ['bestsellers', 'hearty'],
@@ -71,7 +72,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     productType: 'Food',
     stock: 25,
     status: 'active',
-    imageUrl: '/assets/generated/custom_playmat_1778177102037.png',
+    imageUrl: DEFAULT_FOOD_HALL_IMAGE,
     handle: 'seasonal-shared-plate',
     collections: ['seasonal'],
     trackQuantity: true,
@@ -86,7 +87,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     productType: 'Gift Card',
     stock: 999,
     status: 'active',
-    imageUrl: '/assets/generated/tcg_digital_guide_1778177116259.png',
+    imageUrl: DEFAULT_PRODUCT_IMAGE,
     handle: 'woodbine-gift-card',
     collections: ['gifts'],
     isDigital: true,
@@ -106,13 +107,69 @@ const INITIAL_CUSTOMERS = [
 
 const KB_DATA = {
   categories: [
-    { id: 'vendor-spotlights', name: 'Vendor Spotlights', slug: 'vendor-spotlights', description: 'Meet the counters and makers at the hall.', icon: 'utensils', articleCount: 2 },
-    { id: 'visit-guide', name: 'Visit Guide', slug: 'visit-guide', description: 'Hours, directions, and first-timer tips.', icon: 'map-pin', articleCount: 2 },
-    { id: 'local-food', name: 'Salt Lake Food', slug: 'local-food', description: 'Neighborhood dining and arts district guides.', icon: 'sparkles', articleCount: 1 },
-    { id: 'events', name: 'Events', slug: 'events', description: 'Live nights, private bookings, and community gatherings.', icon: 'calendar', articleCount: 1 },
-    { id: 'seasonal', name: 'Seasonal Menu', slug: 'seasonal', description: 'Rotating dishes and limited-time counters.', icon: 'sun', articleCount: 1 },
-    { id: 'order-issues', name: 'Order Help', slug: 'order-issues', description: 'Track orders and get support.', icon: 'package', articleCount: 1 },
-    { id: 'returns-refunds', name: 'Returns & Refunds', slug: 'returns-refunds', description: 'Our policies for orders and gift cards.', icon: 'rotate-ccw', articleCount: 1 },
+    {
+      id: 'vendor-spotlights',
+      name: 'Vendor Spotlights',
+      slug: 'vendor-spotlights',
+      description:
+        'Meet the independent vendor counters at WoodBine food hall in Salt Lake City — stories, signatures dishes, and who to visit first.',
+      icon: 'utensils',
+      articleCount: 2,
+    },
+    {
+      id: 'visit-guide',
+      name: 'Visit Guide',
+      slug: 'visit-guide',
+      description:
+        'Hours, directions, parking, and first-timer tips for visiting WoodBine in Salt Lake’s arts district — walk in welcome, no reservation needed.',
+      icon: 'map-pin',
+      articleCount: 2,
+    },
+    {
+      id: 'local-food',
+      name: 'Salt Lake Food',
+      slug: 'local-food',
+      description:
+        'Neighborhood dining guides and Salt Lake food hall culture — how WoodBine fits into the city’s creative warehouse district.',
+      icon: 'sparkles',
+      articleCount: 1,
+    },
+    {
+      id: 'events',
+      name: 'Events',
+      slug: 'events',
+      description:
+        'Live nights, private bookings, and community gatherings under the barrel roof at WoodBine food hall in Salt Lake City.',
+      icon: 'calendar',
+      articleCount: 1,
+    },
+    {
+      id: 'seasonal',
+      name: 'Seasonal Menu',
+      slug: 'seasonal',
+      description:
+        'Rotating dishes and limited-time counters at WoodBine — what vendors are serving this season in Salt Lake City.',
+      icon: 'sun',
+      articleCount: 1,
+    },
+    {
+      id: 'order-issues',
+      name: 'Order Help',
+      slug: 'order-issues',
+      description:
+        'Track orders, pickup questions, and guest support for WoodBine food hall orders in Salt Lake City.',
+      icon: 'package',
+      articleCount: 1,
+    },
+    {
+      id: 'returns-refunds',
+      name: 'Returns & Refunds',
+      slug: 'returns-refunds',
+      description:
+        'Policies for order changes, gift cards, and refunds at WoodBine — clear answers for guests visiting our Salt Lake food hall.',
+      icon: 'rotate-ccw',
+      articleCount: 1,
+    },
   ],
   articles: [
     {
@@ -402,14 +459,14 @@ export async function seedProducts(): Promise<number> {
           name: title,
           description: cleanedValues[bodyIdx] || `No description for ${title}`,
           price,
-          category: 'other', // Board games categorized as 'other'
-          productType: cleanedValues[typeIdx] || 'Board Games',
+          category: 'other',
+          productType: cleanedValues[typeIdx] || 'Hall Favorites',
           vendor: cleanedValues[vendorIdx] || 'Other',
           tags,
           collections: ['new'],
           handle,
           seoTitle: title,
-          seoDescription: `Get the fun and exciting ${title}. Perfect for family game nights, parties, and gifts!`,
+          seoDescription: `${title} at WoodBine food hall in Salt Lake City — order from our neighborhood vendors under the barrel roof.`,
           salesChannels: ['online_store'],
           stock,
           trackQuantity: true,

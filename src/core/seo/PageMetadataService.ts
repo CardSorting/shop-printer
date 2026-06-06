@@ -7,7 +7,6 @@ import {
   buildDefaultSiteDescription,
   buildDefaultSiteTitle,
   canonicalPath,
-  collectionSeoDescription,
   menuItemSeoDescription,
   productSeoTitle,
   resolveAbsoluteUrl,
@@ -15,6 +14,11 @@ import {
   resolveSocialTitle,
   seoDescription,
 } from '@domain/seo/rules';
+import {
+  resolveCollectionPageDescription,
+  resolveCollectionPageTitle,
+  type CollectionListingInput,
+} from '@domain/seo/storefront-listing';
 import {
   SEO_KEYWORDS_BLOG,
   SEO_KEYWORDS_GLOBAL,
@@ -132,12 +136,16 @@ export class PageMetadataService {
   }
 
   collection(name: string, slug: string, description?: string | null, hasFilters = false, imageUrl?: string): SeoPageMetadataInput {
+    return this.collectionListing({ name, slug, description, imageUrl }, hasFilters);
+  }
+
+  collectionListing(input: CollectionListingInput, hasFilters = false): SeoPageMetadataInput {
     return {
-      title: name,
-      description: collectionSeoDescription(name, description, this.config.siteName),
-      path: `/collections/${slug}`,
+      title: resolveCollectionPageTitle(input),
+      description: resolveCollectionPageDescription(input, this.config.siteName),
+      path: `/collections/${input.slug}`,
       keywords: SEO_KEYWORDS_MENU,
-      images: imageUrl ? [imageUrl] : undefined,
+      images: input.imageUrl ? [input.imageUrl] : undefined,
       noIndex: hasFilters,
     };
   }
@@ -160,6 +168,111 @@ export class PageMetadataService {
       title: 'Story Not Found',
       description: 'This story from the hall is no longer available at WoodBine.',
       path: `/blog/${slug}`,
+      noIndex: true,
+    };
+  }
+
+  supportArticle(article: {
+    title: string;
+    slug: string;
+    excerpt?: string;
+    metaTitle?: string;
+    metaDescription?: string;
+    featuredImageUrl?: string;
+  }): SeoPageMetadataInput {
+    return {
+      title: article.metaTitle || article.title,
+      description:
+        article.metaDescription ||
+        article.excerpt ||
+        `Help article about ${article.title} at WoodBine food hall in ${this.config.locality}.`,
+      path: `/support/articles/${article.slug}`,
+      keywords: SEO_KEYWORDS_VISIT,
+      images: article.featuredImageUrl ? [article.featuredImageUrl] : undefined,
+    };
+  }
+
+  supportArticleNotFound(slug: string): SeoPageMetadataInput {
+    return {
+      title: 'Help Article Not Found',
+      description: 'This help article is no longer available at WoodBine.',
+      path: `/support/articles/${slug}`,
+      noIndex: true,
+    };
+  }
+
+  supportCategory(category: {
+    name: string;
+    slug: string;
+    description?: string | null;
+  }): SeoPageMetadataInput {
+    return {
+      title: `${category.name} — Help Center`,
+      description:
+        category.description ||
+        `${category.name} articles for guests visiting WoodBine food hall in ${this.config.locality}.`,
+      path: `/support/categories/${category.slug}`,
+      keywords: SEO_KEYWORDS_VISIT,
+    };
+  }
+
+  authLogin(): SeoPageMetadataInput {
+    return {
+      title: 'Sign In',
+      description: 'Sign in to your WoodBine account.',
+      path: '/login',
+      noIndex: true,
+    };
+  }
+
+  authRegister(): SeoPageMetadataInput {
+    return {
+      title: 'Create Account',
+      description: 'Create a WoodBine account for faster checkout and order history.',
+      path: '/register',
+      noIndex: true,
+    };
+  }
+
+  authForgotPassword(): SeoPageMetadataInput {
+    return {
+      title: 'Reset Password',
+      description: 'Reset your WoodBine account password.',
+      path: '/forgot-password',
+      noIndex: true,
+    };
+  }
+
+  authResetPassword(): SeoPageMetadataInput {
+    return {
+      title: 'Set New Password',
+      description: 'Set a new password for your WoodBine account.',
+      path: '/auth/reset-password',
+      noIndex: true,
+    };
+  }
+
+  orderDetail(orderId: string): SeoPageMetadataInput {
+    return this.privatePage(
+      'Order Details',
+      'Your WoodBine order confirmation and delivery status.',
+      `/orders/${orderId}`
+    );
+  }
+
+  accountVault(): SeoPageMetadataInput {
+    return this.privatePage(
+      'Digital Library',
+      'Your saved digital items and downloads from WoodBine.',
+      '/account/vault'
+    );
+  }
+
+  private privatePage(title: string, description: string, path: string): SeoPageMetadataInput {
+    return {
+      title,
+      description,
+      path,
       noIndex: true,
     };
   }

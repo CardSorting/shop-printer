@@ -5,6 +5,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logger } from '@utils/logger';
 import { assertRateLimit, hasValidBearerToken, jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
 import { parseArticlePayload } from '../parsers';
+import { DEFAULT_BLOG_IMAGE } from '@utils/imageFallback';
 
 
 async function requireBlogGeneratorAccess(req: Request): Promise<void> {
@@ -108,7 +109,7 @@ export async function POST(req: Request) {
     const generatedImage = (featureImageResult || '').trim();
     const featuredImageUrl = (generatedImage.startsWith('/') || generatedImage.startsWith('https://'))
       ? generatedImage
-      : '/assets/generated/monetization_blueprint_featured_1778177186388.png';
+      : DEFAULT_BLOG_IMAGE;
 
     if (!text) {
       throw new Error('Failed to generate content: Empty response from AI model');

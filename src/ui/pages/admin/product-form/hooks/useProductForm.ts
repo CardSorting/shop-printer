@@ -8,6 +8,8 @@ import { INITIAL_FORM_STATE, ProductFormState } from '../types';
 import { centsFromInput, integerFromInput, listToCsv, csvToList } from '../utils';
 import { validatePriceCents, validateStock } from '@utils/validators';
 import { slugify } from '@utils/navigation';
+import { notifySeoListingChanged } from '@ui/hooks/useSeoCacheInvalidation';
+import { DEFAULT_PRODUCT_IMAGE } from '@utils/imageFallback';
 
 
 export function useProductForm(id?: string) {
@@ -202,7 +204,7 @@ export function useProductForm(id?: string) {
       supplier: form.supplier || undefined,
       manufacturerSku: form.manufacturerSku || undefined,
       barcode: form.barcode || undefined,
-      imageUrl: form.imageUrl || (form.media[0]?.url) || '/assets/generated/monetization_blueprint_featured_1778177186388.png',
+      imageUrl: form.imageUrl || (form.media[0]?.url) || DEFAULT_PRODUCT_IMAGE,
       media: form.media,
       status: form.status,
       set: form.set || undefined,
@@ -227,6 +229,7 @@ export function useProductForm(id?: string) {
         toast('success', 'Product created successfully');
       }
       setUnsaved(false);
+      notifySeoListingChanged();
       router.push('/admin/products');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save product');
@@ -311,7 +314,7 @@ export function useProductForm(id?: string) {
         supplier: copyData.supplier || undefined,
         manufacturerSku: copyData.manufacturerSku || undefined,
         barcode: copyData.barcode || undefined,
-        imageUrl: copyData.imageUrl || (copyData.media[0]?.url) || '/assets/generated/monetization_blueprint_featured_1778177186388.png',
+        imageUrl: copyData.imageUrl || (copyData.media[0]?.url) || DEFAULT_PRODUCT_IMAGE,
         media: copyData.media,
         status: copyData.status,
         set: copyData.set || undefined,

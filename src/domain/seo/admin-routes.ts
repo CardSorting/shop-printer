@@ -41,6 +41,13 @@ export const SEO_EDIT_DESTINATIONS: readonly SeoEditDestination[] = [
     hubTab: 'listings',
   },
   {
+    id: 'visit',
+    label: 'Visit & Connect',
+    description: 'Help center articles for hours, directions, and FAQs.',
+    href: '/admin/support',
+    hubTab: 'listings',
+  },
+  {
     id: 'settings',
     label: 'Store settings',
     description: 'Business name, address, and contact (via deployment env)',
@@ -57,4 +64,31 @@ export const SEO_EDIT_DESTINATIONS: readonly SeoEditDestination[] = [
 
 export function seoHubLearnHref(topic?: string): string {
   return topic ? `/admin/seo?tab=learn` : '/admin/seo?tab=learn';
+}
+
+/** Deep link into taxonomy editor for a category row from the SEO hub */
+export function taxonomyCategoryEditHref(categoryId: string): string {
+  return `/admin/taxonomy?edit=${encodeURIComponent(categoryId)}`;
+}
+
+/** Admin editor for Visit & Connect help articles */
+export function helpArticleEditHref(articleId: string): string {
+  return `/admin/blog/${encodeURIComponent(articleId)}`;
+}
+
+/** Help center list with Needs SEO filter */
+export function adminHelpSeoFilterHref(): string {
+  return adminListSeoFilterHref('/admin/support');
+}
+
+/** Append Needs SEO filter to admin list routes (products, blog, collections, taxonomy) */
+export function adminListSeoFilterHref(basePath: string): string {
+  const separator = basePath.includes('?') ? '&' : '?';
+  return `${basePath}${separator}seo=needs-work`;
+}
+
+export function parseSeoNeedsWorkFilter(
+  searchParams: Pick<URLSearchParams, 'get'> | { get: (key: string) => string | null }
+): boolean {
+  return searchParams.get('seo') === 'needs-work';
 }

@@ -14,6 +14,8 @@ function parseTab(value: string | null): SeoHubTabId {
 export interface SeoHubTabCounts {
   listings?: number;
   localIncomplete?: number;
+  /** Setup progress 0–100; shown on Overview tab when below 100 */
+  setupPercent?: number;
 }
 
 /** URL-driven tabs with optional count badges — Shopify notification pattern */
@@ -24,7 +26,17 @@ export function SeoHubTabs({ counts }: { counts?: SeoHubTabCounts }) {
   function badgeFor(tabId: SeoHubTabId): number | undefined {
     if (tabId === 'listings' && counts?.listings) return counts.listings;
     if (tabId === 'local' && counts?.localIncomplete) return counts.localIncomplete;
+    if (tabId === 'overview' && counts?.setupPercent !== undefined && counts.setupPercent < 100) {
+      return counts.setupPercent;
+    }
     return undefined;
+  }
+
+  function badgeTone(tabId: SeoHubTabId): string {
+    if (tabId === 'overview' && counts?.setupPercent !== undefined && counts.setupPercent < 100) {
+      return 'bg-primary-100 text-primary-800';
+    }
+    return 'bg-amber-100 text-amber-800';
   }
 
   return (
@@ -43,9 +55,16 @@ export function SeoHubTabs({ counts }: { counts?: SeoHubTabCounts }) {
           >
             <span className="flex items-center gap-2">
               <span className="block text-xs font-bold">{tab.label}</span>
-              {badge !== undefined && badge > 0 && (
-                <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black text-amber-800">
-                  {badge}
+              {badge !== undefined && (
+                (tab.id === 'overview' &&
+                  counts?.setupPercent !== undefined &&
+                  counts.setupPercent < 100) ||
+                (tab.id !== 'overview' && badge > 0)
+              ) && (
+                <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${badgeTone(tab.id)}`}>
+                  {tab.id === 'overview' && counts?.setupPercent !== undefined && counts.setupPercent < 100
+                    ? `${badge}%`
+                    : badge}
                 </span>
               )}
             </span>

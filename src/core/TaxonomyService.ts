@@ -43,6 +43,8 @@ export class TaxonomyService {
       name: category.name!.trim(),
       slug,
       description: category.description ?? null,
+      seoTitle: category.seoTitle,
+      seoDescription: category.seoDescription,
       createdAt: category.createdAt || new Date(),
       updatedAt: new Date(),
     };

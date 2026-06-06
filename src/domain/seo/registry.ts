@@ -46,6 +46,14 @@ export const SEO_PAGE_CATALOG: readonly SeoPageCatalogEntry[] = [
     category: 'content',
   },
   {
+    id: 'help-articles',
+    label: 'Help center articles',
+    description: 'Visit guides, policies, and guest support content.',
+    path: '/support',
+    audience: 'public',
+    category: 'support',
+  },
+  {
     id: 'collections',
     label: 'Menu collections',
     description: 'Curated groups like appetizers, drinks, or seasonal picks.',

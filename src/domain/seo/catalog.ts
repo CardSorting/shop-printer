@@ -13,7 +13,7 @@ export interface CatalogListingAuditItem {
   editPath: string;
   score: number;
   grade: SeoGrade;
-  kind: 'product' | 'blog' | 'collection';
+  kind: 'product' | 'blog' | 'collection' | 'category' | 'help' | 'help-category';
 }
 
 export interface CatalogSeoSummary {
@@ -28,7 +28,12 @@ export interface CatalogSeoSummary {
 const OPTIMIZED_THRESHOLD = 65;
 
 export function auditCatalogListing(
-  item: ListingSeoInput & { id: string; editPath: string; publicPath: string; kind: 'product' | 'blog' | 'collection' }
+  item: ListingSeoInput & {
+    id: string;
+    editPath: string;
+    publicPath: string;
+    kind: 'product' | 'blog' | 'collection' | 'category' | 'help' | 'help-category';
+  }
 ): CatalogListingAuditItem {
   const health = auditListingSeo(item);
   return {

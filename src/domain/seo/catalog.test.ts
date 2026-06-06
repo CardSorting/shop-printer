@@ -30,4 +30,21 @@ describe('domain/seo/catalog', () => {
     expect(summary.averageScore).toBeGreaterThan(0);
     expect(summary.items[0]?.name).toBe('Weak');
   });
+
+  it('audits help center articles as help kind', () => {
+    const item = auditCatalogListing({
+      id: 'h1',
+      name: 'How to track your order',
+      description: 'Find out where your package is and when it will arrive at WoodBine.',
+      seoTitle: 'Track Your Order at WoodBine Food Hall in Salt Lake City',
+      seoDescription:
+        'Find order status and delivery updates for WoodBine food hall purchases in Salt Lake. Walk-in and online order help for guests visiting our warehouse dining hall.',
+      handle: 'how-to-track-order',
+      editPath: '/admin/blog/h1',
+      publicPath: '/support/articles/how-to-track-order',
+      kind: 'help',
+    });
+    expect(item.kind).toBe('help');
+    expect(item.score).toBeGreaterThan(50);
+  });
 });

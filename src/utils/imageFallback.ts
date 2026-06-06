@@ -1,1 +1,5 @@
-export const DEFAULT_PRODUCT_IMAGE = '/assets/generated/generic_collecting_1778177444345.png';
+import { SEO_DEFAULT_MENU_IMAGE, SEO_DEFAULT_OG_IMAGE, SEO_DEFAULT_BLOG_IMAGE } from '@domain/seo/constants';
+
+export const DEFAULT_PRODUCT_IMAGE = SEO_DEFAULT_MENU_IMAGE;
+export const DEFAULT_FOOD_HALL_IMAGE = SEO_DEFAULT_OG_IMAGE;
+export const DEFAULT_BLOG_IMAGE = SEO_DEFAULT_BLOG_IMAGE;

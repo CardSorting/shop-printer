@@ -16,6 +16,7 @@ import { SeoListingPreview } from './SeoListingPreview';
 import { SeoHelpLink } from './SeoHelpLink';
 import { SeoTrafficLight } from './SeoTrafficLight';
 import { SeoChecklistPanel } from './SeoChecklistPanel';
+import { SeoLocalSignalsPanel } from './SeoLocalSignalsPanel';
 import { useSeoListingAudit } from '@ui/hooks/useSeoListingAudit';
 import { slugify } from '@utils/navigation';
 
@@ -30,7 +31,7 @@ interface SeoSettingsProps {
   imageUrl?: string;
   isEdit?: boolean;
   sectionId?: string;
-  listingKind?: 'product' | 'blog' | 'collection';
+  listingKind?: 'product' | 'blog' | 'collection' | 'category';
 }
 
 export function SeoSettings({
@@ -232,8 +233,11 @@ export function SeoSettings({
                 </div>
               </div>
 
-              <div className="rounded-xl border bg-gray-50 p-5">
+              <div className="rounded-xl border bg-gray-50 p-5 space-y-4">
                 <SeoChecklistPanel checklist={health.checklist} recommendations={recommendations} />
+                <SeoLocalSignalsPanel
+                  input={{ name, description, seoTitle, seoDescription, handle: displayHandle, imageUrl }}
+                />
                 {health.suggestions.length > 0 && (
                   <div className="mt-6 border-t border-gray-200 pt-6">
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-500">

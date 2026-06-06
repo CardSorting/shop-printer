@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import { getAppSeoEngine } from '@infrastructure/seo';
 import type { ListingSeoInput } from '@domain/seo/health';
 
-export type SeoListingKind = 'product' | 'blog' | 'collection' | 'homepage';
+export type SeoListingKind = 'product' | 'blog' | 'collection' | 'category' | 'help' | 'help-category' | 'homepage';
 
 export function useSeoListingAudit(input: ListingSeoInput, kind: SeoListingKind) {
   const { name, description, seoTitle, seoDescription, handle, imageUrl } = input;

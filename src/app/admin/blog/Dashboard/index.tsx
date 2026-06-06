@@ -1,13 +1,17 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useServices } from '@ui/hooks/useServices';
 import { Plus, User, NotebookPen, Sparkles as SparklesIcon, BarChart3, Users, Settings as SettingsIcon } from 'lucide-react';
 import Link from 'next/link';
 import { listingNeedsSeoAttention } from '@domain/seo/helpers';
+import { parseSeoNeedsWorkFilter } from '@domain/seo/admin-routes';
+import { notifySeoListingChanged } from '@ui/hooks/useSeoCacheInvalidation';
 import { SeoListingsAlert } from '@ui/components/admin/SeoListingsAlert';
+import { HelpCategoriesPanel } from '@ui/components/admin/HelpCategoriesPanel';
 
 import type { KnowledgebaseArticle, Author } from '@domain/models';
-import type { DashboardTab, DashboardViewMode, DashboardHubView, DashboardState } from './types';
+import type { DashboardTab, DashboardViewMode, DashboardHubView, DashboardState, KnowledgebaseContentType } from './types';
 
 import { StatsOverview } from './components/StatsOverview';
 import { CategoryDistribution } from './components/CategoryDistribution';
@@ -25,8 +29,10 @@ import { AudienceHub } from './views/AudienceHub';
 import { InsightsView } from './views/InsightsView';
 import { SettingsView } from './views/SettingsView';
 
-export default function BlogDashboard() {
+export default function BlogDashboard({ contentType = 'blog' }: { contentType?: KnowledgebaseContentType }) {
   const services = useServices();
+  const searchParams = useSearchParams();
+  const isHelpCenter = contentType === 'article';
   const [posts, setPosts] = useState<KnowledgebaseArticle[]>([]);
   const [authors, setAuthors] = useState<Author[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,10 +56,23 @@ export default function BlogDashboard() {
   }, []);
 
   useEffect(() => {
+    if (isHelpCenter && activeView !== 'editorial') {
+      setActiveView('editorial');
+    }
+  }, [isHelpCenter, activeView]);
+
+  useEffect(() => {
+    if (parseSeoNeedsWorkFilter(searchParams)) {
+      setSeoFilterOnly(true);
+      setActiveView('editorial');
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     async function loadData() {
       try {
         const [postsData, authorsData] = await Promise.all([
-          services.knowledgebaseService.getArticles({ status: 'all' }),
+          services.knowledgebaseService.getArticles({ type: contentType, status: 'all' }),
           services.knowledgebaseService.getAuthors()
         ]);
         if (isMounted.current) {
@@ -71,7 +90,7 @@ export default function BlogDashboard() {
       }
     }
     void loadData();
-  }, [services.knowledgebaseService]);
+  }, [services.knowledgebaseService, contentType]);
 
   const filteredPosts = useMemo(() => {
     return posts.filter(post => {
@@ -101,6 +120,11 @@ export default function BlogDashboard() {
     })).length,
     [posts]
   );
+
+  const seoOptimizedPercent = useMemo(() => {
+    if (posts.length === 0) return 100;
+    return Math.round(((posts.length - seoNeedsCount) / posts.length) * 100);
+  }, [posts.length, seoNeedsCount]);
 
   const healthAudit = useMemo(() => {
     const lowSEO = posts.filter((p: KnowledgebaseArticle) => !p.metaTitle || !p.metaDescription);
@@ -144,13 +168,14 @@ export default function BlogDashboard() {
         await services.knowledgebaseService.batchUpdateArticles(selectedPosts, { status: pendingBulkAction as any });
       }
       
-      const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
+      const updatedPosts = await services.knowledgebaseService.getArticles({ type: contentType, status: 'all' });
       if (isMounted.current) {
         setPosts(updatedPosts.articles);
         setSelectedPosts([]);
         setPendingBulkAction(null);
-        setStatusMessage(`Bulk ${pendingBulkAction} completed for ${selectedPosts.length} posts.`);
+        setStatusMessage(`Bulk ${pendingBulkAction} completed for ${selectedPosts.length} ${isHelpCenter ? 'articles' : 'posts'}.`);
         setActionError(null);
+        notifySeoListingChanged();
       }
     } catch (err) {
       if (isMounted.current) {
@@ -173,12 +198,13 @@ export default function BlogDashboard() {
     setLoading(true);
     try {
       await services.knowledgebaseService.batchDeleteArticles([pendingDeletePostId]);
-      const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
+      const updatedPosts = await services.knowledgebaseService.getArticles({ type: contentType, status: 'all' });
       if (isMounted.current) {
         setPosts(updatedPosts.articles);
         setPendingDeletePostId(null);
         setStatusMessage('Entry deleted.');
         setActionError(null);
+        notifySeoListingChanged();
       }
     } catch (err) {
       if (isMounted.current) {
@@ -202,7 +228,7 @@ export default function BlogDashboard() {
           setStatusMessage(`Successfully published ${data.publishedCount} scheduled posts.`);
           setActionError(null);
         }
-        const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
+        const updatedPosts = await services.knowledgebaseService.getArticles({ type: contentType, status: 'all' });
         if (isMounted.current) {
           setPosts(updatedPosts.articles);
         }
@@ -251,7 +277,12 @@ export default function BlogDashboard() {
   return (
     <div className="flex gap-8 p-8 min-h-[calc(100vh-4rem)] max-w-[1700px] mx-auto animate-in fade-in duration-500">
       {/* Local Sidebar */}
-      <BlogSubNav activeView={activeView} setActiveView={setActiveView} />
+      <BlogSubNav
+        activeView={activeView}
+        setActiveView={setActiveView}
+        seoOptimizedPercent={seoOptimizedPercent}
+        contentType={contentType}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 space-y-10 min-w-0">
@@ -260,16 +291,23 @@ export default function BlogDashboard() {
           <div>
             <div className="flex items-center gap-3 text-primary-600 mb-2">
                <NotebookPen className="h-5 w-5" />
-               <span className="text-[10px] font-black uppercase tracking-[0.2em]">WoodBine Editorial</span>
+               <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+                 {isHelpCenter ? 'Visit & Connect' : 'WoodBine Editorial'}
+               </span>
             </div>
             <h1 className="text-4xl font-black text-gray-900 tracking-tight capitalize">
-              {activeView === 'editorial' ? 'Content Hub' : activeView}
+              {isHelpCenter
+                ? 'Help Center'
+                : activeView === 'editorial'
+                  ? 'Content Hub'
+                  : activeView}
             </h1>
             <p className="text-gray-500 font-medium mt-2">
-              {activeView === 'editorial' && "Orchestrate stories from the hall — vendors, events, and community."}
-              {activeView === 'insights' && "Analyzing reach and which stories bring visitors to the hall."}
-              {activeView === 'audience' && "Understanding your growing community of regulars and neighbors."}
-              {activeView === 'settings' && "Global configurations for your blogging engine."}
+              {isHelpCenter && 'Manage hours, directions, and guest FAQs — each article has its own search listing.'}
+              {!isHelpCenter && activeView === 'editorial' && 'Orchestrate stories from the hall — vendors, events, and community.'}
+              {!isHelpCenter && activeView === 'insights' && 'Analyzing reach and which stories bring visitors to the hall.'}
+              {!isHelpCenter && activeView === 'audience' && 'Understanding your growing community of regulars and neighbors.'}
+              {!isHelpCenter && activeView === 'settings' && 'Global configurations for your blogging engine.'}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -281,11 +319,11 @@ export default function BlogDashboard() {
               Strategy
             </button>
             <Link 
-              href="/admin/blog/new" 
+              href={isHelpCenter ? '/admin/support/new' : '/admin/blog/new'} 
               className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-primary-600 text-white font-black text-xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl shadow-primary-600/20"
             >
               <Plus className="h-4 w-4" />
-              New Entry
+              {isHelpCenter ? 'New article' : 'New Entry'}
             </Link>
           </div>
         </div>
@@ -325,14 +363,16 @@ export default function BlogDashboard() {
 
         {activeView === 'editorial' && (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {isHelpCenter && <HelpCategoriesPanel />}
+
             {/* Quick Insights Bar */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               <StatsOverview posts={posts} />
-              <CategoryDistribution />
+              {!isHelpCenter && <CategoryDistribution />}
             </div>
 
             {/* Action Center - The Industrial CRM "Priority" pattern */}
-            <ActionCenter healthAudit={healthAudit} posts={posts} />
+            {!isHelpCenter && <ActionCenter healthAudit={healthAudit} posts={posts} />}
 
             {/* Main Editorial Workspace */}
             <div className="space-y-6">
@@ -341,7 +381,7 @@ export default function BlogDashboard() {
                 {...state}
               />
 
-              {showAudit && <AuditPanel healthAudit={healthAudit} setSelectedPosts={setSelectedPosts} />}
+              {showAudit && !isHelpCenter && <AuditPanel healthAudit={healthAudit} setSelectedPosts={setSelectedPosts} />}
 
               <EditorialView {...state} />
             </div>

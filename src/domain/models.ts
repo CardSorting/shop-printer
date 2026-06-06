@@ -139,6 +139,8 @@ export interface Collection {
   name: string;
   handle: string;
   description?: string;
+  seoTitle?: string;
+  seoDescription?: string;
   imageUrl?: string;
   productCount: number;
   status: 'active' | 'archived' | 'draft';
@@ -265,6 +267,8 @@ export interface ProductCategory {
   name: string;
   slug: string;
   description: string | null;
+  seoTitle?: string;
+  seoDescription?: string;
   createdAt: Date;
   updatedAt: Date;
 }

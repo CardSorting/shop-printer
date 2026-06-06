@@ -7,16 +7,27 @@ import {
   Settings as SettingsIcon,
   ChevronRight
 } from 'lucide-react';
-import type { DashboardHubView } from '../types';
+import type { DashboardHubView, KnowledgebaseContentType } from '../types';
 
 interface BlogSubNavProps {
   activeView: DashboardHubView;
   setActiveView: (v: DashboardHubView) => void;
   collapsed?: boolean;
+  seoOptimizedPercent?: number;
+  contentType?: KnowledgebaseContentType;
 }
 
-export const BlogSubNav: React.FC<BlogSubNavProps> = ({ activeView, setActiveView, collapsed = false }) => {
-  const navItems = [
+export const BlogSubNav: React.FC<BlogSubNavProps> = ({
+  activeView,
+  setActiveView,
+  collapsed = false,
+  seoOptimizedPercent = 100,
+  contentType = 'blog',
+}) => {
+  const isHelpCenter = contentType === 'article';
+  const navItems = isHelpCenter
+    ? [{ id: 'editorial' as const, label: 'Articles', icon: LayoutDashboard, description: 'Help center content' }]
+    : [
     { id: 'editorial' as const, label: 'Editorial', icon: LayoutDashboard, description: 'Manage content & calendar' },
     { id: 'insights' as const, label: 'Insights', icon: BarChart3, description: 'Performance & health' },
     { id: 'audience' as const, label: 'Audience', icon: Users, description: 'Subscribers & engagement' },
@@ -57,14 +68,26 @@ export const BlogSubNav: React.FC<BlogSubNavProps> = ({ activeView, setActiveVie
         );
       })}
       
-      {/* Editorial Health Indicator */}
       {!collapsed && (
         <div className="mt-auto p-4 rounded-3xl bg-gray-50 border border-gray-100">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Editorial Health</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Search listing health</p>
           <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
-            <div className="h-full bg-green-500 w-[85%] rounded-full shadow-[0_0_8px_rgba(34,197,94,0.4)]" />
+            <div
+              className={`h-full rounded-full transition-all ${
+                seoOptimizedPercent >= 80 ? 'bg-green-500' : seoOptimizedPercent >= 50 ? 'bg-amber-500' : 'bg-red-500'
+              }`}
+              style={{ width: `${seoOptimizedPercent}%` }}
+            />
           </div>
-          <p className="mt-2 text-[9px] font-bold text-gray-500 italic">"Keep it up! 85% optimized."</p>
+          <p className="mt-2 text-[9px] font-bold text-gray-500">
+            {seoOptimizedPercent >= 100
+              ? isHelpCenter
+                ? 'All help articles pass the search checklist.'
+                : 'All stories pass the search checklist.'
+              : isHelpCenter
+                ? `${seoOptimizedPercent}% of help articles have strong search listings.`
+                : `${seoOptimizedPercent}% of stories have strong search listings.`}
+          </p>
         </div>
       )}
     </nav>

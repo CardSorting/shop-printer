@@ -44,3 +44,61 @@ export function productNeedsSeoAttention(product: {
 }): boolean {
   return scoreProductListing(product) < SEO_LISTING_PASS_SCORE;
 }
+
+export function scoreCollectionListing(collection: {
+  name: string;
+  description?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  handle?: string;
+  imageUrl?: string;
+}): number {
+  return scoreListing({
+    name: collection.name,
+    description: collection.description,
+    seoTitle: collection.seoTitle,
+    seoDescription: collection.seoDescription,
+    handle: collection.handle,
+    imageUrl: collection.imageUrl,
+  });
+}
+
+export function collectionNeedsSeoAttention(collection: {
+  name: string;
+  description?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  handle?: string;
+  imageUrl?: string;
+}): boolean {
+  return scoreCollectionListing(collection) < SEO_LISTING_PASS_SCORE;
+}
+
+export function categoryNeedsSeoAttention(category: {
+  name: string;
+  description?: string | null;
+  seoTitle?: string;
+  seoDescription?: string;
+  slug?: string;
+  imageUrl?: string;
+}): boolean {
+  return scoreCategoryListing(category) < SEO_LISTING_PASS_SCORE;
+}
+
+export function scoreCategoryListing(category: {
+  name: string;
+  description?: string | null;
+  seoTitle?: string;
+  seoDescription?: string;
+  slug?: string;
+  imageUrl?: string;
+}): number {
+  return scoreListing({
+    name: category.name,
+    description: category.description ?? undefined,
+    seoTitle: category.seoTitle,
+    seoDescription: category.seoDescription,
+    handle: category.slug,
+    imageUrl: category.imageUrl,
+  });
+}

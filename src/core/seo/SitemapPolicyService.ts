@@ -46,6 +46,24 @@ export class SitemapPolicyService {
     };
   }
 
+  supportArticleRoute(path: string, updatedAt?: Date, now = new Date()) {
+    return {
+      url: resolveAbsoluteUrl(this.config.siteUrl, path),
+      lastModified: updatedAt || now,
+      changeFrequency: 'monthly' as const,
+      priority: 0.55,
+    };
+  }
+
+  supportCategoryRoute(path: string, updatedAt?: Date, now = new Date()) {
+    return {
+      url: resolveAbsoluteUrl(this.config.siteUrl, path),
+      lastModified: updatedAt || now,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    };
+  }
+
   catalogEntries() {
     return SITEMAP_STATIC_ROUTES;
   }

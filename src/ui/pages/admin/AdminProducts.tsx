@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
 import type {
   MarginHealth,
@@ -51,6 +51,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, humanizeCategory } from '@utils/formatters';
 import { productNeedsSeoAttention, scoreProductListing } from '@domain/seo/helpers';
+import { parseSeoNeedsWorkFilter } from '@domain/seo/admin-routes';
 import { SeoListingsAlert } from '../../components/admin/SeoListingsAlert';
 import { SeoStatusBadge } from '../../components/admin/SeoStatusBadge';
 import {
@@ -214,6 +215,7 @@ export function AdminProducts() {
   const services = useServices();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [products, setProducts] = useState<ProductManagementProduct[]>([]);
   const [overview, setOverview] = useState<ProductManagementOverview | null>(null);
@@ -249,6 +251,12 @@ export function AdminProducts() {
     isMounted.current = true;
     return () => { isMounted.current = false; };
   }, []);
+
+  useEffect(() => {
+    if (parseSeoNeedsWorkFilter(searchParams)) {
+      setSeoFilterOnly(true);
+    }
+  }, [searchParams]);
 
   const loadProducts = useCallback(async () => {
     controllerRef.current?.abort();

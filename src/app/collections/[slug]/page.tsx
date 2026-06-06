@@ -37,14 +37,31 @@ export async function generateMetadata({
 
   if (!resolved) {
     const fallbackTitle = slug.split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-    return buildNextPageMetadata(seo.pages.collection(fallbackTitle, slug, undefined, hasFilters), seo.config);
+    return buildNextPageMetadata(
+      seo.pages.collectionListing({ name: fallbackTitle, slug }, hasFilters),
+      seo.config
+    );
   }
 
-  const imageUrl = resolved.type === 'collection' && resolved.data.imageUrl ? resolved.data.imageUrl : undefined;
-  return buildNextPageMetadata(
-    seo.pages.collection(resolved.data.name, slug, resolved.data.description, hasFilters, imageUrl),
-    seo.config
-  );
+  const listingInput =
+    resolved.type === 'collection'
+      ? {
+          name: resolved.data.name,
+          slug,
+          description: resolved.data.description,
+          seoTitle: resolved.data.seoTitle,
+          seoDescription: resolved.data.seoDescription,
+          imageUrl: resolved.data.imageUrl,
+        }
+      : {
+          name: resolved.data.name,
+          slug,
+          description: resolved.data.description,
+          seoTitle: resolved.data.seoTitle,
+          seoDescription: resolved.data.seoDescription,
+        };
+
+  return buildNextPageMetadata(seo.pages.collectionListing(listingInput, hasFilters), seo.config);
 }
 
 export default async function CollectionPage({ params }: { params: Promise<{ slug: string }> }) {

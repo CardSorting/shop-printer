@@ -1,11 +1,11 @@
 import { ResetPasswordPage } from '@ui/pages/ResetPasswordPage';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { buildNextPageMetadata, getAppSeoEngine } from '@infrastructure/seo';
 
-export const metadata: Metadata = {
-  title: 'Reset Password | WoodBine',
-  description: 'Set a new password for your WoodBine account.',
-};
+const seo = getAppSeoEngine();
+
+export const metadata: Metadata = buildNextPageMetadata(seo.pages.authResetPassword(), seo.config);
 
 export default function Page() {
   return (

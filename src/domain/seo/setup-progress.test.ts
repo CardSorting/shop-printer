@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { buildSeoSetupProgress } from './setup-progress';
 import { auditSiteSeo } from './health';
+import { SEO_DEFAULT_OG_IMAGE } from './constants';
 import type { SeoSiteConfig } from './types';
 
 const baseConfig: SeoSiteConfig = {
   siteUrl: 'https://woodbine.com',
   siteName: 'WoodBine',
   tagline: 'Old Hall. New Flavors.',
-  defaultOgImage: '/og-image.png',
+  defaultOgImage: SEO_DEFAULT_OG_IMAGE,
   email: 'hello@woodbine.com',
   locality: 'Salt Lake City',
   region: 'UT',

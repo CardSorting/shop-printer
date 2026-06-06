@@ -58,4 +58,10 @@ export const SEO_GLOSSARY: readonly SeoGlossaryEntry[] = [
     definition:
       'The photo that appears when someone pastes your link on Instagram, iMessage, or Facebook.',
   },
+  {
+    id: 'local-signals',
+    term: 'Local search signals',
+    definition:
+      'Mentioning WoodBine and Salt Lake City in titles and descriptions helps Google connect your listing to nearby food searches.',
+  },
 ] as const;

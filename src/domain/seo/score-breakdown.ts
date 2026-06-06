@@ -22,11 +22,14 @@ export function buildScoreBreakdown(
   siteScore: number,
   products: CatalogSeoSummary,
   blogPosts: CatalogSeoSummary,
-  collections: CatalogSeoSummary = { total: 0, optimized: 0, needsWork: 0, averageScore: 0, items: [] }
+  collections: CatalogSeoSummary = { total: 0, optimized: 0, needsWork: 0, averageScore: 0, items: [] },
+  helpArticles: CatalogSeoSummary = { total: 0, optimized: 0, needsWork: 0, averageScore: 0, items: [] }
 ): SeoScoreBreakdown {
-  const listingsTotal = products.total + blogPosts.total + collections.total;
-  const listingsOptimized = products.optimized + blogPosts.optimized + collections.optimized;
-  const needsWork = products.needsWork + blogPosts.needsWork + collections.needsWork;
+  const listingsTotal = products.total + blogPosts.total + collections.total + helpArticles.total;
+  const listingsOptimized =
+    products.optimized + blogPosts.optimized + collections.optimized + helpArticles.optimized;
+  const needsWork =
+    products.needsWork + blogPosts.needsWork + collections.needsWork + helpArticles.needsWork;
 
   const listingAverage =
     listingsTotal === 0
@@ -34,7 +37,8 @@ export function buildScoreBreakdown(
       : Math.round(
           (products.averageScore * products.total +
             blogPosts.averageScore * blogPosts.total +
-            collections.averageScore * collections.total) /
+            collections.averageScore * collections.total +
+            helpArticles.averageScore * helpArticles.total) /
             listingsTotal
         );
 
@@ -56,7 +60,7 @@ export function buildScoreBreakdown(
       needsWork === 0
         ? listingsTotal === 0
           ? 'Add menu items, collections, or stories — each gets its own search listing.'
-          : 'Menu items, collections, and stories have strong search listings.'
+          : 'Menu items, collections, stories, and help articles have strong search listings.'
         : `${needsWork} listing${needsWork === 1 ? '' : 's'} would benefit from title or description edits.`,
   };
 }

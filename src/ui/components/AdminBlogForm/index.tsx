@@ -14,8 +14,9 @@ import { useSeoListingAudit } from '../../hooks/useSeoListingAudit';
 import { scoreListing } from '@domain/seo/helpers';
 import { SeoListingNudge } from '../admin/SeoListingNudge';
 import { AdminConfirmDialog } from '../admin/AdminComponents';
+import { notifySeoListingChanged } from '@ui/hooks/useSeoCacheInvalidation';
 
-export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
+export default function AdminBlogForm({ initialData, returnPath }: AdminBlogFormProps) {
   const router = useRouter();
   const services = useServices();
   
@@ -126,7 +127,10 @@ export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
         method: 'POST',
         body: JSON.stringify(postData)
       });
-      router.push('/admin/blog');
+      notifySeoListingChanged();
+      const destination =
+        returnPath ?? (postData.type === 'article' ? '/admin/support' : '/admin/blog');
+      router.push(destination);
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -155,7 +159,7 @@ export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
       handle: formData.slug,
       imageUrl: formData.featuredImageUrl,
     },
-    'blog'
+    formData.type === 'article' ? 'help' : 'blog'
   );
   const topListingFix = recommendations[0]?.detail ?? recommendations[0]?.title;
 

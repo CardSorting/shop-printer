@@ -196,6 +196,10 @@ export function blogArticleJsonLd(article: KnowledgebaseArticle, authorName?: st
   return seo().structured.blogArticle(articleToSeoContext(article), authorName);
 }
 
+export function helpArticleJsonLd(article: KnowledgebaseArticle): JsonLd {
+  return seo().structured.helpArticle(articleToSeoContext(article));
+}
+
 export function productJsonLd(product: Product): JsonLd {
   return seo().structured.product(productToSeoContext(product), resolveImage);
 }

@@ -61,10 +61,10 @@ export function ProductReviews({ productId }: { productId: string }) {
         <header className="text-center space-y-4 max-w-2xl mx-auto">
            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary-50 border border-primary-100">
               <HiveCell className="w-3 h-3 text-primary-600" />
-              <span className="text-[10px] font-bold text-primary-700 uppercase tracking-widest">The Hive Community</span>
+              <span className="text-[10px] font-bold text-primary-700 uppercase tracking-widest">Guest reviews</span>
            </div>
            <h2 className="text-4xl font-black text-gray-900 tracking-tight">The Buzz</h2>
-           <p className="text-gray-600 font-medium">Real stories and feedback from the hive.</p>
+           <p className="text-gray-600 font-medium">Real feedback from people who ordered this dish at WoodBine.</p>
         </header>
 
         <div className="flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-20 py-10 bg-gray-50/50 rounded-3xl px-10" itemProp="aggregateRating" itemScope itemType="https://schema.org/AggregateRating">
@@ -258,7 +258,7 @@ export function ProductReviews({ productId }: { productId: string }) {
                 <HiveCell className="w-8 h-8 text-primary-200" />
               </div>
               <div>
-                <p className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tight">The Hive is Quiet</p>
+                <p className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tight">No reviews yet</p>
                 <p className="text-gray-400 font-medium text-sm">No reviews found for this selection. Be the first to start the buzz!</p>
               </div>
               <button 

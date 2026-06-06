@@ -3,6 +3,15 @@ import { getServerServices } from '@infrastructure/server/services';
 import { getAppSeoEngine } from '@infrastructure/seo';
 import { productPath } from '@utils/seo';
 
+function dedupeSitemapRoutes(routes: MetadataRoute.Sitemap): MetadataRoute.Sitemap {
+  const seen = new Map<string, MetadataRoute.Sitemap[number]>();
+  for (const route of routes) {
+    const key = route.url.toString();
+    if (!seen.has(key)) seen.set(key, route);
+  }
+  return [...seen.values()];
+}
+
 export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -59,11 +68,41 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     articleRoutes = [];
   }
 
-  return [
+  let supportArticleRoutes: MetadataRoute.Sitemap = [];
+  let supportCategoryRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const { articles: helpArticles } = await services.knowledgebaseRepository.getArticles({
+      type: 'article',
+      status: 'published',
+      limit: 500,
+    });
+    supportArticleRoutes = helpArticles.map((article) =>
+      seo.sitemap.supportArticleRoute(
+        `/support/articles/${article.slug}`,
+        article.updatedAt ? new Date(article.updatedAt) : undefined,
+        now
+      )
+    );
+  } catch {
+    supportArticleRoutes = [];
+  }
+
+  try {
+    const helpCategories = await services.knowledgebaseRepository.getCategories();
+    supportCategoryRoutes = helpCategories.map((category) =>
+      seo.sitemap.supportCategoryRoute(`/support/categories/${category.slug}`, undefined, now)
+    );
+  } catch {
+    supportCategoryRoutes = [];
+  }
+
+  return dedupeSitemapRoutes([
     ...staticRoutes,
     ...productRoutes,
     ...collectionRoutes,
     ...merchCollectionRoutes,
     ...articleRoutes,
-  ];
+    ...supportArticleRoutes,
+    ...supportCategoryRoutes,
+  ]);
 }

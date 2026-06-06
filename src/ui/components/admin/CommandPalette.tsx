@@ -25,6 +25,15 @@ import { useServices } from '../../hooks/useServices';
 import { formatCurrency } from '@utils/formatters';
 import type { Product, Order } from '@domain/models';
 import { ADMIN_ALL_NAV_ITEMS, ADMIN_QUICK_ACTIONS } from '../../navigation/adminNavigation';
+import { SEO_HUB_ACTIONS } from '@domain/seo/hub-actions';
+
+const SEO_PALETTE_ICONS: Record<string, LucideIcon> = {
+  'seo-overview': Search,
+  'seo-fix-listings': Globe,
+  'seo-local': MapPin,
+  'seo-learn': NotebookPen,
+  'seo-sitemap': FileText,
+};
 
 interface PaletteItem {
   id: string;
@@ -67,42 +76,19 @@ const STATIC_ITEMS: PaletteItem[] = [
     group: action.group === 'Create' ? 'Actions' : 'Storefront',
     keywords: action.aliases,
   })),
-  {
-    id: 'seo-fix-listings',
-    label: 'Fix search listings',
-    description: 'Menu items and stories that need better titles or descriptions',
-    icon: Globe,
-    href: '/admin/seo?tab=listings',
+  ...SEO_HUB_ACTIONS.map((action) => ({
+    id: action.id,
+    label: action.label,
+    description: action.description,
+    icon: SEO_PALETTE_ICONS[action.id] ?? Globe,
+    href: action.id === 'seo-sitemap' ? undefined : action.href,
+    action:
+      action.id === 'seo-sitemap'
+        ? () => window.open('/sitemap.xml', '_blank', 'noopener,noreferrer')
+        : undefined,
     group: 'Search & Visibility',
-    keywords: ['seo', 'google', 'meta', 'listing', 'visibility', 'search engine'],
-  },
-  {
-    id: 'seo-local',
-    label: 'Check local presence',
-    description: 'Address, hours, and map listing checklist',
-    icon: MapPin,
-    href: '/admin/seo?tab=local',
-    group: 'Search & Visibility',
-    keywords: ['local seo', 'maps', 'google business', 'address', 'hours', 'near me'],
-  },
-  {
-    id: 'seo-learn',
-    label: 'Learn about search visibility',
-    description: 'Plain-language guides for non-technical merchants',
-    icon: NotebookPen,
-    href: '/admin/seo?tab=learn',
-    group: 'Search & Visibility',
-    keywords: ['help', 'guide', 'how to', 'tutorial', 'what is seo'],
-  },
-  {
-    id: 'seo-sitemap',
-    label: 'View sitemap',
-    description: 'Every page Google can crawl on your site',
-    icon: FileText,
-    action: () => window.open('/sitemap.xml', '_blank', 'noopener,noreferrer'),
-    group: 'Search & Visibility',
-    keywords: ['sitemap', 'xml', 'crawl', 'index', 'google'],
-  },
+    keywords: action.keywords,
+  })),
 ];
 
 const RECENT_KEY = 'admin-palette-recent';

@@ -40,15 +40,27 @@ export class SeoAdminReportService {
     this.health = new SeoHealthService(config);
   }
 
-  buildReport(snapshot: SeoAdminSnapshot, counts: { products: number; collections: number; blogPosts: number }): SeoAdminReport {
+  buildReport(
+    snapshot: SeoAdminSnapshot,
+    counts: {
+      products: number;
+      collections: number;
+      blogPosts: number;
+      helpArticles?: number;
+      helpCategories?: number;
+    }
+  ): SeoAdminReport {
     const site = this.health.auditSite();
     const listingItems = [
       ...snapshot.products.items,
       ...snapshot.blogPosts.items,
       ...snapshot.collections.items,
+      ...snapshot.helpArticles.items,
     ];
     const staticRows = staticSitemapRows();
     const dynamicRows = dynamicSitemapSummary(counts);
+    const helpCount = counts.helpArticles ?? 0;
+    const helpCategoryCount = counts.helpCategories ?? 0;
 
     return {
       site,
@@ -60,27 +72,46 @@ export class SeoAdminReportService {
       sitemap: {
         static: staticRows,
         dynamic: dynamicRows,
-        totalEstimatedUrls: staticRows.length + counts.products + counts.collections + counts.blogPosts,
+        totalEstimatedUrls:
+          staticRows.length +
+          counts.products +
+          counts.collections +
+          counts.blogPosts +
+          helpCount +
+          helpCategoryCount,
       },
       scoreBreakdown: buildScoreBreakdown(
         site.score,
         snapshot.products,
         snapshot.blogPosts,
-        snapshot.collections
+        snapshot.collections,
+        snapshot.helpArticles
       ),
       setupProgress: buildSeoSetupProgress({
         siteAudit: site,
         combinedNeedsWork: snapshot.combinedNeedsWork,
         hasListings:
-          snapshot.products.total + snapshot.blogPosts.total + snapshot.collections.total > 0,
+          snapshot.products.total +
+            snapshot.blogPosts.total +
+            snapshot.collections.total +
+            snapshot.helpArticles.total >
+          0,
       }),
-      indexing: buildIndexingSummary(),
+      indexing: buildIndexingSummary({
+        estimatedSitemapUrls:
+          staticRows.length +
+          counts.products +
+          counts.collections +
+          counts.blogPosts +
+          helpCount +
+          helpCategoryCount,
+      }),
     };
   }
 
   auditListingForKind(
     input: Parameters<SeoHealthService['auditListing']>[0],
-    kind: 'product' | 'blog' | 'collection' | 'homepage'
+    kind: 'product' | 'blog' | 'collection' | 'category' | 'help' | 'help-category' | 'homepage'
   ) {
     const health = this.health.auditListing(input);
     return {

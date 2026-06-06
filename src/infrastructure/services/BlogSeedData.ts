@@ -3,13 +3,19 @@
  * Seed data for WoodBine Stories — vendor spotlights, visit guides, and hall news.
  */
 
+import { DEFAULT_BLOG_IMAGE, DEFAULT_FOOD_HALL_IMAGE } from '@utils/imageFallback';
+
+const SEED_STORY_IMAGE_A = DEFAULT_BLOG_IMAGE;
+const SEED_STORY_IMAGE_B = DEFAULT_FOOD_HALL_IMAGE;
+const SEED_AVATAR_IMAGE = DEFAULT_FOOD_HALL_IMAGE;
+
 export const BLOG_AUTHORS = [
   {
     id: 'auth-1',
     name: 'Maya Chen',
     bio: 'WoodBine editorial lead. Writes about vendors, neighborhood food, and life in the hall.',
     role: 'Editorial Director',
-    avatarUrl: '/assets/generated/sarah_strategist_avatar_1778177148101.png',
+    avatarUrl: SEED_AVATAR_IMAGE,
     socialLinks: { twitter: '#', instagram: '#' },
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -19,7 +25,7 @@ export const BLOG_AUTHORS = [
     name: 'Jordan Ellis',
     bio: 'Former restaurant critic covering Salt Lake\'s arts district and food hall culture.',
     role: 'Food Writer',
-    avatarUrl: '/assets/generated/leonardo_dabee_avatar_1778177134928.png',
+    avatarUrl: SEED_AVATAR_IMAGE,
     socialLinks: { twitter: '#', instagram: '#' },
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -29,7 +35,7 @@ export const BLOG_AUTHORS = [
     name: 'Sam Ortiz',
     bio: 'Events and community manager at WoodBine — private bookings, live nights, and vendor onboarding.',
     role: 'Community Manager',
-    avatarUrl: '/assets/generated/professor_oak_avatar_1778177162886.png',
+    avatarUrl: SEED_AVATAR_IMAGE,
     socialLinks: { twitter: '#', instagram: '#' },
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -45,7 +51,7 @@ export const BLOG_SERIES = [
     categoryIds: ['vendor-spotlights'],
     articleCount: 2,
     difficulty: 'beginner',
-    featuredImageUrl: '/assets/generated/monetization_blueprint_featured_1778177186388.png',
+    featuredImageUrl: SEED_STORY_IMAGE_B,
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -57,7 +63,7 @@ export const BLOG_SERIES = [
     categoryIds: ['visit-guide'],
     articleCount: 2,
     difficulty: 'beginner',
-    featuredImageUrl: '/assets/generated/seo_supremacy_featured_1778177198400.png',
+    featuredImageUrl: SEED_STORY_IMAGE_A,
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -69,7 +75,7 @@ export const BLOG_SERIES = [
     categoryIds: ['local-food'],
     articleCount: 1,
     difficulty: 'beginner',
-    featuredImageUrl: '/assets/generated/authentication_masterclass_featured_1778177212479.png',
+    featuredImageUrl: SEED_STORY_IMAGE_B,
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -93,7 +99,7 @@ export const BLOG_POSTS = [
     isFeatured: true,
     metaTitle: 'First Timer\'s Guide to WoodBine Food Hall | Salt Lake',
     metaDescription: 'How to visit WoodBine — walk-ins, vendor counters, hours, and tips for your first trip to the hall.',
-    featuredImageUrl: '/assets/generated/viral_blog_strategy_featured_1778177344526.png',
+    featuredImageUrl: SEED_STORY_IMAGE_A,
     createdAt: new Date(),
     updatedAt: new Date(),
     publishedAt: new Date(),
@@ -114,7 +120,7 @@ export const BLOG_POSTS = [
     status: 'published',
     metaTitle: 'WoodBine Coffee Counter Spotlight',
     metaDescription: 'Meet the coffee counter at WoodBine food hall — what to order and when to visit.',
-    featuredImageUrl: '/assets/generated/monetization_blueprint_featured_1778177186388.png',
+    featuredImageUrl: SEED_STORY_IMAGE_B,
     createdAt: new Date(),
     updatedAt: new Date(),
     publishedAt: new Date(),
@@ -135,7 +141,7 @@ export const BLOG_POSTS = [
     status: 'published',
     metaTitle: 'Private Events at WoodBine Food Hall',
     metaDescription: 'Book a private event at WoodBine — group dining, vendor coordination, and hall buyouts in Salt Lake.',
-    featuredImageUrl: '/assets/generated/seo_supremacy_featured_1778177198400.png',
+    featuredImageUrl: SEED_STORY_IMAGE_A,
     createdAt: new Date(),
     updatedAt: new Date(),
     publishedAt: new Date(),
@@ -156,7 +162,7 @@ export const BLOG_POSTS = [
     status: 'published',
     metaTitle: 'Arts District Food Guide | Near WoodBine',
     metaDescription: 'Explore Salt Lake\'s arts district — food, culture, and WoodBine food hall in one evening.',
-    featuredImageUrl: '/assets/generated/authentication_masterclass_featured_1778177212479.png',
+    featuredImageUrl: SEED_STORY_IMAGE_B,
     createdAt: new Date(),
     updatedAt: new Date(),
     publishedAt: new Date(),

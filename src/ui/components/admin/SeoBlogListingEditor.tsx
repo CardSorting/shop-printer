@@ -8,6 +8,7 @@ import { SeoTrafficLight } from '@ui/components/admin/SeoTrafficLight';
 import { SeoChecklistPanel } from '@ui/components/admin/SeoChecklistPanel';
 import { SeoListingPreview } from '@ui/components/admin/SeoListingPreview';
 import { SeoHelpLink } from '@ui/components/admin/SeoHelpLink';
+import { SeoLocalSignalsPanel } from '@ui/components/admin/SeoLocalSignalsPanel';
 import { useSeoListingAudit } from '@ui/hooks/useSeoListingAudit';
 
 interface SeoBlogListingEditorProps {
@@ -127,7 +128,18 @@ export function SeoBlogListingEditor({
 
       <SeoChecklistPanel checklist={health.checklist} recommendations={recommendations} />
 
-      <Link href="/admin/seo?tab=learn" className="block text-center text-[10px] font-bold uppercase tracking-widest text-primary-600 hover:text-primary-700">
+      <SeoLocalSignalsPanel
+        input={{
+          name: title,
+          description: excerpt,
+          seoTitle: metaTitle,
+          seoDescription: metaDescription,
+          handle: slug,
+          imageUrl: featuredImageUrl,
+        }}
+      />
+
+      <Link href="/admin/seo?tab=learn&guide=search-listing" className="block text-center text-[10px] font-bold uppercase tracking-widest text-primary-600 hover:text-primary-700">
         Learn more in Search & Visibility →
       </Link>
     </div>

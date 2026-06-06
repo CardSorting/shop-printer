@@ -3,6 +3,7 @@ import type { KnowledgebaseArticle, Author } from '@domain/models';
 export type DashboardTab = 'all' | 'published' | 'scheduled' | 'draft';
 export type DashboardViewMode = 'table' | 'kanban' | 'calendar';
 export type DashboardHubView = 'editorial' | 'insights' | 'audience' | 'settings';
+export type KnowledgebaseContentType = 'blog' | 'article';
 
 export interface DashboardState {
   posts: KnowledgebaseArticle[];

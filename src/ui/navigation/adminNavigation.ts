@@ -31,6 +31,7 @@ import {
   Zap,
   MessageSquare,
   NotebookPen,
+  LifeBuoy,
   Sparkles,
   type LucideIcon,
 } from 'lucide-react';
@@ -125,7 +126,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         id: 'collections',
         href: '/admin/collections',
         label: 'Collections',
-        description: 'Group products for organization',
+        description: 'Curated menu groups for browsing and search',
         icon: Tag,
         aliases: ['tags', 'product groups', 'merchandising', 'featured products', 'categories'],
       },
@@ -230,8 +231,36 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         aliases: ['seo', 'search', 'google', 'visibility', 'sitemap', 'meta tags', 'search engine'],
         shortcut: 'G S',
         contextualActions: [
+          { label: 'Overview', href: '/admin/seo', icon: Search },
           { label: 'Fix listings', href: '/admin/seo?tab=listings', icon: Search },
           { label: 'Local checklist', href: '/admin/seo?tab=local', icon: MapPin },
+          { label: 'Guides', href: '/admin/seo?tab=learn', icon: NotebookPen },
+        ],
+      },
+      {
+        id: 'blog',
+        href: '/admin/blog',
+        label: 'Stories',
+        description: 'Hall journal — vendor spotlights and community news',
+        icon: NotebookPen,
+        aliases: ['blog', 'journal', 'stories', 'editorial', 'content'],
+        contextualActions: [
+          { label: 'All stories', href: '/admin/blog', icon: NotebookPen },
+          { label: 'Needs SEO', href: '/admin/blog?seo=needs-work', icon: Search },
+          { label: 'New story', href: '/admin/blog/new', icon: Plus },
+        ],
+      },
+      {
+        id: 'visit-connect',
+        href: '/admin/support',
+        label: 'Visit & Connect',
+        description: 'Help center articles — hours, directions, and guest FAQs',
+        icon: LifeBuoy,
+        aliases: ['help', 'support', 'faq', 'visit', 'directions', 'hours'],
+        contextualActions: [
+          { label: 'All articles', href: '/admin/support', icon: LifeBuoy },
+          { label: 'Needs SEO', href: '/admin/support?seo=needs-work', icon: Search },
+          { label: 'New article', href: '/admin/support/new', icon: Plus },
         ],
       },
       {

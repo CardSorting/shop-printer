@@ -33,8 +33,10 @@ export const SEO_GETTING_STARTED_STEPS = [
   },
 ] as const;
 
-export function seoHubTabHref(tab: string): string {
-  return tab === 'overview' ? '/admin/seo' : `/admin/seo?tab=${tab}`;
+export function seoHubTabHref(tab: string, guide?: string): string {
+  const base = tab === 'overview' ? '/admin/seo' : `/admin/seo?tab=${tab}`;
+  if (!guide) return base;
+  return `${base}${base.includes('?') ? '&' : '?'}guide=${encodeURIComponent(guide)}`;
 }
 
 export const SEO_DISMISS_WELCOME_KEY = 'woodbine-seo-welcome-dismissed';

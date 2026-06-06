@@ -23,9 +23,17 @@ export function listingAlertTitle(count: number): string {
 /** Alert banner body — Shopify-style plain language */
 export function listingAlertBody(count: number): string {
   if (count <= 0) {
-    return 'Your menu items and stories have strong titles and descriptions for Google and social previews.';
+    return 'Your menu items, collections, stories, and help articles have strong titles and descriptions for Google and social previews.';
   }
-  return 'Add page titles and descriptions so Google and social previews look their best — same as editing a product in Shopify.';
+  return 'Add page titles and descriptions so Google and social previews look their best — menu items, stories, collections, and Visit & Connect help articles.';
+}
+
+/** Hub overview summary when listings need attention */
+export function combinedNeedsWorkSummary(count: number): string {
+  if (count <= 0) {
+    return 'Your public listings and site basics look solid. Keep hours and photos up to date.';
+  }
+  return `${count} listing${count === 1 ? '' : 's'} (menu items, collections, stories, or help articles) could rank better with a quick edit.`;
 }
 
 /** Dashboard widget insight line */

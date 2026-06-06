@@ -13,6 +13,7 @@ import {
   BookOpen,
   UtensilsCrossed,
   Newspaper,
+  LifeBuoy,
   LayoutGrid,
 } from 'lucide-react';
 import { gradeLabel } from '@domain/seo/health';
@@ -32,6 +33,11 @@ import { SeoWelcomeBanner } from '@ui/components/admin/SeoWelcomeBanner';
 import { SeoTrafficLight } from '@ui/components/admin/SeoTrafficLight';
 import { SeoScoreBreakdownPanel } from '@ui/components/admin/SeoScoreBreakdownPanel';
 import { SeoSetupProgressPanel } from '@ui/components/admin/SeoSetupProgressPanel';
+import { SeoHubNextStepBar } from '@ui/components/admin/SeoHubNextStepBar';
+import { SeoGuideGrid } from '@ui/components/admin/SeoGuideGrid';
+import { SeoLocalConfigPanel, SeoLocalEnvHint } from '@ui/components/admin/SeoLocalConfigPanel';
+import { combinedNeedsWorkSummary } from '@domain/seo/merchant-ui';
+import { adminListSeoFilterHref, adminHelpSeoFilterHref } from '@domain/seo/admin-routes';
 import type { SeoAdminReport } from '@core/seo/SeoAdminReportService';
 import type { CatalogListingAuditItem } from '@domain/seo/catalog';
 
@@ -65,10 +71,14 @@ export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview
     ...snapshot.products.items,
     ...snapshot.blogPosts.items,
     ...snapshot.collections.items,
+    ...snapshot.helpArticles.items,
   ];
   const productListingItems = snapshot.products.items;
   const blogListingItems = snapshot.blogPosts.items;
-  const collectionListingItems = snapshot.collections.items;
+  const helpListingItems = snapshot.helpArticles.items;
+  const categoryListingItems = snapshot.collections.items.filter((item) => item.kind === 'category');
+  const merchCollectionItems = snapshot.collections.items.filter((item) => item.kind === 'collection');
+  const collectionNeedsWorkTotal = snapshot.collections.needsWork;
   const localIncomplete = audit.items.filter((i) => !i.done).length;
   const quickWins = report.quickWins;
   const indexing = report.indexing;
@@ -81,7 +91,15 @@ export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview
         category="Marketing"
       />
 
-      <SeoHubTabs counts={{ listings: snapshot.combinedNeedsWork, localIncomplete }} />
+      <SeoHubTabs
+        counts={{
+          listings: snapshot.combinedNeedsWork,
+          localIncomplete,
+          setupPercent: report.setupProgress.percent,
+        }}
+      />
+
+      <SeoHubNextStepBar progress={report.setupProgress} />
 
       {tab === 'overview' && (
         <div className="space-y-6">
@@ -101,9 +119,7 @@ export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview
                   <div className={`h-full transition-all ${barColor}`} style={{ width: `${audit.score}%` }} />
                 </div>
                 <p className="mt-4 text-xs leading-relaxed text-gray-500">
-                  {snapshot.combinedNeedsWork > 0
-                    ? `${snapshot.combinedNeedsWork} menu item${snapshot.combinedNeedsWork === 1 ? '' : 's'} or stor${snapshot.combinedNeedsWork === 1 ? 'y' : 'ies'} could rank better with a quick listing edit.`
-                    : 'Your public listings and site basics look solid. Keep hours and photos up to date.'}
+                  {combinedNeedsWorkSummary(snapshot.combinedNeedsWork)}
                 </p>
                 {snapshot.combinedNeedsWork > 0 && (
                   <Link
@@ -128,7 +144,7 @@ export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview
                   <p className="mt-1 line-clamp-2 text-sm text-[#4d5156]">{homepagePreview.description}</p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="rounded-xl border p-4">
                     <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Menu listings</p>
                     <p className="mt-1 text-2xl font-black text-gray-900">{snapshot.products.optimized}/{snapshot.products.total}</p>
@@ -143,6 +159,11 @@ export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview
                     <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Blog stories</p>
                     <p className="mt-1 text-2xl font-black text-gray-900">{snapshot.blogPosts.optimized}/{snapshot.blogPosts.total}</p>
                     <p className="text-xs text-gray-500">{catalogGradeLabel(snapshot.blogPosts)}</p>
+                  </div>
+                  <div className="rounded-xl border p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Help articles</p>
+                    <p className="mt-1 text-2xl font-black text-gray-900">{snapshot.helpArticles.optimized}/{snapshot.helpArticles.total}</p>
+                    <p className="text-xs text-gray-500">{catalogGradeLabel(snapshot.helpArticles)}</p>
                   </div>
                 </div>
               </div>
@@ -313,22 +334,34 @@ export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview
               </div>
               <div className="flex gap-2">
                 <Link
-                  href="/admin/products"
+                  href={adminListSeoFilterHref('/admin/products')}
                   className="rounded-lg border px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-700 hover:bg-gray-50"
                 >
                   All products
                 </Link>
                 <Link
-                  href="/admin/blog"
+                  href={adminListSeoFilterHref('/admin/blog')}
                   className="rounded-lg border px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-700 hover:bg-gray-50"
                 >
                   All stories
                 </Link>
                 <Link
-                  href="/admin/taxonomy"
+                  href={adminListSeoFilterHref('/admin/taxonomy')}
                   className="rounded-lg border px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-700 hover:bg-gray-50"
                 >
-                  Collections
+                  Categories
+                </Link>
+                <Link
+                  href={adminListSeoFilterHref('/admin/collections')}
+                  className="rounded-lg border px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-700 hover:bg-gray-50"
+                >
+                  Merchandising
+                </Link>
+                <Link
+                  href={adminHelpSeoFilterHref()}
+                  className="rounded-lg border px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-700 hover:bg-gray-50"
+                >
+                  Help articles
                 </Link>
               </div>
             </div>
@@ -341,28 +374,77 @@ export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview
               </div>
             ) : (
               <div className="space-y-8">
-                {productListingItems.length > 0 && (
+                {(snapshot.products.needsWork > 20 || snapshot.blogPosts.needsWork > 20 || collectionNeedsWorkTotal > 20 || snapshot.helpArticles.needsWork > 20) && (
+                  <p className="text-[11px] text-amber-700">
+                    Each section shows up to 20 lowest-scoring listings. Use the links above to see the full filtered list.
+                  </p>
+                )}
+                {(productListingItems.length > 0 || snapshot.products.needsWork > productListingItems.length) && (
                   <div>
                     <h3 className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500">
-                      <UtensilsCrossed className="h-3.5 w-3.5" /> Menu items ({productListingItems.length})
+                      <UtensilsCrossed className="h-3.5 w-3.5" /> Menu items
+                      {snapshot.products.needsWork > 0 && (
+                        <span className="text-amber-600">({snapshot.products.needsWork} need work)</span>
+                      )}
                     </h3>
-                    <ListingRows items={productListingItems} />
+                    <ListingRows items={productListingItems} totalNeedsWork={snapshot.products.needsWork} />
                   </div>
                 )}
-                {blogListingItems.length > 0 && (
+                {(blogListingItems.length > 0 || snapshot.blogPosts.needsWork > blogListingItems.length) && (
                   <div>
                     <h3 className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500">
-                      <Newspaper className="h-3.5 w-3.5" /> Stories ({blogListingItems.length})
+                      <Newspaper className="h-3.5 w-3.5" /> Stories
+                      {snapshot.blogPosts.needsWork > 0 && (
+                        <span className="text-amber-600">({snapshot.blogPosts.needsWork} need work)</span>
+                      )}
                     </h3>
-                    <ListingRows items={blogListingItems} />
+                    <ListingRows items={blogListingItems} totalNeedsWork={snapshot.blogPosts.needsWork} />
                   </div>
                 )}
-                {collectionListingItems.length > 0 && (
+                {(helpListingItems.length > 0 || snapshot.helpArticles.needsWork > helpListingItems.length) && (
                   <div>
-                    <h3 className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500">
-                      <LayoutGrid className="h-3.5 w-3.5" /> Collections ({collectionListingItems.length})
-                    </h3>
-                    <ListingRows items={collectionListingItems} />
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500">
+                        <LifeBuoy className="h-3.5 w-3.5" /> Help articles
+                        {snapshot.helpArticles.needsWork > 0 && (
+                          <span className="text-amber-600">({snapshot.helpArticles.needsWork} need work)</span>
+                        )}
+                      </h3>
+                      <Link
+                        href={adminHelpSeoFilterHref()}
+                        className="text-[10px] font-bold uppercase tracking-widest text-primary-600 hover:text-primary-700"
+                      >
+                        Edit in admin →
+                      </Link>
+                      <Link
+                        href="/support"
+                        target="_blank"
+                        className="text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-gray-700"
+                      >
+                        View public →
+                      </Link>
+                    </div>
+                    <ListingRows items={helpListingItems} totalNeedsWork={snapshot.helpArticles.needsWork} />
+                  </div>
+                )}
+                {(categoryListingItems.length > 0 || merchCollectionItems.length > 0) && (
+                  <div className="space-y-6">
+                    {categoryListingItems.length > 0 && (
+                      <div>
+                        <h3 className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500">
+                          <LayoutGrid className="h-3.5 w-3.5" /> Categories ({categoryListingItems.length})
+                        </h3>
+                        <ListingRows items={categoryListingItems} />
+                      </div>
+                    )}
+                    {merchCollectionItems.length > 0 && (
+                      <div>
+                        <h3 className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500">
+                          <LayoutGrid className="h-3.5 w-3.5" /> Merchandising collections ({merchCollectionItems.length})
+                        </h3>
+                        <ListingRows items={merchCollectionItems} />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -394,13 +476,15 @@ export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview
                   <div>
                     <p className="text-sm font-bold text-gray-900">{item.label}</p>
                     <p className="mt-0.5 text-xs text-gray-600">{item.hint}</p>
+                    {!item.done && <SeoLocalEnvHint auditId={item.id} />}
                   </div>
                 </div>
               ))}
             </div>
             <p className="mt-6 text-[10px] leading-relaxed text-gray-400">
-              Site address, phone, and hours are configured in deployment settings. Also claim your profile on Google
-              Business — that is separate from this dashboard.
+              Site address, phone, and hours are configured via environment variables (see{' '}
+              <code className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[9px]">NEXT_PUBLIC_BUSINESS_*</code>{' '}
+              in deployment settings). Also claim your profile on Google Business — that is separate from this dashboard.
             </p>
             {report.siteRecommendations.length > 0 && (
               <div className="mt-6 rounded-xl border border-amber-100 bg-amber-50/40 p-4">
@@ -415,6 +499,8 @@ export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview
               </div>
             )}
           </section>
+
+          <SeoLocalConfigPanel items={audit.items} />
 
           <section className="rounded-2xl border bg-white p-6 shadow-sm">
             <h2 className="text-sm font-black text-gray-900">Free tools from Google & Bing</h2>
@@ -452,35 +538,13 @@ export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview
 
       {tab === 'learn' && (
         <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
-          {SEO_GUIDES.map((guide) => {
-            const Icon = GUIDE_ICONS[guide.icon];
-            return (
-              <article key={guide.id} className="rounded-2xl border bg-white p-6 shadow-sm">
-                <div className="mb-3 flex items-center gap-2">
-                  <div className="rounded-lg bg-primary-50 p-2 text-primary-600">
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <h2 className="text-sm font-black text-gray-900">{guide.title}</h2>
-                </div>
-                <p className="text-xs leading-relaxed text-gray-600">{guide.summary}</p>
-                <ol className="mt-4 space-y-2">
-                  {guide.steps.map((step, i) => (
-                    <li key={step} className="flex gap-2 text-xs text-gray-700">
-                      <span className="font-black text-primary-600">{i + 1}.</span>
-                      {step}
-                    </li>
-                  ))}
-                </ol>
-              </article>
-            );
-          })}
-          <div className="rounded-2xl border bg-gray-900 p-6 text-white md:col-span-2">
+          <SeoGuideGrid guides={SEO_GUIDES} icons={GUIDE_ICONS} />
+          <div className="rounded-2xl border bg-gray-900 p-6 text-white">
             <BookOpen className="h-5 w-5 text-primary-300" />
             <p className="mt-3 text-sm font-bold">Where to edit listings</p>
             <p className="mt-2 text-xs text-gray-300">
-              Open any product → scroll to <strong>Search engine listing</strong>. Blog posts use the same fields under
-              SEO when editing a story.
+              Open any product → scroll to <strong>Search engine listing</strong>. Stories use the SEO tab. Categories
+              and collections use the same editor in Taxonomy and Collections.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href="/admin/products" className="rounded-lg bg-white px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-900">
@@ -489,8 +553,10 @@ export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview
               <Link href="/admin/blog" className="rounded-lg border border-white/30 px-4 py-2 text-[10px] font-black uppercase tracking-widest">
                 Stories
               </Link>
+              <Link href="/admin/support" className="rounded-lg border border-white/30 px-4 py-2 text-[10px] font-black uppercase tracking-widest">
+                Help center
+              </Link>
             </div>
-          </div>
           </div>
           <SeoFaqAccordion entries={SEO_GLOSSARY} />
         </div>
@@ -499,18 +565,57 @@ export function AdminSeoHub({ audit, snapshot, report, siteHost, homepagePreview
   );
 }
 
-function ListingRows({ items }: { items: CatalogListingAuditItem[] }) {
+function ListingRows({ items, totalNeedsWork }: { items: CatalogListingAuditItem[]; totalNeedsWork?: number }) {
+  const kindLabel = (kind: CatalogListingAuditItem['kind']) => {
+    switch (kind) {
+      case 'blog':
+        return 'Story';
+      case 'category':
+        return 'Category';
+      case 'help':
+        return 'Help';
+      case 'help-category':
+        return 'Help topic';
+      case 'collection':
+        return 'Collection';
+      default:
+        return 'Menu item';
+    }
+  };
+
+  if (items.length === 0 && totalNeedsWork && totalNeedsWork > 0) {
+    return (
+      <p className="rounded-xl border border-amber-100 bg-amber-50/40 p-4 text-xs text-amber-900">
+        {totalNeedsWork} listing{totalNeedsWork === 1 ? '' : 's'} need work — more than we show here. Open the admin list with the Needs SEO filter to see all.
+      </p>
+    );
+  }
+
   return (
     <div className="divide-y rounded-xl border">
       {items.map((item) => (
         <div key={`${item.kind}-${item.id}`} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-bold text-gray-900">{item.name}</p>
+            <div className="flex items-center gap-2">
+              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-gray-500">
+                {kindLabel(item.kind)}
+              </span>
+              <p className="truncate text-sm font-bold text-gray-900">{item.name}</p>
+            </div>
             <p className="text-[10px] text-gray-400">{item.path}</p>
             <SeoScoreBadge score={item.score} />
           </div>
           <div className="flex items-center gap-3">
             <SeoStatusBadge score={item.score} />
+            {item.kind === 'help' && (
+              <Link
+                href={item.path}
+                target="_blank"
+                className="text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-gray-700"
+              >
+                View
+              </Link>
+            )}
             <Link
               href={item.editPath}
               className="inline-flex items-center gap-1 text-xs font-bold text-primary-600 hover:text-primary-700"

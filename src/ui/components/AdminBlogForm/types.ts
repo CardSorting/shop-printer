@@ -2,6 +2,8 @@ import type { KnowledgebaseArticle, Author, KnowledgebaseCategory } from '@domai
 
 export interface AdminBlogFormProps {
   initialData?: Partial<KnowledgebaseArticle>;
+  /** Where to return after save — defaults based on content type */
+  returnPath?: string;
 }
 
 export type EditorTab = 'publish' | 'seo' | 'social' | 'history';

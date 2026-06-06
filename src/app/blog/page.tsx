@@ -3,7 +3,7 @@
  */
 'use client';
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
-import { useSearchParams, notFound } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useServices } from '@ui/hooks/useServices';
 import { BlogCard, NewsletterBox, TrendingPostItem, TopicPill, SeriesCard } from '@ui/components/BlogComponents';
 import { BlogHero } from '@ui/components/Blog/BlogHero';
@@ -148,7 +148,7 @@ function BlogContent() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center py-40 space-y-6 pt-28">
         <Loader2 className="h-12 w-12 animate-spin text-primary-600" />
-        <p className="text-sm font-black uppercase tracking-widest text-gray-400">Loading the Hive Journal...</p>
+        <p className="text-sm font-black uppercase tracking-widest text-gray-400">Loading stories from the hall...</p>
       </div>
     );
   }
@@ -165,7 +165,7 @@ function BlogContent() {
               <div className="mb-10 flex items-center justify-between">
                 <div className="space-y-1">
                   <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600">Featured Today</h2>
-                  <p className="text-sm font-bold text-gray-400">Hand-picked insights for the modern creator.</p>
+                  <p className="text-sm font-bold text-gray-400">Hand-picked stories from WoodBine vendors and neighbors.</p>
                 </div>
               </div>
               {featuredPost && <BlogHero post={featuredPost} />}
@@ -186,7 +186,7 @@ function BlogContent() {
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search the journal archives..."
+                placeholder="Search hall stories..."
                 className="w-full h-20 pl-20 pr-8 rounded-[2.5rem] bg-gray-50 border border-gray-100 focus:border-primary-500 focus:bg-white focus:ring-8 focus:ring-primary-500/5 outline-none text-lg font-medium transition-all shadow-sm"
               />
             </div>
@@ -262,9 +262,9 @@ function BlogContent() {
                                 <div className="space-y-1">
                                   <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600 flex items-center gap-2">
                                     <Layers className="h-3 w-3" />
-                                    Strategy Paths
+                                    Vendor series
                                   </h2>
-                                  <h3 className="text-4xl font-black text-gray-900 tracking-tight">Curated Learning Journeys</h3>
+                                  <h3 className="text-4xl font-black text-gray-900 tracking-tight">Stories worth following</h3>
                                 </div>
                              </div>
                              <div className="flex gap-8 overflow-x-auto no-scrollbar px-8 md:px-12 pb-8 scroll-smooth">
@@ -305,8 +305,8 @@ function BlogContent() {
                       <Search className="h-10 w-10 text-gray-200" />
                     </div>
                     <div className="space-y-2">
-                      <h3 className="text-2xl font-black text-gray-900">Quiet in the Hive</h3>
-                      <p className="text-gray-500 font-medium max-w-sm mx-auto">We couldn't find any articles matching your current lens. Try exploring a different topic.</p>
+                      <h3 className="text-2xl font-black text-gray-900">No stories yet</h3>
+                      <p className="text-gray-500 font-medium max-w-sm mx-auto">We couldn&apos;t find articles matching your search. Try another topic or clear filters.</p>
                     </div>
                   </motion.div>
                 )}
@@ -324,7 +324,7 @@ function BlogContent() {
                   {loadingMore ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Waking the Hive...
+                      Waking the hall...
                     </>
                   ) : (
                     <>
@@ -343,6 +343,15 @@ function BlogContent() {
 }
 
 export default function BlogPage() {
-  notFound();
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center py-40 space-y-6 pt-28">
+        <Loader2 className="h-12 w-12 animate-spin text-primary-600" />
+        <p className="text-sm font-black uppercase tracking-widest text-gray-400">Loading stories from the hall...</p>
+      </div>
+    }>
+      <BlogContent />
+    </Suspense>
+  );
 }
 

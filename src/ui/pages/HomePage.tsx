@@ -27,6 +27,7 @@ import {
   SITE_VENDOR_LINE,
 } from '@utils/seo';
 import Image from 'next/image';
+import { DEFAULT_BLOG_IMAGE, DEFAULT_FOOD_HALL_IMAGE } from '@utils/imageFallback';
 
 export function HomePage() {
   const services = useServices();
@@ -142,7 +143,7 @@ export function HomePage() {
             ))}
           </div>
           <Image 
-            src="/assets/generated/pro_circuit_handbook_featured_1778177228003.png" 
+            src={DEFAULT_FOOD_HALL_IMAGE} 
             alt="WoodBine food hall in a restored Salt Lake warehouse" 
             fill
             priority
@@ -192,7 +193,7 @@ export function HomePage() {
                <div className="space-y-4 pt-12">
                  <div className="relative aspect-4/5 rounded-3xl overflow-hidden shadow-2xl border-4 border-white/10">
                    <Image 
-                    src="/assets/generated/charizard_ex_holo_1778177088908.png" 
+                    src={DEFAULT_FOOD_HALL_IMAGE} 
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover" 
@@ -203,7 +204,7 @@ export function HomePage() {
                <div className="space-y-4">
                  <div className="relative aspect-4/5 rounded-3xl overflow-hidden shadow-2xl border-4 border-white/10">
                    <Image 
-                    src="/assets/generated/scarlet_violet_booster_box_1778177072594.png" 
+                    src={DEFAULT_BLOG_IMAGE} 
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover" 
@@ -400,21 +401,21 @@ export function HomePage() {
                 href: "/collections/artist-cards", 
                 title: "Full Plates", 
                 sub: "Gather around something hearty",
-                img: "/assets/generated/viral_blog_strategy_featured_1778177344526.png",
+                img: DEFAULT_BLOG_IMAGE,
                 delay: "reveal-delay-1"
               },
               { 
                 href: "/collections/prints", 
                 title: "Cold Drinks", 
                 sub: "Raise a glass with the room",
-                img: "/assets/generated/monetization_blueprint_featured_1778177186388.png",
+                img: DEFAULT_FOOD_HALL_IMAGE,
                 delay: "reveal-delay-2"
               },
               { 
                 href: "/collections/accessories", 
                 title: "Coffee & Work", 
                 sub: "Your corner of the hall",
-                img: "/assets/generated/generic_collecting_1778177444345.png",
+                img: DEFAULT_FOOD_HALL_IMAGE,
                 delay: "reveal-delay-3"
               }
             ].map((col) => (

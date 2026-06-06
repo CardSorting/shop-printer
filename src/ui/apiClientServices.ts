@@ -395,6 +395,11 @@ export function createApiClientServices() {
                     method: 'POST', 
                     body: JSON.stringify({ articleId, isHelpful, userId, reason }) 
                 }),
+            saveCategory: (category: KnowledgebaseCategory) =>
+                request<KnowledgebaseCategory>('/api/admin/support/categories', {
+                    method: 'POST',
+                    body: JSON.stringify(category),
+                }),
             
             // New Blogging Methods
             getSeries: (signal?: AbortSignal) => request<BlogSeries[]>('/api/blog/series', { signal }),

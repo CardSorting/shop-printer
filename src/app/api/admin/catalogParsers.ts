@@ -5,11 +5,15 @@ import { optionalString, parseBoundedLimit, requireString } from '@infrastructur
 const COLLECTION_STATUSES = new Set<Collection['status']>(['active', 'archived', 'draft']);
 const HANDLE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-export type CollectionDraftInput = Pick<Collection, 'name'> & Partial<Pick<Collection, 'handle' | 'description' | 'imageUrl' | 'status'>>;
-export type CollectionUpdateInput = Partial<Pick<Collection, 'name' | 'handle' | 'description' | 'imageUrl' | 'status'>>;
+export type CollectionDraftInput = Pick<Collection, 'name'> &
+  Partial<Pick<Collection, 'handle' | 'description' | 'seoTitle' | 'seoDescription' | 'imageUrl' | 'status'>>;
+export type CollectionUpdateInput = Partial<
+  Pick<Collection, 'name' | 'handle' | 'description' | 'seoTitle' | 'seoDescription' | 'imageUrl' | 'status'>
+>;
 export type SupplierDraftInput = Pick<Supplier, 'name'> & Partial<Pick<Supplier, 'contactName' | 'email' | 'phone' | 'website' | 'address' | 'notes'>>;
 export type SupplierUpdateInput = Partial<Pick<Supplier, 'name' | 'contactName' | 'email' | 'phone' | 'website' | 'address' | 'notes'>>;
-export type ProductCategoryInput = Pick<ProductCategory, 'name'> & Partial<Pick<ProductCategory, 'id' | 'slug' | 'description'>>;
+export type ProductCategoryInput = Pick<ProductCategory, 'name'> &
+  Partial<Pick<ProductCategory, 'id' | 'slug' | 'description' | 'seoTitle' | 'seoDescription'>>;
 export type ProductTypeInput = Pick<ProductType, 'name'> & Partial<Pick<ProductType, 'id'>>;
 
 export function parseCollectionListOptions(searchParams: URLSearchParams): { status?: Collection['status']; limit?: number } {
@@ -31,6 +35,8 @@ export function parseCollectionDraft(body: Record<string, unknown>): CollectionD
     name: requireString(body.name, 'name'),
     handle: parseHandle(body.handle, 'handle', false),
     description: optionalString(body.description, 'description'),
+    seoTitle: optionalString(body.seoTitle, 'seoTitle'),
+    seoDescription: optionalString(body.seoDescription, 'seoDescription'),
     imageUrl: optionalString(body.imageUrl, 'imageUrl'),
     status: parseCollectionStatus(body.status, false) ?? 'active',
   };
@@ -42,6 +48,8 @@ export function parseCollectionUpdate(body: Record<string, unknown>): Collection
     name: optionalString(body.name, 'name'),
     handle: parseHandle(body.handle, 'handle', false),
     description: optionalString(body.description, 'description'),
+    seoTitle: optionalString(body.seoTitle, 'seoTitle'),
+    seoDescription: optionalString(body.seoDescription, 'seoDescription'),
     imageUrl: optionalString(body.imageUrl, 'imageUrl'),
     status: parseCollectionStatus(body.status, false),
   };
@@ -84,6 +92,8 @@ export function parseProductCategoryInput(body: Record<string, unknown>): Produc
     name: requireString(body.name, 'name'),
     slug: parseHandle(body.slug, 'slug', false),
     description: optionalNullableString(body.description, 'description'),
+    seoTitle: optionalString(body.seoTitle, 'seoTitle'),
+    seoDescription: optionalString(body.seoDescription, 'seoDescription'),
   };
   return stripUndefined(category) as ProductCategoryInput;
 }

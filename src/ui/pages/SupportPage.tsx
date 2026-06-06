@@ -505,11 +505,7 @@ export function SupportPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {categories.map((category) => (
-                <KnowledgebaseCategoryCard 
-                  key={category.id} 
-                  category={category} 
-                  onClick={handleCategoryClick} 
-                />
+                <KnowledgebaseCategoryCard key={category.id} category={category} />
               ))}
             </div>
           </div>
@@ -524,10 +520,10 @@ export function SupportPage() {
               <Link href="/support?all=true" className="text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 px-4 py-2">View All</Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {searchResults.slice(0, 4).map(article => (
-                <button 
+              {searchResults.slice(0, 4).map((article) => (
+                <Link
                   key={article.id}
-                  onClick={() => handleArticleClick(article)}
+                  href={`/support/articles/${article.slug}`}
                   className="flex items-center justify-between p-6 rounded-3xl bg-white border border-gray-100 hover:border-gray-200 transition-all group text-left"
                 >
                   <div className="flex items-center gap-4">
@@ -540,7 +536,7 @@ export function SupportPage() {
                     </div>
                   </div>
                   <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
-                </button>
+                </Link>
               ))}
             </div>
           </div>

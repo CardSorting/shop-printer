@@ -4,8 +4,9 @@
  */
 import type { Collection } from '@domain/models';
 import type { ICollectionRepository } from '@domain/repositories';
-import { AuditService } from './AuditService';
 import { DomainError } from '@domain/errors';
+import { AuditService } from './AuditService';
+import { SEO_DESCRIPTION_MAX, SEO_TITLE_MAX } from '@domain/seo/constants';
 
 export class CollectionService {
   constructor(
@@ -39,6 +40,8 @@ export class CollectionService {
       name: data.name!,
       handle,
       description: data.description,
+      seoTitle: data.seoTitle,
+      seoDescription: data.seoDescription,
       imageUrl: data.imageUrl,
       productCount: 0,
       status: data.status || 'active',
@@ -119,6 +122,16 @@ export class CollectionService {
     if (data.handle !== undefined) data.handle = this.assertSlug(data.handle, 'handle');
     if (data.description !== undefined && data.description !== null && (typeof data.description !== 'string' || data.description.length > 2000)) {
       throw new DomainError('Collection description must be 2000 characters or fewer.');
+    }
+    if (data.seoTitle !== undefined && data.seoTitle !== null) {
+      if (typeof data.seoTitle !== 'string' || data.seoTitle.length > SEO_TITLE_MAX + 10) {
+        throw new DomainError(`SEO title must be ${SEO_TITLE_MAX} characters or fewer.`);
+      }
+    }
+    if (data.seoDescription !== undefined && data.seoDescription !== null) {
+      if (typeof data.seoDescription !== 'string' || data.seoDescription.length > SEO_DESCRIPTION_MAX + 20) {
+        throw new DomainError(`SEO description must be ${SEO_DESCRIPTION_MAX} characters or fewer.`);
+      }
     }
     if (data.imageUrl !== undefined && data.imageUrl !== null) this.assertUrl(data.imageUrl, 'imageUrl');
     if (data.status !== undefined && !['active', 'archived', 'draft'].includes(data.status)) throw new DomainError('Collection status is invalid.');

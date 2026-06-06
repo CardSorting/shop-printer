@@ -3,6 +3,8 @@
  * Extended WoodBine Stories — seasonal and community-focused articles.
  */
 
+import { DEFAULT_BLOG_IMAGE, DEFAULT_FOOD_HALL_IMAGE } from '@utils/imageFallback';
+
 export const EXTENDED_SERIES = [
   {
     id: 'ser-4',
@@ -12,7 +14,7 @@ export const EXTENDED_SERIES = [
     categoryIds: ['seasonal'],
     articleCount: 2,
     difficulty: 'beginner',
-    featuredImageUrl: '/assets/generated/pro_circuit_handbook_featured_1778177228003.png',
+    featuredImageUrl: DEFAULT_FOOD_HALL_IMAGE,
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -35,7 +37,7 @@ export const EXTENDED_POSTS = [
     status: 'published',
     metaTitle: 'Fall Menu at WoodBine Food Hall',
     metaDescription: 'Seasonal fall dishes and drinks at WoodBine — what to order this autumn in Salt Lake.',
-    featuredImageUrl: '/assets/generated/pro_circuit_handbook_featured_1778177228003.png',
+    featuredImageUrl: DEFAULT_FOOD_HALL_IMAGE,
     createdAt: new Date(),
     updatedAt: new Date(),
     publishedAt: new Date(),
@@ -56,7 +58,7 @@ export const EXTENDED_POSTS = [
     status: 'published',
     metaTitle: 'The Story of WoodBine Food Hall',
     metaDescription: 'How WoodBine turned a Salt Lake warehouse into a community food hall — Old Hall. New Flavors.',
-    featuredImageUrl: '/assets/generated/viral_blog_strategy_featured_1778177344526.png',
+    featuredImageUrl: DEFAULT_BLOG_IMAGE,
     createdAt: new Date(),
     updatedAt: new Date(),
     publishedAt: new Date(),

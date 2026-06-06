@@ -50,7 +50,7 @@ export function buildSeoSetupProgress(input: SeoSetupProgressInput): SeoSetupPro
     {
       id: 'listings',
       label: 'Optimize search listings',
-      description: 'Titles and descriptions for menu items, stories, and collections.',
+      description: 'Titles and descriptions for menu items, stories, collections, and help articles.',
       done: hasListings && combinedNeedsWork === 0,
       href: seoHubTabHref('listings'),
       priority: 2,

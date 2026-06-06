@@ -20,7 +20,15 @@ export function buildQuickWins(items: CatalogListingAuditItem[], max = 5): SeoQu
     .slice(0, max)
     .map((item, index) => {
       const kindLabel =
-        item.kind === 'blog' ? 'story' : item.kind === 'collection' ? 'collection' : 'menu item';
+        item.kind === 'blog'
+          ? 'story'
+          : item.kind === 'help'
+            ? 'help article'
+            : item.kind === 'category'
+              ? 'category'
+              : item.kind === 'collection'
+                ? 'collection'
+                : 'menu item';
       return {
         id: `${item.kind}-${item.id}`,
         title: item.name,

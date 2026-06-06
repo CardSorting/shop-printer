@@ -7,6 +7,7 @@
  */
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useServices } from '../../hooks/useServices';
 import { 
   Store, 
@@ -84,6 +85,7 @@ export function AdminSettings() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('all');
   const [progress, setProgress] = useState<SetupGuideProgress | null>(null);
+  const [seoSetupComplete, setSeoSetupComplete] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [settings, setSettings] = useState<Record<string, any>>({});
@@ -95,6 +97,20 @@ export function AdminSettings() {
   useEffect(() => {
     isMounted.current = true;
     return () => { isMounted.current = false; };
+  }, []);
+
+  const loadSeoProgress = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const res = await fetch('/api/admin/seo/snapshot', { signal });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (isMounted.current && !signal?.aborted) {
+        const percent = data?.report?.setupProgress?.percent ?? 0;
+        setSeoSetupComplete(percent >= 100);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+    }
   }, []);
 
   const loadProgress = useCallback(async (signal?: AbortSignal) => {
@@ -160,12 +176,13 @@ export function AdminSettings() {
     controllerRef.current = controller;
 
     void loadProgress(controller.signal);
+    void loadSeoProgress(controller.signal);
     void loadSettings(controller.signal);
     void loadUsers(controller.signal);
     void loadAuditLogs(controller.signal);
 
     return () => controller.abort();
-  }, [loadProgress, loadSettings, loadUsers, loadAuditLogs]);
+  }, [loadProgress, loadSeoProgress, loadSettings, loadUsers, loadAuditLogs]);
 
   const saveSetting = async (key: string, value: any) => {
     try {
@@ -178,15 +195,24 @@ export function AdminSettings() {
     }
   };
 
-  const tasks = progress ? [
-    { label: 'Add your first product', completed: progress.hasProducts },
-    { label: 'Configure store name', completed: progress.hasStoreName },
-    { label: 'Connect a payment provider', completed: progress.hasPaymentConfigured },
-    { label: 'Set up shipping rates', completed: progress.hasShippingRates },
-    { label: 'Choose a custom domain', completed: progress.hasCustomDomain },
-  ] : [];
+  const tasks = progress
+    ? [
+        { label: 'Add your first product', completed: progress.hasProducts },
+        { label: 'Configure store name', completed: progress.hasStoreName },
+        { label: 'Connect a payment provider', completed: progress.hasPaymentConfigured },
+        { label: 'Set up shipping rates', completed: progress.hasShippingRates },
+        { label: 'Choose a custom domain', completed: progress.hasCustomDomain },
+        ...(seoSetupComplete !== null
+          ? [{ label: 'Review search visibility', completed: seoSetupComplete, href: '/admin/seo' as const }]
+          : []),
+      ]
+    : [];
 
-  const completionPercentage = progress ? Math.round((progress.completedCount / progress.totalCount) * 100) : 0;
+  const seoTaskCount = seoSetupComplete !== null ? 1 : 0;
+  const seoCompleted = seoSetupComplete ? 1 : 0;
+  const totalTasks = (progress?.totalCount ?? 0) + seoTaskCount;
+  const completedTasks = (progress?.completedCount ?? 0) + seoCompleted;
+  const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-20">
@@ -211,7 +237,7 @@ export function AdminSettings() {
           </div>
           {!loading && progress && (
             <div className="text-right">
-              <p className="text-xs font-bold text-primary-600 uppercase">{progress.completedCount} of {progress.totalCount} completed</p>
+              <p className="text-xs font-bold text-primary-600 uppercase">{completedTasks} of {totalTasks} completed</p>
               <div className="mt-1.5 h-1.5 w-32 rounded-full bg-primary-100 overflow-hidden">
                 <div className="h-full bg-primary-600 transition-all duration-1000" style={{ width: `${completionPercentage}%` }} />
               </div>
@@ -222,18 +248,33 @@ export function AdminSettings() {
           {loading && [1, 2, 3].map(i => (
              <div key={i} className="h-10 rounded-lg bg-gray-100 animate-pulse" />
           ))}
-          {!loading && tasks.map((task, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-lg border bg-white p-3 transition hover:shadow-sm">
-              {task.completed ? (
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-              ) : (
-                <Circle className="h-4 w-4 text-gray-300" />
-              )}
-              <span className={`text-xs font-bold ${task.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                {task.label}
-              </span>
-            </div>
-          ))}
+          {!loading && tasks.map((task, i) => {
+            const inner = (
+              <>
+                {task.completed ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Circle className="h-4 w-4 text-gray-300" />
+                )}
+                <span className={`text-xs font-bold ${task.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                  {task.label}
+                </span>
+              </>
+            );
+            const className = 'flex items-center gap-3 rounded-lg border bg-white p-3 transition hover:shadow-sm';
+            if (!task.completed && 'href' in task && task.href) {
+              return (
+                <Link key={i} href={task.href} className={`${className} hover:border-primary-200`}>
+                  {inner}
+                </Link>
+              );
+            }
+            return (
+              <div key={i} className={className}>
+                {inner}
+              </div>
+            );
+          })}
         </div>
       </section>
 

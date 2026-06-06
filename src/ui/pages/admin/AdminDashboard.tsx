@@ -41,6 +41,7 @@ import {
   HelpTooltip,
   LogisticsHealthCard
 } from '../../components/admin/AdminComponents';
+import { combinedNeedsWorkSummary } from '@domain/seo/merchant-ui';
 import { SeoHealthWidget } from '../../components/admin/SeoHealthWidget';
 
 function getGreeting(): string {
@@ -63,6 +64,7 @@ export function AdminDashboard() {
   const [customerCount, setCustomerCount] = useState(0);
   const [logisticsStats, setLogisticsStats] = useState<any>(null);
   const [seoNeedsWork, setSeoNeedsWork] = useState(0);
+  const [seoSetupPercent, setSeoSetupPercent] = useState<number | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const isMounted = useRef(true);
 
@@ -89,6 +91,7 @@ export function AdminDashboard() {
         setSetupProgress(progress);
         setLogisticsStats(logistics);
         setSeoNeedsWork(seoRes?.snapshot?.combinedNeedsWork ?? 0);
+        setSeoSetupPercent(seoRes?.report?.setupProgress?.percent ?? null);
         if (mediaRes.files) {
           setMediaStats({
             count: mediaRes.files.length,
@@ -209,7 +212,14 @@ export function AdminDashboard() {
                 {setupProgress?.hasProducts && seoNeedsWork > 0 && (
                   <Link href="/admin/seo?tab=listings" className="flex items-center gap-4 rounded-lg bg-white p-4 shadow-xs ring-1 ring-black/5 transition hover:shadow-md cursor-pointer group">
                      <div className="h-6 w-6 shrink-0 rounded-full border-2 border-amber-500 flex items-center justify-center"><Globe className="h-3 w-3 text-amber-600" /></div>
-                     <div className="flex-1"><p className="text-sm font-bold text-gray-900">Improve search listings</p><p className="text-xs text-gray-500">{seoNeedsWork} menu item{seoNeedsWork === 1 ? '' : 's'} or stor{seoNeedsWork === 1 ? 'y' : 'ies'} could rank better on Google.</p></div>
+                     <div className="flex-1"><p className="text-sm font-bold text-gray-900">Improve search listings</p><p className="text-xs text-gray-500">{combinedNeedsWorkSummary(seoNeedsWork)}</p></div>
+                     <ArrowRight className="h-4 w-4 text-gray-300 transition-transform group-hover:translate-x-1" />
+                  </Link>
+                )}
+                {seoSetupPercent !== null && seoSetupPercent < 100 && (
+                  <Link href="/admin/seo" className="flex items-center gap-4 rounded-lg bg-white p-4 shadow-xs ring-1 ring-black/5 transition hover:shadow-md cursor-pointer group">
+                     <div className="h-6 w-6 shrink-0 rounded-full border-2 border-primary-500 flex items-center justify-center"><Globe className="h-3 w-3 text-primary-600" /></div>
+                     <div className="flex-1"><p className="text-sm font-bold text-gray-900">Complete search visibility setup</p><p className="text-xs text-gray-500">{seoSetupPercent}% done — finish visibility tasks in Search & Visibility.</p></div>
                      <ArrowRight className="h-4 w-4 text-gray-300 transition-transform group-hover:translate-x-1" />
                   </Link>
                 )}

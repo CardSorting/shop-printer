@@ -11,12 +11,18 @@ import { useServices } from '../hooks/useServices';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect, useRef } from 'react';
 
-export function KnowledgebaseCategoryCard({ category, onClick }: { category: KnowledgebaseCategory, onClick: (c: KnowledgebaseCategory) => void }) {
-  return (
-    <button
-      onClick={() => onClick(category)}
-      className="group flex flex-col items-start p-6 rounded-3xl bg-white border border-gray-100 shadow-xs hover:shadow-xl hover:border-primary-100 transition-all text-left text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
-    >
+export function KnowledgebaseCategoryCard({
+  category,
+  onClick,
+}: {
+  category: KnowledgebaseCategory;
+  onClick?: (c: KnowledgebaseCategory) => void;
+}) {
+  const className =
+    'group flex flex-col items-start p-6 rounded-3xl bg-white border border-gray-100 shadow-xs hover:shadow-xl hover:border-primary-100 transition-all text-left text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500';
+
+  const content = (
+    <>
       <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center mb-4 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
         <FileText className="h-6 w-6" />
       </div>
@@ -26,15 +32,34 @@ export function KnowledgebaseCategoryCard({ category, onClick }: { category: Kno
         <span>{category.articleCount} Articles</span>
         <ChevronRight className="h-3 w-3" />
       </div>
-    </button>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={() => onClick(category)} className={className}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={`/support/categories/${category.slug}`} className={className}>
+      {content}
+    </Link>
   );
 }
 
-export function KnowledgebaseArticleList({ articles, categoryName, onBack, onArticleClick }: { 
-  articles: KnowledgebaseArticle[], 
-  categoryName: string,
-  onBack: () => void,
-  onArticleClick: (a: KnowledgebaseArticle) => void
+export function KnowledgebaseArticleList({
+  articles,
+  categoryName,
+  onBack,
+  onArticleClick,
+}: {
+  articles: KnowledgebaseArticle[];
+  categoryName: string;
+  onBack: () => void;
+  onArticleClick?: (a: KnowledgebaseArticle) => void;
 }) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -55,29 +80,47 @@ export function KnowledgebaseArticleList({ articles, categoryName, onBack, onArt
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {articles.map(article => (
-          <button 
-            key={article.id}
-            onClick={() => onArticleClick(article)}
-            className="flex items-center justify-between p-6 rounded-3xl bg-white border border-gray-100 hover:border-primary-100 hover:shadow-lg transition-all group text-left"
-          >
-            <div className="flex items-center gap-5">
-              <div className="p-3 rounded-2xl bg-gray-50 text-gray-400 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
-                <FileText className="h-6 w-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <p className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors">{article.title}</p>
-                  {article.tags?.includes('popular') && (
-                    <span className="text-[8px] font-black uppercase tracking-tighter bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Most Used</span>
-                  )}
+        {articles.map((article) => {
+          const rowClassName =
+            'flex items-center justify-between p-6 rounded-3xl bg-white border border-gray-100 hover:border-primary-100 hover:shadow-lg transition-all group text-left';
+          const rowContent = (
+            <>
+              <div className="flex items-center gap-5">
+                <div className="p-3 rounded-2xl bg-gray-50 text-gray-400 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
+                  <FileText className="h-6 w-6" />
                 </div>
-                <p className="text-sm font-medium text-gray-500 line-clamp-1">{article.excerpt}</p>
+                <div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <p className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors">
+                      {article.title}
+                    </p>
+                    {article.tags?.includes('popular') && (
+                      <span className="text-[8px] font-black uppercase tracking-tighter bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                        Most Used
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium text-gray-500 line-clamp-1">{article.excerpt}</p>
+                </div>
               </div>
-            </div>
-            <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-gray-500 transition-colors" />
-          </button>
-        ))}
+              <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-gray-500 transition-colors" />
+            </>
+          );
+
+          if (onArticleClick) {
+            return (
+              <button key={article.id} type="button" onClick={() => onArticleClick(article)} className={rowClassName}>
+                {rowContent}
+              </button>
+            );
+          }
+
+          return (
+            <Link key={article.id} href={`/support/articles/${article.slug}`} className={rowClassName}>
+              {rowContent}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

@@ -17,8 +17,8 @@ export function SeoScoreBreakdownPanel({ breakdown }: SeoScoreBreakdownPanelProp
         <h2 className="text-sm font-black text-gray-900">Two scores, two jobs</h2>
         <p className="mt-1 text-xs text-gray-500">
           Like Google Search Console: <strong className="font-bold text-gray-700">site health</strong> is your business
-          basics; <strong className="font-bold text-gray-700">listing health</strong> is how each menu item or story
-          appears in search results.
+          basics; <strong className="font-bold text-gray-700">listing health</strong> is how each menu item, story,
+          collection, or help article appears in search results.
         </p>
       </div>
 

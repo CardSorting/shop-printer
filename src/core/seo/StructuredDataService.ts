@@ -318,6 +318,34 @@ export class StructuredDataService {
     });
   }
 
+  /** Help center / Visit & Connect articles — FAQ-style discoverability */
+  helpArticle(article: BlogPostSeoContext): JsonLd {
+    const url = this.url(`/support/articles/${article.slug}`);
+    const image = article.featuredImageUrl || article.ogImage;
+
+    return compactJsonLd({
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      '@id': `${url}#article`,
+      headline: article.metaTitle || article.title,
+      description: article.metaDescription || article.excerpt || article.title,
+      url,
+      ...(image ? { image: this.url(image) } : {}),
+      datePublished: toIsoDate(article.publishedAt || article.createdAt),
+      dateModified: toIsoDate(article.updatedAt),
+      author: {
+        '@type': 'Organization',
+        name: this.config.siteName,
+        url: this.config.siteUrl,
+      },
+      publisher: { '@id': `${this.config.siteUrl}#organization` },
+      mainEntityOfPage: url,
+      inLanguage: 'en-US',
+      isPartOf: { '@id': `${this.config.siteUrl}#website` },
+      about: { '@id': `${this.config.siteUrl}#food-establishment` },
+    });
+  }
+
   product(product: ProductSeoContext, resolveImageUrl: (url: string) => string): JsonLd {
     const path = productPathFromContext(product);
     const canonical = this.url(path);

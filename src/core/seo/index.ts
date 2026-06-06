@@ -16,5 +16,6 @@ export { CrawlPolicyService } from './CrawlPolicyService';
 export { SitemapPolicyService } from './SitemapPolicyService';
 export { CatalogAuditService } from './CatalogAuditService';
 export { SeoAdminReportService } from './SeoAdminReportService';
-export type { SeoAdminReport } from './SeoAdminReportService';
+export { loadAdminSeoBundle } from './loadAdminSeoBundle';
+export type { AdminSeoBundle } from './loadAdminSeoBundle';
 export type { SeoAdminSnapshot, CatalogListingAuditItem, CatalogSeoSummary } from './CatalogAuditService';

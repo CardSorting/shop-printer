@@ -3,11 +3,13 @@
  * WoodBine brand voice and community narrative — pure constants, no I/O.
  */
 
+import { SEO_DEFAULT_OG_IMAGE } from './constants';
+
 export const WOODBINE_BRAND = {
   name: 'WoodBine',
   tagline: 'Old Hall. New Flavors.',
   email: 'hello@woodbine.com',
-  defaultOgImage: '/og-image.png',
+  defaultOgImage: SEO_DEFAULT_OG_IMAGE,
   twitterHandle: '@WoodBine',
   socialProfiles: [
     'https://twitter.com/woodbine',

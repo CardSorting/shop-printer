@@ -1,66 +1,92 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useServices } from '@ui/hooks/useServices';
-import { KnowledgebaseArticleList } from '@ui/components/SupportComponents';
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { getServerServices } from '@infrastructure/server/services';
+import { buildNextPageMetadata, getAppSeoEngine } from '@infrastructure/seo';
+import { breadcrumbJsonLd, itemListJsonLd } from '@utils/seo';
+import { SupportCategoryPage } from '@ui/pages/SupportCategoryPage';
 import type { KnowledgebaseArticle, KnowledgebaseCategory } from '@domain/models';
-import { Loader2, ArrowLeft } from 'lucide-react';
 
-export default function CategoryPage() {
-  const { slug } = useParams() as { slug: string };
-  const [category, setCategory] = useState<KnowledgebaseCategory | null>(null);
-  const [articles, setArticles] = useState<KnowledgebaseArticle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const services = useServices();
-  const router = useRouter();
+export const dynamic = 'force-dynamic';
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const cats = await services.knowledgebaseService.getCategories();
-        const cat = cats.find((c: KnowledgebaseCategory) => c.slug === slug || c.id === slug);
-        if (cat) {
-          setCategory(cat);
-           const data = await services.knowledgebaseService.getArticles({ categoryId: cat.id });
-           setArticles(data.articles);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [slug, services.knowledgebaseService]);
+const seo = getAppSeoEngine();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <Loader2 className="h-10 w-10 animate-spin text-primary-600" />
-      </div>
+interface Props {
+  params: Promise<{ slug: string }>;
+}
+
+async function getCategoryWithArticles(slug: string) {
+  const services = await getServerServices();
+  const categories = await services.knowledgebaseRepository.getCategories();
+  const category = categories.find((c) => c.slug === slug || c.id === slug);
+  if (!category) return null;
+
+  const { articles } = await services.knowledgebaseRepository.getArticles({
+    categoryId: category.id,
+    type: 'article',
+    status: 'published',
+    limit: 100,
+  });
+
+  return { category, articles };
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const result = await getCategoryWithArticles(slug);
+
+  if (!result) {
+    return buildNextPageMetadata(
+      {
+        title: 'Help Category Not Found',
+        description: 'This help category is no longer available.',
+        path: `/support/categories/${slug}`,
+        noIndex: true,
+      },
+      seo.config
     );
   }
 
-  if (!category) return <div>Category not found</div>;
+  return buildNextPageMetadata(seo.pages.supportCategory(result.category), seo.config);
+}
+
+export default async function Page({ params }: Props) {
+  const { slug } = await params;
+  const result = await getCategoryWithArticles(slug);
+  if (!result) notFound();
+
+  const { category, articles } = result;
+  const categoryPath = `/support/categories/${slug}`;
+
+  const jsonLd = [
+    breadcrumbJsonLd([
+      { name: 'Home', path: '/' },
+      { name: 'Visit & Connect', path: '/support' },
+      { name: category.name, path: categoryPath },
+    ]),
+    itemListJsonLd(
+      category.name,
+      categoryPath,
+      articles.map((article) => ({
+        name: article.title,
+        path: `/support/articles/${article.slug}`,
+      }))
+    ),
+  ];
+
+  const serializedCategory = JSON.parse(JSON.stringify(category)) as KnowledgebaseCategory;
+  const serializedArticles = JSON.parse(JSON.stringify(articles)) as KnowledgebaseArticle[];
 
   return (
-    <div className="min-h-screen bg-gray-50/30">
-      <div className="max-w-6xl mx-auto px-4 py-12 md:py-16">
-        <button 
-          onClick={() => router.push('/support')}
-          className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 mb-8 transition-colors group"
-        >
-          <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-1" />
-          Back to Help Center
-        </button>
-        <KnowledgebaseArticleList 
-          articles={articles}
-          categoryName={category.name}
-          onBack={() => router.push('/support')}
-          onArticleClick={(a: KnowledgebaseArticle) => router.push(`/support/articles/${a.slug}`)}
-        />
-      </div>
-    </div>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <SupportCategoryPage
+        slug={slug}
+        initialCategory={serializedCategory}
+        initialArticles={serializedArticles}
+      />
+    </>
   );
 }

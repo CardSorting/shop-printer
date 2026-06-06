@@ -12,6 +12,10 @@ export const NOINDEX_ROUTE_PREFIXES = [
   '/orders',
   '/wishlist',
   '/api',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/search',
 ] as const;
 
 export const ROBOTS_DISALLOW_PREFIXES = [
@@ -23,6 +27,10 @@ export const ROBOTS_DISALLOW_PREFIXES = [
   '/auth/',
   '/orders/',
   '/wishlist/',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/search',
 ] as const;
 
 export const ROBOTS_DISALLOW_QUERY_PATTERNS = [

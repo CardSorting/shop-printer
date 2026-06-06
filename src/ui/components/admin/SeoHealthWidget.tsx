@@ -15,6 +15,7 @@ export function SeoHealthWidget() {
   const score = data?.site.score ?? null;
   const needsWork = data?.snapshot.combinedNeedsWork ?? 0;
   const trafficLight = data?.report.siteTrafficLight;
+  const setupProgress = data?.report.setupProgress;
   const topQuickWin = data?.report.quickWins[0];
   const ctaHref = needsWork > 0 ? '/admin/seo?tab=listings' : '/admin/seo';
 
@@ -34,6 +35,20 @@ export function SeoHealthWidget() {
           <p className="text-xs text-gray-500">Loading visibility score…</p>
         ) : (
           <div className="space-y-4">
+            {setupProgress && setupProgress.percent < 100 && (
+              <div>
+                <div className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                  <span>Setup progress</span>
+                  <span className="text-primary-600">{setupProgress.percent}%</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full bg-primary-600 transition-all duration-700"
+                    style={{ width: `${setupProgress.percent}%` }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-4">
               <SeoScoreRing score={score} size={72} strokeWidth={6} />
               <div className="min-w-0 flex-1">
@@ -55,6 +70,14 @@ export function SeoHealthWidget() {
             <p className="text-[11px] leading-relaxed text-gray-500">
               {widgetInsight(needsWork, topQuickWin?.title)}
             </p>
+            {setupProgress?.nextTask && (
+              <Link
+                href={setupProgress.nextTask.href}
+                className="block rounded-lg border border-primary-100 bg-primary-50/50 px-3 py-2 text-[10px] font-bold text-primary-800 hover:bg-primary-50"
+              >
+                Next: {setupProgress.nextTask.label} →
+              </Link>
+            )}
             {topQuickWin && needsWork > 0 && (
               <Link
                 href={topQuickWin.href}

@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { auditListingSeo, auditSiteSeo, gradeLabel } from './health';
+import { SEO_DEFAULT_OG_IMAGE } from './constants';
 import type { SeoSiteConfig } from './types';
 
 const baseConfig: SeoSiteConfig = {
   siteUrl: 'https://woodbine.com',
   siteName: 'WoodBine',
   tagline: 'Old Hall. New Flavors.',
-  defaultOgImage: '/og-image.png',
+  defaultOgImage: SEO_DEFAULT_OG_IMAGE,
   email: 'hello@woodbine.com',
   locality: 'Salt Lake City',
   region: 'UT',
@@ -52,6 +53,11 @@ describe('domain/seo/health', () => {
       socialProfiles: ['https://instagram.com/woodbine', 'https://facebook.com/woodbine'],
     });
     expect(complete.score).toBeGreaterThan(sparse.score);
+  });
+
+  it('marks default share image as configured when og path is set', () => {
+    const audit = auditSiteSeo(baseConfig);
+    expect(audit.items.find((i) => i.id === 'og-image')?.done).toBe(true);
   });
 
   it('maps grades to friendly labels', () => {

@@ -4,6 +4,7 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
 import type { NavigationMenu } from '@domain/models';
+import { DEFAULT_FOOD_HALL_IMAGE } from '@utils/imageFallback';
 
 function getDefaultMenu(menuId: string): NavigationMenu {
   return {
@@ -25,7 +26,7 @@ function getDefaultMenu(menuId: string): NavigationMenu {
       ],
     },
     featuredPromotion: {
-      imageUrl: '/assets/generated/monetization_blueprint_featured_1778177186388.png',
+      imageUrl: DEFAULT_FOOD_HALL_IMAGE,
       title: 'Old Hall. New Flavors.',
       subtitle: 'Walk in — explore every counter',
       linkText: 'View menu',

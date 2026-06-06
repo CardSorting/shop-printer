@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
 import type { ProductCategory, ProductType } from '@domain/models';
 import { 
@@ -18,7 +19,8 @@ import {
   Save, 
   ChevronRight,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Globe,
 } from 'lucide-react';
 import { 
   AdminActionPanel, 
@@ -28,10 +30,15 @@ import {
   useToast 
 } from '../../components/admin/AdminComponents';
 import { SeoSettings } from '../../components/admin/SeoSettings';
+import { SeoStatusBadge } from '../../components/admin/SeoStatusBadge';
+import { scoreCategoryListing, categoryNeedsSeoAttention } from '@domain/seo/helpers';
+import { parseSeoNeedsWorkFilter } from '@domain/seo/admin-routes';
+import { notifySeoListingChanged } from '@ui/hooks/useSeoCacheInvalidation';
 
 export function AdminTaxonomy() {
   useAdminPageTitle('Product Organization');
   const services = useServices();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'categories' | 'types'>('categories');
@@ -40,11 +47,12 @@ export function AdminTaxonomy() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [seoFilterOnly, setSeoFilterOnly] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   // Form states
-  const [editItem, setEditItem] = useState<{ id?: string, name: string, slug?: string, description?: string | null } | null>(null);
+  const [editItem, setEditItem] = useState<{ id?: string; name: string; slug?: string; description?: string | null; seoTitle?: string; seoDescription?: string } | null>(null);
 
   const loadTaxonomy = useCallback(async () => {
     controllerRef.current?.abort();
@@ -77,6 +85,30 @@ export function AdminTaxonomy() {
     return () => controllerRef.current?.abort();
   }, [loadTaxonomy]);
 
+  useEffect(() => {
+    if (parseSeoNeedsWorkFilter(searchParams)) {
+      setSeoFilterOnly(true);
+      setActiveTab('categories');
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || categories.length === 0) return;
+    const category = categories.find((c) => c.id === editId);
+    if (category) {
+      setActiveTab('categories');
+      setEditItem({
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        description: category.description,
+        seoTitle: category.seoTitle,
+        seoDescription: category.seoDescription,
+      });
+    }
+  }, [searchParams, categories]);
+
   async function handleSave() {
     if (!editItem || !editItem.name.trim()) return;
     setSaving(true);
@@ -89,9 +121,12 @@ export function AdminTaxonomy() {
           id: editItem.id,
           name: editItem.name,
           slug: editItem.slug,
-          description: editItem.description
+          description: editItem.description,
+          seoTitle: editItem.seoTitle,
+          seoDescription: editItem.seoDescription,
         }, actor);
         toast('success', 'Category saved');
+        notifySeoListingChanged();
       } else {
         await services.taxonomyService.saveType({
           id: editItem.id,
@@ -131,10 +166,15 @@ export function AdminTaxonomy() {
 
   if (loading) return <SkeletonPage />;
 
-  const filteredCategories = categories.filter(c => 
-    c.name.toLowerCase().includes(search.toLowerCase()) || 
-    c.slug.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredCategories = categories.filter(c => {
+    const matchesSearch =
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.slug.toLowerCase().includes(search.toLowerCase());
+    const matchesSeo = !seoFilterOnly || categoryNeedsSeoAttention(c);
+    return matchesSearch && matchesSeo;
+  });
+
+  const categoriesNeedingSeo = categories.filter(categoryNeedsSeoAttention).length;
 
   const filteredTypes = types.filter(t => 
     t.name.toLowerCase().includes(search.toLowerCase())
@@ -196,13 +236,32 @@ export function AdminTaxonomy() {
                   : 'Manage specific product classifications.'}
               </p>
             </div>
-            <button 
-              onClick={() => setEditItem({ name: '', slug: '', description: '' })}
-              className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-gray-800"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add {activeTab === 'categories' ? 'Category' : 'Type'}
-            </button>
+            <div className="flex items-center gap-2">
+              {activeTab === 'categories' && categoriesNeedingSeo > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSeoFilterOnly(!seoFilterOnly)}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[10px] font-bold uppercase tracking-widest transition ${
+                    seoFilterOnly
+                      ? 'border-amber-200 bg-amber-50 text-amber-800'
+                      : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  Needs SEO
+                  <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] text-white ${seoFilterOnly ? 'bg-amber-600' : 'bg-gray-400'}`}>
+                    {categoriesNeedingSeo}
+                  </span>
+                </button>
+              )}
+              <button 
+                onClick={() => setEditItem({ name: '', slug: '', description: '' })}
+                className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-gray-800"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add {activeTab === 'categories' ? 'Category' : 'Type'}
+              </button>
+            </div>
           </div>
 
           {/* Editor Overlay/Form */}
@@ -252,14 +311,13 @@ export function AdminTaxonomy() {
                     name={editItem.name}
                     description={editItem.description ?? ''}
                     handle={editItem.slug ?? ''}
-                    seoTitle=""
-                    seoDescription=""
+                    seoTitle={editItem.seoTitle ?? ''}
+                    seoDescription={editItem.seoDescription ?? ''}
                     pathPrefix="/collections"
-                    listingKind="collection"
+                    listingKind="category"
                     onChange={(name, value) => {
                       if (name === 'handle') setEditItem(prev => ({ ...prev!, slug: value }));
-                      else if (name === 'seoDescription') setEditItem(prev => ({ ...prev!, description: value }));
-                      // Note: seoTitle is not supported yet for categories in the model, but we show it in preview
+                      else setEditItem(prev => ({ ...prev!, [name]: value }));
                     }}
                   />
                 </div>
@@ -297,7 +355,10 @@ export function AdminTaxonomy() {
                         </div>
                         <div>
                           <p className="text-sm font-bold text-gray-900">{cat.name}</p>
-                          <p className="text-[10px] font-bold text-gray-400 tracking-wide">{cat.slug}</p>
+                          <div className="mt-0.5 flex items-center gap-2">
+                            <p className="text-[10px] font-bold text-gray-400 tracking-wide">{cat.slug}</p>
+                            <SeoStatusBadge score={scoreCategoryListing(cat)} compact />
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
