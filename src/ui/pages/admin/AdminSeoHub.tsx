@@ -25,7 +25,11 @@ import type { SeoGooglePreview } from '@domain/seo/preview';
 import { AdminPageHeader } from '@ui/components/admin/AdminComponents';
 import { SeoHubTabs, useSeoHubTab } from '@ui/components/admin/SeoHubTabs';
 import { SeoScoreBadge, SeoStatusBadge } from '@ui/components/admin/SeoStatusBadge';
+import { SEO_GLOSSARY } from '@domain/seo/glossary';
+import { buildQuickWins } from '@domain/seo/quickWins';
+import { SeoFaqAccordion } from '@ui/components/admin/SeoFaqAccordion';
 import { SeoWelcomeBanner } from '@ui/components/admin/SeoWelcomeBanner';
+import type { CatalogListingAuditItem } from '@domain/seo/catalog';
 
 const GUIDE_ICONS = {
   search: Globe,
@@ -53,6 +57,12 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
     audit.grade === 'excellent' ? 'bg-green-500' : audit.grade === 'good' ? 'bg-amber-500' : 'bg-red-500';
 
   const listingItems = [...snapshot.products.items, ...snapshot.blogPosts.items];
+  const productListingItems = snapshot.products.items;
+  const blogListingItems = snapshot.blogPosts.items;
+  const localIncomplete = audit.items.filter((i) => !i.done).length;
+  const quickWins = buildQuickWins(listingItems, 5);
+  const indexedCount = publicPages.length;
+  const hiddenCount = privatePages.length;
 
   return (
     <div className="space-y-6 pb-16">
@@ -62,7 +72,7 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
         category="Marketing"
       />
 
-      <SeoHubTabs />
+      <SeoHubTabs counts={{ listings: snapshot.combinedNeedsWork, localIncomplete }} />
 
       {tab === 'overview' && (
         <div className="space-y-6">
@@ -116,6 +126,54 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
                     <p className="text-xs text-gray-500">{catalogGradeLabel(snapshot.blogPosts)}</p>
                   </div>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          {quickWins.length > 0 && (
+            <section className="rounded-2xl border border-amber-100 bg-amber-50/40 p-6 shadow-sm">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-sm font-black text-gray-900">Quick wins</h2>
+                  <p className="mt-1 text-xs text-gray-600">Fix these first for the fastest impact on search clicks.</p>
+                </div>
+                <Link href={seoHubTabHref('listings')} className="text-xs font-bold text-primary-600 hover:text-primary-700">
+                  View all →
+                </Link>
+              </div>
+              <ol className="space-y-2">
+                {quickWins.map((win) => (
+                  <li key={win.id}>
+                    <Link
+                      href={win.href}
+                      className="flex items-center gap-3 rounded-xl border bg-white p-4 transition hover:border-primary-200 hover:shadow-sm"
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-black text-amber-800">
+                        {win.priority}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-gray-900">{win.title}</p>
+                        <p className="text-[11px] text-gray-500">{win.description}</p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-gray-300" />
+                    </Link>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          <section className="rounded-2xl border bg-white p-5 shadow-sm">
+            <h2 className="text-[10px] font-black uppercase tracking-widest text-gray-500">Indexing status</h2>
+            <p className="mt-1 text-xs text-gray-500">What can appear in Google vs. pages kept private on purpose.</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <div className="flex items-center gap-2 rounded-xl border border-green-100 bg-green-50/50 px-4 py-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <span className="text-xs font-bold text-gray-900">{indexedCount} pages indexed</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2">
+                <FileText className="h-4 w-4 text-gray-400" />
+                <span className="text-xs font-bold text-gray-600">{hiddenCount} hidden on purpose</span>
               </div>
             </div>
           </section>
@@ -207,32 +265,23 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
                 <p className="mt-1 text-xs text-gray-600">Every active menu item and published story passes the SEO checklist.</p>
               </div>
             ) : (
-              <div className="divide-y rounded-xl border">
-                {listingItems.map((item) => (
-                  <div key={`${item.kind}-${item.id}`} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                      {item.kind === 'product' ? (
-                        <UtensilsCrossed className="mt-0.5 h-4 w-4 text-gray-400" />
-                      ) : (
-                        <Newspaper className="mt-0.5 h-4 w-4 text-gray-400" />
-                      )}
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">{item.name}</p>
-                        <p className="text-[10px] text-gray-400">{item.path}</p>
-                        <SeoScoreBadge score={item.score} />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <SeoStatusBadge score={item.score} />
-                      <Link
-                        href={item.editPath}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-primary-600 hover:text-primary-700"
-                      >
-                        Edit listing <ArrowRight className="h-3 w-3" />
-                      </Link>
-                    </div>
+              <div className="space-y-8">
+                {productListingItems.length > 0 && (
+                  <div>
+                    <h3 className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500">
+                      <UtensilsCrossed className="h-3.5 w-3.5" /> Menu items ({productListingItems.length})
+                    </h3>
+                    <ListingRows items={productListingItems} />
                   </div>
-                ))}
+                )}
+                {blogListingItems.length > 0 && (
+                  <div>
+                    <h3 className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500">
+                      <Newspaper className="h-3.5 w-3.5" /> Stories ({blogListingItems.length})
+                    </h3>
+                    <ListingRows items={blogListingItems} />
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -307,7 +356,8 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
       )}
 
       {tab === 'learn' && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
           {SEO_GUIDES.map((guide) => {
             const Icon = GUIDE_ICONS[guide.icon];
             return (
@@ -346,8 +396,35 @@ export function AdminSeoHub({ audit, snapshot, siteHost, homepagePreview }: Admi
               </Link>
             </div>
           </div>
+          </div>
+          <SeoFaqAccordion entries={SEO_GLOSSARY} />
         </div>
       )}
+    </div>
+  );
+}
+
+function ListingRows({ items }: { items: CatalogListingAuditItem[] }) {
+  return (
+    <div className="divide-y rounded-xl border">
+      {items.map((item) => (
+        <div key={`${item.kind}-${item.id}`} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-gray-900">{item.name}</p>
+            <p className="text-[10px] text-gray-400">{item.path}</p>
+            <SeoScoreBadge score={item.score} />
+          </div>
+          <div className="flex items-center gap-3">
+            <SeoStatusBadge score={item.score} />
+            <Link
+              href={item.editPath}
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary-600 hover:text-primary-700"
+            >
+              Edit listing <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

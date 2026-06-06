@@ -3,6 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useServices } from '@ui/hooks/useServices';
 import { Plus, User, NotebookPen, Sparkles as SparklesIcon, BarChart3, Users, Settings as SettingsIcon } from 'lucide-react';
 import Link from 'next/link';
+import { listingNeedsSeoAttention } from '@domain/seo/helpers';
+import { SeoListingsAlert } from '@ui/components/admin/SeoListingsAlert';
 
 import type { KnowledgebaseArticle, Author } from '@domain/models';
 import type { DashboardTab, DashboardViewMode, DashboardHubView, DashboardState } from './types';
@@ -39,6 +41,7 @@ export default function BlogDashboard() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingBulkAction, setPendingBulkAction] = useState<'publish' | 'archived' | 'delete' | null>(null);
   const [pendingDeletePostId, setPendingDeletePostId] = useState<string | null>(null);
+  const [seoFilterOnly, setSeoFilterOnly] = useState(false);
   const isMounted = React.useRef(true);
 
   React.useEffect(() => {
@@ -75,9 +78,29 @@ export default function BlogDashboard() {
       const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            post.authorName?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesTab = currentTab === 'all' || post.status === currentTab;
-      return matchesSearch && matchesTab;
+      const matchesSeo = !seoFilterOnly || listingNeedsSeoAttention({
+        name: post.title,
+        description: post.excerpt,
+        seoTitle: post.metaTitle,
+        seoDescription: post.metaDescription,
+        handle: post.slug,
+        imageUrl: post.featuredImageUrl || post.ogImage,
+      });
+      return matchesSearch && matchesTab && matchesSeo;
     });
-  }, [posts, searchQuery, currentTab]);
+  }, [posts, searchQuery, currentTab, seoFilterOnly]);
+
+  const seoNeedsCount = useMemo(
+    () => posts.filter((post) => listingNeedsSeoAttention({
+      name: post.title,
+      description: post.excerpt,
+      seoTitle: post.metaTitle,
+      seoDescription: post.metaDescription,
+      handle: post.slug,
+      imageUrl: post.featuredImageUrl || post.ogImage,
+    })).length,
+    [posts]
+  );
 
   const healthAudit = useMemo(() => {
     const lowSEO = posts.filter((p: KnowledgebaseArticle) => !p.metaTitle || !p.metaDescription);
@@ -219,6 +242,9 @@ export default function BlogDashboard() {
     handleSyncScheduling,
     toggleSelect,
     toggleSelectAll,
+    seoFilterOnly,
+    setSeoFilterOnly,
+    seoNeedsCount,
     healthAudit
   };
 
@@ -240,9 +266,9 @@ export default function BlogDashboard() {
               {activeView === 'editorial' ? 'Content Hub' : activeView}
             </h1>
             <p className="text-gray-500 font-medium mt-2">
-              {activeView === 'editorial' && "Orchestrate your stories and collector engagement."}
-              {activeView === 'insights' && "Analyzing reach, velocity, and content health."}
-              {activeView === 'audience' && "Understanding your growing community of collectors."}
+              {activeView === 'editorial' && "Orchestrate stories from the hall — vendors, events, and community."}
+              {activeView === 'insights' && "Analyzing reach and which stories bring visitors to the hall."}
+              {activeView === 'audience' && "Understanding your growing community of regulars and neighbors."}
               {activeView === 'settings' && "Global configurations for your blogging engine."}
             </p>
           </div>
@@ -310,6 +336,7 @@ export default function BlogDashboard() {
 
             {/* Main Editorial Workspace */}
             <div className="space-y-6">
+              <SeoListingsAlert />
               <ControlBar 
                 {...state}
               />

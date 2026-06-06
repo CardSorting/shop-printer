@@ -174,7 +174,7 @@ export class MarketingIntelligence {
 
     const topCollection = Object.entries(collectionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'WoodBine Classics';
     const topProducts = Object.entries(productCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name]) => name);
-    const cohortStanding = clv > 100000 ? 'Top 1% of Collectors' : 'Valued Collector';
+    const cohortStanding = clv > 100000 ? 'Top regulars' : 'Valued guest';
     const lifecycleType = topCollection.includes('Sticker') ? 'Refill' : 'Complement';
     const cartValue = cart?.items.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0) || 0;
     const cartAgeHours = cart?.updatedAt

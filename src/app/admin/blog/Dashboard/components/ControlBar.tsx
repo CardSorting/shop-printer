@@ -1,14 +1,16 @@
 'use client';
 import React from 'react';
-import { Search, Calendar, Sparkles, LayoutList, LayoutGrid, CalendarDays } from 'lucide-react';
+import { Search, Calendar, Sparkles, LayoutList, LayoutGrid, CalendarDays, Globe } from 'lucide-react';
 import type { DashboardState } from '../types';
 
 export const ControlBar: React.FC<Pick<DashboardState, 
   'currentTab' | 'setCurrentTab' | 'searchQuery' | 'setSearchQuery' | 
-  'viewMode' | 'setViewMode' | 'handleSyncScheduling' | 'showAudit' | 'setShowAudit'
+  'viewMode' | 'setViewMode' | 'handleSyncScheduling' | 'showAudit' | 'setShowAudit' |
+  'seoFilterOnly' | 'setSeoFilterOnly' | 'seoNeedsCount'
 >> = ({ 
   currentTab, setCurrentTab, searchQuery, setSearchQuery, 
-  viewMode, setViewMode, handleSyncScheduling, showAudit, setShowAudit 
+  viewMode, setViewMode, handleSyncScheduling, showAudit, setShowAudit,
+  seoFilterOnly, setSeoFilterOnly, seoNeedsCount,
 }) => {
   return (
     <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between border-b border-gray-50 bg-white px-4">
@@ -29,6 +31,21 @@ export const ControlBar: React.FC<Pick<DashboardState,
             <div className={`absolute inset-0 bg-primary-50/0 group-hover:bg-primary-50/50 rounded-xl transition-colors m-1 ${currentTab === tab ? 'hidden' : ''}`} />
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => setSeoFilterOnly(!seoFilterOnly)}
+          className={`flex items-center gap-2 px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap relative ${
+            seoFilterOnly ? 'text-amber-700' : 'text-gray-400 hover:text-gray-900'
+          }`}
+        >
+          <Globe className="h-3.5 w-3.5" />
+          Needs SEO
+          {seoNeedsCount > 0 && (
+            <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${seoFilterOnly ? 'bg-amber-200 text-amber-900' : 'bg-gray-200 text-gray-600'}`}>
+              {seoNeedsCount}
+            </span>
+          )}
+        </button>
       </div>
       
       <div className="flex flex-col sm:flex-row items-center gap-4 py-4 border-t lg:border-t-0 border-gray-50 lg:pl-4">

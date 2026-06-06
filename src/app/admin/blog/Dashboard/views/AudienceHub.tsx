@@ -129,7 +129,7 @@ export function AudienceHub() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-8 py-20 text-center">
-                    <p className="text-gray-400 font-black uppercase tracking-widest text-[10px]">No matching collectors found.</p>
+                    <p className="text-gray-400 font-black uppercase tracking-widest text-[10px]">No matching subscribers found.</p>
                   </td>
                 </tr>
               )}

@@ -34,7 +34,7 @@ export const AuditPanel: React.FC<Pick<DashboardState, 'healthAudit' | 'setSelec
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-primary-600 flex items-center gap-2">
                   <Search className="h-3.5 w-3.5" /> SEO Vitals ({healthAudit.lowSEO.length})
                 </h4>
-                <p className="text-[11px] text-gray-500 font-medium leading-relaxed">Entries missing meta data. These are harder for collectors to find in the wild.</p>
+                <p className="text-[11px] text-gray-500 font-medium leading-relaxed">Entries missing titles or descriptions — harder for guests to find on Google.</p>
                 <button onClick={() => setSelectedPosts(healthAudit.lowSEO.map((p: KnowledgebaseArticle) => p.id))} className="text-[10px] font-black uppercase tracking-widest text-gray-900 hover:text-primary-600 hover:underline transition-colors flex items-center gap-2">
                    Select Vulnerable Posts <Sparkles className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all" />
                 </button>

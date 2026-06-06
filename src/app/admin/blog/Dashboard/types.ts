@@ -27,6 +27,9 @@ export interface DashboardState {
   handleSyncScheduling: () => Promise<void>;
   toggleSelect: (id: string) => void;
   toggleSelectAll: () => void;
+  seoFilterOnly: boolean;
+  setSeoFilterOnly: (v: boolean) => void;
+  seoNeedsCount: number;
   healthAudit: {
     lowSEO: KnowledgebaseArticle[];
     lowWordCount: KnowledgebaseArticle[];

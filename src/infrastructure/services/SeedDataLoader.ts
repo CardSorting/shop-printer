@@ -30,110 +30,89 @@ import { EXTENDED_SERIES, EXTENDED_POSTS } from './ExtendedBlogSeedData';
 
 const INITIAL_CATALOG: ProductDraft[] = [
   {
-    name: 'Scarlet & Violet Booster Box',
-    description: 'A sealed booster box containing 36 packs from the Scarlet & Violet expansion.',
-    price: 14999,
-    category: 'box',
-    productType: 'Trading Cards',
-    stock: 25,
+    name: 'Cold Brew Latte',
+    description: 'Single-origin cold brew with oat milk and a touch of vanilla — from our hall coffee counter.',
+    price: 550,
+    category: 'drink',
+    productType: 'Beverage',
+    stock: 100,
     status: 'active',
     imageUrl: '/assets/generated/scarlet_violet_booster_box_1778177072594.png',
-    set: 'Scarlet & Violet',
-    sku: 'SV-BB-001',
-    handle: 'scarlet-violet-booster-box',
-    collections: ['new', 'bestsellers'],
+    sku: 'WB-DRK-001',
+    handle: 'cold-brew-latte',
+    collections: ['bestsellers', 'coffee'],
     trackQuantity: true,
     physicalItem: true,
-    weightGrams: 800,
-    media: [
-      { id: 'med-1', url: '/assets/generated/scarlet_violet_booster_box_1778177072594.png', altText: 'Front View', position: 1, createdAt: new Date() },
-      { id: 'med-2', url: '/assets/generated/scarlet_violet_booster_box_1778177072594.png', altText: 'Side View', position: 2, createdAt: new Date() }
-    ],
+    media: [],
+    seoTitle: 'Cold Brew Latte — Coffee Counter at WoodBine',
+    seoDescription: 'Single-origin cold brew with oat milk at WoodBine food hall in Salt Lake. Walk in and order at the counter.',
   },
   {
-    name: 'Charizard EX (Holo)',
-    description: 'Ultra rare holographic Charizard EX card. Near mint condition.',
-    price: 29999,
-    category: 'single',
-    productType: 'Trading Cards',
-    stock: 3,
+    name: 'Smoked Brisket Bowl',
+    description: 'Slow-smoked brisket over rice with pickled onions, hall sauce, and seasonal greens.',
+    price: 1499,
+    category: 'entree',
+    productType: 'Food',
+    stock: 40,
     status: 'active',
     imageUrl: '/assets/generated/charizard_ex_holo_1778177088908.png',
-    set: 'XY Evolutions',
-    rarity: 'holo',
-    sku: 'XY-CHZ-EX',
-    handle: 'charizard-ex-holo',
-    collections: ['new', 'artist-cards'],
+    sku: 'WB-ENT-001',
+    handle: 'smoked-brisket-bowl',
+    collections: ['bestsellers', 'hearty'],
     trackQuantity: true,
     physicalItem: true,
-    weightGrams: 5,
     media: [],
   },
   {
-    name: 'Custom Playmat (POD)',
-    description: 'High-quality neoprene playmat with custom printed designs.',
-    price: 2499,
-    category: 'accessory',
-    productType: 'Accessories',
-    stock: 0,
+    name: 'Seasonal Shared Plate',
+    description: 'Chef\'s rotating shared plate — ideal for splitting at the communal tables.',
+    price: 1800,
+    category: 'appetizer',
+    productType: 'Food',
+    stock: 25,
     status: 'active',
     imageUrl: '/assets/generated/custom_playmat_1778177102037.png',
-    handle: 'custom-playmat-pod',
-    collections: ['accessories', 'sale'],
-    hasVariants: true,
-    options: [
-      { id: 'opt-size', productId: '', name: 'Size', position: 1, values: ['Standard', 'XL'] },
-      { id: 'opt-finish', productId: '', name: 'Finish', position: 2, values: ['Matte', 'Stitched Edge'] }
-    ],
-    variants: [
-      { id: 'var-1', productId: '', title: 'Standard / Matte', price: 2499, stock: 100, option1: 'Standard', option2: 'Matte', sku: 'PM-STD-MT', createdAt: new Date(), updatedAt: new Date() },
-      { id: 'var-2', productId: '', title: 'Standard / Stitched', price: 2999, stock: 50, option1: 'Standard', option2: 'Stitched Edge', sku: 'PM-STD-ST', createdAt: new Date(), updatedAt: new Date() },
-      { id: 'var-3', productId: '', title: 'XL / Matte', price: 3499, stock: 30, option1: 'XL', option2: 'Matte', sku: 'PM-XL-MT', createdAt: new Date(), updatedAt: new Date() },
-      { id: 'var-4', productId: '', title: 'XL / Stitched', price: 3999, stock: 20, option1: 'XL', option2: 'Stitched Edge', sku: 'PM-XL-ST', createdAt: new Date(), updatedAt: new Date() },
-    ],
+    handle: 'seasonal-shared-plate',
+    collections: ['seasonal'],
     trackQuantity: true,
     physicalItem: true,
     media: [],
   },
   {
-    name: 'TCG Master Class - Digital Guide',
-    description: 'A comprehensive digital guide to mastering competitive TCG play. Instant download.',
-    price: 1999,
-    category: 'digital',
-    productType: 'Digital',
-    stock: 1000,
+    name: 'WoodBine Gift Card',
+    description: 'Digital gift card redeemable at any vendor counter in the hall.',
+    price: 2500,
+    category: 'other',
+    productType: 'Gift Card',
+    stock: 999,
     status: 'active',
     imageUrl: '/assets/generated/tcg_digital_guide_1778177116259.png',
-    handle: 'tcg-master-class-digital',
-    collections: ['new'],
+    handle: 'woodbine-gift-card',
+    collections: ['gifts'],
     isDigital: true,
-    digitalAssets: [
-      { id: 'asset-1', name: 'Mastering_TCG_v1.pdf', url: '/downloads/guides/tcg_master_v1.pdf', size: 15420000, mimeType: 'application/pdf', createdAt: new Date() }
-    ],
-    sku: 'DG-TCG-MC',
+    sku: 'WB-GC-025',
     trackQuantity: false,
     physicalItem: false,
     media: [],
-  }
+  },
 ];
 
 const INITIAL_CUSTOMERS = [
   { email: 'admin@woodbine.com', passwordEnv: 'SEED_ADMIN_PASSWORD', displayName: 'System Admin', role: 'admin' as const },
-  { email: 'alchemist@woodbine.com', passwordEnv: 'SEED_ALCHEMIST_PASSWORD', displayName: 'Alchemist Admin', role: 'admin' as const },
-  { email: 'ash.ketchum@palette.town', displayName: 'Ash Ketchum', role: 'customer' as const },
-  { email: 'misty.williams@cerulean.city', displayName: 'Misty Williams', role: 'customer' as const },
+  { email: 'manager@woodbine.com', passwordEnv: 'SEED_ALCHEMIST_PASSWORD', displayName: 'Hall Manager', role: 'admin' as const },
+  { email: 'alex.morgan@example.com', displayName: 'Alex Morgan', role: 'customer' as const },
+  { email: 'jordan.lee@example.com', displayName: 'Jordan Lee', role: 'customer' as const },
 ];
 
 const KB_DATA = {
   categories: [
-    { id: 'creator-strategies', name: 'Creator Strategies', slug: 'creator-strategies', description: 'Advanced tactics for growing your digital presence.', icon: 'rocket', articleCount: 5 },
-    { id: 'order-issues', name: 'Order Issues', slug: 'order-issues', description: 'Track, change, or cancel your orders.', icon: 'package', articleCount: 2 },
-    { id: 'returns-refunds', name: 'Returns & Refunds', slug: 'returns-refunds', description: 'Everything you need to know about our return policy.', icon: 'rotate-ccw', articleCount: 1 },
-    { id: 'collecting-101', name: 'Collecting 101', slug: 'collecting-101', description: 'Beginner guides for aspiring art collectors.', icon: 'sparkles', articleCount: 3 },
-    { id: 'tcg-strategy', name: 'TCG Strategy', slug: 'tcg-strategy', description: 'Deep-dive competitive decklists and meta analysis.', icon: 'swords', articleCount: 3 },
-    { id: 'digital-art', name: 'Digital Art', slug: 'digital-art', description: 'Mastering the tools and theory of digital creation.', icon: 'palette', articleCount: 3 },
-    { id: 'market-analysis', name: 'Market Analysis', slug: 'market-analysis', description: 'Data-driven insights into collectible markets.', icon: 'trending-up', articleCount: 3 },
-    { id: 'fgc-strategy', name: 'FGC Strategy', slug: 'fgc-strategy', description: 'Frame-perfect tactics for fighting game champions.', icon: 'gamepad-2', articleCount: 2 },
+    { id: 'vendor-spotlights', name: 'Vendor Spotlights', slug: 'vendor-spotlights', description: 'Meet the counters and makers at the hall.', icon: 'utensils', articleCount: 2 },
+    { id: 'visit-guide', name: 'Visit Guide', slug: 'visit-guide', description: 'Hours, directions, and first-timer tips.', icon: 'map-pin', articleCount: 2 },
+    { id: 'local-food', name: 'Salt Lake Food', slug: 'local-food', description: 'Neighborhood dining and arts district guides.', icon: 'sparkles', articleCount: 1 },
+    { id: 'events', name: 'Events', slug: 'events', description: 'Live nights, private bookings, and community gatherings.', icon: 'calendar', articleCount: 1 },
+    { id: 'seasonal', name: 'Seasonal Menu', slug: 'seasonal', description: 'Rotating dishes and limited-time counters.', icon: 'sun', articleCount: 1 },
+    { id: 'order-issues', name: 'Order Help', slug: 'order-issues', description: 'Track orders and get support.', icon: 'package', articleCount: 1 },
+    { id: 'returns-refunds', name: 'Returns & Refunds', slug: 'returns-refunds', description: 'Our policies for orders and gift cards.', icon: 'rotate-ccw', articleCount: 1 },
   ],
   articles: [
     {
@@ -164,8 +143,8 @@ const BLOG_DATA = {
       id: 'comm-1',
       postId: 'blog-1',
       userId: 'user-1',
-      userName: 'Ash Ketchum',
-      content: 'This strategy is exactly what I needed for my training journal!',
+      userName: 'Alex Morgan',
+      content: 'This guide made our first visit so easy — loved trying three counters in one night!',
       status: 'published' as const,
       likes: 12,
       createdAt: new Date(),
@@ -176,19 +155,19 @@ const BLOG_DATA = {
 
 
 const SUPPLIERS: Partial<Supplier>[] = [
-  { 
-    id: 'sup-1', 
-    name: 'Kanto Distribution', 
-    contactName: 'Officer Jenny', 
-    email: 'jenny@kanto.gov', 
-    phone: '555-0100', 
-    website: 'https://kanto.gov/distribution', 
-    address: { street: '1 PokeWay', city: 'Viridian City', state: 'Kanto', zip: '00102', country: 'US' } 
+  {
+    id: 'sup-1',
+    name: 'Wasatch Provisions Co.',
+    contactName: 'Riley Park',
+    email: 'orders@wasatchprovisions.example',
+    phone: '801-555-0100',
+    website: 'https://wasatchprovisions.example',
+    address: { street: '400 W 200 S', city: 'Salt Lake City', state: 'UT', zip: '84101', country: 'US' },
   },
 ];
 
 const LOCATIONS: Partial<InventoryLocation>[] = [
-  { id: 'loc-warehouse', name: 'Main Fulfillment Center', type: 'warehouse', address: '123 Logistics Blvd, Celadon City', isDefault: true, isActive: true },
+  { id: 'loc-warehouse', name: 'WoodBine Main Hall', type: 'warehouse', address: 'Arts District, Salt Lake City, UT', isDefault: true, isActive: true },
 ];
 
 const MACROS = [
@@ -215,12 +194,11 @@ function assertSeedingAllowed(): void {
 export async function seedTaxonomy(): Promise<void> {
   // Collections
   const collections = [
-    { id: 'coll-new', name: 'New Drops', handle: 'new', status: 'active' as const, productCount: 10, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
-    { id: 'coll-best', name: 'Bestsellers', handle: 'bestsellers', status: 'active' as const, productCount: 25, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
-    { id: 'coll-sale', name: 'Sale', handle: 'sale', status: 'active' as const, productCount: 5, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
-    { id: 'coll-cards', name: 'Artist Trading Cards', handle: 'artist-cards', status: 'active' as const, productCount: 12, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
-    { id: 'coll-prints', name: 'Art Prints', handle: 'prints', status: 'active' as const, productCount: 8, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
-    { id: 'coll-acc', name: 'TCG Accessories', handle: 'accessories', status: 'active' as const, productCount: 15, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'coll-best', name: 'Hall Favorites', handle: 'bestsellers', status: 'active' as const, productCount: 12, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'coll-seasonal', name: 'Seasonal', handle: 'seasonal', status: 'active' as const, productCount: 8, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'coll-coffee', name: 'Coffee & Drinks', handle: 'coffee', status: 'active' as const, productCount: 6, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'coll-hearty', name: 'Hearty Plates', handle: 'hearty', status: 'active' as const, productCount: 10, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'coll-gifts', name: 'Gift Cards & Merch', handle: 'gifts', status: 'active' as const, productCount: 4, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
   ];
 
   for (const coll of collections) {
@@ -229,16 +207,15 @@ export async function seedTaxonomy(): Promise<void> {
 
   // Product Categories
   const cats = [
-    { id: 'cat-cards', name: 'Trading Cards', slug: 'cards', description: 'Individual singles and sets', createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
-    { id: 'cat-acc', name: 'Accessories', slug: 'accessories', description: 'Mats, sleeves, and more', createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'cat-food', name: 'Food', slug: 'food', description: 'Entrees, plates, and hall menu items', createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'cat-drinks', name: 'Drinks', slug: 'drinks', description: 'Coffee, tea, and beverages', createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
   ];
 
   for (const cat of cats) {
     await adminDb.collection('product_categories').doc(cat.id).set(cat);
   }
 
-  // Product Types
-  const types = ['Trading Cards', 'Accessories', 'Digital', 'Apparel', 'Collectibles'];
+  const types = ['Food', 'Beverage', 'Gift Card', 'Merchandise'];
   for (const t of types) {
     const id = crypto.randomUUID();
     await adminDb.collection('product_types').doc(id).set({ id, name: t, createdAt: Timestamp.now(), updatedAt: Timestamp.now() });

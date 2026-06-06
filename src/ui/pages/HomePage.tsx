@@ -407,7 +407,7 @@ export function HomePage() {
                 href: "/collections/prints", 
                 title: "Cold Drinks", 
                 sub: "Raise a glass with the room",
-                img: "/assets/generated/generic_tcg_strategy_1778177431609.png",
+                img: "/assets/generated/monetization_blueprint_featured_1778177186388.png",
                 delay: "reveal-delay-2"
               },
               { 

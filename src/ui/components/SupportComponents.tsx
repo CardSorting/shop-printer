@@ -311,7 +311,7 @@ export function KnowledgebaseArticleView({ article, relatedArticles, onBack, onA
                   </div>
                   <div>
                     <p className="text-[10px] font-black uppercase text-gray-400">Audience</p>
-                    <p className="text-sm font-bold text-gray-900">{article.tags?.includes('beginner') ? 'Beginner' : 'All Collectors'}</p>
+                    <p className="text-sm font-bold text-gray-900">{article.tags?.includes('beginner') ? 'Beginner' : 'All guests'}</p>
                   </div>
                 </div>
              </div>

@@ -111,7 +111,7 @@ export function QuickViewModal({
           <p className="text-2xl font-black text-gray-900 mb-8">{formatCurrency(product.price)}</p>
 
           <p className="text-gray-500 leading-relaxed mb-10 font-medium">
-            {product.description || 'Discover the intricate details and masterful craftsmanship of this curated piece. Perfect for collectors and art enthusiasts alike.'}
+            {product.description || 'A dish from the hall — order at the counter and enjoy in our communal dining space.'}
           </p>
 
           {/* Trust Signals */}

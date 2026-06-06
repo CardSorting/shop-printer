@@ -373,7 +373,7 @@ export function CommentSection({ postId, comments, onAddComment }: {
         <div className="bg-gray-50 rounded-4xl p-12 text-center border border-gray-100">
            <User className="h-12 w-12 text-gray-200 mx-auto mb-6" />
            <h4 className="text-xl font-black text-gray-900 mb-2">Join the conversation</h4>
-           <p className="text-gray-500 font-medium mb-8">Please sign in to leave a comment and engage with other collectors.</p>
+           <p className="text-gray-500 font-medium mb-8">Please sign in to leave a comment and join the conversation.</p>
            <Link href="/login" className="inline-flex px-8 py-4 rounded-2xl bg-gray-900 text-white font-black text-xs uppercase tracking-widest hover:bg-black transition-all">
              Sign In to Comment
            </Link>
@@ -468,7 +468,7 @@ export function NewsletterBox() {
             Stay ahead of the <span className="text-primary-400 italic">Drop.</span>
           </h2>
           <p className="text-lg font-medium text-white/60">
-            Join 5,000+ collectors getting weekly insights, early access to new prints, and members-only discounts.
+            Join neighbors and regulars for weekly hall updates, new counters, and event news.
           </p>
         </div>
         

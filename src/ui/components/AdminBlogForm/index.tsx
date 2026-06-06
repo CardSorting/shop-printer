@@ -143,7 +143,7 @@ export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
   const CONTENT_TEMPLATES = {
     interview: `## The Background\n[Introduce the subject and the context of the interview]\n\n## The Conversation\n**Q: What inspired your latest collection?**\nA: [Subject's response...]\n\n**Q: How do you approach the blank canvas?**\nA: [Subject's response...]\n\n## The Legacy\n[Concluding thoughts and where to find their work]`,
     tutorial: `## Prerequisites\n- [Tool 1]\n- [Tool 2]\n\n## Step 1: Preparation\n[Explain the first step...]\n\n## Step 2: Implementation\n[Explain the second step...]\n\n## Final Result\n[Summary of the outcome and tips for success]`,
-    spotlight: `## The Concept\n[Explain the "why" behind this product/collection]\n\n## Key Features\n- **Feature 1**: [Benefit]\n- **Feature 2**: [Benefit]\n\n## Why it Matters\n[The impact on collectors and the art world]`
+    spotlight: `## The Concept\n[Why this dish or vendor matters at WoodBine]\n\n## Key Details\n- **Vendor**: [Counter name]\n- **Best for**: [Quick bite, sharing, etc.]\n\n## Why it Matters\n[What makes it special in the hall]`
   };
 
   const applyTemplate = (type: keyof typeof CONTENT_TEMPLATES) => {

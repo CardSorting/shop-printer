@@ -4,19 +4,64 @@ import { logger } from '@utils/logger';
 
 /**
  * [LAYER: API]
- * Cron Trigger for Blog Automation
- * 
- * This endpoint is designed to be hit by Google Cloud Scheduler on a schedule.
- * It selects a random trending niche and triggers the AI content generation.
+ * Cron Trigger for Blog Automation — WoodBine food hall editorial topics.
  */
 
 const NICHES = [
-  { id: 'yugioh', name: 'Yu-Gi-Oh! TCG', topics: ['How to Predict the Next Yu-Gi-Oh! Banlist', 'Is Infinite Forbidden Worth It? Set Review', 'Top 10 Rarest Yu-Gi-Oh! Cards to Invest in 2026'] },
-  { id: 'pokemon', name: 'Pokémon TCG', topics: ['PSA vs BGS: Which is Better for Pokémon Card Grading?', 'Top 5 Rare Pokémon Cards with the Highest ROI', 'How to Spot a Fake Pokémon Card: Expert Guide'] },
-  { id: 'mtg', name: 'Magic: The Gathering', topics: ['Modern Horizons 3 Meta Breakdown', 'Is MTG Arena Better than Paper? A Comparative Review', 'Best Commander Decks for Beginners under $100'] },
-  { id: 'anime', name: 'Anime Trends', topics: ['Why Solo Leveling is Changing the Shonen Genre', 'Best Anime Studios of 2026: A Deep Dive', 'Top 10 Must-Watch Anime for TCG Fans'] },
-  { id: 'geek', name: 'Hardware Reviews', topics: ['Best Epson vs Canon Scanners for Card Archiving', 'Top 5 Mechanical Keyboards for a Clean Desk Setup', 'Review: BenQ vs Dell for Professional Digital Art'] },
-  { id: 'tech', name: 'Tech Lifestyle', topics: ['How to Build a UV-Protected Card Display Room', 'Best iPad Pro Accessories for TCG Collectors', 'Review: Pelican vs Apache Cases for Graded Card Travel'] }
+  {
+    id: 'vendor-spotlights',
+    name: 'Vendor Spotlights',
+    topics: [
+      'Meet the Chef Behind WoodBine\'s Newest Counter',
+      'Five Dishes You Have to Try at WoodBine This Month',
+      'From Food Truck to Food Hall: A Vendor Origin Story',
+    ],
+  },
+  {
+    id: 'visit-guide',
+    name: 'Visit & Experience',
+    topics: [
+      'First Timer\'s Guide to WoodBine Food Hall in Salt Lake',
+      'How to Plan a Group Dinner at WoodBine',
+      'Weekend Walk-In Guide: What to Expect at the Hall',
+    ],
+  },
+  {
+    id: 'local-food',
+    name: 'Salt Lake Food Scene',
+    topics: [
+      'Why Salt Lake\'s Arts District Is a Food Destination',
+      'Best Late-Night Bites Near WoodBine',
+      'Supporting Local: How WoodBine Vendors Source in Utah',
+    ],
+  },
+  {
+    id: 'events',
+    name: 'Events & Community',
+    topics: [
+      'Hosting a Private Event at WoodBine Food Hall',
+      'Live Music Nights at the Hall: What\'s Coming Up',
+      'Community Night at WoodBine: Neighbors, Vendors, and New Flavors',
+    ],
+  },
+  {
+    id: 'seasonal',
+    name: 'Seasonal Menu',
+    topics: [
+      'Fall Flavors at WoodBine: Seasonal Dishes to Order Now',
+      'Summer at the Hall: Cold Drinks and Shared Plates',
+      'Holiday Catering from WoodBine Vendors',
+    ],
+  },
+  {
+    id: 'behind-the-hall',
+    name: 'Behind the Hall',
+    topics: [
+      'Old Hall, New Flavors: Restoring a Warehouse into a Food Hall',
+      'How WoodBine Chooses Its Vendor Counters',
+      'A Day in the Life of a WoodBine Hall Manager',
+    ],
+  },
 ];
 
 export async function GET(req: Request) {
@@ -24,20 +69,13 @@ export async function GET(req: Request) {
     requireConfiguredBearerToken(req, 'CRON_SECRET');
     const secret = process.env.CRON_SECRET!;
 
-    // 2. Select Niche and Topic
     const niche = NICHES[Math.floor(Math.random() * NICHES.length)];
     const topic = niche.topics[Math.floor(Math.random() * niche.topics.length)];
 
     logger.info('Triggering blog automation cron', { niche: niche.name, topic });
 
-    // 3. Trigger Generation via Internal Logic
-    // We call the same logic as the /api/admin/blog/generate endpoint
-    // To avoid circular network calls, we should ideally extract the logic, 
-    // but for now, we'll hit the endpoint internally or call the services directly.
-    
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    
-    // We use a POST request to the generate endpoint
+
     const response = await fetch(`${baseUrl}/api/admin/blog/generate`, {
       method: 'POST',
       headers: {
@@ -46,8 +84,8 @@ export async function GET(req: Request) {
         Origin: new URL(baseUrl).origin,
       },
       body: JSON.stringify({
-        topic: topic,
-        categoryId: niche.id
+        topic,
+        categoryId: niche.id,
       }),
     });
 
@@ -58,12 +96,11 @@ export async function GET(req: Request) {
       timestamp: new Date().toISOString(),
       execution: {
         niche: niche.name,
-        topic: topic,
+        topic,
         article: result.article || null,
-        error: result.error || null
-      }
+        error: result.error || null,
+      },
     });
-
   } catch (error: any) {
     logger.error('Cron blog automation failed', { error: error.message, stack: error.stack });
     return jsonError(error, 'Cron blog automation failed');

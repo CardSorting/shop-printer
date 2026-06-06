@@ -33,7 +33,7 @@ export const BlogTable: React.FC<Pick<DashboardState,
             <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Content Detail</th>
             <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Lifecycle</th>
             <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Performance</th>
-            <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Health Index</th>
+            <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Search listing</th>
             <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Orchestration</th>
           </tr>
         </thead>

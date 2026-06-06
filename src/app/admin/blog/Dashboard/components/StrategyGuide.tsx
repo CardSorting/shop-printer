@@ -17,7 +17,7 @@ export const StrategyGuide: React.FC<{ onClose: () => void }> = ({ onClose }) =>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-3">
                    <h4 className="text-[10px] font-black uppercase tracking-widest text-primary-600">The Golden Rule</h4>
-                   <p className="text-sm text-gray-600 leading-relaxed font-medium">Aim for <span className="font-bold text-gray-900">1,200+ words</span>. Longer content establishes authority and provides more value to collectors.</p>
+                   <p className="text-sm text-gray-600 leading-relaxed font-medium">Aim for <span className="font-bold text-gray-900">1,200+ words</span>. Longer stories help you rank for local food and visit searches.</p>
                 </div>
                 <div className="space-y-3">
                    <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-600">Visual Impact</h4>

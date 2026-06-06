@@ -18,3 +18,5 @@ export * from './catalog';
 export * from './registry';
 export * from './onboarding';
 export * from './helpers';
+export * from './glossary';
+export * from './quickWins';

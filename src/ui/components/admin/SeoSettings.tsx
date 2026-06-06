@@ -26,6 +26,7 @@ interface SeoSettingsProps {
   pathPrefix?: string;
   imageUrl?: string;
   isEdit?: boolean;
+  sectionId?: string;
 }
 
 export function SeoSettings({
@@ -38,6 +39,7 @@ export function SeoSettings({
   pathPrefix = '/products',
   imageUrl,
   isEdit = false,
+  sectionId = 'section-search-listing',
 }: SeoSettingsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<SeoPreviewChannel>('google');
@@ -84,7 +86,7 @@ export function SeoSettings({
         : 'bg-red-100 text-red-700';
 
   return (
-    <section className="overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:shadow-md">
+    <section id={sectionId} className="overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:shadow-md scroll-mt-24">
       <div className="flex items-center justify-between border-b bg-gray-50/50 px-5 py-4">
         <div className="flex items-center gap-3">
           <Search className="h-4 w-4 text-gray-400" />

@@ -73,15 +73,11 @@ import type { ProductDraft } from '@domain/models';
 
 const PRODUCT_CATEGORIES: Array<string | 'all'> = [
   'all',
-  'booster',
-  'single',
-  'deck',
-  'accessory',
-  'box',
-  'elite_trainer_box',
-  'sealed_case',
-  'graded_card',
-  'supplies',
+  'appetizer',
+  'entree',
+  'drink',
+  'dessert',
+  'merchandise',
   'other',
 ];
 
@@ -595,7 +591,7 @@ export function AdminProducts() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search products... (Try 'status:draft' or 'cat:booster')"
+                placeholder="Search menu items... (Try 'status:draft' or 'cat:entree')"
                 className="w-full rounded-xl border bg-gray-50 py-2.5 pl-10 pr-3 text-sm focus:ring-2 focus:ring-primary-500 focus:bg-white outline-none transition-all shadow-sm group-hover:border-gray-300"
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-focus-within:opacity-100 transition-opacity">

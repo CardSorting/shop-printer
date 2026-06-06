@@ -25,7 +25,9 @@ import type { DigitalAsset } from '@domain/models';
 import { formatCurrency } from '@utils/formatters';
 import { SkeletonPage, AdminConfirmDialog } from '../../../components/admin/AdminComponents';
 import { CategorySelect, TagInput } from '../../../components/admin/AdminInputs';
+import { SeoFormSectionNav } from '../../../components/admin/SeoFormSectionNav';
 import { SeoSettings } from '../../../components/admin/SeoSettings';
+import { scoreProductListing, SEO_LISTING_PASS_SCORE } from '@domain/seo/helpers';
 import { AdminMediaManager } from '../../../components/admin/AdminMediaManager';
 import { DigitalAssetManager } from '@ui/components/admin/DigitalAssetManager';
 
@@ -96,8 +98,16 @@ export function AdminProductForm() {
     { label: 'Has SKU', done: Boolean(form.sku.trim()) },
     { label: 'Has price', done: priceCents > 0 },
     { label: 'Has cost', done: costCents !== undefined },
+    { label: 'Search listing ready', done: scoreProductListing(form) >= SEO_LISTING_PASS_SCORE },
     { label: 'Published to online store', done: form.status === 'active' && form.salesChannels.includes('online_store') },
     { label: 'Digital assets configured', done: !form.isDigital || (form.isDigital && form.digitalAssets.length > 0) },
+  ];
+
+  const formSections = [
+    { id: 'section-title', label: 'Title & description' },
+    { id: 'section-media', label: 'Media' },
+    { id: 'section-pricing', label: 'Pricing' },
+    { id: 'section-search-listing', label: 'Search listing', done: scoreProductListing(form) >= SEO_LISTING_PASS_SCORE },
   ];
 
   if (loadingProduct) return <SkeletonPage />;
@@ -144,7 +154,7 @@ export function AdminProductForm() {
 
       <form id="product-form" onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
-          <section className="rounded-xl border bg-white p-5 shadow-sm">
+          <section id="section-title" className="rounded-xl border bg-white p-5 shadow-sm scroll-mt-24">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Title + description</h2>
               <span className={`text-[10px] font-bold ${form.description.length > 500 ? 'text-amber-600' : 'text-gray-400'}`}>
@@ -152,11 +162,12 @@ export function AdminProductForm() {
               </span>
             </div>
             <div className="space-y-4">
-              <input name="name" data-testid="product-name" value={form.name} onChange={handleChange} required placeholder="Product title" className="w-full rounded-lg border bg-gray-50 px-4 py-3 text-lg font-bold outline-none transition focus:ring-2 focus:ring-primary-500" />
-              <textarea name="description" data-testid="product-description" value={form.description} onChange={handleChange} required rows={6} placeholder="Describe condition, edition, contents, and sales details." className="w-full rounded-lg border bg-gray-50 px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-primary-500" />
+              <input name="name" data-testid="product-name" value={form.name} onChange={handleChange} required placeholder="Dish or menu item name" className="w-full rounded-lg border bg-gray-50 px-4 py-3 text-lg font-bold outline-none transition focus:ring-2 focus:ring-primary-500" />
+              <textarea name="description" data-testid="product-description" value={form.description} onChange={handleChange} required rows={6} placeholder="Describe the dish, vendor counter, ingredients, and what makes it special at WoodBine." className="w-full rounded-lg border bg-gray-50 px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-primary-500" />
             </div>
           </section>
 
+          <div id="section-media" className="scroll-mt-24">
           <AdminMediaManager
             media={form.media}
             onChange={(media) => {
@@ -169,8 +180,9 @@ export function AdminProductForm() {
             }}
             folder="products"
           />
+          </div>
 
-          <section className="rounded-xl border bg-white p-5 shadow-sm">
+          <section id="section-pricing" className="rounded-xl border bg-white p-5 shadow-sm scroll-mt-24">
             <h2 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">Pricing</h2>
             <div className="grid gap-4 md:grid-cols-3">
               <MoneyInput label="Price" id="product-price" name="price" value={form.price} onChange={handleChange} required />
@@ -321,6 +333,7 @@ export function AdminProductForm() {
         </div>
 
         <aside className="space-y-6">
+          <SeoFormSectionNav sections={formSections} />
           <section className="rounded-xl border bg-white p-5 shadow-sm overflow-hidden relative">
             <div className="absolute top-0 left-0 w-1 h-full bg-primary-500" />
             <h2 className="mb-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400"><CheckCircle2 className="h-4 w-4" /> Setup checklist</h2>
@@ -386,13 +399,13 @@ export function AdminProductForm() {
                   </select>
                 )}
               </div>
-              <TextInput label="Vendor / brand" name="vendor" value={form.vendor} onChange={handleChange} placeholder="Pokémon" />
+              <TextInput label="Vendor / brand" name="vendor" value={form.vendor} onChange={handleChange} placeholder="Counter or vendor name" />
               
               <TagInput 
                 label="Collections" 
                 tags={csvToList(form.collections)} 
                 onChange={(tags) => setFieldValue('collections', tags.join(', '))}
-                placeholder="Featured, Scarlet & Violet..."
+                placeholder="Featured, Seasonal, Coffee..."
               />
               <TagInput 
                 label="Tags" 

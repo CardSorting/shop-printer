@@ -23,6 +23,7 @@ export function SeoHealthWidget() {
 
   const score = data?.site.score ?? null;
   const needsWork = data?.snapshot.combinedNeedsWork ?? 0;
+  const ctaHref = needsWork > 0 ? '/admin/seo?tab=listings' : '/admin/seo';
 
   return (
     <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
@@ -31,7 +32,7 @@ export function SeoHealthWidget() {
           <Search className="h-4 w-4 text-primary-500" />
           <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900">Search & Visibility</h2>
         </div>
-        <Link href="/admin/seo" className="text-[10px] font-bold uppercase tracking-wider text-primary-600 hover:text-primary-700">
+        <Link href={ctaHref} className="text-[10px] font-bold uppercase tracking-wider text-primary-600 hover:text-primary-700">
           Open →
         </Link>
       </div>
@@ -59,10 +60,10 @@ export function SeoHealthWidget() {
                 : 'Site basics and listings look healthy.'}
             </p>
             <Link
-              href="/admin/seo"
+              href={ctaHref}
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary-100 py-2 text-[10px] font-black uppercase tracking-widest text-primary-600 transition hover:bg-primary-50"
             >
-              Manage visibility <ArrowRight className="h-3 w-3" />
+              {needsWork > 0 ? 'Fix listings' : 'Manage visibility'} <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
         )}

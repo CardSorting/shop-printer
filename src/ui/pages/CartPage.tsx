@@ -388,7 +388,7 @@ export function CartPage() {
                     <Info className="h-6 w-6" />
                   </div>
                   <p className="mt-6 text-center text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                    Trusted by 50,000+ Collectors
+                    Trusted by thousands of Salt Lake neighbors
                   </p>
                 </div>
               </div>
