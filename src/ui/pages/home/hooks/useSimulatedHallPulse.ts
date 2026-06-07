@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { SITE_HOURS_CLOSES, SITE_HOURS_OPENS } from '@utils/seo';
 import { HALL_COUNTERS } from '../constants';
+import { buildStallCrowdSignal, type StallCrowdSignal } from '../utils/stallCrowd';
 import { getHallDaypart, isHallOpenNow, parseHour, type HallDaypart } from '../utils/hallTime';
 
 const TABLES_TOTAL = 24;
@@ -77,7 +78,7 @@ export type SimulatedHallPulse = {
   slotCountdownSeconds: number;
   viewingNow: number;
   hotWaits: Record<string, number>;
-  stallCrowd: Record<string, number>;
+  stallCrowd: Record<string, StallCrowdSignal>;
   activityLine: string;
   opensInLabel: string | null;
   opensInSeconds: number;
@@ -85,7 +86,6 @@ export type SimulatedHallPulse = {
   closesInSeconds: number;
   rushLabel: string | null;
   urgencyLevel: UrgencyLevel;
-  slotMaxSeconds: number;
 };
 
 function hashSeed(...parts: number[]): number {
@@ -157,30 +157,25 @@ function resolveUrgency(tablesLeft: number, tableFillPct: number, daypart: HallD
   return 'calm';
 }
 
-function buildStallCrowd(
-  hotNames: readonly string[],
+function computeStallCrowd(
   daypart: HallDaypart,
+  hotNames: readonly string[],
   metricTick: number,
   secondTick: number,
-): Record<string, number> {
+): Record<string, StallCrowdSignal> {
   const hotSet = new Set(hotNames);
+  const wave = (secondTick % 20) / 20;
 
   return Object.fromEntries(
-    HALL_COUNTERS.map((counter, index) => {
+    HALL_COUNTERS.map((counter, i) => {
       const isHot = hotSet.has(counter.name);
-      const seed = hashSeed(counter.name.length, index, metricTick, secondTick);
-      let count = isHot ? 3 + (seed % 6) : 1 + (seed % 4);
-
-      if (daypart === 'midday' || daypart === 'evening') {
-        if (isHot) count += 2;
-        else count += seed % 2;
-      }
-
-      if (daypart === 'morning' || daypart === 'late') {
-        count = Math.max(1, count - 1);
-      }
-
-      return [counter.name, clamp(count, 1, 9)];
+      const isHero = counter.layout === 'hero';
+      const min = isHot ? 5 : isHero ? 3 : 1;
+      const max = isHot ? 11 : isHero ? 7 : 5;
+      const seed = hashSeed(counter.name.length, i, metricTick, secondTick);
+      const t = ((seed % 100) / 100 + wave) / 2;
+      const count = clamp(lerpInt(min, max, t), min, max);
+      return [counter.name, buildStallCrowdSignal(counter.name, count, isHot)];
     }),
   );
 }
@@ -192,7 +187,6 @@ function computePulse(
   metricTick: number,
   secondTick: number,
   slotRemaining: number,
-  slotMaxSeconds: number,
 ): SimulatedHallPulse {
   const open = isHallOpenNow(now);
   const range = DAYPART_RANGES[daypart];
@@ -244,6 +238,8 @@ function computePulse(
     }),
   );
 
+  const stallCrowd = open ? computeStallCrowd(daypart, hotNames, metricTick, secondTick) : {} as Record<string, StallCrowdSignal>;
+
   const opensInSeconds = secondsUntil(SITE_HOURS_OPENS ?? '11:00', now);
   const closesInSeconds = secondsUntil(SITE_HOURS_CLOSES ?? '22:00', now, true);
 
@@ -264,8 +260,6 @@ function computePulse(
     ? buildActivityLine(hotNames, lastOrderSeconds, metricTick, now)
     : 'Hall opens soon · counters prepped · pastry case warming';
 
-  const stallCrowd = buildStallCrowd(hotNames, daypart, metricTick, secondTick);
-
   return {
     guestsOnFloor,
     ordersLastHour,
@@ -277,8 +271,7 @@ function computePulse(
     lastOrderMins,
     lastOrderSeconds,
     pickupWaitMins,
-    slotCountdownSeconds: slotRemaining,
-    slotMaxSeconds,
+    slotCountdownSeconds,
     viewingNow,
     hotWaits,
     stallCrowd,
@@ -297,7 +290,6 @@ export function useSimulatedHallPulse(hotNames: readonly string[]) {
   const [metricTick, setMetricTick] = useState(0);
   const [secondTick, setSecondTick] = useState(0);
   const [slotRemaining, setSlotRemaining] = useState(() => 48 + (hashSeed(new Date().getDate()) % 40));
-  const [slotMaxSeconds, setSlotMaxSeconds] = useState(() => 48 + (hashSeed(new Date().getDate()) % 40));
   const daypart = getHallDaypart(now);
   const isOpen = isHallOpenNow(now);
 
@@ -306,11 +298,7 @@ export function useSimulatedHallPulse(hotNames: readonly string[]) {
       setNow(new Date());
       setSecondTick((t) => t + 1);
       setSlotRemaining((s) => {
-        if (s <= 1) {
-          const next = 38 + (hashSeed(Date.now() % 100000) % 52);
-          setSlotMaxSeconds(next);
-          return next;
-        }
+        if (s <= 1) return 38 + (hashSeed(Date.now() % 100000) % 52);
         return s - 1;
       });
     }, 1000);
@@ -323,8 +311,8 @@ export function useSimulatedHallPulse(hotNames: readonly string[]) {
   }, []);
 
   const pulse = useMemo(
-    () => computePulse(now, daypart, hotNames, metricTick, secondTick, slotRemaining, slotMaxSeconds),
-    [now, daypart, hotNames, metricTick, secondTick, slotRemaining, slotMaxSeconds],
+    () => computePulse(now, daypart, hotNames, metricTick, secondTick, slotRemaining),
+    [now, daypart, hotNames, metricTick, secondTick, slotRemaining],
   );
 
   return { pulse, daypart, isOpen, metricTick, secondTick };

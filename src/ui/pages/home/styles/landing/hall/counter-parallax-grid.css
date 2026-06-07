@@ -164,6 +164,221 @@
   transform: scale(1.04);
 }
 
+.stall-crowd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  max-width: min(100%, 9.5rem);
+  margin-inline-start: auto;
+  padding: 0.12rem 0.4rem 0.12rem 0.3rem;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.06) 0%, transparent 100%),
+    rgb(255 255 255 / 0.04);
+  backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.stall-crowd-chip--md {
+  gap: 0.34rem;
+  max-width: min(100%, 11rem);
+  padding: 0.16rem 0.52rem 0.16rem 0.38rem;
+}
+
+.stall-crowd-chip--steady {
+  border-color: rgb(255 255 255 / 0.12);
+}
+
+.stall-crowd-chip--busy {
+  border-color: rgb(245 158 11 / 0.24);
+  background:
+    linear-gradient(180deg, rgb(245 158 11 / 0.08) 0%, transparent 100%),
+    rgb(255 255 255 / 0.05);
+}
+
+.stall-crowd-chip--hot {
+  border-color: rgb(245 158 11 / 0.36);
+  background:
+    linear-gradient(180deg, rgb(245 158 11 / 0.14) 0%, transparent 100%),
+    rgb(245 158 11 / 0.06);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 0 12px rgb(245 158 11 / 0.1);
+}
+
+.stall-crowd-chip__live {
+  width: 0.28rem;
+  height: 0.28rem;
+  border-radius: 999px;
+  background: var(--color-primary-400);
+  box-shadow: 0 0 0 2px rgb(245 158 11 / 0.18);
+  flex-shrink: 0;
+  animation: stall-crowd-live 2.2s ease-in-out infinite;
+}
+
+.stall-crowd-chip--hot .stall-crowd-chip__live {
+  box-shadow:
+    0 0 0 2px rgb(245 158 11 / 0.22),
+    0 0 8px rgb(245 158 11 / 0.45);
+}
+
+.stall-crowd-chip__track {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.06rem;
+  height: 0.34rem;
+  flex-shrink: 0;
+}
+
+.stall-crowd-chip--md .stall-crowd-chip__track {
+  height: 0.4rem;
+  gap: 0.07rem;
+}
+
+.stall-crowd-chip__bar {
+  width: 0.1rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.14);
+  transform-origin: bottom center;
+}
+
+.stall-crowd-chip--md .stall-crowd-chip__bar {
+  width: 0.11rem;
+}
+
+.stall-crowd-chip__bar:nth-child(1) {
+  height: 0.18rem;
+}
+
+.stall-crowd-chip__bar:nth-child(2) {
+  height: 0.24rem;
+}
+
+.stall-crowd-chip__bar:nth-child(3) {
+  height: 0.3rem;
+}
+
+.stall-crowd-chip--md .stall-crowd-chip__bar:nth-child(1) {
+  height: 0.2rem;
+}
+
+.stall-crowd-chip--md .stall-crowd-chip__bar:nth-child(2) {
+  height: 0.28rem;
+}
+
+.stall-crowd-chip--md .stall-crowd-chip__bar:nth-child(3) {
+  height: 0.36rem;
+}
+
+.stall-crowd-chip__bar--on {
+  background: rgb(255 255 255 / 0.62);
+}
+
+.stall-crowd-chip--steady .stall-crowd-chip__bar--on {
+  background: rgb(245 158 11 / 0.62);
+}
+
+.stall-crowd-chip--busy .stall-crowd-chip__bar--on,
+.stall-crowd-chip--hot .stall-crowd-chip__bar--on {
+  background: var(--color-primary-400);
+}
+
+.stall-crowd-chip--hot .stall-crowd-chip__bar--on {
+  animation: stall-crowd-bar 2.2s ease-in-out infinite;
+}
+
+.stall-crowd-chip--hot .stall-crowd-chip__bar--on:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.stall-crowd-chip--hot .stall-crowd-chip__bar--on:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+.stall-crowd-chip__text {
+  display: flex;
+  align-items: baseline;
+  gap: 0.14rem;
+  min-width: 0;
+}
+
+.stall-crowd-chip--md .stall-crowd-chip__text {
+  gap: 0.18rem;
+}
+
+.stall-crowd-chip__count {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: rgb(255 255 255 / 0.96);
+  flex-shrink: 0;
+}
+
+.stall-crowd-chip--md .stall-crowd-chip__count {
+  font-size: 0.6875rem;
+}
+
+.stall-crowd-chip__phrase {
+  font-size: 0.5rem;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: 0.015em;
+  color: rgb(209 213 219 / 0.82);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stall-crowd-chip--md .stall-crowd-chip__phrase {
+  font-size: 0.5625rem;
+}
+
+.stall-crowd-chip--busy .stall-crowd-chip__phrase,
+.stall-crowd-chip--hot .stall-crowd-chip__phrase {
+  color: rgb(254 243 199 / 0.9);
+}
+
+.landing-counter-grid__cell--spotlight .stall-crowd-chip--hot {
+  border-color: rgb(245 158 11 / 0.42);
+}
+
+@keyframes stall-crowd-live {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes stall-crowd-bar {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  50% {
+    transform: scaleY(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stall-crowd-chip__live,
+  .stall-crowd-chip--hot .stall-crowd-chip__bar--on {
+    animation: none;
+  }
+}
+
 .landing-counter-grid__frame-glow {
   position: absolute;
   inset: -1px;
@@ -212,59 +427,6 @@
   pointer-events: none;
 }
 
-.landing-counter-grid__crowd {
-  position: absolute;
-  top: 0.75rem;
-  left: 0.75rem;
-  z-index: 3;
-}
-
-.landing-stall-crowd {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.45rem 0.2rem 0.3rem;
-  border-radius: 999px;
-  color: rgb(243 244 246 / 0.88);
-  background: rgb(8 7 6 / 0.55);
-  border: 1px solid rgb(255 255 255 / 0.12);
-  backdrop-filter: blur(8px);
-}
-
-.landing-stall-crowd--hot {
-  color: rgb(255 248 235 / 0.95);
-  border-color: rgb(245 158 11 / 0.35);
-  background: rgb(8 7 6 / 0.62);
-}
-
-.landing-stall-crowd__stack {
-  display: flex;
-  align-items: flex-end;
-}
-
-.landing-stall-crowd__avatar {
-  width: 0.72rem;
-  height: 0.92rem;
-  margin-left: -0.28rem;
-  flex-shrink: 0;
-}
-
-.landing-stall-crowd__stack .landing-stall-crowd__avatar:first-child {
-  margin-left: 0;
-}
-
-.landing-stall-crowd__more {
-  font-size: 0.5625rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--color-primary-300);
-}
-
-.landing-counter-grid__cell--hero .landing-stall-crowd__avatar {
-  width: 0.82rem;
-  height: 1.05rem;
-}
-
 .landing-counter-grid__index {
   position: absolute;
   top: 0.85rem;
@@ -294,8 +456,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.35rem 0.5rem;
   margin-bottom: 0.35rem;
+  width: 100%;
 }
 
 .landing-counter-grid__cuisine {

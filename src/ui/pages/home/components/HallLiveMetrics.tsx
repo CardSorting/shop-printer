@@ -26,7 +26,6 @@ export function HallLiveMetrics({ pulse, isOpen, variant = 'panel' }: HallLiveMe
           totalSeconds={pulse.opensInSeconds}
           label={social.countdownOpens}
           variant="opens"
-          maxSeconds={pulse.opensInSeconds}
           className="landing-hall-live-metrics__countdown-block"
         />
         <p className="landing-hall-live-metrics__countdown-label">{social.closedHint}</p>
@@ -34,25 +33,25 @@ export function HallLiveMetrics({ pulse, isOpen, variant = 'panel' }: HallLiveMe
     );
   }
 
+  const showCloses = pulse.closesInSeconds <= 7200;
+
   return (
     <div className={rootClass} aria-label="Simulated live hall activity">
-      <div className="landing-hall-live-metrics__countdown-row">
-        <LiveCountdown
-          totalSeconds={pulse.slotCountdownSeconds}
-          label={social.countdownSlot}
-          variant="slot"
-          maxSeconds={pulse.slotMaxSeconds}
-          className="landing-hall-live-metrics__countdown-block landing-hall-live-metrics__countdown-block--slot"
-        />
-        {pulse.closesInSeconds <= 7200 && (
+      <div className="landing-hall-live-metrics__timers-row">
+        {showCloses && (
           <LiveCountdown
             totalSeconds={pulse.closesInSeconds}
             label={social.countdownCloses}
             variant="closes"
-            maxSeconds={7200}
             className="landing-hall-live-metrics__countdown-block"
           />
         )}
+        <LiveCountdown
+          totalSeconds={pulse.slotCountdownSeconds}
+          label={social.countdownSlot}
+          variant="slot"
+          className="landing-hall-live-metrics__countdown-block"
+        />
       </div>
 
       {pulse.rushLabel && (

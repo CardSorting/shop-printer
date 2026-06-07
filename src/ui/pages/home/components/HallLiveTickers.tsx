@@ -2,15 +2,13 @@
 
 import type { ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import type { StallCrowdSignal } from '../utils/stallCrowd';
 import { MICRO_SPRING_SNAPPY } from './MicroMotion';
-
-type UrgencyLevel = 'calm' | 'busy' | 'rush' | 'critical';
 
 type LiveCountdownProps = {
   totalSeconds: number;
   label: string;
   variant?: 'opens' | 'closes' | 'slot';
-  maxSeconds?: number;
   className?: string;
 };
 
@@ -25,93 +23,74 @@ function splitCountdown(totalSeconds: number) {
   return { h, m, s, showHours: h > 0 };
 }
 
-function formatTime(totalSeconds: number): string {
-  const { h, m, s, showHours } = splitCountdown(totalSeconds);
-  return showHours ? `${pad2(h)}:${pad2(m)}:${pad2(s)}` : `${pad2(m)}:${pad2(s)}`;
+function CountdownUnit({ value, urgent = false }: { value: number; urgent?: boolean }) {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <span className={`live-ticker__unit${urgent ? ' live-ticker__unit--urgent' : ''}`}>
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={value}
+          className="live-ticker__unit-value font-display"
+          initial={reduceMotion ? false : { opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: 8 }}
+          transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {pad2(value)}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
 }
 
-/** Clean countdown — ring for slot, bar for closes/opens */
-export function LiveCountdown({
-  totalSeconds,
-  label,
-  variant = 'closes',
-  maxSeconds,
-  className = '',
-}: LiveCountdownProps) {
-  const reduceMotion = useReducedMotion();
-  const { showHours } = splitCountdown(totalSeconds);
-  const display = formatTime(totalSeconds);
+function CountdownRing({ progress, urgent = false }: { progress: number; urgent?: boolean }) {
+  const radius = 18;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - Math.min(Math.max(progress, 0), 1));
+
+  return (
+    <svg className="live-ticker__ring" viewBox="0 0 40 40" aria-hidden>
+      <circle className="live-ticker__ring-track" cx="20" cy="20" r={radius} />
+      <circle
+        className={`live-ticker__ring-fill${urgent ? ' live-ticker__ring-fill--urgent' : ''}`}
+        cx="20"
+        cy="20"
+        r={radius}
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+      />
+    </svg>
+  );
+}
+
+/** Minimal second-accurate countdown with ring progress */
+export function LiveCountdown({ totalSeconds, label, variant = 'closes', className = '' }: LiveCountdownProps) {
+  const { h, m, s, showHours } = splitCountdown(totalSeconds);
   const urgent = variant === 'closes' && totalSeconds <= 3600;
-  const progress = maxSeconds ? Math.max(0, Math.min(1, totalSeconds / maxSeconds)) : null;
-  const ringRadius = 18;
-  const ringCirc = 2 * Math.PI * ringRadius;
-  const ringOffset = progress !== null ? ringCirc * (1 - progress) : 0;
+  const ringProgress = variant === 'slot' ? s / 60 : (60 - s) / 60;
 
   return (
     <div
-      className={`live-ticker live-ticker--${variant} live-ticker--minimal ${className}`.trim()}
+      className={`live-ticker live-ticker--minimal live-ticker--${variant} ${className}`.trim()}
       role="timer"
-      aria-label={`${label}: ${display}`}
+      aria-label={`${label}: ${showHours ? `${h} hours ` : ''}${m} minutes ${s} seconds`}
     >
-      <div className="live-ticker__head">
-        <span className="live-ticker__label">{label}</span>
-        {variant === 'slot' && progress !== null && (
-          <span className="live-ticker__pct" aria-hidden>
-            {Math.round(progress * 100)}%
-          </span>
-        )}
-      </div>
-
+      <CountdownRing progress={ringProgress} urgent={urgent || variant === 'slot'} />
       <div className="live-ticker__body">
-        {variant === 'slot' && progress !== null && (
-          <svg className="live-ticker__ring" viewBox="0 0 44 44" aria-hidden>
-            <circle className="live-ticker__ring-track" cx="22" cy="22" r={ringRadius} />
-            <motion.circle
-              className="live-ticker__ring-fill"
-              cx="22"
-              cy="22"
-              r={ringRadius}
-              strokeDasharray={ringCirc}
-              initial={false}
-              animate={{ strokeDashoffset: ringOffset }}
-              transition={reduceMotion ? { duration: 0 } : { duration: 0.35, ease: 'linear' }}
-            />
-          </svg>
-        )}
-
-        <div className="live-ticker__time-wrap">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.time
-              key={display}
-              className={`live-ticker__time font-display${urgent ? ' live-ticker__time--urgent' : ''}`}
-              dateTime={`PT${totalSeconds}S`}
-              initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {display}
-            </motion.time>
-          </AnimatePresence>
-          {!showHours && (
-            <span className="live-ticker__units" aria-hidden>
-              <span>min</span>
-              <span>sec</span>
-            </span>
+        <span className="live-ticker__label">{label}</span>
+        <div className="live-ticker__clock">
+          {showHours && (
+            <>
+              <CountdownUnit value={h} urgent={urgent} />
+              <span className="live-ticker__sep">:</span>
+            </>
           )}
+          <CountdownUnit value={m} urgent={urgent} />
+          <span className="live-ticker__sep live-ticker__sep--sec">:</span>
+          <CountdownUnit value={s} urgent={urgent || variant === 'slot'} />
         </div>
       </div>
-
-      {progress !== null && variant !== 'slot' && (
-        <div className="live-ticker__track" aria-hidden>
-          <motion.div
-            className="live-ticker__track-fill"
-            initial={false}
-            animate={{ scaleX: progress }}
-            transition={reduceMotion ? { duration: 0 } : { duration: 0.35, ease: 'linear' }}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -125,6 +104,7 @@ type LiveStatPulseProps = {
   hot?: boolean;
 };
 
+/** Odometer-style stat with flash on change */
 export function LiveStatPulse({
   value,
   suffix = '',
@@ -165,6 +145,7 @@ type LiveActivityFlashProps = {
   className?: string;
 };
 
+/** Activity line with slide swap on each update */
 export function LiveActivityFlash({ line, className = '' }: LiveActivityFlashProps) {
   const reduceMotion = useReducedMotion();
 
@@ -195,6 +176,7 @@ type TableFillBarProps = {
   left: number;
 };
 
+/** Animated table capacity bar */
 export function TableFillBar({ pct, taken, total, left }: TableFillBarProps) {
   const reduceMotion = useReducedMotion();
   const urgent = pct >= 78;
@@ -221,20 +203,57 @@ export function TableFillBar({ pct, taken, total, left }: TableFillBarProps) {
   );
 }
 
-type HallCtaGlowProps = {
-  urgencyLevel: UrgencyLevel;
+const MAX_CROWD_BARS = 3;
+
+/** Inline stall queue pill — lives in counter meta row */
+export function StallCrowdChip({
+  signal,
+  className = '',
+  size = 'sm',
+}: {
+  signal: StallCrowdSignal;
+  className?: string;
+  size?: 'sm' | 'md';
+}) {
+  const { count, level, phrase, label, dots } = signal;
+  const showLive = level === 'busy' || level === 'hot';
+
+  return (
+    <span
+      className={`stall-crowd-chip stall-crowd-chip--${level} stall-crowd-chip--${size} ${className}`.trim()}
+      aria-label={label}
+    >
+      {showLive && <span className="stall-crowd-chip__live" aria-hidden />}
+      <span className="stall-crowd-chip__track" aria-hidden>
+        {Array.from({ length: MAX_CROWD_BARS }).map((_, i) => (
+          <span
+            key={i}
+            className={`stall-crowd-chip__bar${i < dots ? ' stall-crowd-chip__bar--on' : ''}`}
+          />
+        ))}
+      </span>
+      <span className="stall-crowd-chip__text">
+        <span className="stall-crowd-chip__count font-display">{count}</span>
+        <span className="stall-crowd-chip__phrase">{phrase}</span>
+      </span>
+    </span>
+  );
+}
+
+type CtaPulseFrameProps = {
+  urgencyLevel: 'calm' | 'busy' | 'rush' | 'critical';
   children: ReactNode;
 };
 
-/** Subtle pulse ring on CTA — no extra copy */
-export function HallCtaGlow({ urgencyLevel, children }: HallCtaGlowProps) {
+/** Subtle pulse ring around CTA — no copy clutter */
+export function CtaPulseFrame({ urgencyLevel, children }: CtaPulseFrameProps) {
   const reduceMotion = useReducedMotion();
   const hot = urgencyLevel === 'critical' || urgencyLevel === 'rush';
 
   return (
-    <div className={`hall-cta-glow hall-cta-glow--${urgencyLevel}`}>
+    <div className={`cta-pulse-frame${hot ? ' cta-pulse-frame--hot' : ''}`}>
       <motion.div
-        className="hall-cta-glow__wrap"
+        className="cta-pulse-frame__inner"
         {...(reduceMotion || !hot
           ? {}
           : {
@@ -248,14 +267,9 @@ export function HallCtaGlow({ urgencyLevel, children }: HallCtaGlowProps) {
               transition: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' },
             })}
       >
-        {!reduceMotion && hot && <span className="hall-cta-glow__ring" aria-hidden />}
+        {!reduceMotion && hot && <span className="cta-pulse-frame__ring" aria-hidden />}
         {children}
       </motion.div>
     </div>
   );
-}
-
-/** @deprecated Use HallCtaGlow — text props removed */
-export function HallUrgencyStrip({ urgencyLevel, children }: HallCtaGlowProps) {
-  return <HallCtaGlow urgencyLevel={urgencyLevel}>{children}</HallCtaGlow>;
 }

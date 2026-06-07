@@ -3,14 +3,14 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
-import { ArrowRight, Flame, Users } from 'lucide-react';
+import { ArrowRight, Flame } from 'lucide-react';
 import { LANDING_COPY } from '../copy';
 import { getCounterHref, HALL_COUNTERS } from '../constants';
 import { useHallDaypart } from '../hooks/useHallDaypart';
 import type { SimulatedHallPulse } from '../hooks/useSimulatedHallPulse';
 import { HallCta } from './HallCta';
 import { HallLiveMetrics } from './HallLiveMetrics';
-import { HallCtaGlow } from './HallLiveTickers';
+import { CtaPulseFrame } from './HallLiveTickers';
 import { TickerFlip } from './MicroMotion';
 
 const { vendors, nowBoard } = LANDING_COPY;
@@ -81,7 +81,6 @@ export function VendorsSocialCta({ className = '', pulse, isOpen: isOpenProp }: 
   const ctaLabel = isOpen ? board.cta.label : vendors.cta.label;
   const ctaHref = isOpen ? board.cta.href : vendors.cta.href;
   const liveLabel = isOpen ? social.liveOpen : social.liveClosed;
-  const crowdLine = isOpen && pulse.rushLabel ? pulse.rushLabel : isOpen ? `${pulse.guestsOnFloor} on the floor` : social.crowdLine;
 
   return (
     <div className={`landing-vendors-social-cta ${className}`.trim()}>
@@ -134,12 +133,6 @@ export function VendorsSocialCta({ className = '', pulse, isOpen: isOpenProp }: 
                   <Flame className="h-3 w-3" aria-hidden />
                   {name}
                   <span className="landing-vendors-social-cta__hot-tag">{social.busyNow}</span>
-                  {pulse.hotWaits[name] && (
-                    <span className="landing-vendors-social-cta__hot-wait">
-                      ~{pulse.hotWaits[name]}
-                      {social.waitSuffix}
-                    </span>
-                  )}
                 </Link>
               </motion.li>
             ))}
@@ -154,12 +147,7 @@ export function VendorsSocialCta({ className = '', pulse, isOpen: isOpenProp }: 
       </motion.aside>
 
       <div className="landing-vendors-social-cta__action">
-        <div className="landing-vendors-social-cta__crowd">
-          <Users className="h-3.5 w-3.5" aria-hidden />
-          <span>{crowdLine}</span>
-        </div>
-
-        <HallCtaGlow urgencyLevel={pulse.urgencyLevel}>
+        <CtaPulseFrame urgencyLevel={pulse.urgencyLevel}>
           <HallCta
             href={ctaHref}
             label={ctaLabel}
@@ -168,7 +156,7 @@ export function VendorsSocialCta({ className = '', pulse, isOpen: isOpenProp }: 
             className="landing-vendors-social-cta__cta"
             icon={<ArrowRight className="h-4 w-4" />}
           />
-        </HallCtaGlow>
+        </CtaPulseFrame>
 
         {isOpen && passLines.length > 0 && (
           <div className="landing-vendors-social-cta__pass" aria-live="polite">

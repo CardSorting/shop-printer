@@ -9,7 +9,7 @@ import { useHallDaypart } from '../hooks/useHallDaypart';
 import type { SimulatedHallPulse } from '../hooks/useSimulatedHallPulse';
 import { HallCta } from './HallCta';
 import { HallLiveMetrics } from './HallLiveMetrics';
-import { HallCtaGlow, LiveStatPulse } from './HallLiveTickers';
+import { CtaPulseFrame, LiveStatPulse } from './HallLiveTickers';
 import { ParallaxMotion } from './ParallaxMotion';
 
 const { vendors, nowBoard } = LANDING_COPY;
@@ -88,9 +88,6 @@ export function VendorsFloorBanner({ progress, pulse, isOpen: isOpenProp }: Vend
                   <span key={`${name}-${i}`} className="landing-vendors-floor-banner__marquee-item">
                     <Flame className="h-3 w-3" aria-hidden />
                     {name}
-                    {pulse.hotWaits[name] && (
-                      <span className="landing-vendors-floor-banner__marquee-wait">~{pulse.hotWaits[name]}m</span>
-                    )}
                     <span className="landing-vendors-floor-banner__marquee-sep" />
                   </span>
                 ))}
@@ -100,7 +97,7 @@ export function VendorsFloorBanner({ progress, pulse, isOpen: isOpenProp }: Vend
         </div>
 
         <div className="landing-vendors-floor-banner__actions">
-          <HallCtaGlow urgencyLevel={pulse.urgencyLevel}>
+          <CtaPulseFrame urgencyLevel={pulse.urgencyLevel}>
             <HallCta
               href={ctaHref}
               label={ctaLabel}
@@ -109,7 +106,7 @@ export function VendorsFloorBanner({ progress, pulse, isOpen: isOpenProp }: Vend
               className="landing-vendors-floor-banner__cta"
               icon={<ArrowRight className="h-4 w-4" />}
             />
-          </HallCtaGlow>
+          </CtaPulseFrame>
           <Link href={floorBanner.secondary.href} className="landing-vendors-floor-banner__secondary">
             {floorBanner.secondary.label}
           </Link>
@@ -122,9 +119,6 @@ export function VendorsFloorBanner({ progress, pulse, isOpen: isOpenProp }: Vend
               <li key={name}>
                 <Link href={getCounterHref(name)} className="landing-vendors-floor-banner__hot-link">
                   {name}
-                  {pulse.hotWaits[name] && (
-                    <span className="landing-vendors-floor-banner__hot-wait">~{pulse.hotWaits[name]}m</span>
-                  )}
                 </Link>
               </li>
             ))}

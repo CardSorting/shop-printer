@@ -396,6 +396,68 @@ export const LANDING_COPY = {
     directoryLabel: 'On the floor',
     directoryHint: 'Nine kitchens · walk in · mix menus at one table',
     cta: { label: 'Walk the hall', href: '/collections/bestsellers' },
+    stallVoice: {
+      default: {
+        quiet: 'Walk up',
+        steady: 'waiting',
+        busy: 'in line',
+        hot: 'busy now',
+      },
+      Mozz: {
+        quiet: 'Walk up',
+        steady: 'at oven',
+        busy: 'slice line',
+        hot: 'oven rush',
+      },
+      DeadPan: {
+        quiet: 'No wait',
+        steady: 'at press',
+        busy: 'sando line',
+        hot: 'pressed rush',
+      },
+      'Salt City Barbecue': {
+        quiet: 'Walk up',
+        steady: 'at pit',
+        busy: 'smoke line',
+        hot: 'pit rush',
+      },
+      'Doms Burgers': {
+        quiet: 'Walk up',
+        steady: 'at flat top',
+        busy: 'smash line',
+        hot: 'grill rush',
+      },
+      "Tosh's Ramen Express": {
+        quiet: 'Walk up',
+        steady: 'for bowls',
+        busy: 'noodle line',
+        hot: 'tonkotsu rush',
+      },
+      'Shwe Letyar': {
+        quiet: 'Walk up',
+        steady: 'at pass',
+        busy: 'sushi line',
+        hot: 'pass rush',
+      },
+      Chunky: {
+        quiet: 'Fresh tray',
+        steady: 'for cookies',
+        busy: 'cookie line',
+        hot: 'warm batch',
+      },
+      Marcato: {
+        quiet: 'Walk up',
+        steady: 'at counter',
+        busy: 'stromboli line',
+        hot: 'roll rush',
+      },
+      'Caracas Grill': {
+        quiet: 'Walk up',
+        steady: 'for arepas',
+        busy: 'window line',
+        hot: 'arepa rush',
+      },
+    },
     social: {
       liveOpen: 'Live on the floor',
       liveClosed: 'Hall closed · opens tomorrow',

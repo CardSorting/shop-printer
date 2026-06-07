@@ -9,8 +9,9 @@ import { HALL_COUNTERS } from '../constants';
 import { useHallDaypart } from '../hooks/useHallDaypart';
 import { useStaggeredParallaxX, useStaggeredParallaxY, useStaggeredParallaxRotateY } from '../hooks/useParallax';
 import type { SimulatedHallPulse } from '../hooks/useSimulatedHallPulse';
+import type { StallCrowdSignal } from '../utils/stallCrowd';
 import { CARD_LIFT_SUBTLE, CARD_TAP } from './MicroMotion';
-import { CounterStallCrowd } from './CounterStallCrowd';
+import { StallCrowdChip } from './HallLiveTickers';
 import { ParallaxMotion } from './ParallaxMotion';
 import { PointerTiltSurface } from './PointerMotionSurfaces';
 
@@ -105,6 +106,7 @@ const RAIL_COUNT: Variants = {
 type CounterParallaxGridProps = {
   progress?: MotionValue<number>;
   pulse?: SimulatedHallPulse;
+  isOpen?: boolean | null;
 };
 
 function CounterGridTile({
@@ -113,14 +115,16 @@ function CounterGridTile({
   index,
   isHot,
   reduceMotion,
-  stallCount,
+  stallSignal,
+  showStallCrowd,
 }: {
   counter: Counter;
   progress: MotionValue<number>;
   index: number;
   isHot: boolean;
   reduceMotion: boolean | null;
-  stallCount: number;
+  stallSignal?: StallCrowdSignal;
+  showStallCrowd?: boolean;
 }) {
   const y = useStaggeredParallaxY(progress, index, 4, [8, -10]);
   const x = useStaggeredParallaxX(progress, index, [-4, 4]);
@@ -140,6 +144,7 @@ function CounterGridTile({
   const indexOpacity = useTransform(progress, [0.05, 0.18], [0, 1]);
   const borderGlow = useTransform(progress, [0.1 + index * 0.008, 0.28 + index * 0.01], [0, 1]);
   const isHero = counter.layout === 'hero';
+  const showChip = Boolean(showStallCrowd && stallSignal && stallSignal.level !== 'quiet');
 
   return (
     <motion.li
@@ -190,12 +195,12 @@ function CounterGridTile({
                 {counter.id}
               </span>
             </ParallaxMotion>
-            <CounterStallCrowd count={stallCount} hot={isHot} className="landing-counter-grid__crowd" />
             <ParallaxMotion modes={['shift-y', 'fade']} y={copyY} opacity={copyOpacity} className="landing-counter-grid__copy">
               <motion.div variants={reduceMotion ? undefined : COPY_STAGGER} initial="initial" whileInView="animate" viewport={{ once: true, margin: '-30px' }}>
                 <motion.div variants={reduceMotion ? undefined : COPY_LINE} className="landing-counter-grid__meta">
                   <span className="landing-counter-grid__cuisine">{counter.cuisine}</span>
-                  {isHot && (
+                  {showChip && <StallCrowdChip signal={stallSignal!} size={isHero ? 'md' : 'sm'} />}
+                  {isHot && !showChip && (
                     <motion.span
                       className="landing-counter-grid__hot"
                       animate={reduceMotion ? undefined : { scale: [1, 1.04, 1] }}
@@ -228,15 +233,18 @@ function CounterGridTileStatic({
   index,
   isHot,
   reduceMotion,
-  stallCount,
+  stallSignal,
+  showStallCrowd,
 }: {
   counter: Counter;
   index: number;
   isHot: boolean;
   reduceMotion: boolean | null;
-  stallCount: number;
+  stallSignal?: StallCrowdSignal;
+  showStallCrowd?: boolean;
 }) {
   const isHero = counter.layout === 'hero';
+  const showChip = Boolean(showStallCrowd && stallSignal && stallSignal.level !== 'quiet');
 
   return (
     <motion.li
@@ -261,11 +269,13 @@ function CounterGridTileStatic({
           <span className="landing-counter-grid__index font-display" aria-hidden>
             {counter.id}
           </span>
-          <CounterStallCrowd count={stallCount} hot={isHot} className="landing-counter-grid__crowd" />
           <motion.div variants={reduceMotion ? undefined : COPY_STAGGER} initial="initial" whileInView="animate" viewport={{ once: true, margin: '-30px' }} className="landing-counter-grid__copy">
             <motion.div variants={reduceMotion ? undefined : COPY_LINE} className="landing-counter-grid__meta">
               <span className="landing-counter-grid__cuisine">{counter.cuisine}</span>
-              {isHot && <span className="landing-counter-grid__hot">Busy now</span>}
+              {showChip && <StallCrowdChip signal={stallSignal!} size={isHero ? 'md' : 'sm'} />}
+              {isHot && !showChip && (
+                <span className="landing-counter-grid__hot">Busy now</span>
+              )}
             </motion.div>
             <motion.div variants={reduceMotion ? undefined : COPY_LINE} className="landing-counter-grid__foot">
               <div>
@@ -337,12 +347,12 @@ function CounterGridRailStatic({ reduceMotion }: { reduceMotion: boolean | null 
   );
 }
 
-export function CounterParallaxGrid({ progress, pulse }: CounterParallaxGridProps) {
+export function CounterParallaxGrid({ progress, pulse, isOpen: isOpenProp }: CounterParallaxGridProps) {
   const reduceMotion = useReducedMotion();
-  const { daypart } = useHallDaypart();
+  const { daypart, isOpen: isOpenHook } = useHallDaypart();
+  const isOpen = isOpenProp ?? isOpenHook;
+  const showStallCrowd = isOpen === true && !!pulse?.stallCrowd;
   const hotNames = new Set(LANDING_COPY.nowBoard[daypart].hotCounters);
-
-  const stallFor = (name: string) => pulse?.stallCrowd[name] ?? ((hotNames as Set<string>).has(name) ? 4 : 2);
 
   const gridMotion = reduceMotion
     ? {}
@@ -369,7 +379,8 @@ export function CounterParallaxGrid({ progress, pulse }: CounterParallaxGridProp
               index={index}
               isHot={isHot}
               reduceMotion={reduceMotion}
-              stallCount={stallFor(counter.name)}
+              stallSignal={pulse?.stallCrowd[counter.name]}
+              showStallCrowd={showStallCrowd}
             />
           ) : (
             <CounterGridTileStatic
@@ -378,7 +389,8 @@ export function CounterParallaxGrid({ progress, pulse }: CounterParallaxGridProp
               index={index}
               isHot={isHot}
               reduceMotion={reduceMotion}
-              stallCount={stallFor(counter.name)}
+              stallSignal={pulse?.stallCrowd[counter.name]}
+              showStallCrowd={showStallCrowd}
             />
           );
         })}

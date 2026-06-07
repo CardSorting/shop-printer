@@ -237,7 +237,7 @@ export function VendorsSection() {
           rotateX={gridRotateX}
           className="landing-vendors__grid-stage"
         >
-          <CounterParallaxGrid progress={smooth} pulse={pulse} />
+          <CounterParallaxGrid progress={smooth} pulse={pulse} isOpen={isOpen} />
           <VendorsFloorBanner progress={smooth} pulse={pulse} isOpen={isOpen} />
         </ParallaxMotion>
       </StudioContainer>
