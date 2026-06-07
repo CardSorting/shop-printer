@@ -6,7 +6,7 @@ import { ArrowRight, CalendarDays } from 'lucide-react';
 import { SLIDE_UP_VARIANTS } from '@ui/animations';
 import { LANDING_COPY } from '../copy';
 import { HALL_BEYOND_GROUPS } from '../constants';
-import { PARALLAX_SPRING, useDepthLayerY, useStaggeredParallaxY } from '../hooks/useParallax';
+import { PARALLAX_SPRING, useDepthLayerY, useScrollScrubFill, useStaggeredParallaxY } from '../hooks/useParallax';
 import { useSmoothProgress } from '../hooks/useSmoothProgress';
 import { HallCta } from './HallCta';
 import { ParallaxMotion } from './ParallaxMotion';
@@ -107,6 +107,9 @@ export function HallBeyondSection() {
   const energyX = useTransform(smooth, [0, 1], ['-3%', '3%']);
   const footY = useTransform(smooth, [0, 1], ['4%', '-5%']);
   const glowY = useTransform(smooth, [0, 1], ['-8%', '12%']);
+  const energyFill = useScrollScrubFill(smooth, 0.06, 0.48);
+  const energyFillLate = useScrollScrubFill(smooth, 0.32, 0.78);
+  const headlineAccentX = useTransform(smooth, [0, 1], ['0%', '-3.5%']);
 
   return (
     <section id="landing-beyond" ref={ref} className="landing-beyond landing-parallax-scene" aria-labelledby="beyond-heading">
@@ -147,7 +150,9 @@ export function HallBeyondSection() {
           </div>
           <h2 id="beyond-heading" className="landing-beyond__headline font-display">
             {beyond.headline[0]}
-            <span className="landing-beyond__headline-accent">{beyond.headline[1]}</span>
+            <ParallaxMotion modes={['shift-x']} x={headlineAccentX} as="span" className="landing-beyond__headline-accent">
+              {beyond.headline[1]}
+            </ParallaxMotion>
           </h2>
           <span className="hall-rule landing-beyond__rule" aria-hidden />
           <p className="landing-beyond__sub">{beyond.sub}</p>
@@ -163,35 +168,20 @@ export function HallBeyondSection() {
         </ParallaxMotion>
 
         <ParallaxMotion modes={['shift-x']} x={energyX}>
-        <motion.div
-          className="landing-beyond__energy"
-          aria-hidden
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-60px' }}
-          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.15 } } }}
-        >
+        <div className="landing-beyond__energy" aria-hidden>
           <span className="landing-beyond__energy-node">{beyond.timelineStart}</span>
           <span className="landing-beyond__energy-track">
-            <motion.span
-              className="landing-beyond__energy-fill"
-              variants={{ hidden: { scaleX: 0 }, visible: { scaleX: 1 } }}
-              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-            />
+            <ParallaxMotion modes={['scale-x']} scaleX={energyFill} className="landing-beyond__energy-fill" />
             <span className="landing-beyond__energy-dot landing-beyond__energy-dot--1" />
             <span className="landing-beyond__energy-dot landing-beyond__energy-dot--2" />
             <span className="landing-beyond__energy-dot landing-beyond__energy-dot--3" />
           </span>
           <span className="landing-beyond__energy-node landing-beyond__energy-node--mid">{beyond.timelineMid}</span>
           <span className="landing-beyond__energy-track landing-beyond__energy-track--short">
-            <motion.span
-              className="landing-beyond__energy-fill landing-beyond__energy-fill--late"
-              variants={{ hidden: { scaleX: 0 }, visible: { scaleX: 1 } }}
-              transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-            />
+            <ParallaxMotion modes={['scale-x']} scaleX={energyFillLate} className="landing-beyond__energy-fill landing-beyond__energy-fill--late" />
           </span>
           <span className="landing-beyond__energy-node landing-beyond__energy-node--end">{beyond.timelineEnd}</span>
-        </motion.div>
+        </div>
         </ParallaxMotion>
 
         <ParallaxMotion modes={['shift-y']} y={statsY}>

@@ -10,7 +10,7 @@ type PointerParallaxOptions = {
   damping?: number;
 };
 
-/** Viewport-center pointer drift — global ambient layer */
+/** Viewport-center pointer drift — one listener with fore/back depth layers */
 export function usePointerParallax({
   strength = 3.5,
   stiffness = 38,
@@ -44,9 +44,16 @@ export function usePointerParallax({
   const smoothX = useSpring(rawX, spring);
   const smoothY = useSpring(rawY, spring);
 
+  const x = useTransform(smoothX, (v) => `${v}%`);
+  const y = useTransform(smoothY, (v) => `${v}%`);
+  const backX = useTransform(smoothX, (v) => `${v * 0.5}%`);
+  const backY = useTransform(smoothY, (v) => `${v * 0.5}%`);
+
   return {
-    x: useTransform(smoothX, (v) => `${v}%`),
-    y: useTransform(smoothY, (v) => `${v}%`),
+    x,
+    y,
+    back: { x: backX, y: backY },
+    fore: { x, y },
   };
 }
 

@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useRef, type ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -11,10 +12,6 @@ import { LANDING_COPY } from '../copy';
 import { HALL_FOOD_PARALLAX_FRAMES } from '../constants';
 import { PARALLAX_SPRING, useStaggeredParallaxY } from '../hooks/useParallax';
 import { useSmoothProgress } from '../hooks/useSmoothProgress';
-import { HallBeyondSection } from './HallBeyondSection';
-import { HallFoodParallaxBreak } from './HallFoodParallaxBreak';
-import { HallGatherings } from './HallGatherings';
-import { HallGettingHere } from './HallGettingHere';
 import { HallCta } from './HallCta';
 import { ParallaxMotion } from './ParallaxMotion';
 import { SectionScrollSeam } from './SectionScrollSeam';
@@ -29,6 +26,26 @@ import {
   SITE_REGION,
   SITE_STREET,
 } from '@utils/seo';
+
+const HallBeyondSection = dynamic(
+  () => import('./HallBeyondSection').then((m) => ({ default: m.HallBeyondSection })),
+  { ssr: true },
+);
+
+const HallFoodParallaxBreak = dynamic(
+  () => import('./HallFoodParallaxBreak').then((m) => ({ default: m.HallFoodParallaxBreak })),
+  { ssr: true },
+);
+
+const HallGatherings = dynamic(
+  () => import('./HallGatherings').then((m) => ({ default: m.HallGatherings })),
+  { ssr: true },
+);
+
+const HallGettingHere = dynamic(
+  () => import('./HallGettingHere').then((m) => ({ default: m.HallGettingHere })),
+  { ssr: true },
+);
 
 const { visit } = LANDING_COPY;
 

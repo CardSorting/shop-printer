@@ -152,3 +152,28 @@ export function useScrollVelocityScale(
   const absVel = useTransform(velocity, (v) => Math.min(Math.abs(v) / velocityRange, 1));
   return useTransform(absVel, [0, 1], range);
 }
+
+/** Per-item Y rotate for card grids — alternating sign + column depth */
+export function useStaggeredParallaxRotateY(
+  progress: MotionValue<number>,
+  index: number,
+  columns = 3,
+  range: [number, number] = [-2.5, 2.5],
+  input: [number, number] = [0, 1],
+) {
+  const sign = index % 2 === 0 ? 1 : -1;
+  const depth = 0.6 + (index % columns) * 0.32;
+  return useTransform(progress, input, [
+    `${range[0] * sign * depth}deg`,
+    `${range[1] * sign * depth}deg`,
+  ]);
+}
+
+/** Scroll-scrubbed fill for progress rails — maps section progress to a sub-range */
+export function useScrollScrubFill(
+  progress: MotionValue<number>,
+  start: number,
+  end: number,
+) {
+  return useTransform(progress, [start, end], [0, 1]);
+}

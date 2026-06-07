@@ -89,6 +89,14 @@
   background: rgb(245 158 11 / 0.07);
 }
 
+.landing-page-ambient__orb--mid {
+  top: 42%;
+  left: 38%;
+  width: clamp(10rem, 22vw, 16rem);
+  height: clamp(10rem, 22vw, 16rem);
+  background: rgb(245 158 11 / 0.04);
+}
+
 .landing-page-ambient__orb--front {
   bottom: 22%;
   left: -4%;
@@ -203,6 +211,15 @@
   );
 }
 
+.landing-visit__continued-glow--back {
+  inset: -30% -10%;
+  background: radial-gradient(
+    ellipse 60% 50% at 80% 60%,
+    rgb(245 158 11 / 0.06) 0%,
+    transparent 68%
+  );
+}
+
 .landing-visit__continued-mesh {
   position: absolute;
   inset: 0;
@@ -244,6 +261,7 @@
   .landing-vendors__depth-mesh,
   .landing-visit__ambient,
   .landing-visit__continued-glow,
+  .landing-visit__continued-glow--back,
   .landing-visit__continued-mesh,
   .landing-section-seam__glow,
   .landing-page-ambient,

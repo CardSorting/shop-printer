@@ -27,6 +27,7 @@ export function SectionScrollSeam({
   const opacity = useTransform(smooth, [0, 0.22, 0.78, 1], [0, 0.8, 0.8, 0]);
   const scaleX = useTransform(smooth, [0, 0.42, 1], [0.28, 1, 0.72]);
   const y = useTransform(smooth, [0, 1], ['1rem', '-0.85rem']);
+  const x = useTransform(smooth, [0, 1], ['-3%', '3%']);
   const glowOpacity = useTransform(smooth, [0, 0.35, 0.65, 1], [0, 0.55, 0.55, 0]);
 
   return (
@@ -38,7 +39,8 @@ export function SectionScrollSeam({
         className="landing-section-seam__glow"
       />
       <ParallaxMotion
-        modes={['shift-y', 'fade', 'scale-x']}
+        modes={['transform', 'fade', 'scale-x']}
+        x={x}
         y={y}
         opacity={opacity}
         scaleX={scaleX}

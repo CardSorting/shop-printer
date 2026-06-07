@@ -29,7 +29,13 @@
 
 .landing-food-pass__media-inner {
   position: absolute;
-  inset: -6% 0;
+  inset: -12% -8%;
+  will-change: transform, filter;
+}
+
+.landing-food-pass__media-drift {
+  position: absolute;
+  inset: -4%;
   will-change: transform;
 }
 
@@ -327,7 +333,8 @@
   }
 
   .landing-food-pass__media,
-  .landing-food-pass__media-inner {
+  .landing-food-pass__media-inner,
+  .landing-food-pass__media-drift {
     inset: 0;
   }
 
