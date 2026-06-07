@@ -161,14 +161,16 @@ export const LANDING_COPY = {
   },
 
   gettingHere: {
-    label: 'Getting here',
-    headline: 'Pull into the warehouse district.',
-    sub: 'Street parking on 500 W · rideshare to the front door · look up for the barrel roof.',
-    aside: 'Main entrance faces 500 W — follow the kitchen smoke.',
-    stamp: 'SLC · Warehouse District',
+    intro: {
+      label: 'Getting here',
+      stamp: 'SLC · Warehouse District',
+      headline: 'Pull into the warehouse district.',
+      sub: 'Street parking on 500 W · rideshare to the front door · look up for the barrel roof.',
+      aside: 'Main entrance faces 500 W — follow the kitchen smoke.',
+    },
     routeKicker: 'Route sheet',
     marginNote: '≈ 5 min from downtown',
-    mapCaption: '235 S 500 W · tap for full map',
+    mapCaption: 'Nine kitchens, one roof · tap for directions',
     address: { label: 'Address' },
     parking: {
       label: 'Parking',

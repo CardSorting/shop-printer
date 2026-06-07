@@ -1,7 +1,12 @@
+import { getCounterVideoSrc, hasCounterVideo } from '../utils/counterMedia';
+
 const warmCache = new Map<string, Promise<void>>();
+const failedCache = new Set<string>();
 
 export function warmCounterVideo(src: string): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
+  if (failedCache.has(src)) return Promise.resolve();
+
   const existing = warmCache.get(src);
   if (existing) return existing;
 
@@ -13,13 +18,15 @@ export function warmCounterVideo(src: string): Promise<void> {
     video.src = src;
 
     const finish = () => resolve();
-    const fail = () => reject(new Error(`Failed to warm ${src}`));
+    const fail = () => {
+      failedCache.add(src);
+      warmCache.delete(src);
+      reject(new Error(`Failed to warm ${src}`));
+    };
 
-    video.addEventListener('canplaythrough', finish, { once: true });
+    video.addEventListener('canplay', finish, { once: true });
     video.addEventListener('error', fail, { once: true });
     video.load();
-  }).catch(() => {
-    warmCache.delete(src);
   });
 
   warmCache.set(src, promise);
@@ -28,6 +35,7 @@ export function warmCounterVideo(src: string): Promise<void> {
 
 export function prefetchCounterVideoLink(src: string) {
   if (typeof document === 'undefined') return;
+  if (failedCache.has(src)) return;
   if (document.querySelector(`link[data-counter-video="${src}"]`)) return;
   const link = document.createElement('link');
   link.rel = 'prefetch';
@@ -37,8 +45,10 @@ export function prefetchCounterVideoLink(src: string) {
   document.head.appendChild(link);
 }
 
-export function warmAllCounterVideos(sources: string[]) {
-  sources.forEach((src) => {
+export function warmAllCounterVideos(imgSources: string[]) {
+  imgSources.forEach((imgSrc) => {
+    if (!hasCounterVideo(imgSrc)) return;
+    const src = getCounterVideoSrc(imgSrc);
     prefetchCounterVideoLink(src);
     void warmCounterVideo(src);
   });

@@ -11,7 +11,6 @@ import { warmAllCounterVideos } from '../hooks/useCounterVideoWarmCache';
 import { useStaggeredParallaxX, useStaggeredParallaxY, useStaggeredParallaxRotateY } from '../hooks/useParallax';
 import type { SimulatedHallPulse } from '../hooks/useSimulatedHallPulse';
 import type { StallCrowdSignal } from '../utils/stallCrowd';
-import { getCounterVideoSrc } from '../utils/counterMedia';
 import { CARD_LIFT_SUBTLE, CARD_TAP } from './MicroMotion';
 import { CounterHoverMedia } from './CounterHoverMedia';
 import { StallCrowdChip } from './HallLiveTickers';
@@ -374,7 +373,7 @@ export function CounterParallaxGrid({ progress, pulse, isOpen: isOpenProp }: Cou
       ([entry]) => {
         if (entry.isIntersecting) {
           setPreloadVideos(true);
-          warmAllCounterVideos(HALL_COUNTERS.map((counter) => getCounterVideoSrc(counter.img)));
+          warmAllCounterVideos(HALL_COUNTERS.map((counter) => counter.img));
           observer.disconnect();
         }
       },

@@ -1,10 +1,10 @@
 'use client';
 
 import Image from 'next/image';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { warmCounterVideo } from '../hooks/useCounterVideoWarmCache';
-import { getCounterVideoSrc } from '../utils/counterMedia';
+import { getCounterVideoSrc, hasCounterVideo } from '../utils/counterMedia';
 
 type CounterHoverMediaProps = {
   img: string;
@@ -13,7 +13,7 @@ type CounterHoverMediaProps = {
   className?: string;
   imageClassName?: string;
   priority?: boolean;
-  /** Preload hover video as soon as the grid is near the viewport */
+  /** Preload video as soon as the grid is near the viewport */
   preloadVideo?: boolean;
   /** Preload immediately (hero tile) */
   eagerVideo?: boolean;
@@ -30,84 +30,62 @@ export function CounterHoverMedia({
   eagerVideo = false,
 }: CounterHoverMediaProps) {
   const reduceMotion = useReducedMotion();
+  const stackRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [canHover, setCanHover] = useState(false);
-  const [videoFailed, setVideoFailed] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const hasVideo = hasCounterVideo(img);
   const videoSrc = getCounterVideoSrc(img);
   const shouldPreload = eagerVideo || preloadVideo;
+  const useVideo = hasVideo && !reduceMotion;
 
   useEffect(() => {
-    setCanHover(window.matchMedia('(hover: hover) and (pointer: fine)').matches);
-  }, []);
+    if (!useVideo || !shouldPreload) return;
+    void warmCounterVideo(videoSrc);
+  }, [shouldPreload, useVideo, videoSrc]);
 
   useEffect(() => {
-    if (reduceMotion || !shouldPreload || videoFailed) return;
-    void warmCounterVideo(videoSrc).catch(() => setVideoFailed(true));
-  }, [reduceMotion, shouldPreload, videoFailed, videoSrc]);
-
-  const startVideo = useCallback(() => {
-    if (reduceMotion || !canHover || videoFailed) return;
+    if (!useVideo) return;
+    const stack = stackRef.current;
     const video = videoRef.current;
-    if (!video) return;
+    if (!stack || !video) return;
 
-    const play = () => {
-      video.currentTime = 0;
-      void video
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch(() => setVideoFailed(true));
-    };
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          void video.play().catch(() => {});
+          return;
+        }
 
-    if (video.readyState >= 2) {
-      play();
-      return;
-    }
+        video.pause();
+      },
+      { threshold: 0.2, rootMargin: '80px 0px' },
+    );
 
-    void warmCounterVideo(videoSrc)
-      .then(play)
-      .catch(() => setVideoFailed(true));
-  }, [canHover, reduceMotion, videoFailed, videoSrc]);
-
-  const stopVideo = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.pause();
-    setIsPlaying(false);
-  }, []);
-
-  const showVideo = canHover && !reduceMotion && !videoFailed;
+    observer.observe(stack);
+    return () => observer.disconnect();
+  }, [useVideo]);
 
   return (
-    <div
-      className={`landing-counter-grid__media-stack ${className}`.trim()}
-      onMouseEnter={startVideo}
-      onMouseLeave={stopVideo}
-      onFocus={startVideo}
-      onBlur={stopVideo}
-    >
-      <Image
-        src={img}
-        alt={alt}
-        fill
-        sizes={sizes}
-        priority={priority}
-        className={`landing-counter-grid__image object-cover${isPlaying && videoReady ? ' landing-counter-grid__image--hidden' : ''} ${imageClassName}`.trim()}
-      />
-      {showVideo && (
+    <div ref={stackRef} className={`landing-counter-grid__media-stack ${className}`.trim()}>
+      {useVideo ? (
         <video
           ref={videoRef}
-          className={`landing-counter-grid__video object-cover${isPlaying && videoReady ? ' landing-counter-grid__video--active' : ''}`}
+          className={`landing-counter-grid__video object-cover ${imageClassName}`.trim()}
           src={videoSrc}
           poster={img}
           muted
           loop
           playsInline
-          preload={shouldPreload ? 'auto' : 'metadata'}
-          onLoadedData={() => setVideoReady(true)}
-          onError={() => setVideoFailed(true)}
-          aria-hidden
+          preload="auto"
+          aria-label={alt}
+        />
+      ) : (
+        <Image
+          src={img}
+          alt={alt}
+          fill
+          sizes={sizes}
+          priority={priority}
+          className={`landing-counter-grid__image object-cover ${imageClassName}`.trim()}
         />
       )}
     </div>
