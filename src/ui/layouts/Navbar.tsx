@@ -9,7 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useEffect, useState } from 'react';
 import { ShoppingCart, User, Menu, X, Search, RefreshCcw } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
-import { BeeLogo } from '../components/Logo';
+import { WoodbineLogo } from '../components/Logo';
 import Image from 'next/image';
 
 import { useWishlist } from '../hooks/useWishlist';
@@ -65,15 +65,16 @@ export function Navbar() {
 
   return (
     <>
-      <nav className="sticky top-0 z-[var(--z-nav)] isolate border-b border-gray-100/50 bg-white/95 py-6 shadow-sm backdrop-blur-xl">
+      <nav className="sticky top-0 z-[var(--z-nav)] isolate border-b border-gray-100/50 bg-white/95 py-4 shadow-sm backdrop-blur-xl sm:py-5">
         <div className="w-full px-6 lg:px-16 xl:px-24 flex items-center gap-6 lg:gap-12">
           
           {/* Brand */}
-          <Link href={STORE_PATHS.HOME} className={`flex items-center group shrink-0 transition-all duration-300 ${isSearchFocused ? 'hidden md:flex' : 'flex'}`}>
-            <BeeLogo className="w-8 h-8 transition-transform group-hover:scale-110" />
-            <span className="ml-2 text-lg font-black tracking-tighter text-gray-900 hidden sm:inline">
-              WoodBine
-            </span>
+          <Link href={STORE_PATHS.HOME} className={`group shrink-0 transition-all duration-300 ${isSearchFocused ? 'hidden md:flex' : 'flex'}`}>
+            <WoodbineLogo
+              className="h-[4.25rem] w-auto transition-transform group-hover:scale-[1.02] sm:h-20 md:h-[5.25rem] lg:h-24 xl:h-[6.5rem]"
+              priority
+              sizes="(max-width: 640px) 340px, (max-width: 1024px) 420px, 520px"
+            />
           </Link>
 
           {/* Desktop Links - Hidden when search is focused on smaller screens */}
@@ -176,7 +177,7 @@ export function Navbar() {
           <div className="absolute inset-0 bg-white/95 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setIsMenuOpen(false)} />
           <div className="relative w-full h-full p-8 flex flex-col animate-in slide-in-from-right duration-500">
             <div className="flex items-center justify-between mb-20">
-              <BeeLogo className="w-10 h-10" />
+              <WoodbineLogo className="h-20 w-auto sm:h-24" sizes="480px" />
               <button onClick={() => setIsMenuOpen(false)} className="p-4 rounded-full bg-gray-50 text-gray-900">
                 <X className="w-6 h-6" />
               </button>

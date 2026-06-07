@@ -10,8 +10,9 @@ import {
   type Variants,
 } from 'framer-motion';
 import { ArrowRight, ChevronDown } from 'lucide-react';
-import { DEFAULT_FOOD_HALL_IMAGE } from '@utils/imageFallback';
 import { LANDING_COPY, LANDING_SEO_HEADLINE } from '../copy';
+
+const HERO_FOOD_SPREAD_IMAGE = '/images/landing/hero-food-spread.png';
 import { useHallDaypart } from '../hooks/useHallDaypart';
 import { PARALLAX_SPRING, useHeroParallax, useScrollVelocityBlur, useScrollVelocityScale } from '../hooks/useParallax';
 import { useElementPointerParallax } from '../hooks/usePointerParallax';
@@ -159,7 +160,7 @@ export function HeroSection() {
             className="landing-hero__media-inner"
           >
             <Image
-              src={DEFAULT_FOOD_HALL_IMAGE}
+              src={HERO_FOOD_SPREAD_IMAGE}
               alt=""
               fill
               priority

@@ -11,7 +11,10 @@ export const WOODBINE_BRAND = {
   tagline: 'Old Hall. New Flavors.',
   email: 'hello@woodbineslc.com',
   logoGif: '/Woodbine.gif',
-  logoWhite: '/images/brand/woodbine-logo-white.png',
+  /** Transparent white wordmark — dark / overlay surfaces */
+  logoWhite: '/assets/generated/woodbine-logo-white.avif',
+  /** Opaque lockup — light surfaces (no CSS filters needed) */
+  logoMark: '/images/brand/woodbine-logo-gold.png',
   defaultOgImage: SEO_DEFAULT_OG_IMAGE,
   twitterHandle: '@WoodBine',
   socialProfiles: [
