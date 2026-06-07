@@ -72,7 +72,7 @@ export async function POST(req: Request) {
           const result = await model.generateContent(prompt);
           return result.response.text();
         } else {
-          const project = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'shopmore-1e34b';
+          const project = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'woodbine-8c8ee';
           const location = 'us-central1';
           const vertexAI = new VertexAI({ project, location });
           const generativeModel = vertexAI.getGenerativeModel({ model: modelName });

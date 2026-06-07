@@ -16,5 +16,7 @@ trap cleanup SIGINT SIGTERM EXIT
 echo "🌿 [WoodBine] Starting managed dev server..."
 ./scripts/cleanup-ports.sh
 
-# Run next dev
-npx next dev
+export NEXT_TELEMETRY_DISABLED=1
+
+# Run next dev (Turbopack for faster first-compile on page visits)
+npx next dev --turbo

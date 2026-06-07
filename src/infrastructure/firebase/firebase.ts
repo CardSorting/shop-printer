@@ -17,16 +17,18 @@ import {
 } from 'firebase/firestore';
 import { getAuth as getAuthSDK } from 'firebase/auth';
 import { getStorage as getStorageSDK } from 'firebase/storage';
+import { getAnalytics as getAnalyticsSDK, type Analytics } from 'firebase/analytics';
 import { logger } from '@utils/logger';
 
 // Production constants for robust fallback
 const PROD_CONFIG = {
-  apiKey: "AIzaSyA8EX2LF37WFAd6T6wHVveksfiwosJtpxg",
-  authDomain: "shopmore-1e34b.firebaseapp.com",
-  projectId: "shopmore-1e34b",
-  storageBucket: "shopmore-1e34b.firebasestorage.app",
-  messagingSenderId: "816473359074",
-  appId: "1:816473359074:web:cc920bbf1fba7b46cf54bb"
+  apiKey: "AIzaSyBSIoYc0zsnci210iK2fEr7znVPygpcoQ0",
+  authDomain: "woodbine-8c8ee.firebaseapp.com",
+  projectId: "woodbine-8c8ee",
+  storageBucket: "woodbine-8c8ee.firebasestorage.app",
+  messagingSenderId: "1054896128542",
+  appId: "1:1054896128542:web:0b38f2320cda52d4f1a40f",
+  measurementId: "G-3XGFTPTB52",
 };
 
 const firebaseConfig = {
@@ -36,6 +38,7 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || PROD_CONFIG.storageBucket,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || PROD_CONFIG.messagingSenderId,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || PROD_CONFIG.appId,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || PROD_CONFIG.measurementId,
 };
 
 // Internal lazy instances
@@ -43,6 +46,7 @@ let _app: FirebaseApp | undefined;
 let _db: Firestore | undefined;
 let _auth: ReturnType<typeof getAuthSDK> | undefined;
 let _storage: ReturnType<typeof getStorageSDK> | undefined;
+let _analytics: Analytics | undefined;
 let networkRecoveryInstalled = false;
 let networkRecoveryTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -144,7 +148,15 @@ export function getStorage() {
   return _storage;
 }
 
+export function getAnalytics() {
+  if (typeof window === 'undefined') {
+    throw new Error('Firebase Analytics is only available in the browser.');
+  }
+  if (!_analytics) _analytics = getAnalyticsSDK(getFirebaseApp());
+  return _analytics;
+}
+
 // We don't export constants here anymore to avoid eager initialization in the browser.
-// All consumers should use getDb(), getAuth(), and getStorage().
+// All consumers should use getDb(), getAuth(), getStorage(), and getAnalytics().
 
 export { getFirebaseApp as app };

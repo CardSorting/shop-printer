@@ -8,7 +8,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 import { logger } from '@utils/logger';
 
-const PROD_PROJECT_ID = "shopmore-1e34b";
+const PROD_PROJECT_ID = "woodbine-8c8ee";
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || PROD_PROJECT_ID;
 
 // Internal lazy instances
@@ -100,7 +100,6 @@ function getAdminApp() {
           _app = initializeApp({
             credential: cert(serviceAccount),
             // IMPORTANT: Force the project ID to the one where the data actually resides.
-            // Your service account already has 'Firebase Admin' roles in shopmore-1e34b.
             projectId: projectId,
             storageBucket: `${projectId}.firebasestorage.app`
           });

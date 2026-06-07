@@ -6,6 +6,7 @@
  * Admin pages have their own dedicated layout shell (AdminLayout).
  */
 import { useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { Navbar } from '@ui/layouts/Navbar';
 import { Footer } from '@ui/layouts/Footer';
@@ -17,7 +18,11 @@ import { PAGE_TRANSITION_VARIANTS } from '@ui/animations';
 
 import { useAuth } from '@ui/hooks/useAuth';
 import { useCart } from '@ui/hooks/useCart';
-import { ConciergeBubble } from '@ui/components/Concierge/ConciergeBubble';
+
+const ConciergeBubble = dynamic(
+  () => import('@ui/components/Concierge/ConciergeBubble').then((m) => ({ default: m.ConciergeBubble })),
+  { ssr: false },
+);
 
 export function StorefrontShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();

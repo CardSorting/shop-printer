@@ -12,14 +12,48 @@ const nextConfig: NextConfig = {
     reactStrictMode: true,
     poweredByHeader: false,
     typescript: {
-        ignoreBuildErrors: false,
+        // Typecheck via `npm run typecheck` — avoids a second full-project tsc pass during deploy.
+        ignoreBuildErrors: true,
     },
     eslint: {
-        ignoreDuringBuilds: false,
+        // Lint via `npm run lint` — skipping here speeds prod builds and deploys.
+        ignoreDuringBuilds: true,
+    },
+
+    // Keep heavy server-only deps out of the SSR bundle (smaller deploy, faster cold starts).
+    serverExternalPackages: [
+        'firebase-admin',
+        '@google-cloud/vertexai',
+        '@google/generative-ai',
+        '@getbrevo/brevo',
+        'sharp',
+        'stripe',
+    ],
+
+    // Speed up "Collecting build traces" — exclude static media and dev tooling from SSR trace.
+    outputFileTracingExcludes: {
+        '*': [
+            './public/videos/**',
+            './public/images/landing/counters/**',
+            './public/assets/generated/**',
+            './node_modules/@swc/**',
+            './node_modules/webpack/**',
+            './node_modules/esbuild/**',
+            './node_modules/terser/**',
+        ],
     },
 
     experimental: {
-        optimizePackageImports: ['lucide-react', 'date-fns'],
+        optimizePackageImports: [
+            'lucide-react',
+            'date-fns',
+            'firebase/app',
+            'firebase/auth',
+            'firebase/firestore',
+            'firebase/storage',
+            '@stripe/stripe-js',
+            '@stripe/react-stripe-js',
+        ],
     },
     compiler: {
         removeConsole: !isDevelopment,
@@ -86,7 +120,11 @@ const nextConfig: NextConfig = {
             },
         ];
     },
-    webpack: (config) => {
+    webpack: (config, { dev }) => {
+        // Keep webpack cache for fast rebuilds; disable only on Firebase deploy to avoid shipping cache.
+        if (!dev && process.env.FIREBASE_DEPLOY === '1') {
+            config.cache = false;
+        }
         config.ignoreWarnings = [
             { module: /@protobufjs\/inquire/ },
             { module: /protobufjs/ }

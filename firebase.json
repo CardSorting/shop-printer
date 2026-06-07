@@ -32,6 +32,9 @@
       "**/scripts/**",
       "**/tests/**",
       "**/*.md",
+      "**/*.csv",
+      "**/lint_output.txt",
+      "**/test_output.txt",
       "LICENSE",
       "README.md",
       "vitest.config.ts",
@@ -41,7 +44,8 @@
     ],
     "frameworksBackend": {
       "region": "us-central1",
-      "memory": "1GB"
+      "memory": "2GiB",
+      "cpu": 2
     },
     "headers": [
       {

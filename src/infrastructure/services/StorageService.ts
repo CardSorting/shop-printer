@@ -207,7 +207,10 @@ export class StorageService {
     let storageRef;
     if (storedPath.startsWith('http')) {
       const url = new URL(storedPath);
-      const allowedDomains = ['firebasestorage.googleapis.com', 'shopmore-1e34b.firebasestorage.app'];
+      const projectBucket = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        ? `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebasestorage.app`
+        : 'woodbine-8c8ee.firebasestorage.app';
+      const allowedDomains = ['firebasestorage.googleapis.com', projectBucket];
       if (!allowedDomains.some(d => url.hostname.endsWith(d))) {
         logger.warn(`[Forensic] Rejected asset read from untrusted external domain: ${url.hostname}`);
         throw new Error('Untrusted asset source.');

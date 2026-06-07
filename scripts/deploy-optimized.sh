@@ -1,57 +1,43 @@
 #!/bin/bash
 
-# Ultra-Optimized Firebase Deployment Script (V5.3 - Production Hardened)
-# Features: Forensic pruning, Asset minification, and multi-service deployment.
+# WoodBine Firebase Hosting deploy — Turbopack builds + incremental uploads.
 
 set -e
 
-# Visual formatting
 BOLD="\033[1m"
 GREEN="\033[32m"
 BLUE="\033[34m"
-YELLOW="\033[33m"
 PURPLE="\033[35m"
-RED="\033[31m"
-CYAN="\033[36m"
 RESET="\033[0m"
 
-echo -e "${BLUE}${BOLD}Starting Optimized Deployment (V5.3)...${RESET}\n"
+cleanup() {
+  node scripts/restore-next-bin.mjs 2>/dev/null || true
+}
+trap cleanup EXIT
 
-# 1. Forensic Workspace Sanitization
-echo -e "${PURPLE}Purging workspace clutter...${RESET}"
+echo -e "${BLUE}${BOLD}Starting WoodBine deploy...${RESET}\n"
+
+echo -e "${PURPLE}Cleaning local clutter (keeping .firebase for incremental upload)...${RESET}"
 find . -name ".DS_Store" -type f -delete
 find . -name "Thumbs.db" -type f -delete
-rm -rf .next .firebase
-echo -e "${GREEN}✓ Workspace sanitized.${RESET}"
+echo -e "${GREEN}✓ Ready.${RESET}"
 
-# 2. Node Modules Deep Pruning
-echo -e "${CYAN}Pruning node_modules metadata...${RESET}"
-find node_modules -type f \( -name "*.md" -o -name "*.txt" -o -name "LICENSE" -o -name "AUTHORS" -o -name "CHANGELOG*" -o -name ".npmignore" \) -delete
-echo -e "${GREEN}✓ node_modules pruned for production.${RESET}"
+echo -e "${BLUE}Patching Next.js CLI for Turbopack production build...${RESET}"
+node scripts/patch-next-for-turbopack.mjs
 
-# 3. SVG Physical Optimization
-echo -e "${CYAN}Minifying SVG assets...${RESET}"
-if ls public/*.svg >/dev/null 2>&1; then
-    for f in public/*.svg; do
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' 's/<!--.*-->//g' "$f"
-        else
-            sed -i 's/<!--.*-->//g' "$f"
-        fi
-        tr -d '\n' < "$f" > "$f.min" && mv "$f.min" "$f"
-    done
-    echo -e "${GREEN}✓ SVG assets minified.${RESET}"
-fi
+echo -e "${BLUE}Deploying to Firebase Hosting (Turbopack build — ~30-40s, continuous output)...${RESET}"
+export FIREBASE_DEPLOY=1
+export NEXT_TELEMETRY_DISABLED=1
+firebase deploy --only hosting --force
 
-# 4. Production Build
-echo -e "${BLUE}Building application (NODE_ENV=production)...${RESET}"
-NODE_ENV=production npm run build
-echo -e "${GREEN}✓ Production build complete.${RESET}"
+echo -e "${BLUE}Cleaning local deploy artifacts...${RESET}"
+./scripts/strip-deploy-artifacts.sh
+echo -e "${GREEN}✓ Local artifacts cleaned.${RESET}"
 
-# 5. Atomic Deploy
-echo -e "${BLUE}Deploying full stack (Hosting, Firestore, Storage)...${RESET}"
-# We deploy everything to ensure consistency across rules and hosting
-firebase deploy --only hosting,firestore,storage
+echo -e "${BLUE}Ensuring SSR runtime settings...${RESET}"
+./scripts/ensure-ssr-public-access.sh
+./scripts/ensure-ssr-memory.sh
+./scripts/ensure-ssr-scaling.sh
+echo -e "${GREEN}✓ SSR runtime verified.${RESET}"
 
-echo -e "\n${GREEN}${BOLD}Optimized Deployment Successful!${RESET}\n"
-
+echo -e "\n${GREEN}${BOLD}Deploy complete!${RESET}\n"
