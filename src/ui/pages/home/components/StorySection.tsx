@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion } from '../motion';
 import { SLIDE_UP_VARIANTS, STAGGER_CONTAINER_VARIANTS } from '@ui/animations';
 import { DEFAULT_FOOD_HALL_IMAGE } from '@utils/imageFallback';
 import { LANDING_COPY } from '../copy';

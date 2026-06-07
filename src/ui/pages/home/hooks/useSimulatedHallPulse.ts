@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type RefObject } from 'react';
+import { useNearViewport } from './useNearViewport';
+import { usePageVisible } from './usePageVisible';
 import { SITE_HOURS_CLOSES, SITE_HOURS_OPENS } from '@utils/seo';
 import { HALL_COUNTERS } from '../constants';
 import { buildStallCrowdSignal, type StallCrowdSignal } from '../utils/stallCrowd';
@@ -285,35 +287,68 @@ function computePulse(
   };
 }
 
-export function useSimulatedHallPulse(hotNames: readonly string[]) {
-  const [now, setNow] = useState(() => new Date());
+/** Stable anchor for SSR + pre-hydration — avoids live-clock hydration mismatches */
+const SSR_PULSE_ANCHOR = new Date('2024-06-01T12:00:00');
+
+export function useSimulatedHallPulse(hotNames: readonly string[], enabled = true) {
+  const [now, setNow] = useState<Date | null>(null);
   const [metricTick, setMetricTick] = useState(0);
   const [secondTick, setSecondTick] = useState(0);
-  const [slotRemaining, setSlotRemaining] = useState(() => 48 + (hashSeed(new Date().getDate()) % 40));
-  const daypart = getHallDaypart(now);
-  const isOpen = isHallOpenNow(now);
+  const [slotRemaining, setSlotRemaining] = useState(48);
+  const pageVisible = usePageVisible();
+  const active = enabled && pageVisible;
+  const effectiveNow = now ?? SSR_PULSE_ANCHOR;
+  const daypart = getHallDaypart(effectiveNow);
+  const isOpen = now ? isHallOpenNow(now) : isHallOpenNow(SSR_PULSE_ANCHOR);
 
   useEffect(() => {
-    const id = window.setInterval(() => {
-      setNow(new Date());
-      setSecondTick((t) => t + 1);
-      setSlotRemaining((s) => {
-        if (s <= 1) return 38 + (hashSeed(Date.now() % 100000) % 52);
-        return s - 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, []);
+    if (!active) return;
+
+    setNow(new Date());
+    setSlotRemaining(48 + (hashSeed(new Date().getDate()) % 40));
+
+    let timeoutId = 0;
+
+    const tick = () => {
+      const current = new Date();
+      const open = isHallOpenNow(current);
+      setNow(current);
+
+      if (!open) {
+        setSecondTick((t) => t + 1);
+        setSlotRemaining((s) => {
+          if (s <= 1) return 38 + (hashSeed(Date.now() % 100000) % 52);
+          return s - 1;
+        });
+      }
+
+      timeoutId = window.setTimeout(tick, open ? 12_000 : 3_000);
+    };
+
+    tick();
+    return () => window.clearTimeout(timeoutId);
+  }, [active]);
 
   useEffect(() => {
-    const id = window.setInterval(() => setMetricTick((t) => t + 1), 8000);
+    if (!active) return;
+
+    const id = window.setInterval(() => setMetricTick((t) => t + 1), 20_000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [active]);
 
   const pulse = useMemo(
-    () => computePulse(now, daypart, hotNames, metricTick, secondTick, slotRemaining),
-    [now, daypart, hotNames, metricTick, secondTick, slotRemaining],
+    () => computePulse(effectiveNow, daypart, hotNames, metricTick, secondTick, slotRemaining),
+    [effectiveNow, daypart, hotNames, metricTick, secondTick, slotRemaining],
   );
 
-  return { pulse, daypart, isOpen, metricTick, secondTick };
+  return { pulse, daypart, isOpen, metricTick, secondTick, live: now !== null };
+}
+
+/** Pulse that only runs when the vendors block is near the viewport */
+export function useSimulatedHallPulseInView(
+  hotNames: readonly string[],
+  ref: RefObject<HTMLElement | null>,
+) {
+  const near = useNearViewport(ref);
+  return useSimulatedHallPulse(hotNames, near);
 }

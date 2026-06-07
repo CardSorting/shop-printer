@@ -7,6 +7,8 @@
     "dev": "./scripts/dev.sh",
     "predev": "./scripts/cleanup-ports.sh",
     "cleanup": "./scripts/cleanup-ports.sh",
+    "optimize:landing-images": "node scripts/optimize-landing-images.mjs",
+    "optimize:counter-videos": "node scripts/optimize-counter-videos.mjs",
     "build": "next build --turbopack --no-lint",
     "build:deploy": "FIREBASE_DEPLOY=1 next build --turbopack --no-lint",
     "build:webpack": "next build --no-lint",
@@ -22,7 +24,7 @@
     "generate:counter-videos": "tsx scripts/generate-counter-videos.ts",
     "setup": "./scripts/setup.sh",
     "deploy": "./scripts/deploy-optimized.sh",
-    "deploy:hosting": "./scripts/deploy-optimized.sh",
+    "deploy:hosting": "./scripts/deploy-optimized.sh"
   },
   "engines": {
     "node": "22"

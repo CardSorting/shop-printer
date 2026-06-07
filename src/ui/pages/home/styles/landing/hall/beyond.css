@@ -213,6 +213,14 @@
   );
 }
 
+.landing-beyond__energy-fill--static {
+  transform: scaleX(1);
+}
+
+.landing-beyond__energy-fill--static.landing-beyond__energy-fill--late {
+  transform: scaleX(0.72);
+}
+
 .landing-beyond__energy-dot {
   position: absolute;
   top: 50%;

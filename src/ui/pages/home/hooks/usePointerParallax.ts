@@ -8,6 +8,8 @@ type PointerParallaxOptions = {
   strength?: number;
   stiffness?: number;
   damping?: number;
+  /** Defer listener attachment until hero/content has painted */
+  enabled?: boolean;
 };
 
 /** Viewport-center pointer drift — one listener with fore/back depth layers */
@@ -32,14 +34,32 @@ export function usePointerParallax({
 
   useEffect(() => {
     if (reduced) return;
-    const onMove = (event: PointerEvent) => resolveOffset(event);
+    const finePointer = window.matchMedia('(pointer: fine)').matches;
+    if (!finePointer) return;
+
+    let frame = 0;
+    let lastEvent: PointerEvent | null = null;
+
+    const flush = () => {
+      frame = 0;
+      if (lastEvent) resolveOffset(lastEvent);
+    };
+
+    const onMove = (event: PointerEvent) => {
+      lastEvent = event;
+      if (!frame) frame = requestAnimationFrame(flush);
+    };
+
     window.addEventListener('pointermove', onMove, { passive: true });
-    return () => window.removeEventListener('pointermove', onMove);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [reduced, resolveOffset]);
 
   const spring = reduced
-    ? { stiffness: 10000, damping: 500, restDelta: 0.001 }
-    : { stiffness, damping, restDelta: 0.0008 };
+    ? { stiffness: 10000, damping: 500, restDelta: 0.01 }
+    : { stiffness, damping, restDelta: 0.012 };
 
   const smoothX = useSpring(rawX, spring);
   const smoothY = useSpring(rawY, spring);
@@ -60,7 +80,7 @@ export function usePointerParallax({
 /** Element-relative pointer drift — tighter hero / card focus */
 export function useElementPointerParallax(
   ref: RefObject<HTMLElement | null>,
-  { strength = 5, stiffness = 42, damping = 24 }: PointerParallaxOptions = {},
+  { strength = 5, stiffness = 42, damping = 24, enabled = true }: PointerParallaxOptions = {},
 ) {
   const reduced = usePrefersReducedMotion();
   const rawX = useMotionValue(0);
@@ -87,22 +107,31 @@ export function useElementPointerParallax(
   );
 
   useEffect(() => {
-    if (reduced) return;
-    const onMove = (event: PointerEvent) => resolveOffset(event);
+    if (reduced || !enabled) return;
+    const finePointer = window.matchMedia('(pointer: fine)').matches;
+    if (!finePointer) return;
+
+    let frame = 0;
+    let lastEvent: PointerEvent | null = null;
+    const flush = () => {
+      frame = 0;
+      if (lastEvent) resolveOffset(lastEvent);
+    };
+    const onMove = (event: PointerEvent) => {
+      lastEvent = event;
+      if (!frame) frame = requestAnimationFrame(flush);
+    };
+
     window.addEventListener('pointermove', onMove, { passive: true });
-    return () => window.removeEventListener('pointermove', onMove);
-  }, [reduced, resolveOffset]);
-
-  const spring = reduced
-    ? { stiffness: 10000, damping: 500, restDelta: 0.001 }
-    : { stiffness, damping, restDelta: 0.0008 };
-
-  const smoothX = useSpring(rawX, spring);
-  const smoothY = useSpring(rawY, spring);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [reduced, resolveOffset, enabled]);
 
   return {
-    x: useTransform(smoothX, (v) => `${v}%`),
-    y: useTransform(smoothY, (v) => `${v}%`),
+    x: useTransform(rawX, (v) => `${v}%`),
+    y: useTransform(rawY, (v) => `${v}%`),
   };
 }
 

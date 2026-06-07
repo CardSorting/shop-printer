@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from '../motion';
 import { ArrowRight, Shield, Zap } from 'lucide-react';
 import { SLIDE_UP_VARIANTS } from '@ui/animations';
 import { ProductCard } from '@ui/components/ProductCard';

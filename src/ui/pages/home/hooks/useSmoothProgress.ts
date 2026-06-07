@@ -3,11 +3,14 @@ import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 
 type SpringPair = { stiffness: number; damping: number };
 
-/** Spring-smoothed scroll progress — instant when reduced motion is preferred */
+const INSTANT_SPRING = { stiffness: 10000, damping: 500, restDelta: 0.01 };
+
+/** Spring-smoothed scroll progress — instant when reduced motion or instant=true */
 export function useSmoothProgress(
   progress: MotionValue<number>,
   stiffnessOrPreset: number | SpringPair = 80,
   damping = 26,
+  instant = false,
 ) {
   const reduced = usePrefersReducedMotion();
   const resolved =
@@ -17,8 +20,6 @@ export function useSmoothProgress(
 
   return useSpring(
     progress,
-    reduced
-      ? { stiffness: 10000, damping: 500, restDelta: 0.001 }
-      : { ...resolved, restDelta: 0.0008 },
+    reduced || instant ? INSTANT_SPRING : { ...resolved, restDelta: 0.012 },
   );
 }

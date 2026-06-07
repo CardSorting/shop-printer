@@ -1,6 +1,7 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from '../motion';
+import { AnimatePresence } from 'framer-motion';
 import { HALL_FOOD_PARALLAX_FRAMES } from '../constants';
 import { useActiveFoodPassScroll, useFoodTourProgress } from '../hooks/useFoodTourScroll';
 import { scrollToLandingSection } from '../hooks/useLandingSectionNav';

@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { LANDING_COPY } from '../copy';
-import { useHallDaypart } from '../hooks/useHallDaypart';
+import { useHydrated } from '../hooks/useHydrated';
 import type { SimulatedHallPulse } from '../hooks/useSimulatedHallPulse';
+import type { HallDaypart } from '../utils/hallTime';
 import { HallCta } from './HallCta';
 
 const { vendors, nowBoard } = LANDING_COPY;
@@ -25,27 +25,19 @@ function formatOpensAt(seconds: number): string {
 type VendorsHallStripProps = {
   pulse: SimulatedHallPulse;
   isOpen?: boolean | null;
+  daypart: HallDaypart;
   className?: string;
 };
 
-/** Single minimalist hall status + CTA — replaces panel, metrics, and floor banner */
-export function VendorsHallStrip({ pulse, isOpen: isOpenProp, className = '' }: VendorsHallStripProps) {
-  const reduceMotion = useReducedMotion();
-  const { daypart, isOpen: isOpenHook } = useHallDaypart();
-  const isOpen = isOpenProp ?? isOpenHook;
+export function VendorsHallStrip({ pulse, isOpen, daypart, className = '' }: VendorsHallStripProps) {
+  const hydrated = useHydrated();
   const board = nowBoard[daypart];
   const ctaLabel = isOpen ? board.cta.label : vendors.cta.label;
   const ctaHref = isOpen ? board.cta.href : vendors.cta.href;
+  const showCountdown = hydrated && !isOpen;
 
   return (
-    <motion.div
-      className={`landing-vendors-strip ${className}`.trim()}
-      initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-40px' }}
-      transition={{ duration: 0.62, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
-      aria-label="Hall status"
-    >
+    <div className={`landing-vendors-strip ${className}`.trim()} aria-label="Hall status">
       <div className="landing-vendors-strip__main">
         <div className="landing-vendors-strip__status">
           <span
@@ -57,12 +49,16 @@ export function VendorsHallStrip({ pulse, isOpen: isOpenProp, className = '' }: 
               <>
                 <p className="landing-vendors-strip__line">
                   <span>{social.liveClosed}</span>
-                  <span className="landing-vendors-strip__sep" aria-hidden>
-                    ·
-                  </span>
-                  <time className="landing-vendors-strip__time font-display" dateTime={`PT${pulse.opensInSeconds}S`}>
-                    {formatOpensAt(pulse.opensInSeconds)}
-                  </time>
+                  {showCountdown ? (
+                    <>
+                      <span className="landing-vendors-strip__sep" aria-hidden>
+                        ·
+                      </span>
+                      <time className="landing-vendors-strip__time font-display" dateTime={`PT${pulse.opensInSeconds}S`}>
+                        {formatOpensAt(pulse.opensInSeconds)}
+                      </time>
+                    </>
+                  ) : null}
                 </p>
                 <p className="landing-vendors-strip__sub">{social.closedHint}</p>
               </>
@@ -97,6 +93,6 @@ export function VendorsHallStrip({ pulse, isOpen: isOpenProp, className = '' }: 
       </div>
 
       <p className="landing-vendors-strip__signals">{social.signals.join(' · ')}</p>
-    </motion.div>
+    </div>
   );
 }

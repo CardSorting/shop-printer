@@ -65,7 +65,7 @@ export function Navbar() {
 
   return (
     <>
-      <nav className="sticky top-0 z-[var(--z-nav)] isolate border-b border-gray-100/50 bg-white/95 py-4 shadow-sm backdrop-blur-xl sm:py-5">
+      <nav className="relative border-b border-gray-100/50 bg-white/95 py-4 shadow-sm backdrop-blur-xl sm:py-5">
         <div className="w-full px-6 lg:px-16 xl:px-24 flex items-center gap-6 lg:gap-12">
           
           {/* Brand */}
@@ -93,6 +93,8 @@ export function Navbar() {
               <Search className="w-4 h-4" />
             </div>
             <input 
+              id="navbar-search"
+              name="q"
               type="text"
               placeholder="Search vendors & dishes..."
               className="w-full pl-10 pr-4 py-2 text-[13px] font-medium bg-gray-100 border-2 border-transparent rounded-full outline-none transition-all duration-300 focus:bg-white focus:border-primary-500/20 focus:ring-4 focus:ring-primary-500/5 placeholder:text-gray-400 text-gray-900"

@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { ProductsPage } from '@ui/pages/ProductsPage';
 import type { Metadata } from 'next';
+import { JsonLd } from '@ui/components/JsonLd';
 import { getServerServices } from '@infrastructure/server/services';
 import { notFound } from 'next/navigation';
 import { buildNextPageMetadata, getAppSeoEngine } from '@infrastructure/seo';
@@ -86,10 +87,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
       <Suspense fallback={<div className="mx-auto max-w-7xl px-4 py-12 text-sm font-bold text-gray-500">Loading vendors...</div>}>
         <ProductsPage resolvedType={resolved?.type} resolvedSlug={slug} />
       </Suspense>

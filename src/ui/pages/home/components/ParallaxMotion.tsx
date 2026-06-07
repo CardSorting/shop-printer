@@ -1,6 +1,7 @@
 'use client';
 
-import { motion, type MotionValue } from 'framer-motion';
+import { motion } from '../motion';
+import { type MotionValue } from 'framer-motion';
 import type { CSSProperties, ElementType, ReactNode } from 'react';
 
 type MotionTag = 'div' | 'section' | 'p' | 'blockquote' | 'article' | 'span' | 'li';
@@ -15,7 +16,7 @@ export type ParallaxMode =
   | 'height'
   | 'clip';
 
-/** MotionValue is invariant in T — permissive bind type for scroll-driven CSS vars */
+/** MotionValue is invariant in T — permissive bind type for scroll-driven motion */
 export type BindableMotion = MotionValue<any>;
 
 type ParallaxMotionProps = {
@@ -30,12 +31,13 @@ type ParallaxMotionProps = {
   x?: BindableMotion;
   y?: BindableMotion;
   scale?: BindableMotion;
+  scaleX?: BindableMotion;
+  scaleY?: BindableMotion;
   rotate?: BindableMotion;
   rotateX?: BindableMotion;
   rotateY?: BindableMotion;
   opacity?: BindableMotion;
   filter?: BindableMotion;
-  scaleX?: BindableMotion;
   height?: BindableMotion;
   clipPath?: BindableMotion;
 };
@@ -50,76 +52,62 @@ const MOTION_TAGS: Record<MotionTag, ElementType> = {
   li: motion.li,
 };
 
-function buildParallaxClass(modes: ParallaxMode[]): string {
-  if (!modes.length) return '';
-  const classes = ['landing-parallax'];
-  for (const mode of modes) {
-    classes.push(`landing-parallax--${mode}`);
-  }
-  return classes.join(' ');
-}
-
+/**
+ * Scroll/pointer-driven motion via Framer's compositor props (x/y/scale/opacity).
+ * Avoids CSS custom-property updates — much cheaper per frame than --lp-* vars.
+ */
 export function ParallaxMotion({
   children,
   className = '',
   style: styleProp,
   as = 'div',
-  modes,
+  modes = [],
   x,
   y,
   scale,
+  scaleX,
+  scaleY,
   rotate,
   rotateX,
   rotateY,
   opacity,
   filter,
-  scaleX,
   height,
   clipPath,
   ...rest
 }: ParallaxMotionProps) {
   const Component = MOTION_TAGS[as];
+  const applyX = modes.includes('transform') || modes.includes('shift-x');
+  const applyY = modes.includes('transform') || modes.includes('shift-y');
+  const usesTransform = applyX || applyY || modes.includes('transform') || modes.includes('scale-x') || scaleY !== undefined;
 
-  const style = {
-    ...(x !== undefined && { '--lp-x': x }),
-    ...(y !== undefined && { '--lp-y': y }),
-    ...(scale !== undefined && { '--lp-scale': scale }),
-    ...(rotate !== undefined && { '--lp-rotate': rotate }),
-    ...(rotateX !== undefined && { '--lp-rotate-x': rotateX }),
-    ...(rotateY !== undefined && { '--lp-rotate-y': rotateY }),
-    ...(opacity !== undefined && { '--lp-opacity': opacity }),
-    ...(filter !== undefined && { '--lp-filter': filter }),
-    ...(scaleX !== undefined && { '--lp-scale-x': scaleX }),
-    ...(height !== undefined && { '--lp-height': height }),
-    ...(clipPath !== undefined && { '--lp-clip': clipPath }),
+  const motionStyle = {
     ...styleProp,
+    ...(modes.includes('filter') && filter !== undefined ? { filter } : {}),
+    ...(modes.includes('clip') && clipPath !== undefined ? { clipPath } : {}),
+    ...(modes.includes('height') && height !== undefined ? { height } : {}),
   } as CSSProperties;
 
-  const needsParallax =
-    x !== undefined ||
-    y !== undefined ||
-    scale !== undefined ||
-    rotate !== undefined ||
-    rotateX !== undefined ||
-    rotateY !== undefined ||
-    opacity !== undefined ||
-    filter !== undefined ||
-    scaleX !== undefined ||
-    height !== undefined ||
-    clipPath !== undefined;
-
-  const resolvedModes: ParallaxMode[] = modes ? [...modes] : [];
-  if (!resolvedModes.length && needsParallax) {
-    if (height !== undefined) resolvedModes.push('height');
-    else if (scaleX !== undefined) resolvedModes.push('scale-x');
-    else if (opacity !== undefined && x === undefined && y === undefined) resolvedModes.push('fade');
-    else if (clipPath !== undefined && !resolvedModes.includes('clip')) resolvedModes.push('clip');
-    else resolvedModes.push('transform');
+  const motionProps: Record<string, BindableMotion | number | string | undefined> = {};
+  if (applyX && x !== undefined) motionProps.x = x;
+  if (applyY && y !== undefined) motionProps.y = y;
+  if (modes.includes('transform')) {
+    if (scale !== undefined) motionProps.scale = scale;
+    if (rotate !== undefined) motionProps.rotate = rotate;
+    if (rotateX !== undefined) motionProps.rotateX = rotateX;
+    if (rotateY !== undefined) motionProps.rotateY = rotateY;
   }
-  const parallaxClass = resolvedModes.length ? buildParallaxClass(resolvedModes) : '';
+  if (modes.includes('scale-x') && scaleX !== undefined) motionProps.scaleX = scaleX;
+  if (scaleY !== undefined) motionProps.scaleY = scaleY;
+  if (modes.includes('fade') && opacity !== undefined) motionProps.opacity = opacity;
 
   return (
-    <Component className={`${parallaxClass} ${className}`.trim()} style={style} {...rest}>
+    <Component
+      className={`landing-parallax${usesTransform ? ' landing-parallax--gpu' : ''} ${className}`.trim()}
+      style={motionStyle}
+      {...motionProps}
+      {...rest}
+    >
       {children}
     </Component>
   );

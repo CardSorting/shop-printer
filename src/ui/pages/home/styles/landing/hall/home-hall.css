@@ -1,0 +1,10 @@
+/** Hall styles used by the live homepage — omit unused legacy section modules */
+@import "./scrap.css";
+@import "./chrome.css";
+@import "./ctas.css";
+@import "./detail-row.css";
+@import "./counter-parallax-grid.css";
+@import "./gatherings.css";
+@import "./getting-here.css";
+@import "./food-parallax.css";
+@import "./beyond.css";

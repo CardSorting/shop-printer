@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion } from '../motion';
 import { STAGGER_CONTAINER_VARIANTS } from '@ui/animations';
 import { LANDING_COPY } from '../copy';
 import { HALL_STATS } from '../constants';

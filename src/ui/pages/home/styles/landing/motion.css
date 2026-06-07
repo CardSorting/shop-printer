@@ -66,75 +66,6 @@
   filter: blur(10px);
 }
 
-.landing-page-ambient {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.landing-page-ambient__orb {
-  position: absolute;
-  border-radius: 999px;
-  filter: blur(72px);
-  will-change: transform, opacity;
-}
-
-.landing-page-ambient__orb--back {
-  top: 18%;
-  right: -6%;
-  width: clamp(16rem, 34vw, 26rem);
-  height: clamp(16rem, 34vw, 26rem);
-  background: rgb(245 158 11 / 0.07);
-}
-
-.landing-page-ambient__orb--mid {
-  top: 42%;
-  left: 38%;
-  width: clamp(10rem, 22vw, 16rem);
-  height: clamp(10rem, 22vw, 16rem);
-  background: rgb(245 158 11 / 0.04);
-}
-
-.landing-page-ambient__orb--front {
-  bottom: 22%;
-  left: -4%;
-  width: clamp(12rem, 26vw, 20rem);
-  height: clamp(12rem, 26vw, 20rem);
-  background: rgb(245 158 11 / 0.05);
-}
-
-.landing-page-ambient__grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px);
-  background-size: clamp(4rem, 10vw, 6rem) clamp(4rem, 10vw, 6rem);
-  mask-image: linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
-  will-change: transform, opacity;
-}
-
-.landing-page-ambient__grid--back {
-  opacity: 0.55;
-  background-size: clamp(5rem, 12vw, 7rem) clamp(5rem, 12vw, 7rem);
-  mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 75%, transparent);
-}
-
-.landing-page-ambient__flash {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    ellipse 70% 55% at 50% 42%,
-    rgb(245 158 11 / 0.22) 0%,
-    rgb(255 255 255 / 0.06) 35%,
-    transparent 72%
-  );
-}
-
 .landing-page--guided {
   position: relative;
   z-index: 1;
@@ -294,10 +225,6 @@
   .landing-visit__continued-glow--back,
   .landing-visit__continued-mesh,
   .landing-section-seam__glow,
-  .landing-page-ambient,
-  .landing-page-ambient__grid,
-  .landing-page-ambient__grid--back,
-  .landing-page-ambient__flash,
   .landing-section-bridge__glow,
   .landing-section-bridge__sparkle,
   .landing-getting-here__glow,

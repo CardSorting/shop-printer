@@ -1,0 +1,238 @@
+/* Static gradient overlays — replaces scroll-driven parallax layers */
+
+.landing-gradient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.landing-gradient--hero {
+  background:
+    linear-gradient(180deg, rgb(8 8 12 / 0.55) 0%, transparent 38%, rgb(8 8 12 / 0.72) 100%),
+    radial-gradient(ellipse 80% 60% at 70% 20%, rgb(245 158 11 / 0.12) 0%, transparent 55%);
+}
+
+.landing-gradient--hero-vignette {
+  z-index: 2;
+  background: radial-gradient(ellipse 90% 80% at 50% 45%, transparent 35%, rgb(0 0 0 / 0.55) 100%);
+}
+
+.landing-gradient--hero-cinema {
+  z-index: 3;
+  background: linear-gradient(
+    180deg,
+    rgb(0 0 0 / 0.35) 0%,
+    transparent 12%,
+    transparent 88%,
+    rgb(0 0 0 / 0.4) 100%
+  );
+}
+
+.landing-gradient--section-dark {
+  background:
+    linear-gradient(180deg, rgb(8 8 12 / 0.92) 0%, rgb(12 10 8 / 0.78) 45%, rgb(8 8 12 / 0.95) 100%),
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgb(245 158 11 / 0.08) 0%, transparent 60%);
+}
+
+.landing-gradient--section-glow {
+  background: radial-gradient(
+    ellipse 65% 45% at 50% 30%,
+    rgb(245 158 11 / 0.14) 0%,
+    rgb(245 158 11 / 0.04) 40%,
+    transparent 70%
+  );
+}
+
+.landing-gradient--vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: radial-gradient(ellipse 85% 75% at 50% 45%, transparent 42%, rgb(0 0 0 / 0.52) 100%);
+}
+
+.landing-gradient--bridge {
+  position: relative;
+  inset: auto;
+  height: clamp(3rem, 8vh, 5rem);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgb(245 158 11 / 0.12) 45%,
+    transparent 100%
+  );
+}
+
+.landing-gradient--visit {
+  background:
+    linear-gradient(105deg, rgb(8 8 12 / 0.88) 0%, rgb(8 8 12 / 0.55) 42%, rgb(8 8 12 / 0.82) 100%),
+    radial-gradient(circle at 80% 20%, rgb(245 158 11 / 0.1) 0%, transparent 45%);
+}
+
+.landing-gradient--visit-ambient {
+  background: radial-gradient(
+    ellipse 60% 50% at 20% 80%,
+    rgb(245 158 11 / 0.08) 0%,
+    transparent 65%
+  );
+}
+
+.landing-gradient--scene-cut {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 55% 80% at 50% 50%,
+    rgb(245 158 11 / 0.1) 0%,
+    transparent 70%
+  );
+}
+
+.landing-gradient--food-pass {
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 0.72) 0%, rgb(0 0 0 / 0.25) 38%, rgb(0 0 0 / 0.82) 100%),
+    linear-gradient(90deg, rgb(0 0 0 / 0.65) 0%, transparent 55%);
+}
+
+.landing-gradient--ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 50% 40% at 15% 25%, rgb(245 158 11 / 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 35% at 85% 75%, rgb(120 80 40 / 0.05) 0%, transparent 55%);
+}
+
+.landing-cinema-static__letterbox {
+  position: fixed;
+  inset: 0;
+  z-index: 41;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.landing-cinema-static__bar {
+  width: 100%;
+  height: clamp(2.5rem, 6vh, 4.5rem);
+  background: rgb(0 0 0 / 0.72);
+  flex-shrink: 0;
+}
+
+.landing-section-divider {
+  position: relative;
+  z-index: 2;
+  height: 1px;
+  margin-inline: auto;
+  max-width: min(92vw, 72rem);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(245 158 11 / 0.45) 50%,
+    transparent 100%
+  );
+  opacity: 0.65;
+}
+
+.landing-section-divider--enter {
+  margin-block: 0 0.5rem;
+}
+
+.landing-section-divider--exit {
+  margin-block: 0.5rem 0;
+}
+
+.landing-cinema-grain--static {
+  position: fixed;
+  inset: 0;
+  z-index: 42;
+  pointer-events: none;
+  opacity: 0.11;
+  animation: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+@media (max-width: 768px) {
+  .landing-cinema-grain--static {
+    display: none;
+  }
+}
+
+.landing-scene-cut__wipe--static {
+  transform: scaleX(1);
+  opacity: 0.85;
+}
+
+.landing-vendors__section-glow {
+  z-index: 0;
+}
+
+.landing-vendors .landing-vendors__watermark,
+.landing-hero .landing-hero__watermark {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.04;
+}
+
+.landing-visit__media--static {
+  opacity: 0.22;
+}
+
+.landing-vendors,
+.landing-visit,
+.landing-food-pass--static {
+  position: relative;
+}
+
+.landing-vendors > .landing-container,
+.landing-visit__inner,
+.landing-hero__content {
+  position: relative;
+  z-index: 2;
+}
+
+.landing-food-pass--static {
+  min-height: min(88svh, 42rem);
+  overflow: hidden;
+}
+
+.landing-food-pass--static .landing-food-pass__media,
+.landing-food-pass--static .landing-food-pass__media-inner,
+.landing-food-pass--static .landing-food-pass__cinema-rail {
+  will-change: auto;
+}
+
+.landing-food-pass__stage {
+  position: relative;
+  min-height: inherit;
+  display: grid;
+  align-items: end;
+}
+
+.landing-food-pass__media--static {
+  position: absolute;
+  inset: 0;
+}
+
+.landing-food-pass__content--static {
+  position: relative;
+  z-index: 3;
+  max-width: min(36rem, 92vw);
+  padding: clamp(2rem, 6vh, 4rem) clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.landing-food-pass--right .landing-food-pass__content--static {
+  margin-left: auto;
+  text-align: right;
+}
+
+.landing-food-pass__story-fill--static {
+  display: block;
+  height: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--color-primary-400), var(--color-primary-300));
+  border-radius: 999px;
+}
+

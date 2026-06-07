@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion } from '../motion';
 import { SLIDE_UP_VARIANTS } from '@ui/animations';
 import { HallCta } from './HallCta';
 import { HoverLift } from './MicroMotion';

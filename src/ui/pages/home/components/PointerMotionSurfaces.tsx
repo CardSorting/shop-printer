@@ -1,6 +1,7 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from '../motion';
+import { useReducedMotion } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { useRef } from 'react';
 import { useElementPointerParallax, useMagneticHover, useTilePointerTilt } from '../hooks/usePointerParallax';

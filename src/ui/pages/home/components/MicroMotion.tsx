@@ -1,6 +1,7 @@
 'use client';
 
-import { AnimatePresence, motion, useMotionValue, useReducedMotion, type HTMLMotionProps, type Transition, type Variants } from 'framer-motion';
+import { motion } from '../motion';
+import { AnimatePresence, useMotionValue, useReducedMotion, type HTMLMotionProps, type Transition, type Variants } from 'framer-motion';
 import type { MotionValue } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';

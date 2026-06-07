@@ -1,5 +1,6 @@
 import PostContent from './PostContent';
 import type { Metadata } from 'next';
+import { JsonLd } from '@ui/components/JsonLd';
 import { notFound } from 'next/navigation';
 import { getServerServices } from '@infrastructure/server/services';
 import { articleToSeoContext } from '@core/seo';
@@ -87,10 +88,7 @@ export default async function BlogPostPage({ params }: Props) {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
       <PostContent
         post={serializedPost}
         initialComments={serializedComments}

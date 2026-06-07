@@ -1,51 +1,74 @@
 'use client';
 
 import { type RefObject } from 'react';
-import { useScroll, useTransform } from 'framer-motion';
-import { PARALLAX_SPRING } from '../hooks/useParallax';
-import { useSmoothProgress } from '../hooks/useSmoothProgress';
+import { useScroll, useTransform, type MotionValue } from 'framer-motion';
+import { SCROLL_OPTS } from '../hooks/useParallax';
 import { ParallaxMotion } from './ParallaxMotion';
 
 type ScrollOffset = NonNullable<Parameters<typeof useScroll>[0]>['offset'];
 
-type SectionScrollSeamProps = {
-  targetRef: RefObject<HTMLElement | null>;
+type SectionScrollSeamBaseProps = {
+  phase?: 'enter' | 'exit';
   className?: string;
-  offset?: ScrollOffset;
   variant?: 'light' | 'dark';
 };
 
-/** Scroll-scrubbed seam tied to a section entering the viewport */
-export function SectionScrollSeam({
-  targetRef,
+type SectionScrollSeamWithProgress = SectionScrollSeamBaseProps & {
+  progress: MotionValue<number>;
+  targetRef?: never;
+  offset?: never;
+};
+
+type SectionScrollSeamWithTarget = SectionScrollSeamBaseProps & {
+  progress?: never;
+  targetRef: RefObject<HTMLElement | null>;
+  offset?: ScrollOffset;
+};
+
+type SectionScrollSeamProps = SectionScrollSeamWithProgress | SectionScrollSeamWithTarget;
+
+function SectionScrollSeamInner({
+  progress,
+  phase = 'enter',
   className = '',
-  offset = ['start 92%', 'start 38%'],
   variant = 'dark',
-}: SectionScrollSeamProps) {
-  const { scrollYProgress } = useScroll({ target: targetRef, offset });
-  const smooth = useSmoothProgress(scrollYProgress, PARALLAX_SPRING.crisp);
-  const opacity = useTransform(smooth, [0, 0.22, 0.78, 1], [0, 0.8, 0.8, 0]);
-  const scaleX = useTransform(smooth, [0, 0.42, 1], [0.28, 1, 0.72]);
-  const y = useTransform(smooth, [0, 1], ['1rem', '-0.85rem']);
-  const x = useTransform(smooth, [0, 1], ['-3%', '3%']);
-  const glowOpacity = useTransform(smooth, [0, 0.35, 0.65, 1], [0, 0.55, 0.55, 0]);
+}: SectionScrollSeamBaseProps & { progress: MotionValue<number> }) {
+  const opacityInput = phase === 'exit' ? [0.86, 0.94] : [0.06, 0.14];
+  const opacity = useTransform(progress, opacityInput, [0, 0.75]);
+  const scaleInput = phase === 'exit' ? [0.88, 0.96, 1] : [0, 0.08, 0.18];
+  const scaleX = useTransform(progress, scaleInput, [0.28, 1, 0.72]);
 
   return (
-    <div className={`landing-section-seam landing-section-seam--${variant} ${className}`.trim()} aria-hidden>
+    <div
+      className={`landing-section-seam landing-section-seam--${variant} ${className}`.trim()}
+      aria-hidden
+    >
       <ParallaxMotion
-        modes={['shift-y', 'fade', 'scale-x']}
-        y={y}
-        opacity={glowOpacity}
-        className="landing-section-seam__glow"
-      />
-      <ParallaxMotion
-        modes={['transform', 'fade', 'scale-x']}
-        x={x}
-        y={y}
+        modes={['fade', 'scale-x']}
         opacity={opacity}
         scaleX={scaleX}
         className="landing-section-seam__line"
       />
     </div>
   );
+}
+
+function SectionScrollSeamWithTarget({
+  targetRef,
+  offset = ['start 92%', 'start 38%'],
+  ...rest
+}: SectionScrollSeamWithTarget) {
+  const { scrollYProgress } = useScroll({ target: targetRef, offset, ...SCROLL_OPTS });
+  return <SectionScrollSeamInner progress={scrollYProgress} {...rest} />;
+}
+
+/** Scroll-scrubbed seam — pass section progress to avoid duplicate scroll listeners */
+export function SectionScrollSeam(props: SectionScrollSeamProps) {
+  if ('progress' in props && props.progress) {
+    const { progress, ...rest } = props;
+    return <SectionScrollSeamInner progress={progress} {...rest} />;
+  }
+
+  const { targetRef, offset, ...rest } = props as SectionScrollSeamWithTarget;
+  return <SectionScrollSeamWithTarget targetRef={targetRef} offset={offset} {...rest} />;
 }

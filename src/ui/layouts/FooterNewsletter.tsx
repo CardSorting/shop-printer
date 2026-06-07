@@ -252,6 +252,8 @@ export function FooterNewsletter() {
                       <span className="sr-only">Email address</span>
                       <Mail aria-hidden="true" />
                       <input
+                        id="footer-newsletter-email"
+                        name="email"
                         type="email"
                         value={email}
                         onChange={(event) => setEmail(event.target.value)}

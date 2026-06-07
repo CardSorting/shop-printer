@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion } from '../motion';
 import { ArrowUpRight } from 'lucide-react';
 import { STAGGER_CONTAINER_VARIANTS } from '@ui/animations';
 import { LANDING_COPY } from '../copy';

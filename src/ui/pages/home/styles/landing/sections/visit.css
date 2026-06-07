@@ -8,7 +8,26 @@
 .landing-visit__media {
   position: absolute;
   inset: -8% 0;
-  will-change: transform, opacity;
+}
+
+.landing-visit--simple .landing-visit__media {
+  will-change: auto;
+}
+
+.landing-visit__grid--enter {
+  animation: landing-band-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.landing-visit__card--enter {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.landing-visit__card--enter:hover {
+  transform: translateY(-3px);
+}
+
+.landing-visit__stat {
+  animation: landing-band-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .landing-visit__media img {

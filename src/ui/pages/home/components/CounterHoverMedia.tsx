@@ -1,9 +1,10 @@
 'use client';
 
+import { useCallback, useRef } from 'react';
 import Image from 'next/image';
-import { useEffect, useRef } from 'react';
-import { useReducedMotion } from 'framer-motion';
 import { warmCounterVideo } from '../hooks/useCounterVideoWarmCache';
+import { useMinViewportWidth } from '../hooks/useMinViewportWidth';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import { getCounterVideoSrc, hasCounterVideo } from '../utils/counterMedia';
 
 type CounterHoverMediaProps = {
@@ -13,10 +14,6 @@ type CounterHoverMediaProps = {
   className?: string;
   imageClassName?: string;
   priority?: boolean;
-  /** Preload video as soon as the grid is near the viewport */
-  preloadVideo?: boolean;
-  /** Preload immediately (hero tile) */
-  eagerVideo?: boolean;
 };
 
 export function CounterHoverMedia({
@@ -26,46 +23,34 @@ export function CounterHoverMedia({
   className = '',
   imageClassName = '',
   priority = false,
-  preloadVideo = false,
-  eagerVideo = false,
 }: CounterHoverMediaProps) {
-  const reduceMotion = useReducedMotion();
-  const stackRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = usePrefersReducedMotion();
+  const desktop = useMinViewportWidth(768);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hasVideo = hasCounterVideo(img);
   const videoSrc = getCounterVideoSrc(img);
-  const shouldPreload = eagerVideo || preloadVideo;
-  const useVideo = hasVideo && !reduceMotion;
+  const useVideo = hasVideo && !reduceMotion && desktop;
 
-  useEffect(() => {
-    if (!useVideo || !shouldPreload) return;
-    void warmCounterVideo(videoSrc);
-  }, [shouldPreload, useVideo, videoSrc]);
-
-  useEffect(() => {
-    if (!useVideo) return;
-    const stack = stackRef.current;
+  const onPointerEnter = useCallback(() => {
     const video = videoRef.current;
-    if (!stack || !video) return;
+    if (!video) return;
+    void warmCounterVideo(videoSrc);
+    void video.play().catch(() => {});
+  }, [videoSrc]);
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          void video.play().catch(() => {});
-          return;
-        }
-
-        video.pause();
-      },
-      { threshold: 0.2, rootMargin: '80px 0px' },
-    );
-
-    observer.observe(stack);
-    return () => observer.disconnect();
-  }, [useVideo]);
+  const onPointerLeave = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.pause();
+    video.currentTime = 0;
+  }, []);
 
   return (
-    <div ref={stackRef} className={`landing-counter-grid__media-stack ${className}`.trim()}>
+    <div
+      className={`landing-counter-grid__media-stack ${className}`.trim()}
+      onPointerEnter={useVideo ? onPointerEnter : undefined}
+      onPointerLeave={useVideo ? onPointerLeave : undefined}
+    >
       {useVideo ? (
         <video
           ref={videoRef}
@@ -75,7 +60,7 @@ export function CounterHoverMedia({
           muted
           loop
           playsInline
-          preload="auto"
+          preload="none"
           aria-label={alt}
         />
       ) : (
@@ -84,7 +69,9 @@ export function CounterHoverMedia({
           alt={alt}
           fill
           sizes={sizes}
+          quality={68}
           priority={priority}
+          loading={priority ? undefined : 'lazy'}
           className={`landing-counter-grid__image object-cover ${imageClassName}`.trim()}
         />
       )}

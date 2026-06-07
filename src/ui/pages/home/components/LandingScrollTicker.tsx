@@ -1,53 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion, useMotionValueEvent, type MotionValue } from 'framer-motion';
-import { LANDING_COPY, LANDING_SECTIONS } from '../copy';
-import { TickerFlip } from './MicroMotion';
+import { motion } from '../motion';
+import { type MotionValue } from 'framer-motion';
+import { LANDING_COPY } from '../copy';
+import { useLandingActiveSection } from '../hooks/useLandingActiveSection';
+import { useThrottledMotionPercent } from '../hooks/useThrottledMotionValue';
 
 type LandingScrollTickerProps = {
   progress: MotionValue<number>;
 };
 
-/** Fixed bottom ticker — active section + scroll depth (cinematic homepage) */
+/** Fixed bottom ticker — throttled scroll depth, shared section observer */
 export function LandingScrollTicker({ progress }: LandingScrollTickerProps) {
-  const [pct, setPct] = useState(0);
-  const [activeLabel, setActiveLabel] = useState<string>(LANDING_SECTIONS[0].label);
-
-  useMotionValueEvent(progress, 'change', (v) => setPct(Math.round(v * 100)));
-
-  useEffect(() => {
-    const observers: IntersectionObserver[] = [];
-
-    LANDING_SECTIONS.forEach(({ id, label }) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) setActiveLabel(label);
-        },
-        { rootMargin: '-44% 0px -44% 0px', threshold: 0 },
-      );
-
-      observer.observe(el);
-      observers.push(observer);
-    });
-
-    return () => observers.forEach((o) => o.disconnect());
-  }, []);
+  const pct = useThrottledMotionPercent(progress);
+  const { activeLabel } = useLandingActiveSection();
 
   return (
     <motion.div
       className="landing-cinema-ticker"
       aria-hidden
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 380, damping: 32, delay: 0.4 }}
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
     >
-      <TickerFlip value={activeLabel} className="landing-cinema-ticker__section" />
+      <span className="landing-cinema-ticker__section">{activeLabel}</span>
       <span className="landing-cinema-ticker__sep" aria-hidden />
-      <TickerFlip value={String(pct).padStart(3, '0')} className="landing-cinema-ticker__pct font-display" />
+      <span className="landing-cinema-ticker__pct font-display">{String(pct).padStart(3, '0')}</span>
       <span className="landing-cinema-ticker__unit">{LANDING_COPY.tickerUnit}</span>
     </motion.div>
   );

@@ -14,6 +14,48 @@
   border: 0;
 }
 
+/* Defer paint/layout for below-fold landing sections until near viewport */
+.landing-section-deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 720px;
+  contain: layout style paint;
+}
+
+.landing-section-placeholder {
+  background: var(--landing-ink, #0c0b0a);
+  border-block: 1px solid rgb(255 255 255 / 0.04);
+}
+
+.landing-below-fold-sentinel {
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  pointer-events: none;
+}
+
+.landing-visit-band--enter {
+  animation: landing-band-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes landing-band-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-visit-band--enter {
+    animation: none;
+  }
+}
+
 .grain-overlay::after {
   content: '';
   position: absolute;

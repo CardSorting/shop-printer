@@ -1,25 +1,20 @@
 /**
- * Scroll-driven motion via CSS custom properties.
- * ParallaxMotion binds framer-motion values to --lp-* vars.
+ * Scroll-driven motion — ParallaxMotion uses Framer compositor props (GPU).
+ * Legacy --lp-* classes kept for reduced-motion fallbacks only.
  */
 
 .landing-parallax {
-  --lp-x: 0%;
-  --lp-y: 0%;
-  --lp-scale: 1;
-  --lp-rotate: 0deg;
-  --lp-rotate-x: 0deg;
-  --lp-rotate-y: 0deg;
-  --lp-opacity: 1;
-  --lp-filter: none;
-  --lp-scale-x: 1;
-  --lp-height: 0%;
-  --lp-clip: none;
+  contain: layout style;
+}
+
+.landing-parallax--gpu {
+  backface-visibility: hidden;
 }
 
 .landing-parallax-scene {
   perspective: clamp(900px, 120vw, 1400px);
   perspective-origin: 50% 42%;
+  contain: layout style paint;
 }
 
 .landing-parallax--transform {
@@ -31,19 +26,16 @@
     rotate(var(--lp-rotate));
   transform-style: preserve-3d;
   backface-visibility: hidden;
-  will-change: transform;
 }
 
 .landing-parallax--shift-x {
   transform: translate3d(var(--lp-x), 0, 0);
   backface-visibility: hidden;
-  will-change: transform;
 }
 
 .landing-parallax--shift-y {
   transform: translate3d(0, var(--lp-y), 0);
   backface-visibility: hidden;
-  will-change: transform;
 }
 
 .landing-parallax--fade {

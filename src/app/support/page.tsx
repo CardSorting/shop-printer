@@ -1,5 +1,6 @@
 import { SupportPage } from '@ui/pages/SupportPage';
 import { Suspense } from 'react';
+import { JsonLd } from '@ui/components/JsonLd';
 import { buildNextPageMetadata, getAppSeoEngine } from '@infrastructure/seo';
 import { getServerServices } from '@infrastructure/server/services';
 import { breadcrumbJsonLd, faqPageJsonLd, howToVisitJsonLd, itemListJsonLd } from '@utils/seo';
@@ -36,10 +37,7 @@ export default async function Page() {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd as Record<string, unknown>[]} />
       <Suspense fallback={<div className="min-h-screen animate-pulse bg-gray-50" />}>
         <SupportPage />
       </Suspense>

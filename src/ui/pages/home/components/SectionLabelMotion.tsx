@@ -1,6 +1,7 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from '../motion';
+import { useReducedMotion } from 'framer-motion';
 import { MICRO_SPRING_SNAPPY } from './MicroMotion';
 
 type SectionLabelMotionProps = {
@@ -27,7 +28,7 @@ export function SectionLabelMotion({
       initial={reduceMotion ? false : { opacity: 0, x: -10 }}
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true, margin: '-40px' }}
-      transition={reduceMotion ? { duration: 0 } : { duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
       {...(reduceMotion ? {} : { whileHover: { x: 4, transition: MICRO_SPRING_SNAPPY } })}
     >
       {!hall && index && <span className="landing-section-label__index">{index}</span>}

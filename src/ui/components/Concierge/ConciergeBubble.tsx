@@ -291,12 +291,12 @@ export function ConciergeBubble({ initialContext, productInfo }: ConciergeBubble
             
             {isOffering ? (
               <div className="flex gap-1.5 animate-in slide-in-from-bottom-2 duration-300">
-                <input type="number" value={offerValue} onChange={(e) => setOfferValue(e.target.value)} placeholder="Amount" className="flex-1 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-xs font-black outline-none focus:border-gray-900" />
+                <input id="concierge-offer-amount" name="offerAmount" type="number" value={offerValue} onChange={(e) => setOfferValue(e.target.value)} placeholder="Amount" className="flex-1 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-xs font-black outline-none focus:border-gray-900" />
                 <button onClick={() => { handleSendMessage(null, `I'd like to offer $${offerValue}`); setOfferValue(''); setIsOffering(false); }} className="px-4 bg-gray-900 text-white rounded-lg text-[8px] font-black uppercase">Send</button>
               </div>
             ) : (
               <form onSubmit={handleSendMessage} className="relative">
-                <input value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Message Sarah..." className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 pr-10 text-[12px] outline-none focus:border-gray-900" />
+                <input id="concierge-message" name="message" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Message Sarah..." className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 pr-10 text-[12px] outline-none focus:border-gray-900" />
                 <button type="submit" disabled={!inputValue.trim()} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 bg-gray-900 text-white rounded-lg shadow-md disabled:opacity-0 transition-opacity">
                   <Send className="h-3 w-3" />
                 </button>

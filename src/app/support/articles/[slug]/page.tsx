@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { JsonLd } from '@ui/components/JsonLd';
 import { notFound } from 'next/navigation';
 import { getServerServices } from '@infrastructure/server/services';
 import { buildNextPageMetadata, getAppSeoEngine } from '@infrastructure/seo';
@@ -69,10 +70,7 @@ export default async function Page({ params }: Props) {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
       <SupportArticlePage
         slug={slug}
         initialArticle={serializedArticle}

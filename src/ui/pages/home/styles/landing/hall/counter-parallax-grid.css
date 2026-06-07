@@ -138,14 +138,12 @@
   background: rgb(255 255 255 / 0.04);
   transition: border-color 320ms, box-shadow 420ms cubic-bezier(0.16, 1, 0.3, 1);
   transform-style: preserve-3d;
-  will-change: transform;
 }
 
 .landing-counter-grid__media-inner {
   position: absolute;
   inset: -8% 0;
   height: 116%;
-  will-change: transform;
 }
 
 .landing-counter-grid__media-stack {

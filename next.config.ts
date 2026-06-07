@@ -1,11 +1,6 @@
 import type { NextConfig } from 'next';
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
-const scriptSrc = [
-    "'self'",
-    ...(isDevelopment ? ["'unsafe-inline'", "'unsafe-eval'"] : []),
-    'https://js.stripe.com',
-];
 
 const nextConfig: NextConfig = {
     cleanDistDir: true,
@@ -108,14 +103,14 @@ const nextConfig: NextConfig = {
                         key: 'Referrer-Policy',
                         value: 'strict-origin-when-cross-origin',
                     },
-                    {
-                        key: 'Strict-Transport-Security',
-                        value: 'max-age=31536000; includeSubDomains; preload',
-                    },
-                    {
-                        key: 'Content-Security-Policy',
-                        value: `default-src 'self'; script-src ${scriptSrc.join(' ')}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: data: https://firebasestorage.googleapis.com https://images.unsplash.com https://api.dicebear.com https://ui-avatars.com https://www.transparenttextures.com https://m.media-amazon.com; connect-src 'self' https://vitals.vercel-insights.com https://*.firebaseio.com https://*.googleapis.com https://api.stripe.com; frame-src https://js.stripe.com https://www.openstreetmap.org; object-src 'none'; base-uri 'self'; form-action 'self';`,
-                    }
+                    ...(isDevelopment
+                        ? []
+                        : [
+                              {
+                                  key: 'Strict-Transport-Security',
+                                  value: 'max-age=31536000; includeSubDomains; preload',
+                              },
+                          ]),
                 ],
             },
         ];

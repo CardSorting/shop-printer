@@ -1,4 +1,5 @@
 import { ProductDetailPage } from '@ui/pages/product-detail';
+import { JsonLd } from '@ui/components/JsonLd';
 import { getServerServices } from '@infrastructure/server/services';
 import type { Metadata } from 'next';
 import { productToSeoContext } from '@core/seo';
@@ -68,10 +69,7 @@ export default async function Page({ params }: Props) {
 
     return (
         <>
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-            />
+            <JsonLd data={jsonLd} />
             <ProductDetailPage initialProduct={JSON.parse(JSON.stringify(product))} />
         </>
     );

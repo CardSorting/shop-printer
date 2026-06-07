@@ -5,7 +5,7 @@
  * Conditionally renders storefront chrome (Navbar + Footer) on non-admin pages.
  * Admin pages have their own dedicated layout shell (AdminLayout).
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { Navbar } from '@ui/layouts/Navbar';
@@ -29,6 +29,8 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
     const { user } = useAuth();
     const { cart } = useCart();
     const isAdmin = pathname.startsWith('/admin');
+    const isHome = pathname === '/';
+    const [showConcierge, setShowConcierge] = useState(false);
 
     // Scroll to top on pathname change - must be called before early returns
     useEffect(() => {
@@ -36,6 +38,32 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
             window.scrollTo(0, 0);
         }
     }, [pathname, isAdmin]);
+
+    useEffect(() => {
+        if (isAdmin || !isHome) {
+            setShowConcierge(true);
+            return;
+        }
+
+        let cancelled = false;
+        const activate = () => {
+            if (!cancelled) setShowConcierge(true);
+        };
+
+        const idleId =
+            typeof window.requestIdleCallback === 'function'
+                ? window.requestIdleCallback(activate, { timeout: 8000 })
+                : window.setTimeout(activate, 8000);
+
+        return () => {
+            cancelled = true;
+            if (typeof window.cancelIdleCallback === 'function') {
+                window.cancelIdleCallback(idleId as number);
+            } else {
+                window.clearTimeout(idleId);
+            }
+        };
+    }, [isAdmin, isHome]);
 
     if (isAdmin) {
         return <>{children}</>;
@@ -59,31 +87,37 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
 
     const isProductPage = pathname.startsWith('/products/');
     const productHandle = isProductPage ? pathname.split('/').pop() : undefined;
-    const isHome = pathname === '/';
 
+    const mainClassName = 'relative z-0 w-full flex-1 pb-20 lg:pb-0';
 
     return (
         <div className={`relative flex min-h-screen flex-col ${isHome ? 'bg-[#0c0b0a]' : 'bg-gray-50'}`}>
-            <PageProgressBar />
+            {!isHome && <PageProgressBar />}
             <Navbar />
-            <AnimatePresence mode="popLayout" initial={false}>
-                <motion.main 
-                    key={pathname}
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    variants={PAGE_TRANSITION_VARIANTS}
-                    className="relative z-0 w-full flex-1 pb-20 lg:pb-0"
-                >
-                    {children}
-                </motion.main>
-            </AnimatePresence>
+            {isHome ? (
+                <main className={mainClassName}>{children}</main>
+            ) : (
+                <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.main
+                        key={pathname}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        variants={PAGE_TRANSITION_VARIANTS}
+                        className={mainClassName}
+                    >
+                        {children}
+                    </motion.main>
+                </AnimatePresence>
+            )}
             <Footer />
             <BottomNav />
-            <ConciergeBubble 
-              initialContext={conciergeContext} 
-              productInfo={productHandle ? { name: productHandle.replace(/-/g, ' '), id: productHandle } : undefined}
-            />
+            {showConcierge && (
+                <ConciergeBubble
+                    initialContext={conciergeContext}
+                    productInfo={productHandle ? { name: productHandle.replace(/-/g, ' '), id: productHandle } : undefined}
+                />
+            )}
         </div>
     );
 }

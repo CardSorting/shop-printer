@@ -1,5 +1,3 @@
-'use client';
-
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowUpRight, Car, MapPin, Navigation } from 'lucide-react';
@@ -16,7 +14,7 @@ const locality = SITE_LOCALITY ?? WOODBINE_LOCAL_BUSINESS_DEFAULTS.city;
 const region = SITE_REGION ?? WOODBINE_LOCAL_BUSINESS_DEFAULTS.region;
 const addressLine = `${street}, ${locality}, ${region}`;
 
-const FOOD_PLATTER_IMAGE = '/images/landing/getting-here-food-platter.png';
+const FOOD_PLATTER_IMAGE = '/images/landing/getting-here-food-platter.webp';
 
 const ROUTE_ROWS = [
   { icon: MapPin, label: gettingHere.address.label, detail: addressLine },
@@ -49,6 +47,8 @@ export function HallGettingHere() {
               src={FOOD_PLATTER_IMAGE}
               alt=""
               fill
+              quality={68}
+              loading="lazy"
               sizes="(max-width: 768px) 100vw, 55vw"
               className="landing-getting-here__visual-image object-cover"
             />

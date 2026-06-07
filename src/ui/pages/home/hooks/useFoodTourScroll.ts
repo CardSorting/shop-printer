@@ -3,9 +3,7 @@
 import { useEffect } from 'react';
 import { useMotionValue, useTransform, type MotionValue } from 'framer-motion';
 import { HALL_FOOD_PARALLAX_FRAMES } from '../constants';
-import { PARALLAX_SPRING } from './useParallax';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
-import { useSmoothProgress } from './useSmoothProgress';
 
 /** Mirrors useScroll offset ['start start', 'end end'] for a pinned section */
 function measurePinnedScrollProgress(el: HTMLElement): number {
@@ -26,10 +24,9 @@ function measurePinnedScrollProgress(el: HTMLElement): number {
 }
 
 /**
- * Scroll progress within the active food parallax band.
- * Uses manual measurement — querySelector targets can't be passed to useScroll.
+ * Scroll progress within the active food parallax band — direct scrub, rAF-batched.
  */
-export function useActiveFoodPassScroll(activePassId: string) {
+export function useActiveFoodPassScroll(activePassId: string): MotionValue<number> {
   const raw = useMotionValue(0);
   const reduced = usePrefersReducedMotion();
 
@@ -45,19 +42,27 @@ export function useActiveFoodPassScroll(activePassId: string) {
       return;
     }
 
-    const update = () => raw.set(measurePinnedScrollProgress(el));
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      raw.set(measurePinnedScrollProgress(el));
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
 
     update();
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
 
     return () => {
-      window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (raf) cancelAnimationFrame(raf);
     };
   }, [activePassId, raw, reduced]);
 
-  return useSmoothProgress(raw, PARALLAX_SPRING.cinematic);
+  return raw;
 }
 
 /** Maps active pass + in-band progress to 0–1 tour progress across all frames */

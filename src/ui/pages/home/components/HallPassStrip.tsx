@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion } from '../motion';
 import { Plus } from 'lucide-react';
 import type { Product } from '@domain/models';
 import { LANDING_COPY } from '../copy';

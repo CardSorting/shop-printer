@@ -1,7 +1,8 @@
 'use client';
 
+import { motion } from '../motion';
 import Link from 'next/link';
-import { motion, type MotionValue } from 'framer-motion';
+import { type MotionValue } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { STAGGER_CONTAINER_VARIANTS } from '@ui/animations';

@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion } from '../motion';
 import { SLIDE_UP_VARIANTS } from '@ui/animations';
 import { LANDING_COPY } from '../copy';
 import { useSectionParallax, useParallaxX } from '../hooks/useParallax';

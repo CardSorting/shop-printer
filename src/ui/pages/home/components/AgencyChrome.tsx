@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
-  motion,
   useMotionValueEvent,
   useSpring,
   useTransform,
   type MotionValue,
 } from 'framer-motion';
+import { motion } from '../motion';
 import type { ReactNode } from 'react';
 import { LANDING_COPY, LANDING_SECTIONS } from '../copy';
 import { ParallaxMotion, type BindableMotion, type ParallaxMode } from './ParallaxMotion';

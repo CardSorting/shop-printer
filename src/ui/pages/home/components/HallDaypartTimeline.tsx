@@ -1,6 +1,7 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from '../motion';
+import { useReducedMotion } from 'framer-motion';
 import { LANDING_COPY } from '../copy';
 import { useHallDaypart } from '../hooks/useHallDaypart';
 import type { HallDaypart } from '../utils/hallTime';

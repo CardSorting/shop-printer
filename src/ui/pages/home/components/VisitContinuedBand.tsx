@@ -1,12 +1,5 @@
-'use client';
-
-import { useRef, type ReactNode } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { SLIDE_UP_VARIANTS } from '@ui/animations';
-import { PARALLAX_SPRING } from '../hooks/useParallax';
-import { useSmoothProgress } from '../hooks/useSmoothProgress';
-import { ParallaxMotion } from './ParallaxMotion';
-import { SectionScrollSeam } from './SectionScrollSeam';
+import type { ReactNode } from 'react';
+import { LandingGradientOverlay } from './LandingGradientOverlay';
 import { StudioContainer } from './StudioShell';
 
 type VisitContinuedBandProps = {
@@ -14,59 +7,18 @@ type VisitContinuedBandProps = {
   children: ReactNode;
 };
 
-/** Continued visit bands with ambient scroll parallax */
+/** Continued visit bands — static gradient overlays, CSS reveal */
 export function VisitContinuedBand({ id, children }: VisitContinuedBandProps) {
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start end', 'end start'],
-  });
-  const smooth = useSmoothProgress(scrollYProgress, PARALLAX_SPRING.ambient);
-  const glowY = useTransform(smooth, [0, 1], ['8%', '-10%']);
-  const glowBackY = useTransform(smooth, [0, 1], ['-6%', '12%']);
-  const glowOpacity = useTransform(smooth, [0, 0.45, 1], [0, 0.38, 0.16]);
-  const glowBackOpacity = useTransform(smooth, [0, 0.5, 1], [0, 0.22, 0.08]);
-  const meshX = useTransform(smooth, [0, 1], ['-5%', '5%']);
-  const meshY = useTransform(smooth, [0, 1], ['4%', '-6%']);
-  const meshOpacity = useTransform(smooth, [0, 0.4, 1], [0, 0.22, 0.1]);
-  const contentY = useTransform(smooth, [0, 1], ['5%', '-4%']);
-
   return (
-    <section id={id} ref={ref} className="landing-visit landing-visit--continued landing-visit--cinematic landing-parallax-scene">
-      <SectionScrollSeam targetRef={ref} variant="dark" />
-      <ParallaxMotion
-        modes={['shift-y', 'fade']}
-        y={glowBackY}
-        opacity={glowBackOpacity}
-        className="landing-visit__continued-glow landing-visit__continued-glow--back"
-        aria-hidden
-      />
-      <ParallaxMotion
-        modes={['shift-y', 'fade']}
-        y={glowY}
-        opacity={glowOpacity}
-        className="landing-visit__continued-glow"
-        aria-hidden
-      />
-      <ParallaxMotion
-        modes={['transform', 'fade']}
-        x={meshX}
-        y={meshY}
-        opacity={meshOpacity}
-        className="landing-visit__continued-mesh"
-        aria-hidden
-      />
+    <section
+      id={id}
+      className="landing-visit landing-visit--continued landing-visit--cinematic landing-section-deferred"
+    >
+      <div className="landing-section-divider landing-section-divider--enter" aria-hidden />
+      <LandingGradientOverlay variant="section-dark" />
+      <LandingGradientOverlay variant="section-glow" />
       <StudioContainer className="landing-visit__inner">
-        <ParallaxMotion modes={['shift-y']} y={contentY}>
-          <motion.div
-            initial="initial"
-            whileInView="animate"
-            viewport={{ once: true, margin: '-60px' }}
-            variants={SLIDE_UP_VARIANTS}
-          >
-            {children}
-          </motion.div>
-        </ParallaxMotion>
+        <div className="landing-visit-band--enter">{children}</div>
       </StudioContainer>
     </section>
   );

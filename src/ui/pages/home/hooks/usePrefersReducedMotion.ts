@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from 'react';
 
-/** Mirrors prefers-reduced-motion for scroll-driven JS motion */
+/** Lightweight reduced-motion check — no Framer dependency */
 export function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduced(mq.matches);
-    const onChange = (event: MediaQueryListEvent) => setReduced(event.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setReduceMotion(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
   }, []);
 
-  return reduced;
+  return reduceMotion;
 }

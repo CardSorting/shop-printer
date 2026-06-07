@@ -177,6 +177,27 @@
   background: rgb(255 255 255 / 0.04);
 }
 
+.landing-hall-ribbon--enter .landing-hall-ribbon__item {
+  animation: landing-ribbon-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.landing-hall-ribbon--enter .landing-hall-ribbon__item:nth-child(1) { animation-delay: 0.04s; }
+.landing-hall-ribbon--enter .landing-hall-ribbon__item:nth-child(2) { animation-delay: 0.07s; }
+.landing-hall-ribbon--enter .landing-hall-ribbon__item:nth-child(3) { animation-delay: 0.1s; }
+.landing-hall-ribbon--enter .landing-hall-ribbon__item:nth-child(4) { animation-delay: 0.13s; }
+
+@keyframes landing-ribbon-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .landing-how-it-works {
   display: grid;
   gap: 1.25rem;

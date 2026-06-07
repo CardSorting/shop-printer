@@ -131,6 +131,10 @@
   );
 }
 
+.landing-gatherings__flow-fill--static {
+  transform: scaleX(0.85);
+}
+
 .landing-gatherings__grid {
   display: grid;
   gap: 1rem;
