@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { LandingSectionPlaceholder } from './components/LandingSectionPlaceholder';
+import { useHomeVendorsReady } from './HomeDeferredContext';
 import { useIdleOrNearViewport } from './hooks/useIdleOrNearViewport';
 
 const VendorsSection = dynamic(
@@ -15,22 +16,22 @@ const VisitSection = dynamic(
 );
 
 export function HomeDeferredVendors() {
-  const { ref, active } = useIdleOrNearViewport();
+  const ready = useHomeVendorsReady();
 
-  return (
-    <>
-      <div ref={ref} className="landing-below-fold-sentinel" aria-hidden />
-      {active ? (
-        <VendorsSection />
-      ) : (
-        <LandingSectionPlaceholder minHeight="min(88svh, 44rem)" id="landing-vendors" />
-      )}
-    </>
+  return ready ? (
+    <VendorsSection />
+  ) : (
+    <LandingSectionPlaceholder minHeight="min(88svh, 44rem)" id="landing-vendors" />
   );
 }
 
 export function HomeDeferredVisit() {
-  const { ref, active } = useIdleOrNearViewport({ rootMargin: '640px 0px', idleFallback: false });
+  const vendorsReady = useHomeVendorsReady();
+  const { ref, active } = useIdleOrNearViewport({
+    rootMargin: '640px 0px',
+    idleFallback: false,
+    enabled: vendorsReady,
+  });
 
   return (
     <>

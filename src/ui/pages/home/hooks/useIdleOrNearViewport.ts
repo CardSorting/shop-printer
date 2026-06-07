@@ -7,6 +7,8 @@ type Options = {
   idleTimeoutMs?: number;
   /** When false, below-fold chunks load only after scroll — not on idle timeout */
   idleFallback?: boolean;
+  /** Gate the observer until a parent section has activated */
+  enabled?: boolean;
 };
 
 /** Defer heavy below-fold work until the block is near the viewport or the main thread is idle. */
@@ -14,12 +16,13 @@ export function useIdleOrNearViewport({
   rootMargin = '480px 0px',
   idleTimeoutMs = 3200,
   idleFallback = true,
+  enabled = true,
 }: Options = {}) {
   const ref = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(false);
 
   useEffect(() => {
-    if (active) return;
+    if (!enabled || active) return;
 
     let cancelled = false;
     const activate = () => {
@@ -64,7 +67,7 @@ export function useIdleOrNearViewport({
         window.clearTimeout(idleId);
       }
     };
-  }, [active, idleFallback, idleTimeoutMs, rootMargin]);
+  }, [active, enabled, idleFallback, idleTimeoutMs, rootMargin]);
 
   return { ref, active };
 }

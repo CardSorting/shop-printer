@@ -7,20 +7,6 @@
   border-block: 1px solid rgb(255 255 255 / 0.05);
 }
 
-.landing-food-pass--pin {
-  height: clamp(46rem, 195vh, 66rem);
-}
-
-.landing-food-pass__pin {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  min-height: clamp(26rem, 58vh, 42rem);
-  overflow: hidden;
-  display: flex;
-  align-items: flex-end;
-}
-
 .landing-food-pass__cinema-rail {
   position: absolute;
   left: 0;

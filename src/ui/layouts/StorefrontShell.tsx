@@ -10,7 +10,6 @@ import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { Navbar } from '@ui/layouts/Navbar';
 import { Footer } from '@ui/layouts/Footer';
-import { BottomNav } from '@ui/components/BottomNav';
 import { StorefrontCartDrawer } from '@ui/layouts/StorefrontCartDrawer';
 import { HomeDeferredFooter } from '@ui/pages/home/HomeDeferredFooter';
 
@@ -27,6 +26,11 @@ const PageProgressBar = dynamic(
   { ssr: false },
 );
 
+const BottomNav = dynamic(
+  () => import('@ui/components/BottomNav').then((m) => ({ default: m.BottomNav })),
+  { ssr: false },
+);
+
 const ConciergeBubble = dynamic(
   () => import('@ui/components/Concierge/ConciergeBubble').then((m) => ({ default: m.ConciergeBubble })),
   { ssr: false },
@@ -39,6 +43,7 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
     const isAdmin = pathname.startsWith('/admin');
     const isHome = pathname === '/';
     const [showConcierge, setShowConcierge] = useState(false);
+    const [showBottomNav, setShowBottomNav] = useState(!isHome);
 
     useEffect(() => {
         if (!isAdmin) {
@@ -71,6 +76,32 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
             }
         };
     }, [isAdmin, isHome]);
+
+    useEffect(() => {
+        if (!isHome) {
+            setShowBottomNav(true);
+            return;
+        }
+
+        let cancelled = false;
+        const activate = () => {
+            if (!cancelled) setShowBottomNav(true);
+        };
+
+        const idleId =
+            typeof window.requestIdleCallback === 'function'
+                ? window.requestIdleCallback(activate, { timeout: 5000 })
+                : window.setTimeout(activate, 5000);
+
+        return () => {
+            cancelled = true;
+            if (typeof window.cancelIdleCallback === 'function') {
+                window.cancelIdleCallback(idleId as number);
+            } else {
+                window.clearTimeout(idleId);
+            }
+        };
+    }, [isHome]);
 
     if (isAdmin) {
         return <>{children}</>;
@@ -109,7 +140,7 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
                 </StorefrontAnimatedMain>
             )}
             {isHome ? <HomeDeferredFooter /> : <Footer />}
-            <BottomNav />
+            {showBottomNav && <BottomNav />}
             <StorefrontCartDrawer />
             {showConcierge && (
                 <ConciergeBubble

@@ -9,6 +9,7 @@ type HeroScrollCueProps = {
 
 function prefetchBelowFold() {
   void import('./VendorsSection');
+  void import('./VisitSection');
 }
 
 /** Prefetches vendors chunk on intent so the first scroll feels instant */

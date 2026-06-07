@@ -44,13 +44,6 @@
   );
 }
 
-.landing-gradient--vignette {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: radial-gradient(ellipse 85% 75% at 50% 45%, transparent 42%, rgb(0 0 0 / 0.52) 100%);
-}
-
 .landing-gradient--bridge {
   position: relative;
   inset: auto;
@@ -93,32 +86,6 @@
     linear-gradient(90deg, rgb(0 0 0 / 0.65) 0%, transparent 55%);
 }
 
-.landing-gradient--ambient {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background:
-    radial-gradient(ellipse 50% 40% at 15% 25%, rgb(245 158 11 / 0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 45% 35% at 85% 75%, rgb(120 80 40 / 0.05) 0%, transparent 55%);
-}
-
-.landing-cinema-static__letterbox {
-  position: fixed;
-  inset: 0;
-  z-index: 41;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.landing-cinema-static__bar {
-  width: 100%;
-  height: clamp(2.5rem, 6vh, 4.5rem);
-  background: rgb(0 0 0 / 0.72);
-  flex-shrink: 0;
-}
-
 .landing-section-divider {
   position: relative;
   z-index: 2;
@@ -140,23 +107,6 @@
 
 .landing-section-divider--exit {
   margin-block: 0.5rem 0;
-}
-
-.landing-cinema-grain--static {
-  position: fixed;
-  inset: 0;
-  z-index: 42;
-  pointer-events: none;
-  opacity: 0.11;
-  animation: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
-  background-size: 160px 160px;
-}
-
-@media (max-width: 768px) {
-  .landing-cinema-grain--static {
-    display: none;
-  }
 }
 
 .landing-scene-cut__wipe--static {
