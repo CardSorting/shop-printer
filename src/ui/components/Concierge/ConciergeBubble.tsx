@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   MessageCircle, 
   Send, 
@@ -32,8 +33,10 @@ import { ClientChatMessage } from '@domain/concierge/types';
 import { ConciergeSettings } from '@domain/concierge/settings';
 import { useCart } from '@ui/hooks/useCart';
 import { useAuth } from '@ui/hooks/useAuth';
+import { useMobileDock } from '@ui/layouts/MobileDockContext';
 
 interface ConciergeBubbleProps {
+  placement?: 'desktop' | 'mobile-dock';
   initialContext?: {
     userSession?: {
       id: string;
@@ -55,7 +58,7 @@ interface ConciergeBubbleProps {
   };
 }
 
-export function ConciergeBubble({ initialContext, productInfo }: ConciergeBubbleProps) {
+export function ConciergeBubble({ placement = 'desktop', initialContext, productInfo }: ConciergeBubbleProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ClientChatMessage[]>([
     { 
@@ -76,10 +79,12 @@ export function ConciergeBubble({ initialContext, productInfo }: ConciergeBubble
   const [offerValue, setOfferValue] = useState('');
   const [statusMessage, setStatusMessage] = useState('Online');
   const [inventoryState, setInventoryState] = useState<any>(null);
+  const [mobileOverlayRoot, setMobileOverlayRoot] = useState<HTMLElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { cart, subtotal } = useCart();
   const { user } = useAuth();
+  const mobileDock = useMobileDock();
   
   useEffect(() => {
     if (typeof window !== 'undefined' && document.title) {
@@ -210,12 +215,56 @@ export function ConciergeBubble({ initialContext, productInfo }: ConciergeBubble
     }
   };
 
-  const toggleOpen = () => setIsOpen(!isOpen);
+  const isMobileDock = placement === 'mobile-dock';
 
-  return (
-    <div className="fixed bottom-4 right-4 z-9999 flex flex-col items-end gap-3 font-sans antialiased">
-      {isOpen && (
-        <div className="w-[340px] max-w-[92vw] h-[480px] max-h-[75vh] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-300 relative">
+  useEffect(() => {
+    if (!isMobileDock) return;
+    setMobileOverlayRoot(document.body);
+  }, [isMobileDock]);
+
+  const pathnameRef = useRef(pathname);
+  useEffect(() => {
+    if (!isMobileDock) return;
+    if (pathnameRef.current === pathname) return;
+    pathnameRef.current = pathname;
+    setIsOpen(false);
+    mobileDock?.setChatOpen(false);
+  }, [pathname, isMobileDock, mobileDock]);
+
+  const toggleOpen = () => {
+    const next = !isOpen;
+    setIsOpen(next);
+    if (isMobileDock) mobileDock?.setChatOpen(next);
+  };
+
+  useEffect(() => {
+    if (!isMobileDock || !mobileDock) return;
+    if (!mobileDock.chatOpen && isOpen) setIsOpen(false);
+  }, [isMobileDock, mobileDock, isOpen]);
+
+  useEffect(() => {
+    if (!isMobileDock) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+        mobileDock?.setChatOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMobileDock, isOpen, mobileDock]);
+
+  const panel = isOpen ? (
+    <div
+      role="dialog"
+      aria-modal={isMobileDock ? 'true' : undefined}
+      aria-label="Chat with Sarah"
+      className={`bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-300 relative ${
+        isMobileDock
+          ? 'storefront-mobile-chat-sheet w-auto max-w-none h-auto'
+          : 'w-[340px] max-w-[92vw] h-[480px] max-h-[75vh]'
+      }`}
+    >
           
           {/* Nano Header */}
           <div className="bg-gray-900 px-3 py-2 text-white relative overflow-hidden flex items-center justify-between">
@@ -303,13 +352,52 @@ export function ConciergeBubble({ initialContext, productInfo }: ConciergeBubble
               </form>
             )}
           </div>
-        </div>
-      )}
+    </div>
+  ) : null;
 
-      <button onClick={toggleOpen} className="h-14 w-14 bg-gray-900 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-all relative">
-        {isOpen ? <X className="h-5 w-5" /> : <MessageCircle className="h-6 w-6" />}
+  const trigger = (
+      <button
+        onClick={toggleOpen}
+        aria-label={isOpen ? 'Close chat' : 'Open chat with Sarah'}
+        aria-expanded={isOpen}
+        className={`bg-gray-900 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-all relative shrink-0 ${
+          isMobileDock ? 'h-11 w-11' : 'h-14 w-14'
+        }`}
+      >
+        {isOpen ? <X className="h-5 w-5" /> : <MessageCircle className={isMobileDock ? 'h-5 w-5' : 'h-6 w-6'} />}
         {!isOpen && messages.length > 1 && <div className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 border-2 border-white rounded-full"></div>}
       </button>
+  );
+
+  if (isMobileDock) {
+    const overlay =
+      isOpen && mobileOverlayRoot
+        ? createPortal(
+            <>
+              <button
+                type="button"
+                className="storefront-mobile-chat-backdrop border-0 bg-black/40 p-0"
+                aria-label="Close chat"
+                onClick={toggleOpen}
+              />
+              {panel}
+            </>,
+            mobileOverlayRoot,
+          )
+        : null;
+
+    return (
+      <>
+        {overlay}
+        <div className="storefront-mobile-chat-trigger">{trigger}</div>
+      </>
+    );
+  }
+
+  return (
+    <div className="fixed z-popover bottom-4 right-4 flex flex-col items-end gap-3 font-sans antialiased">
+      {panel}
+      {trigger}
     </div>
   );
 }

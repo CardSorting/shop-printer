@@ -39,6 +39,75 @@
 
 html {
   scroll-behavior: smooth;
+  --storefront-mobile-dock-height: 5rem;
+  --storefront-mobile-nav-height: 4.5rem;
+}
+
+/* —— Mobile storefront dock: chat lane + bottom nav —— */
+
+.storefront-mobile-dock__grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.storefront-mobile-dock__concierge {
+  /* Left half only — cart column stays free on the right */
+  width: min(100%, calc(100% - 5.75rem));
+  max-width: calc(100% - 5.75rem);
+}
+
+.storefront-mobile-dock__concierge-spacer {
+  height: 0;
+}
+
+.storefront-mobile-chat-trigger {
+  display: inline-flex;
+}
+
+/* Open chat uses a fixed sheet above the nav — avoids dock height feedback loops */
+.storefront-mobile-chat-backdrop {
+  position: fixed;
+  z-index: calc(var(--z-nav) + 1);
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Stop above the nav so cart + tabs stay tappable while chat is open */
+  bottom: calc(var(--storefront-mobile-nav-height, 4.5rem) + env(safe-area-inset-bottom));
+}
+
+.storefront-mobile-chat-sheet {
+  position: fixed;
+  z-index: calc(var(--z-nav) + 2);
+  left: max(0.75rem, env(safe-area-inset-left));
+  right: max(0.75rem, env(safe-area-inset-right));
+  bottom: calc(var(--storefront-mobile-nav-height, 4.5rem) + env(safe-area-inset-bottom) + 0.5rem);
+  max-height: min(
+    72dvh,
+    calc(100dvh - var(--storefront-mobile-nav-height, 4.5rem) - env(safe-area-inset-bottom) - 1.5rem)
+  );
+  min-height: 0;
+}
+
+.storefront-mobile-dock[data-chat-open='true'] .storefront-mobile-dock__nav {
+  position: relative;
+  z-index: calc(var(--z-nav) + 3);
+  opacity: 0.92;
+}
+
+.storefront-bottom-nav--compact {
+  height: calc(3.75rem + env(safe-area-inset-bottom));
+}
+
+html.storefront-mobile-chat-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+@media (min-width: 1024px) {
+  html.storefront-mobile-chat-open {
+    overflow: auto;
+    overscroll-behavior: auto;
+  }
 }
 
 body {

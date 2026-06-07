@@ -11,6 +11,7 @@ import { usePathname } from 'next/navigation';
 import { Navbar } from '@ui/layouts/Navbar';
 import { Footer } from '@ui/layouts/Footer';
 import { StorefrontCartDrawer } from '@ui/layouts/StorefrontCartDrawer';
+import { StorefrontMobileDock } from '@ui/layouts/StorefrontMobileDock';
 import { HomeDeferredFooter } from '@ui/pages/home/HomeDeferredFooter';
 
 import { useAuth } from '@ui/hooks/useAuth';
@@ -26,11 +27,6 @@ const PageProgressBar = dynamic(
   { ssr: false },
 );
 
-const BottomNav = dynamic(
-  () => import('@ui/components/BottomNav').then((m) => ({ default: m.BottomNav })),
-  { ssr: false },
-);
-
 const ConciergeBubble = dynamic(
   () => import('@ui/components/Concierge/ConciergeBubble').then((m) => ({ default: m.ConciergeBubble })),
   { ssr: false },
@@ -42,8 +38,7 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
     const { cart } = useCart();
     const isAdmin = pathname.startsWith('/admin');
     const isHome = pathname === '/';
-    const [showConcierge, setShowConcierge] = useState(false);
-    const [showBottomNav, setShowBottomNav] = useState(!isHome);
+    const [showMobileChrome, setShowMobileChrome] = useState(!isHome);
 
     useEffect(() => {
         if (!isAdmin) {
@@ -53,19 +48,19 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (isAdmin || !isHome) {
-            setShowConcierge(true);
+            setShowMobileChrome(true);
             return;
         }
 
         let cancelled = false;
         const activate = () => {
-            if (!cancelled) setShowConcierge(true);
+            if (!cancelled) setShowMobileChrome(true);
         };
 
         const idleId =
             typeof window.requestIdleCallback === 'function'
-                ? window.requestIdleCallback(activate, { timeout: 8000 })
-                : window.setTimeout(activate, 8000);
+                ? window.requestIdleCallback(activate, { timeout: 6000 })
+                : window.setTimeout(activate, 6000);
 
         return () => {
             cancelled = true;
@@ -76,32 +71,6 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
             }
         };
     }, [isAdmin, isHome]);
-
-    useEffect(() => {
-        if (!isHome) {
-            setShowBottomNav(true);
-            return;
-        }
-
-        let cancelled = false;
-        const activate = () => {
-            if (!cancelled) setShowBottomNav(true);
-        };
-
-        const idleId =
-            typeof window.requestIdleCallback === 'function'
-                ? window.requestIdleCallback(activate, { timeout: 5000 })
-                : window.setTimeout(activate, 5000);
-
-        return () => {
-            cancelled = true;
-            if (typeof window.cancelIdleCallback === 'function') {
-                window.cancelIdleCallback(idleId as number);
-            } else {
-                window.clearTimeout(idleId);
-            }
-        };
-    }, [isHome]);
 
     if (isAdmin) {
         return <>{children}</>;
@@ -126,7 +95,13 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
     const isProductPage = pathname.startsWith('/products/');
     const productHandle = isProductPage ? pathname.split('/').pop() : undefined;
 
-    const mainClassName = 'relative z-0 w-full flex-1 pb-20 lg:pb-0';
+    const mainClassName =
+        'relative z-0 w-full flex-1 pb-[calc(var(--storefront-mobile-dock-height,5rem)+0.75rem)] lg:pb-0';
+
+    const conciergeProps = {
+        initialContext: conciergeContext,
+        productInfo: productHandle ? { name: productHandle.replace(/-/g, ' '), id: productHandle } : undefined,
+    };
 
     return (
         <div className={`relative flex min-h-screen flex-col ${isHome ? 'bg-[#0c0b0a]' : 'bg-gray-50'}`}>
@@ -140,13 +115,16 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
                 </StorefrontAnimatedMain>
             )}
             {isHome ? <HomeDeferredFooter /> : <Footer />}
-            {showBottomNav && <BottomNav />}
+            <StorefrontMobileDock
+                showBottomNav={showMobileChrome}
+                showConcierge={showMobileChrome}
+                conciergeProps={conciergeProps}
+            />
             <StorefrontCartDrawer />
-            {showConcierge && (
-                <ConciergeBubble
-                    initialContext={conciergeContext}
-                    productInfo={productHandle ? { name: productHandle.replace(/-/g, ' '), id: productHandle } : undefined}
-                />
+            {showMobileChrome && (
+                <div className="hidden lg:block">
+                    <ConciergeBubble placement="desktop" {...conciergeProps} />
+                </div>
             )}
         </div>
     );
