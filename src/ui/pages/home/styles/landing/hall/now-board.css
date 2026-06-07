@@ -1,0 +1,115 @@
+.landing-now-board {
+  background: var(--landing-ink);
+  color: #fff;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.landing-now-board__inner {
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 3vw, 1.75rem) clamp(1.25rem, 4vw, 4rem);
+  display: grid;
+  gap: 1rem;
+  align-items: center;
+}
+
+@media (min-width: 768px) {
+  .landing-now-board__inner {
+    grid-template-columns: 1.4fr auto auto auto;
+    gap: 1.5rem 2rem;
+  }
+}
+
+.landing-now-board__status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.landing-now-board__icon {
+  margin-top: 0.15rem;
+  color: var(--color-primary-400);
+}
+
+.landing-now-board__eyebrow {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-primary-300);
+}
+
+.landing-now-board__title {
+  margin-top: 0.25rem;
+  font-size: clamp(1.15rem, 2.5vw, 1.5rem);
+  line-height: 1.15;
+}
+
+.landing-now-board__energy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.landing-now-board__energy-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgb(209 213 219 / 0.65);
+}
+
+.landing-now-board__energy-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.landing-now-board__counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-now-board__counters li {
+  padding: 0;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(255 255 255 / 0.12);
+}
+
+.landing-now-board__counter-link {
+  display: block;
+  padding: 0.35rem 0.65rem;
+  color: inherit;
+  text-decoration: none;
+  border-radius: inherit;
+  transition: background 200ms, border-color 200ms;
+}
+
+.landing-now-board__counter-link:hover {
+  background: rgb(255 255 255 / 0.14);
+  border-color: rgb(255 255 255 / 0.22);
+}
+
+.landing-now-board__cta {
+  justify-self: start;
+  padding: 0.65rem 1.1rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--landing-ink);
+  background: var(--color-primary-400);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 200ms;
+}
+
+.landing-now-board__cta:hover {
+  background: var(--color-primary-300);
+}

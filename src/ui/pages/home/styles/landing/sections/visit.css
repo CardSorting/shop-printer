@@ -1,0 +1,109 @@
+.landing-visit {
+  position: relative;
+  overflow: hidden;
+  padding-block: clamp(6rem, 12vw, 9rem);
+  color: white;
+}
+
+.landing-visit__media {
+  position: absolute;
+  inset: 0;
+}
+
+.landing-visit__media img {
+  opacity: 0.22;
+}
+
+.landing-visit__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, var(--landing-ink) 0%, rgb(12 11 10 / 0.94) 50%, rgb(12 11 10 / 0.82) 100%);
+}
+
+.landing-visit__inner {
+  position: relative;
+  z-index: 1;
+}
+
+.landing-visit__grid {
+  display: grid;
+  gap: 4rem;
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .landing-visit__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.landing-visit__lede {
+  margin-top: 2rem;
+  max-width: 32rem;
+  font-size: 1.125rem;
+  line-height: 1.65;
+  color: #d1d5db;
+}
+
+.landing-visit__sub {
+  margin-top: 1.5rem;
+  max-width: 28rem;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: #6b7280;
+}
+
+.landing-visit__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5rem 3.5rem;
+  margin-top: 3rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+}
+
+.landing-visit__stat-label {
+  font-size: 1.5rem;
+}
+
+.landing-visit__stat-sub {
+  margin-top: 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-primary-400);
+}
+
+.landing-visit__card {
+  padding: clamp(2rem, 4vw, 3.5rem);
+  border-radius: 2px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(12px);
+}
+
+.landing-visit__card-kicker {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-primary-300);
+}
+
+.landing-visit__card-title {
+  margin-top: 1rem;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+}
+
+.landing-visit__card-body {
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: #9ca3af;
+}
+
+.landing-visit__card-cta {
+  margin-top: 2.5rem;
+  width: 100%;
+}

@@ -61,11 +61,11 @@ export const SITEMAP_STATIC_ROUTES: readonly SitemapStaticRoute[] = [
     description: 'Main entry point for WoodBine food hall',
   },
   {
-    path: '/products',
+    path: '/collections/bestsellers',
     priority: 0.95,
     changeFrequency: 'daily',
-    label: 'Vendors & Menu',
-    description: 'Full vendor and menu catalog',
+    label: 'Hall Favorites',
+    description: 'Browse menu highlights by collection',
   },
   {
     path: '/collections/all',

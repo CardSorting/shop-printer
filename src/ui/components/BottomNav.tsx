@@ -11,7 +11,7 @@ export function BottomNav() {
 
   const navItems = [
     { label: 'Home', icon: Home, href: '/' },
-    { label: 'Search', icon: Search, href: '/products', isSearchTrigger: true },
+    { label: 'Search', icon: Search, href: '/search', isSearchTrigger: true },
     { label: 'Wishlist', icon: Heart, href: '/wishlist' },
     { label: 'Account', icon: User, href: '/account' },
   ];

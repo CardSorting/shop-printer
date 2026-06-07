@@ -1,0 +1,44 @@
+.landing-editorial {
+  position: relative;
+  min-height: clamp(22rem, 50vh, 32rem);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.landing-editorial__media {
+  position: absolute;
+  inset: 0;
+}
+
+.landing-editorial__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--landing-ink) 0%, rgb(12 11 10 / 0.55) 50%, rgb(12 11 10 / 0.2) 100%);
+}
+
+.landing-editorial__content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 90rem;
+  margin-inline: auto;
+  padding: clamp(3rem, 8vw, 5rem) clamp(1.25rem, 4vw, 4rem);
+}
+
+.landing-editorial__kicker {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-primary-400);
+}
+
+.landing-editorial__quote {
+  margin-top: 1rem;
+  max-width: 48rem;
+  font-size: clamp(1.75rem, 4vw, 3rem);
+  font-style: italic;
+  line-height: 1.2;
+  color: white;
+}

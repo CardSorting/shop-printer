@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Shield, Zap } from 'lucide-react';
 import { SLIDE_UP_VARIANTS } from '@ui/animations';
@@ -7,7 +9,9 @@ import { ProductCard } from '@ui/components/ProductCard';
 import { ProductCardSkeleton } from '@ui/components/ProductCard/ProductCardSkeleton';
 import type { Product } from '@domain/models';
 import { LANDING_COPY } from '../copy';
-import { AgencyCta } from './AgencyChrome';
+import { MENU_CATEGORIES } from '../constants';
+import { HallCta } from './HallCta';
+import { HallPassStrip } from './HallPassStrip';
 import { SectionLabel, StudioContainer, StudioHeading } from './StudioShell';
 
 const { menu } = LANDING_COPY;
@@ -31,10 +35,25 @@ export function MenuSection({
   onLoadMore,
   onQuickAdd,
 }: MenuSectionProps) {
-  const [heroProduct, ...gridProducts] = products;
+  const [vendorFilter, setVendorFilter] = useState<string>('all');
+
+  const vendors = useMemo(() => {
+    const names = new Set<string>();
+    for (const p of products) {
+      if (p.vendor?.trim()) names.add(p.vendor.trim());
+    }
+    return [...names].sort();
+  }, [products]);
+
+  const filtered = useMemo(() => {
+    if (vendorFilter === 'all') return products;
+    return products.filter((p) => p.vendor?.trim() === vendorFilter);
+  }, [products, vendorFilter]);
+
+  const [heroProduct, ...gridProducts] = filtered;
 
   return (
-    <section id="landing-menu" className="landing-menu landing-menu--agency">
+    <section id="landing-menu" className="landing-menu">
       <StudioContainer>
         <motion.div
           initial="initial"
@@ -44,19 +63,68 @@ export function MenuSection({
           className="landing-menu__header"
         >
           <div>
-            <SectionLabel index={menu.index} label={menu.label} />
+            <SectionLabel label={menu.label} />
             <StudioHeading size="display">
               {menu.headline[0]}
               <span className="landing-heading__accent">{menu.headline[1]}</span>
             </StudioHeading>
             <p className="landing-menu__lede">{menu.lede}</p>
+            <p className="landing-menu__order-hint">{menu.orderHint}</p>
+
+            <div className="landing-menu__pickup" aria-label="How to order ahead">
+              {menu.pickupSteps.map((step, i) => (
+                <span key={step} className="landing-menu__pickup-step">
+                  <span className="landing-menu__pickup-index">{String(i + 1).padStart(2, '0')}</span>
+                  {step}
+                </span>
+              ))}
+            </div>
+
+            <div className="landing-menu__categories">
+              <p className="landing-menu__categories-label">{menu.categoriesLabel}</p>
+              <nav className="landing-menu__chips" aria-label="Menu categories">
+                {MENU_CATEGORIES.map((cat) => (
+                  <Link key={cat.href} href={cat.href} className="landing-menu__chip">
+                    {cat.label}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+
+            {vendors.length > 0 && (
+              <div className="landing-menu__vendors">
+                <p className="landing-menu__vendors-label">{menu.vendorFilterLabel}</p>
+                <div className="landing-menu__vendor-chips" role="tablist" aria-label="Filter by counter">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={vendorFilter === 'all'}
+                    className={`landing-menu__vendor-chip ${vendorFilter === 'all' ? 'landing-menu__vendor-chip--active' : ''}`}
+                    onClick={() => setVendorFilter('all')}
+                  >
+                    {menu.allCounters}
+                  </button>
+                  {vendors.map((vendor) => (
+                    <button
+                      key={vendor}
+                      type="button"
+                      role="tab"
+                      aria-selected={vendorFilter === vendor}
+                      className={`landing-menu__vendor-chip ${vendorFilter === vendor ? 'landing-menu__vendor-chip--active' : ''}`}
+                      onClick={() => setVendorFilter(vendor)}
+                    >
+                      {vendor}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          <AgencyCta
+          <HallCta
             href={menu.cta.href}
             label={menu.cta.label}
             variant="text"
             className="landing-menu__link-cta"
-            index="05"
             icon={<ArrowRight className="h-4 w-4" />}
           />
         </motion.div>
@@ -71,8 +139,12 @@ export function MenuSection({
           <div className="landing-menu__error">
             <Shield className="h-5 w-5" /> {error}
           </div>
+        ) : filtered.length === 0 ? (
+          <p className="landing-menu__empty">{menu.emptyVendor}</p>
         ) : (
           <div className="landing-menu__body">
+            <HallPassStrip products={filtered} onQuickAdd={onQuickAdd} />
+
             {heroProduct && (
               <motion.div
                 initial={{ opacity: 0, y: 36 }}
@@ -101,7 +173,7 @@ export function MenuSection({
               ))}
             </div>
 
-            {hasMore && (
+            {hasMore && vendorFilter === 'all' && (
               <div className="landing-menu__more">
                 <button type="button" onClick={onLoadMore} disabled={loadingMore} className="landing-menu__more-btn group">
                   {loadingMore ? (

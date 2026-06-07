@@ -10,7 +10,7 @@ import {
   type MotionValue,
 } from 'framer-motion';
 import type { ReactNode } from 'react';
-import { LANDING_SECTIONS } from '../copy';
+import { LANDING_COPY, LANDING_SECTIONS } from '../copy';
 import { ParallaxMotion, type BindableMotion, type ParallaxMode } from './ParallaxMotion';
 
 /* ── CTAs & stamps ─────────────────────────────────────────────── */
@@ -128,9 +128,7 @@ export function AgencyFrame({ children, className = '' }: AgencyFrameProps) {
 
 /* ── Scroll chrome ───────────────────────────────────────────────── */
 
-export function useSmoothProgress(progress: MotionValue<number>, stiffness = 80, damping = 26) {
-  return useSpring(progress, { stiffness, damping, restDelta: 0.0008 });
-}
+export { useSmoothProgress } from '../hooks/useSmoothProgress';
 
 type ScrollRailProps = {
   progress: MotionValue<number>;
@@ -173,14 +171,13 @@ export function ScrollProgressRail({ progress }: ScrollRailProps) {
         <ParallaxMotion className="landing-scroll-rail__fill" modes={['height']} height={height} />
       </div>
       <ol className="landing-scroll-rail__list">
-        {LANDING_SECTIONS.map(({ id, index, label }) => (
+        {LANDING_SECTIONS.map(({ id, label }) => (
           <li key={id}>
             <a
               href={`#${id}`}
               className={`landing-scroll-rail__dot ${activeId === id ? 'landing-scroll-rail__dot--active' : ''}`}
               aria-current={activeId === id ? 'true' : undefined}
             >
-              <span className="landing-scroll-rail__index">{index}</span>
               <span className="landing-scroll-rail__label">{label}</span>
             </a>
           </li>
@@ -227,7 +224,7 @@ export function ScrollTicker({ progress }: ScrollTickerProps) {
       <span className="landing-scroll-ticker__section">{activeLabel}</span>
       <span className="landing-scroll-ticker__sep">—</span>
       <span className="landing-scroll-ticker__pct">{String(pct).padStart(3, '0')}</span>
-      <span className="landing-scroll-ticker__unit">scroll</span>
+      <span className="landing-scroll-ticker__unit">{LANDING_COPY.tickerUnit}</span>
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import type { MotionValue } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { useParallaxX, useParallaxY, useParallaxScale } from '../hooks/useParallax';
-import { ParallaxMotion, type BindableMotion, type ParallaxMode } from './ParallaxMotion';
+import { ParallaxMotion, type ParallaxMode } from './ParallaxMotion';
 
 type ParallaxLayerProps = {
   children: ReactNode;
@@ -15,14 +15,10 @@ type ParallaxLayerProps = {
   inputRange?: [number, number];
 };
 
-function resolveModes(
-  x: BindableMotion | undefined,
-  y: BindableMotion | undefined,
-  scale: BindableMotion | undefined,
-): ParallaxMode[] {
-  if (x !== undefined && y === undefined && scale === undefined) return ['shift-x'];
-  if (y !== undefined && x === undefined && scale === undefined) return ['shift-y'];
-  if (x !== undefined || y !== undefined || scale !== undefined) return ['transform'];
+function resolveModes(hasX: boolean, hasY: boolean, hasScale: boolean): ParallaxMode[] {
+  if (hasX && !hasY && !hasScale) return ['shift-x'];
+  if (hasY && !hasX && !hasScale) return ['shift-y'];
+  if (hasX || hasY || hasScale) return ['transform'];
   return [];
 }
 
@@ -35,13 +31,19 @@ export function ParallaxLayer({
   scale,
   inputRange = [0, 1],
 }: ParallaxLayerProps) {
-  const translateY = y ? useParallaxY(progress, y, inputRange) : undefined;
-  const translateX = x ? useParallaxX(progress, x, inputRange) : undefined;
-  const scaleVal = scale ? useParallaxScale(progress, scale, inputRange) : undefined;
-  const modes = resolveModes(translateX, translateY, scaleVal);
+  const translateY = useParallaxY(progress, y ?? [0, 0], inputRange);
+  const translateX = useParallaxX(progress, x ?? [0, 0], inputRange);
+  const scaleVal = useParallaxScale(progress, scale ?? [1, 1], inputRange);
+  const modes = resolveModes(Boolean(x), Boolean(y), Boolean(scale));
 
   return (
-    <ParallaxMotion className={className} modes={modes} x={translateX} y={translateY} scale={scaleVal}>
+    <ParallaxMotion
+      className={className}
+      modes={modes}
+      x={x ? translateX : undefined}
+      y={y ? translateY : undefined}
+      scale={scale ? scaleVal : undefined}
+    >
       {children}
     </ParallaxMotion>
   );

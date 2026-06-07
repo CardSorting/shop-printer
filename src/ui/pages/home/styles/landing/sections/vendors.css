@@ -1,0 +1,135 @@
+.landing-vendors {
+  position: relative;
+  overflow: hidden;
+  padding-block: clamp(5rem, 10vw, 8rem);
+  background: var(--landing-ink);
+  color: white;
+}
+
+.landing-vendors__pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.25;
+}
+
+.landing-vendors__header {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 3.5rem;
+}
+
+@media (min-width: 768px) {
+  .landing-vendors__header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
+.landing-vendors__title {
+  color: white;
+}
+
+.landing-vendors__lede {
+  max-width: 20rem;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: #9ca3af;
+}
+
+.landing-vendors__bento {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .landing-vendors__bento {
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+.landing-vendors__link {
+  display: block;
+  height: 100%;
+}
+
+.landing-vendors__frame {
+  position: relative;
+  border-radius: 2px;
+  background: #1f2937;
+}
+
+.landing-vendors__frame-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(12 11 10 / 0.92) 0%, rgb(12 11 10 / 0.15) 55%, transparent 100%);
+}
+
+.landing-vendors__index {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  font-size: clamp(3rem, 6vw, 4.5rem);
+  line-height: 1;
+  font-style: italic;
+  color: rgb(255 255 255 / 0.08);
+  transition: color 0.5s;
+}
+
+.landing-vendors__link:hover .landing-vendors__index {
+  color: rgb(255 255 255 / 0.18);
+}
+
+.landing-vendors__frame-copy {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.landing-vendors__frame-sub {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-primary-300) 90%, white);
+}
+
+.landing-vendors__frame-row {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.landing-vendors__frame-title {
+  font-size: clamp(1.5rem, 2.5vw, 1.875rem);
+}
+
+.landing-vendors__frame-btn {
+  display: flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  background: rgb(255 255 255 / 0.08);
+  backdrop-filter: blur(8px);
+  transition: all 0.35s;
+}
+
+.landing-vendors__link:hover .landing-vendors__frame-btn {
+  border-color: var(--color-primary-400);
+  background: rgb(245 158 11 / 0.15);
+}
+
+.landing-vendors__link:hover .landing-vendors__frame-btn svg {
+  transform: translate(2px, -2px);
+}

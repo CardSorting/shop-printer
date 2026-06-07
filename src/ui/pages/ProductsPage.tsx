@@ -201,7 +201,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
           items={
             collectionInfo 
               ? [
-                  { label: 'Vendors & Menu', href: '/products' },
+                  { label: 'Hall Favorites', href: STORE_PATHS.MENU },
                   { label: collectionInfo.name }
                 ]
               : [{ label: 'Vendors & Menu' }]
@@ -223,7 +223,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
         {categories.length > 0 && (
           <div className="mb-12 flex items-center gap-3 overflow-x-auto scrollbar-hide pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap border-b border-gray-100/60">
             <Link
-              href="/products"
+              href={STORE_PATHS.MENU}
               className={`px-5 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                 !collectionSlug || collectionSlug === 'all'
                   ? 'bg-gray-900 text-white shadow-lg shadow-gray-200'

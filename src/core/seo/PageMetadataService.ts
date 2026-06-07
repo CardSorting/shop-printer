@@ -74,9 +74,9 @@ export class PageMetadataService {
 
   menu(hasFilters = false): SeoPageMetadataInput {
     return {
-      title: 'Vendors & Menu',
+      title: 'Hall Favorites',
       description: `${SITE_VENDOR_LINE} ${SITE_MENU_LINE}`,
-      path: '/products',
+      path: '/collections/bestsellers',
       keywords: SEO_KEYWORDS_MENU,
       noIndex: hasFilters,
     };

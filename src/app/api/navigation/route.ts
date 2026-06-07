@@ -22,7 +22,7 @@ function getDefaultMenu(menuId: string): NavigationMenu {
       links: [
         { label: 'Hall Favorites', href: '/collections/bestsellers' },
         { label: 'Gift Cards', href: '/collections/gifts' },
-        { label: 'All Menu Items', href: '/products' },
+        { label: 'All Menu Items', href: '/collections/bestsellers' },
       ],
     },
     featuredPromotion: {
@@ -30,7 +30,7 @@ function getDefaultMenu(menuId: string): NavigationMenu {
       title: 'Old Hall. New Flavors.',
       subtitle: 'Walk in — explore every counter',
       linkText: 'View menu',
-      linkHref: '/products',
+      linkHref: '/collections/bestsellers',
     },
     otherLinks: [{ label: 'Visit & Connect', href: '/support' }],
   } as NavigationMenu;

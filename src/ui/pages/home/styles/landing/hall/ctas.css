@@ -1,0 +1,115 @@
+.hall-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: transform 200ms, background 200ms, border-color 200ms, color 200ms;
+}
+
+.hall-cta:hover {
+  transform: translateY(-1px);
+}
+
+.hall-cta--primary {
+  padding: 0.9rem 1.5rem;
+  background: var(--color-primary-500);
+  color: #0c0b0a;
+  box-shadow: 0 8px 24px -8px rgb(245 158 11 / 0.55);
+}
+
+.hall-cta--primary:hover {
+  background: var(--color-primary-400);
+}
+
+.hall-cta--secondary {
+  padding: 0.85rem 1.35rem;
+  border: 1px solid rgb(12 11 10 / 0.15);
+  color: var(--landing-ink);
+  background: transparent;
+}
+
+.hall-cta--secondary:hover {
+  background: rgb(12 11 10 / 0.05);
+  border-color: rgb(12 11 10 / 0.25);
+}
+
+.hall-cta--ghost {
+  padding: 0.9rem 1.5rem;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  color: #fff;
+  background: rgb(255 255 255 / 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.hall-cta--ghost:hover {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.hall-cta--text {
+  padding: 0.35rem 0;
+  color: var(--color-primary-700);
+  background: transparent;
+}
+
+.hall-cta--text:hover {
+  color: var(--color-primary-600);
+  transform: none;
+}
+
+.hall-cta--dark.hall-cta--text {
+  color: var(--color-primary-300);
+}
+
+.hall-cta__icon {
+  display: inline-flex;
+  transition: transform 200ms;
+}
+
+.hall-cta:hover .hall-cta__icon {
+  transform: translateX(2px);
+}
+
+.landing-section-label--hall .landing-section-label__text {
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+}
+
+.landing-section-label--hall .landing-section-label__text::before {
+  content: '';
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.55rem;
+  border-radius: 999px;
+  background: var(--color-primary-500);
+  vertical-align: 0.1em;
+}
+
+.landing-section-label--dark.landing-section-label--hall .landing-section-label__text::before {
+  background: var(--color-primary-400);
+}
+
+.landing-hero__location-pill {
+  position: absolute;
+  top: 1.25rem;
+  right: clamp(1.25rem, 4vw, 4rem);
+  z-index: 12;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgb(243 244 246 / 0.9);
+  background: rgb(12 11 10 / 0.55);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  backdrop-filter: blur(8px);
+}
+
+.landing-page .landing-scroll-rail__index {
+  display: none;
+}

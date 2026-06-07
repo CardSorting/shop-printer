@@ -38,23 +38,23 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-20">
           <div className="flex flex-col items-center p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-primary-100 transition-colors group">
             <Users className="w-6 h-6 text-primary-600 mb-2" />
-            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">All Welcome</p>
-            <p className="text-xs text-gray-500 mt-1">Regulars &amp; first-timers</p>
+            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Pull Up a Chair</p>
+            <p className="text-xs text-gray-500 mt-1">First visit or your regular corner</p>
           </div>
           <div className="flex flex-col items-center p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-primary-100 transition-colors">
             <Handshake className="w-6 h-6 text-primary-600 mb-2" />
-            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Local Vendors</p>
-            <p className="text-xs text-gray-500 mt-1">Neighbors with a story</p>
+            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Twelve Kitchens</p>
+            <p className="text-xs text-gray-500 mt-1">Independent counters, Salt Lake roots</p>
           </div>
           <div className="flex flex-col items-center p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-primary-100 transition-colors">
             <Sparkles className="w-6 h-6 text-green-600 mb-2" />
-            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Shared Space</p>
-            <p className="text-xs text-gray-500 mt-1">Historic warehouse room</p>
+            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">The Warehouse Room</p>
+            <p className="text-xs text-gray-500 mt-1">Communal tables under one barrel roof</p>
           </div>
           <div className="flex flex-col items-center p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-primary-100 transition-colors">
             <Star className="w-6 h-6 text-amber-500 mb-2 fill-amber-500" />
-            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Third Place</p>
-            <p className="text-xs text-gray-500 mt-1">Work, linger, belong</p>
+            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Built to Linger</p>
+            <p className="text-xs text-gray-500 mt-1">Coffee at dawn to nightcaps after dark</p>
           </div>
         </div>
 

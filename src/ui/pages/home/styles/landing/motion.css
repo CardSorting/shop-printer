@@ -1,0 +1,60 @@
+@keyframes marquee-scroll {
+  to { transform: translateX(-50%); }
+}
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes line-grow {
+  to { transform: scaleX(1); }
+}
+
+@keyframes landing-scroll-pulse {
+  0%, 100% { transform: scaleY(1); opacity: 0.5; }
+  50% { transform: scaleY(1.2); opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes landing-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track,
+  .landing-marquee__track,
+  .landing-counter-line__track,
+  .float-gentle {
+    animation: none;
+  }
+
+  .landing-hero__media,
+  .landing-editorial__media,
+  .landing-visit__media,
+  .landing-parallax--transform,
+  .landing-parallax--shift-x,
+  .landing-parallax--shift-y,
+  .landing-parallax--scale-x {
+    transform: none !important;
+  }
+
+  .landing-scroll-rail,
+  .landing-scroll-ticker {
+    display: none;
+  }
+
+  .landing-editorial--pin {
+    height: auto;
+  }
+
+  .landing-editorial__pin {
+    position: relative;
+    height: auto;
+    min-height: clamp(26rem, 58vh, 38rem);
+  }
+}

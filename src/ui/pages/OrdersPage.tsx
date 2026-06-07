@@ -36,6 +36,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
 import { useServices } from '../hooks/useServices';
+import { STORE_PATHS } from '@utils/navigation';
 
 type StatusFilter = 'all' | OrderStatus;
 type SortOption = 'newest' | 'oldest' | 'total_desc' | 'total_asc' | 'status';
@@ -151,7 +152,7 @@ export function OrdersPage() {
         <p className="mt-4 text-lg font-medium text-gray-500">Order details and receipts are only available to the account owner.</p>
         <div className="mt-8 flex flex-col items-center gap-3">
           <Link href="/login" className="inline-flex items-center gap-2 rounded-2xl bg-gray-900 px-8 py-4 text-sm font-black text-white hover:bg-black">Sign in <ArrowRight className="h-4 w-4" /></Link>
-          <Link href="/products" className="text-sm font-bold text-gray-500 hover:text-gray-900">Continue shopping</Link>
+          <Link href={STORE_PATHS.MENU} className="text-sm font-bold text-gray-500 hover:text-gray-900">Continue shopping</Link>
         </div>
       </div>
     );
@@ -222,7 +223,7 @@ export function OrdersPage() {
               </div>
               <h2 className="text-2xl font-black text-gray-900">No orders found</h2>
               <p className="mt-2 text-sm font-medium text-gray-500">Try adjusting your filters or start a new collection today.</p>
-              <Link href="/products" className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-gray-900 px-8 py-4 text-sm font-black text-white shadow-xl hover:bg-black transition-transform hover:-translate-y-1">
+              <Link href={STORE_PATHS.MENU} className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-gray-900 px-8 py-4 text-sm font-black text-white shadow-xl hover:bg-black transition-transform hover:-translate-y-1">
                 Explore Store <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

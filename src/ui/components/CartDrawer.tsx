@@ -16,6 +16,7 @@ import { MAX_CART_QUANTITY } from '@domain/rules';
 import { logger } from '@utils/logger';
 import { sanitizeImageUrl } from '@utils/imageSanitizer';
 import { CART_GUEST_TIERS, SITE_CART_EMPTY_LINE } from '@utils/seo';
+import { STORE_PATHS } from '@utils/navigation';
 
 function formatMoney(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -154,7 +155,7 @@ export function CartDrawer() {
                 {['Full Plates', 'Cold Drinks', 'Coffee & Work', 'Private Events'].map((cat) => (
                   <Link
                     key={cat}
-                    href="/products"
+                    href={STORE_PATHS.MENU}
                     onClick={closeCart}
                     className="px-4 py-2 rounded-xl border border-gray-100 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 hover:border-gray-200 transition-all"
                   >

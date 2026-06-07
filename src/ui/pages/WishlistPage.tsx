@@ -237,11 +237,11 @@ export function WishlistPage() {
                 <h3 className="text-3xl font-black text-gray-900 mb-4">Nothing saved yet</h3>
                 <p className="text-gray-500 mb-10 max-w-xs mx-auto leading-relaxed">Browse our collection and hit the heart icon to save art you love.</p>
                 <Link 
-                  href={STORE_PATHS.PRODUCTS}
+                  href={STORE_PATHS.MENU}
                   className="inline-flex items-center gap-3 rounded-2xl bg-gray-900 px-10 py-4 font-black text-white shadow-2xl shadow-gray-200 transition hover:bg-black hover:-translate-y-1 active:translate-y-0"
                 >
 
-                  Explore Catalog
+                  Browse menu
                   <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>

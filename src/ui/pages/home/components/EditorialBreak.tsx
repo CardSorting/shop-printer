@@ -7,7 +7,7 @@ import { useScroll, useTransform } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import { DEFAULT_BLOG_IMAGE } from '@utils/imageFallback';
 import { LANDING_COPY } from '../copy';
-import { SectionWatermark, useSmoothProgress } from './AgencyChrome';
+import { useSmoothProgress } from '../hooks/useSmoothProgress';
 import { ParallaxMotion } from './ParallaxMotion';
 
 const { editorial } = LANDING_COPY;
@@ -27,13 +27,10 @@ export function EditorialBreak() {
   const textOpacity = useTransform(smooth, [0, 0.15, 0.85, 1], [0.15, 1, 1, 0.15]);
   const subY = useTransform(smooth, [0, 1], ['30%', '-10%']);
   const lineScale = useTransform(smooth, [0.15, 0.45], [0, 1]);
-  const wmX = useTransform(smooth, [0, 1], ['-5%', '5%']);
 
   return (
-    <section id="landing-editorial" ref={ref} className="landing-editorial landing-editorial--agency landing-editorial--pin">
+    <section id="landing-editorial" ref={ref} className="landing-editorial landing-editorial--pin">
       <div className="landing-editorial__pin">
-        <SectionWatermark index="02" parallaxX={wmX} dark />
-
         <ParallaxMotion
           modes={['transform']}
           y={imageY}
@@ -63,8 +60,14 @@ export function EditorialBreak() {
           <ParallaxMotion as="p" modes={['shift-y']} y={subY} className="landing-editorial__sub">
             {editorial.sub}
           </ParallaxMotion>
+
+          <ul className="landing-editorial__senses" aria-label="Sensory atmosphere">
+            {editorial.senses.map((sense) => (
+              <li key={sense}>{sense}</li>
+            ))}
+          </ul>
+
           <Link href={editorial.cta.href} className="landing-editorial__cta group">
-            <span className="landing-editorial__cta-index">02</span>
             <span>{editorial.cta.label}</span>
             <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
           </Link>

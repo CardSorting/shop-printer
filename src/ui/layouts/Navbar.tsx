@@ -78,7 +78,7 @@ export function Navbar() {
 
           {/* Desktop Links - Hidden when search is focused on smaller screens */}
           <div className={`hidden lg:flex items-center gap-10 shrink-0 transition-all duration-500 ${isSearchFocused ? 'opacity-0 -translate-x-4 pointer-events-none w-0 overflow-hidden' : 'opacity-100 translate-x-0'}`}>
-            <Link href="/products" className="text-[12px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary-600 transition-colors">Menu</Link>
+            <Link href={STORE_PATHS.MENU} className="text-[12px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary-600 transition-colors">Menu</Link>
             <Link href="/support" className="text-[12px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary-600 transition-colors">Visit</Link>
             <Link href="/blog" className="text-[12px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary-600 transition-colors">Community</Link>
           </div>
@@ -182,7 +182,7 @@ export function Navbar() {
               </button>
             </div>
             <div className="flex-1 flex flex-col gap-8">
-              <Link href="/products" onClick={() => setIsMenuOpen(false)} className="text-5xl font-black tracking-tighter text-gray-900">Menu</Link>
+              <Link href={STORE_PATHS.MENU} onClick={() => setIsMenuOpen(false)} className="text-5xl font-black tracking-tighter text-gray-900">Menu</Link>
               <Link href="/blog" onClick={() => setIsMenuOpen(false)} className="text-5xl font-black tracking-tighter text-gray-900">Community</Link>
               <Link href="/support" onClick={() => setIsMenuOpen(false)} className="text-5xl font-black tracking-tighter text-gray-900">Visit</Link>
             </div>

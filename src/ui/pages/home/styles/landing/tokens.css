@@ -1,0 +1,17 @@
+.landing-page {
+  --landing-ink: #0c0b0a;
+  --landing-cream: #f7f4ef;
+  --landing-cream-deep: #ede8e0;
+  --landing-muted: #6b6560;
+  --landing-warm: #92400e;
+  --landing-amber-glow: rgb(245 158 11 / 0.12);
+  background: var(--landing-cream);
+  color: var(--landing-ink);
+}
+
+.landing-container {
+  width: 100%;
+  max-width: 90rem;
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 4rem);
+}

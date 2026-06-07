@@ -76,7 +76,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
   const jsonLd = [
     breadcrumbJsonLd([
       { name: 'Home', path: '/' },
-      { name: 'Vendors & Menu', path: '/products' },
+      { name: 'Hall Favorites', path: '/collections/bestsellers' },
       { name: displayName, path: `/collections/${slug}` },
     ]),
     itemListJsonLd(displayName, `/collections/${slug}`, [

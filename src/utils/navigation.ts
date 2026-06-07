@@ -24,6 +24,8 @@ export function slugify(text: string): string {
 export const STORE_PATHS = {
   HOME: '/',
   PRODUCTS: '/products',
+  /** Primary menu browse hub (replaces the old /products catalog). */
+  MENU: '/collections/bestsellers',
   SEARCH: '/search',
   CART: '/cart',
   CHECKOUT: '/checkout',

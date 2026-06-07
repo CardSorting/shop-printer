@@ -4,6 +4,7 @@
  * [LAYER: UI]
  */
 import Link from 'next/link';
+import { STORE_PATHS } from '@utils/navigation';
 import {
   ArrowRight,
   CheckCircle,
@@ -356,7 +357,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
               >
                 {reordering ? 'Adding to cart...' : 'Order again'} <RotateCcw className={`h-5 w-5 ${reordering ? 'animate-spin' : ''}`} />
               </button>
-              <Link href="/products" className="group flex w-full items-center justify-between rounded-2xl border-2 border-gray-100 bg-white px-6 py-5 text-sm font-black text-gray-800 transition hover:bg-gray-50 hover:border-gray-200">
+              <Link href={STORE_PATHS.MENU} className="group flex w-full items-center justify-between rounded-2xl border-2 border-gray-100 bg-white px-6 py-5 text-sm font-black text-gray-800 transition hover:bg-gray-50 hover:border-gray-200">
                 Explore New Collections <ShoppingBag className="h-5 w-5 transition-transform group-hover:scale-110" />
               </Link>
               <div className="grid grid-cols-2 gap-3">

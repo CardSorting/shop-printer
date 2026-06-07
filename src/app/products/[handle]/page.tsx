@@ -56,7 +56,7 @@ export default async function Page({ params }: Props) {
     const jsonLd = [
         breadcrumbJsonLd([
             { name: 'Home', path: '/' },
-            { name: 'Vendors & Menu', path: '/products' },
+            { name: 'Hall Favorites', path: '/collections/bestsellers' },
             ...(product.category
                 ? [{ name: product.category, path: `/collections/${product.category.toLowerCase().replace(/\s+/g, '-')}` }]
                 : []),

@@ -15,7 +15,6 @@ export type ParallaxMode =
   | 'height';
 
 /** MotionValue is invariant in T — permissive bind type for scroll-driven CSS vars */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type BindableMotion = MotionValue<any>;
 
 type ParallaxMotionProps = {

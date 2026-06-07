@@ -23,9 +23,9 @@ export const SEO_PAGE_CATALOG: readonly SeoPageCatalogEntry[] = [
   },
   {
     id: 'menu',
-    label: 'Vendors & Menu',
+    label: 'Hall Favorites',
     description: 'Where people discover dishes and vendor counters.',
-    path: '/products',
+    path: '/collections/bestsellers',
     audience: 'public',
     category: 'menu',
   },

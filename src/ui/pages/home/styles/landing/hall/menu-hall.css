@@ -1,0 +1,42 @@
+.landing-menu__vendors {
+  margin-top: 1.15rem;
+}
+
+.landing-menu__vendors-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--landing-muted);
+}
+
+.landing-menu__vendor-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.landing-menu__vendor-chip {
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgb(12 11 10 / 0.12);
+  background: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--landing-ink);
+  cursor: pointer;
+  transition: border-color 200ms, background 200ms;
+}
+
+.landing-menu__vendor-chip--active {
+  border-color: var(--color-primary-500);
+  background: color-mix(in srgb, var(--color-primary-100) 60%, #fff);
+  color: var(--color-primary-900);
+}
+
+.landing-menu__empty {
+  padding: 2rem 0;
+  font-size: 0.9375rem;
+  color: var(--landing-muted);
+}

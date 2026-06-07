@@ -3,8 +3,8 @@
 import { motion } from 'framer-motion';
 import { SLIDE_UP_VARIANTS } from '@ui/animations';
 import { LANDING_COPY } from '../copy';
-import { useSectionParallax, useParallaxX, useParallaxY } from '../hooks/useParallax';
-import { AgencyRail, SectionWatermark, useSmoothProgress } from './AgencyChrome';
+import { useSectionParallax, useParallaxX } from '../hooks/useParallax';
+import { useSmoothProgress } from '../hooks/useSmoothProgress';
 import { ParallaxMotion } from './ParallaxMotion';
 import { SectionLabel, StudioContainer, StudioHeading } from './StudioShell';
 
@@ -14,14 +14,9 @@ export function VoicesSection() {
   const { ref, scrollYProgress } = useSectionParallax();
   const smooth = useSmoothProgress(scrollYProgress);
   const headerX = useParallaxX(smooth, [8, -8]);
-  const railY = useParallaxY(smooth, [5, -5]);
-  const wmY = useParallaxY(smooth, [6, -6]);
 
   return (
-    <section id="landing-voices" ref={ref} className="landing-voices landing-voices--agency landing-voices--iv">
-      <SectionWatermark index={voices.index} parallaxY={wmY} />
-      <AgencyRail text="Record — Evidence" side="right" parallaxY={railY} />
-
+    <section id="landing-voices" ref={ref} className="landing-voices">
       <StudioContainer>
         <ParallaxMotion modes={['shift-x']} x={headerX}>
           <motion.div
@@ -31,7 +26,7 @@ export function VoicesSection() {
             variants={SLIDE_UP_VARIANTS}
             className="landing-voices__header"
           >
-            <SectionLabel index={voices.index} label={voices.label} />
+            <SectionLabel label={voices.label} />
             <StudioHeading size="display">
               {voices.headline[0]}
               <span className="landing-heading__muted">{voices.headline[1]}</span>

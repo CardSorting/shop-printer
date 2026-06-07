@@ -1,0 +1,40 @@
+.landing-marquee {
+  overflow: hidden;
+  border-block: 1px solid rgb(0 0 0 / 0.06);
+  background: white;
+  padding-block: 1.25rem;
+}
+
+.landing-marquee__track {
+  display: flex;
+  width: max-content;
+  gap: 3rem;
+  padding-inline: 1.5rem;
+  animation: marquee-scroll 45s linear infinite;
+}
+
+.landing-marquee__track:hover {
+  animation-play-state: paused;
+}
+
+.landing-marquee__item {
+  display: flex;
+  shrink: 0;
+  align-items: center;
+  gap: 3rem;
+}
+
+.landing-marquee__word {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--landing-muted);
+}
+
+.landing-marquee__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-primary-400);
+}

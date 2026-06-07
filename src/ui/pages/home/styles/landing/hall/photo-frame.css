@@ -1,0 +1,18 @@
+.hall-photo-frame {
+  margin: 0;
+}
+
+.hall-photo-frame__inner {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.85rem;
+  box-shadow:
+    0 24px 48px -20px rgb(12 11 10 / 0.45),
+    inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+.hall-photo-frame__caption {
+  margin-top: 0.65rem;
+  font-size: 0.75rem;
+  color: var(--landing-muted);
+}

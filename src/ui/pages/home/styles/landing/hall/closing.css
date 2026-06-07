@@ -1,0 +1,32 @@
+.landing-closing {
+  padding: clamp(3.5rem, 8vw, 5rem) clamp(1.25rem, 4vw, 4rem);
+  background: linear-gradient(180deg, var(--landing-cream) 0%, #fff 100%);
+  border-top: 1px solid rgb(12 11 10 / 0.06);
+}
+
+.landing-closing__inner {
+  max-width: 42rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.landing-closing__headline {
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.05;
+  color: var(--landing-ink);
+}
+
+.landing-closing__sub {
+  margin-top: 1rem;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--landing-muted);
+}
+
+.landing-closing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}

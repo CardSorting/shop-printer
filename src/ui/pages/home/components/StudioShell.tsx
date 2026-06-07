@@ -33,17 +33,20 @@ export function StudioContainer({ children, className = '', wide = false }: Stud
 }
 
 type SectionLabelProps = {
-  index: string;
   label: string;
+  index?: string;
   dark?: boolean;
+  hall?: boolean;
   className?: string;
 };
 
-export function SectionLabel({ index, label, dark = false, className = '' }: SectionLabelProps) {
+export function SectionLabel({ index, label, dark = false, hall = true, className = '' }: SectionLabelProps) {
   return (
-    <div className={`landing-section-label ${dark ? 'landing-section-label--dark' : ''} ${className}`.trim()}>
-      <span className="landing-section-label__index">{index}</span>
-      <span className="landing-section-label__rule" aria-hidden />
+    <div
+      className={`landing-section-label ${hall ? 'landing-section-label--hall' : ''} ${dark ? 'landing-section-label--dark' : ''} ${className}`.trim()}
+    >
+      {!hall && index && <span className="landing-section-label__index">{index}</span>}
+      {!hall && <span className="landing-section-label__rule" aria-hidden />}
       <span className="landing-section-label__text">{label}</span>
     </div>
   );

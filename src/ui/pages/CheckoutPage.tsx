@@ -5,6 +5,7 @@
  */
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { STORE_PATHS } from '@utils/navigation';
 import Image from 'next/image';
 import {
   AlertCircle,
@@ -326,7 +327,7 @@ export function CheckoutPage() {
           </div>
           <h1 className="text-3xl font-black text-gray-900 mb-3">Nothing on your tray yet</h1>
           <p className="text-gray-500 mb-10 font-medium leading-relaxed">{SITE_CART_EMPTY_LINE}</p>
-          <Link href="/products" className="inline-flex items-center justify-center w-full rounded-2xl bg-gray-900 px-8 py-5 text-sm font-black text-white shadow-xl transition-all hover:bg-black hover:-translate-y-1">
+          <Link href={STORE_PATHS.MENU} className="inline-flex items-center justify-center w-full rounded-2xl bg-gray-900 px-8 py-5 text-sm font-black text-white shadow-xl transition-all hover:bg-black hover:-translate-y-1">
             Browse the Menu
           </Link>
           <p className="mt-8 text-[10px] font-bold text-gray-300">{SITE_GATHERING_LINE}</p>
