@@ -1,8 +1,10 @@
 .landing-counter-grid-wrap {
   margin-top: clamp(1.5rem, 3vw, 2rem);
+  transform-style: preserve-3d;
 }
 
 .landing-counter-grid__rail {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -10,7 +12,20 @@
   gap: 1rem;
   margin-bottom: 1.25rem;
   padding-bottom: 1.25rem;
-  border-bottom: 1px solid rgb(255 255 255 / 0.1);
+}
+
+.landing-counter-grid__rail-line {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  background: rgb(255 255 255 / 0.1);
+  transform-origin: left center;
+}
+
+.landing-counter-grid__rail-line--static {
+  transform: none;
+  opacity: 1;
 }
 
 .landing-counter-grid__label {
@@ -55,6 +70,7 @@
   position: relative;
   min-height: clamp(10.5rem, 28vw, 13rem);
   transform-style: preserve-3d;
+  overflow: visible;
 }
 
 .landing-counter-grid__cell--hero {
@@ -105,6 +121,13 @@
   text-decoration: none;
 }
 
+.landing-counter-grid__media-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
 .landing-counter-grid__media {
   position: relative;
   height: 100%;
@@ -141,6 +164,40 @@
   transform: scale(1.04);
 }
 
+.landing-counter-grid__frame-glow {
+  position: absolute;
+  inset: -1px;
+  z-index: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px rgb(245 158 11 / 0.45),
+    0 0 28px rgb(245 158 11 / 0.18);
+  pointer-events: none;
+}
+
+.landing-counter-grid__shine {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    rgb(255 255 255 / 0.14) 50%,
+    transparent 62%
+  );
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+.landing-counter-grid__cell--spotlight .landing-counter-grid__media {
+  border-color: rgb(245 158 11 / 0.28);
+  box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 0.35);
+}
+
+.landing-counter-grid__cell--spotlight .landing-counter-grid__index {
+  color: rgb(255 255 255 / 0.22);
+}
+
 .landing-counter-grid__scrim {
   position: absolute;
   inset: 0;
@@ -153,6 +210,59 @@
     transparent 100%
   );
   pointer-events: none;
+}
+
+.landing-counter-grid__crowd {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 3;
+}
+
+.landing-stall-crowd {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.45rem 0.2rem 0.3rem;
+  border-radius: 999px;
+  color: rgb(243 244 246 / 0.88);
+  background: rgb(8 7 6 / 0.55);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  backdrop-filter: blur(8px);
+}
+
+.landing-stall-crowd--hot {
+  color: rgb(255 248 235 / 0.95);
+  border-color: rgb(245 158 11 / 0.35);
+  background: rgb(8 7 6 / 0.62);
+}
+
+.landing-stall-crowd__stack {
+  display: flex;
+  align-items: flex-end;
+}
+
+.landing-stall-crowd__avatar {
+  width: 0.72rem;
+  height: 0.92rem;
+  margin-left: -0.28rem;
+  flex-shrink: 0;
+}
+
+.landing-stall-crowd__stack .landing-stall-crowd__avatar:first-child {
+  margin-left: 0;
+}
+
+.landing-stall-crowd__more {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-primary-300);
+}
+
+.landing-counter-grid__cell--hero .landing-stall-crowd__avatar {
+  width: 0.82rem;
+  height: 1.05rem;
 }
 
 .landing-counter-grid__index {
@@ -253,10 +363,32 @@
   border-color: rgb(245 158 11 / 0.22);
 }
 
+.landing-counter-grid__link:hover .landing-counter-grid__shine {
+  animation: landing-counter-shine-hover 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes landing-counter-shine-hover {
+  from {
+    transform: translateX(-120%);
+  }
+
+  to {
+    transform: translateX(120%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-counter-grid__link:hover,
   .landing-counter-grid__link:focus-visible {
     transform: none;
+  }
+
+  .landing-counter-grid__link:hover .landing-counter-grid__shine {
+    animation: none;
+  }
+
+  .landing-vendors__entry-sweep {
+    display: none;
   }
 
   .landing-gatherings__card:hover {
