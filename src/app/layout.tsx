@@ -7,7 +7,6 @@ import { WishlistProvider } from '@ui/hooks/useWishlist';
 import { ErrorBoundary } from '@ui/components/ErrorBoundary';
 import { JsonLd } from '@ui/components/JsonLd';
 import { StorefrontShell } from '@ui/layouts/StorefrontShell';
-import { CartDrawer } from '@ui/components/CartDrawer';
 import { buildRootLayoutMetadata, getAppSeoEngine } from '@infrastructure/seo';
 import '@/index.css';
 
@@ -52,7 +51,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                                         {children}
                                     </div>
                                 </StorefrontShell>
-                                <CartDrawer />
                             </WishlistProvider>
                         </CartProvider>
                     </AuthProvider>

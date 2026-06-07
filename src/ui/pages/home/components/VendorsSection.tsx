@@ -11,7 +11,7 @@ import { VendorsHallStrip } from './VendorsHallStrip';
 
 const CounterParallaxGrid = dynamic(
   () => import('./CounterParallaxGrid').then((m) => ({ default: m.CounterParallaxGrid })),
-  { ssr: false },
+  { ssr: true },
 );
 
 const { vendors, nowBoard } = LANDING_COPY;

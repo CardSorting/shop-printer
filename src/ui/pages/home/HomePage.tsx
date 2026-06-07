@@ -1,7 +1,6 @@
 import './styles/home-page.css';
 import { HeroSection } from './components/HeroSection';
-import { HomeDeferredVendors } from './HomeDeferredVendors';
-import { HomeDeferredVisit } from './HomeDeferredVisit';
+import { HomeDeferredVendors, HomeDeferredVisit } from './HomeDeferredSections';
 import { LandingMotionChrome } from './components/LandingMotionChrome';
 import { LandingSectionBridge } from './components/LandingSectionBridge';
 import { LandingSceneCut } from './components/LandingSceneCut';

@@ -15,8 +15,6 @@ import Image from 'next/image';
 import { useWishlist } from '../hooks/useWishlist';
 import { getProductUrl, STORE_PATHS, getSearchUrl } from '@utils/navigation';
 
-import type { NavigationMenu } from '@domain/models';
-
 
 export function Navbar() {
   const { user, signOut } = useAuth();
@@ -24,24 +22,12 @@ export function Navbar() {
   const { recentlyViewed } = useWishlist();
   const router = useRouter();
   const pathname = usePathname();
+  const isHome = pathname === '/';
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [navMenu, setNavMenu] = useState<NavigationMenu | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch('/api/navigation?id=main-nav', { signal: controller.signal })
-      .then(res => res.json())
-      .then(data => {
-        if (!controller.signal.aborted && !data.error) setNavMenu(data);
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, []);
-
 
   useEffect(() => {
     setIsMenuOpen(false);
@@ -72,7 +58,7 @@ export function Navbar() {
           <Link href={STORE_PATHS.HOME} className={`group shrink-0 transition-all duration-300 ${isSearchFocused ? 'hidden md:flex' : 'flex'}`}>
             <WoodbineLogo
               className="h-[4.25rem] w-auto transition-transform group-hover:scale-[1.02] sm:h-20 md:h-[5.25rem] lg:h-24 xl:h-[6.5rem]"
-              priority
+              priority={!isHome}
               sizes="(max-width: 640px) 340px, (max-width: 1024px) 420px, 520px"
             />
           </Link>

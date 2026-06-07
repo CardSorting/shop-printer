@@ -11,13 +11,21 @@ import { usePathname } from 'next/navigation';
 import { Navbar } from '@ui/layouts/Navbar';
 import { Footer } from '@ui/layouts/Footer';
 import { BottomNav } from '@ui/components/BottomNav';
-
-import { PageProgressBar } from '@ui/animations/PageProgressBar';
-import { motion, AnimatePresence } from 'framer-motion';
-import { PAGE_TRANSITION_VARIANTS } from '@ui/animations';
+import { StorefrontCartDrawer } from '@ui/layouts/StorefrontCartDrawer';
+import { HomeDeferredFooter } from '@ui/pages/home/HomeDeferredFooter';
 
 import { useAuth } from '@ui/hooks/useAuth';
 import { useCart } from '@ui/hooks/useCart';
+
+const StorefrontAnimatedMain = dynamic(
+  () => import('@ui/layouts/StorefrontAnimatedMain').then((m) => ({ default: m.StorefrontAnimatedMain })),
+  { ssr: true },
+);
+
+const PageProgressBar = dynamic(
+  () => import('@ui/animations/PageProgressBar').then((m) => ({ default: m.PageProgressBar })),
+  { ssr: false },
+);
 
 const ConciergeBubble = dynamic(
   () => import('@ui/components/Concierge/ConciergeBubble').then((m) => ({ default: m.ConciergeBubble })),
@@ -32,7 +40,6 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
     const isHome = pathname === '/';
     const [showConcierge, setShowConcierge] = useState(false);
 
-    // Scroll to top on pathname change - must be called before early returns
     useEffect(() => {
         if (!isAdmin) {
             window.scrollTo(0, 0);
@@ -97,21 +104,13 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
             {isHome ? (
                 <main className={mainClassName}>{children}</main>
             ) : (
-                <AnimatePresence mode="popLayout" initial={false}>
-                    <motion.main
-                        key={pathname}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                        variants={PAGE_TRANSITION_VARIANTS}
-                        className={mainClassName}
-                    >
-                        {children}
-                    </motion.main>
-                </AnimatePresence>
+                <StorefrontAnimatedMain pathname={pathname} className={mainClassName}>
+                    {children}
+                </StorefrontAnimatedMain>
             )}
-            <Footer />
+            {isHome ? <HomeDeferredFooter /> : <Footer />}
             <BottomNav />
+            <StorefrontCartDrawer />
             {showConcierge && (
                 <ConciergeBubble
                     initialContext={conciergeContext}
@@ -121,4 +120,3 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
         </div>
     );
 }
-
