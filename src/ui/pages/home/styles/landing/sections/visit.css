@@ -1,8 +1,8 @@
 .landing-visit {
   position: relative;
   overflow: hidden;
-  padding-block: clamp(6rem, 12vw, 9rem);
-  color: white;
+  padding-block: clamp(6rem, 11vw, 9rem);
+  color: #fff;
 }
 
 .landing-visit__media {
@@ -17,7 +17,9 @@
 .landing-visit__scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to right, var(--landing-ink) 0%, rgb(12 11 10 / 0.94) 50%, rgb(12 11 10 / 0.82) 100%);
+  background:
+    linear-gradient(105deg, var(--landing-ink) 0%, rgb(12 11 10 / 0.92) 52%, rgb(12 11 10 / 0.88) 100%),
+    radial-gradient(ellipse 50% 40% at 20% 80%, rgb(245 158 11 / 0.08) 0%, transparent 60%);
 }
 
 .landing-visit__inner {
@@ -27,83 +29,166 @@
 
 .landing-visit__grid {
   display: grid;
-  gap: 4rem;
+  gap: clamp(2.5rem, 5vw, 4rem);
   align-items: center;
 }
 
 @media (min-width: 1024px) {
   .landing-visit__grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: clamp(3rem, 5vw, 4.5rem);
   }
 }
 
+.landing-visit__header {
+  max-width: 36rem;
+}
+
+.landing-visit__header-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.landing-visit__header-top .landing-section-label {
+  margin-bottom: 0;
+}
+
+.landing-visit__headline {
+  margin-top: 0.5rem;
+}
+
 .landing-visit__lede {
-  margin-top: 2rem;
-  max-width: 32rem;
-  font-size: 1.125rem;
+  margin-top: 1.25rem;
+  max-width: 34rem;
+  font-size: 1.0625rem;
   line-height: 1.65;
-  color: #d1d5db;
+  color: rgb(209 213 219 / 0.92);
 }
 
 .landing-visit__sub {
-  margin-top: 1.5rem;
-  max-width: 28rem;
+  margin-top: 0.85rem;
+  max-width: 32rem;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: rgb(156 163 175 / 0.95);
+}
+
+.landing-visit__aside {
+  margin-top: 0.5rem;
   font-size: 0.875rem;
-  line-height: 1.65;
-  color: #6b7280;
+  line-height: 1.5;
+  color: rgb(209 213 219 / 0.62);
 }
 
 .landing-visit__stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2.5rem 3.5rem;
-  margin-top: 3rem;
-  padding-top: 2.5rem;
+  display: grid;
+  gap: 0;
+  margin: clamp(2.25rem, 4vw, 3rem) 0 0;
+  padding: 0;
   border-top: 1px solid rgb(255 255 255 / 0.1);
 }
 
-.landing-visit__stat-label {
-  font-size: 1.5rem;
+@media (min-width: 640px) {
+  .landing-visit__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
-.landing-visit__stat-sub {
-  margin-top: 0.25rem;
-  font-size: 0.625rem;
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+.landing-visit__stat {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.85rem;
+  align-items: start;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+
+@media (min-width: 640px) {
+  .landing-visit__stat {
+    padding: 1.35rem 1.25rem 1.35rem 0;
+    border-bottom: none;
+    border-right: 1px solid rgb(255 255 255 / 0.08);
+  }
+
+  .landing-visit__stat:last-child {
+    border-right: none;
+    padding-right: 0;
+  }
+}
+
+.landing-visit__stat-index {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
   color: var(--color-primary-400);
 }
 
+.landing-visit__stat dd {
+  margin: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.landing-visit__stat-label {
+  font-size: 1.25rem;
+  line-height: 1.15;
+  color: #fff;
+}
+
+.landing-visit__stat-detail {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(209 213 219 / 0.55);
+}
+
 .landing-visit__card {
-  padding: clamp(2rem, 4vw, 3.5rem);
-  border-radius: 2px;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  background: rgb(255 255 255 / 0.05);
-  backdrop-filter: blur(12px);
+  padding: clamp(2rem, 3.5vw, 2.75rem);
+  border-radius: 1.25rem;
 }
 
 .landing-visit__card-kicker {
   font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: 0.22em;
+  font-weight: 600;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--color-primary-300);
 }
 
 .landing-visit__card-title {
-  margin-top: 1rem;
-  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  margin-top: 0.75rem;
+  font-size: clamp(1.65rem, 3vw, 2rem);
+  line-height: 1.1;
+  color: #fff;
 }
 
 .landing-visit__card-body {
-  margin-top: 1rem;
-  font-size: 0.875rem;
-  line-height: 1.65;
-  color: #9ca3af;
+  margin-top: 0.85rem;
+  font-size: 0.9375rem;
+  line-height: 1.62;
+  color: rgb(156 163 175 / 0.95);
 }
 
 .landing-visit__card-cta {
-  margin-top: 2.5rem;
+  margin-top: 2rem;
   width: 100%;
+}
+
+.landing-visit--continued {
+  position: relative;
+  z-index: 1;
+  background: var(--landing-ink);
+  color: #fff;
+  padding-block: clamp(3rem, 6vw, 4.5rem) clamp(3.25rem, 6.5vw, 5rem);
+}
+
+.landing-visit--continued .landing-gatherings,
+.landing-visit--continued .landing-getting-here {
+  margin-top: 0;
 }

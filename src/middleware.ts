@@ -21,7 +21,7 @@ export function middleware(request: NextRequest) {
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
-    frame-src https://js.stripe.com;
+    frame-src https://js.stripe.com https://www.openstreetmap.org;
     connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://api.stripe.com;
     upgrade-insecure-requests;
   `.replace(/\s{2,}/g, ' ').trim();

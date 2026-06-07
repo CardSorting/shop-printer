@@ -127,6 +127,39 @@ export const HALL_GATHERINGS = [
   },
 ] as const;
 
+export const HALL_BEYOND_GROUPS = [
+  {
+    id: 'gather',
+    title: 'Gather',
+    tagline: 'Tables · toasts · takeovers',
+    items: [
+      { label: 'Party venue', detail: 'Milestones & full-table nights' },
+      { label: 'Jam sesh', detail: 'Open floor · acoustic sets' },
+      { label: '& whatever’s next', detail: 'If the room fits, we’re in' },
+    ],
+  },
+  {
+    id: 'perform',
+    title: 'Perform',
+    tagline: 'Music · film · mic nights',
+    items: [
+      { label: 'Concert hall', detail: 'Live music under the roof' },
+      { label: 'Movie nights', detail: 'Screenings on the floor' },
+      { label: 'Comedy club', detail: 'Stand-up · variety · mic nights' },
+    ],
+  },
+  {
+    id: 'everyday',
+    title: 'Everyday',
+    tagline: 'Dates · laptops · makers',
+    items: [
+      { label: 'Date spot', detail: 'Drinks to dessert · no reservation' },
+      { label: 'Work space', detail: 'Morning laptop regulars' },
+      { label: 'Marketplace', detail: 'Weekend pop-ups & makers' },
+    ],
+  },
+] as const;
+
 export const HALL_STATS = [
   { value: '12', label: 'Open kitchens', detail: 'Independent counters' },
   { value: '0', label: 'Reservations needed', detail: 'Walk in daily' },
@@ -156,5 +189,42 @@ export const HALL_COMBOS = [
     subtitle: 'Espresso · pastry · quiet corner',
     stops: ['Mainline Coffee', 'Hearth Bakery', 'Slice Society'],
     href: '/collections/coffee',
+  },
+] as const;
+
+/** Full-bleed food photography bands between visit-flow sections */
+export const HALL_FOOD_PARALLAX_FRAMES = [
+  {
+    id: 'morning',
+    index: '01',
+    src: '/images/landing/food-parallax-morning.png',
+    alt: 'Espresso, pastry, and morning light on the WoodBine counter',
+    objectPosition: '50% 38%',
+    kicker: 'Morning on the floor',
+    caption: 'Pastry steam before the lunch rush.',
+    detail: 'Espresso · croissants · the first table',
+    align: 'left',
+  },
+  {
+    id: 'pass',
+    index: '02',
+    src: '/images/landing/food-parallax-pass.png',
+    alt: 'Shared plates from multiple counters on a communal table',
+    objectPosition: '50% 45%',
+    kicker: 'On the pass',
+    caption: 'Mix three counters. Eat at one table.',
+    detail: 'Small plates · shared middle · one bill',
+    align: 'right',
+  },
+  {
+    id: 'gather',
+    index: '03',
+    src: '/images/landing/food-parallax-gather.png',
+    alt: 'Guests sharing plates under the barrel roof at night',
+    objectPosition: '50% 42%',
+    kicker: 'After dark',
+    caption: 'The room fills. The floor opens up.',
+    detail: 'Live room · long tables · late service',
+    align: 'left',
   },
 ] as const;

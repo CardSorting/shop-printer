@@ -26,20 +26,19 @@ export function getMapsSearchUrl(
   return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
-/** Embed URL — pan/zoom in-page without a Maps API key */
-export function getMapsEmbedUrl(
-  street: string,
-  locality: string,
-  region: string,
-  lat?: string,
-  lng?: string,
-): string {
+/** In-page pan/zoom embed — OpenStreetMap (allowed by CSP, no API key) */
+export function getMapsEmbedUrl(lat?: string, lng?: string): string {
   const coords = resolveCoords(lat, lng);
-  const query = encodeURIComponent(`${street}, ${locality}, ${region}`);
-  const params = new URLSearchParams({
-    q: lat && lng ? `${coords.lat},${coords.lng}` : query,
-    z: '16',
-    hl: 'en',
-  });
-  return `https://maps.google.com/maps?${params.toString()}&output=embed`;
+  const latitude = Number(coords.lat);
+  const longitude = Number(coords.lng);
+  const padLng = 0.014;
+  const padLat = 0.01;
+  const bbox = [
+    longitude - padLng,
+    latitude - padLat,
+    longitude + padLng,
+    latitude + padLat,
+  ].join('%2C');
+
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${latitude}%2C${longitude}`;
 }

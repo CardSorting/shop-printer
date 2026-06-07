@@ -1,27 +1,26 @@
-import { ArrowRight, Building2, Cake, Users } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { LANDING_COPY } from '../copy';
 import { HALL_GATHERINGS } from '../constants';
 import { HallCta } from './HallCta';
 
 const { gatherings } = LANDING_COPY;
 
-const GATHERING_ICONS: Record<(typeof HALL_GATHERINGS)[number]['id'], LucideIcon> = {
-  team: Users,
-  birthday: Cake,
-  buyout: Building2,
-};
-
 export function HallGatherings() {
   return (
-    <aside className="landing-gatherings" aria-labelledby="gatherings-heading">
+    <aside className="landing-gatherings hall-glass" aria-labelledby="gatherings-heading">
       <header className="landing-gatherings__header">
         <div className="landing-gatherings__intro">
-          <p className="landing-gatherings__label">{gatherings.label}</p>
+          <div className="landing-gatherings__header-top">
+            <p className="landing-gatherings__label">{gatherings.label}</p>
+            <span className="hall-badge">{gatherings.stamp}</span>
+          </div>
           <h3 id="gatherings-heading" className="landing-gatherings__headline font-display">
             {gatherings.headline}
           </h3>
+          <span className="hall-rule" aria-hidden />
           <p className="landing-gatherings__sub">{gatherings.sub}</p>
+          <p className="landing-gatherings__aside">{gatherings.aside}</p>
         </div>
 
         <HallCta
@@ -44,21 +43,16 @@ export function HallGatherings() {
 
       <ol className="landing-gatherings__grid">
         {HALL_GATHERINGS.map((item) => {
-          const Icon = GATHERING_ICONS[item.id];
+          const isBuyout = item.id === 'buyout';
 
           return (
-            <li key={item.id} className="landing-gatherings__item">
+            <li key={item.id} className={`landing-gatherings__item${isBuyout ? ' landing-gatherings__item--featured' : ''}`}>
               <article className="landing-gatherings__card">
-                <div className="landing-gatherings__card-top">
+                <header className="landing-gatherings__card-head">
                   <span className="landing-gatherings__step">{item.step}</span>
-                  <span className="landing-gatherings__icon" aria-hidden>
-                    <Icon className="h-4 w-4" />
-                  </span>
-                </div>
-
-                <p className="landing-gatherings__scale">{item.scale}</p>
+                  <span className="landing-gatherings__scale">{item.scale}</span>
+                </header>
                 <h4 className="landing-gatherings__card-title font-display">{item.label}</h4>
-
                 <ul className="landing-gatherings__chips">
                   {item.highlights.map((highlight) => (
                     <li key={highlight}>{highlight}</li>
@@ -70,14 +64,16 @@ export function HallGatherings() {
         })}
       </ol>
 
-      <HallCta
-        href={gatherings.cta.href}
-        label={gatherings.cta.label}
-        variant="primary"
-        dark
-        className="landing-gatherings__cta landing-gatherings__cta--footer"
-        icon={<ArrowRight className="h-4 w-4" aria-hidden />}
-      />
+      <footer className="landing-gatherings__foot">
+        <p className="landing-gatherings__foot-note">{gatherings.footNote}</p>
+        <HallCta
+          href={gatherings.cta.href}
+          label={gatherings.cta.label}
+          variant="ghost"
+          className="landing-gatherings__cta landing-gatherings__cta--footer"
+          icon={<ArrowRight className="h-4 w-4" aria-hidden />}
+        />
+      </footer>
     </aside>
   );
 }

@@ -160,6 +160,12 @@ export const LANDING_COPY = {
   gettingHere: {
     label: 'Getting here',
     headline: 'Pull into the warehouse district.',
+    sub: 'Street parking on 500 W · rideshare to the front door · look up for the barrel roof.',
+    aside: 'Main entrance faces 500 W — follow the kitchen smoke.',
+    stamp: 'SLC · Warehouse District',
+    routeKicker: 'Route sheet',
+    marginNote: '≈ 5 min from downtown',
+    mapCaption: '235 S 500 W · tap to open full map',
     address: { label: 'Address' },
     parking: {
       label: 'Parking',
@@ -170,6 +176,7 @@ export const LANDING_COPY = {
       detail: 'Look for the barrel roof and open kitchen smoke — main entrance faces 500 W.',
     },
     mapsCta: 'Open in Google Maps',
+    directionsLabel: 'Get directions',
   },
 
   pulse: {
@@ -223,6 +230,29 @@ export const LANDING_COPY = {
     cta: 'Build your order',
   },
 
+  beyond: {
+    index: '07',
+    label: 'Beyond the counters',
+    stamp: 'After dark',
+    headline: ['More than', 'a food hall.'],
+    sub: 'The barrel roof hosts lunch rush at noon and a full room by nine.',
+    aside: 'Same floor — different energy every night.',
+    timelineStart: 'Noon rush',
+    timelineMid: 'Evening',
+    timelineEnd: 'Full room',
+    programLabel: 'Room program',
+    stats: [
+      { value: '12', label: 'Counters by day' },
+      { value: '1', label: 'Barrel roof' },
+      { value: '∞', label: 'Nights possible' },
+    ],
+    footNote: 'Your night · your crowd · our room',
+    imageCaption: '235 S 500 W · Warehouse District',
+    imageChips: ['Live music', 'Private buyouts', 'Pop-ups'],
+    calendar: { label: 'See what’s on', href: '/blog' },
+    host: { label: 'Book the hall', href: '/support?contact=true' },
+  },
+
   closing: {
     headline: 'The table’s set.',
     sub: 'Walk in, mix counters, stay longer than planned — that’s the whole WoodBine ritual.',
@@ -258,6 +288,9 @@ export const LANDING_COPY = {
     label: 'Gatherings',
     headline: 'Feed twelve or fill the warehouse.',
     sub: 'Pick your scale — shared table, birthday crew, or the whole hall after dark.',
+    aside: 'Same room · your crowd · your night',
+    stamp: 'Private events',
+    footNote: 'Team lunch to after-hours buyout',
     flowStart: 'Team lunch',
     flowEnd: 'Full buyout',
     cta: { label: 'Plan with us', href: '/support?contact=true' },
@@ -386,10 +419,14 @@ export const LANDING_COPY = {
   visit: {
     index: '06',
     label: 'Visit',
+    stamp: 'Walk in · no reservation',
+    marginNote: 'See you at the door',
+    coords: '235 S 500 W · SLC',
     headline: ['The door’s', 'unlocked.'],
     lede:
       'Team lunches, birthday tables, first dates, and neighbors who became regulars — WoodBine is where Salt Lake eats together.',
-    sub: 'Walk-ins every day. Private buyouts for your crew. All ages welcome on the floor.',
+    sub: 'Walk-ins every day. Private buyouts for your crew.',
+    aside: 'All ages welcome on the floor.',
     stats: [
       { label: 'Walk in', sub: 'Any counter, any seat' },
       { label: 'Linger', sub: 'Patio · games · second round' },
