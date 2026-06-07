@@ -7,8 +7,10 @@ import { SEO_DEFAULT_OG_IMAGE } from './constants';
 
 export const WOODBINE_BRAND = {
   name: 'WoodBine',
+  legalName: 'Woodbine Food Hall',
   tagline: 'Old Hall. New Flavors.',
-  email: 'hello@woodbine.com',
+  email: 'hello@woodbineslc.com',
+  logoGif: '/Woodbine.gif',
   defaultOgImage: SEO_DEFAULT_OG_IMAGE,
   twitterHandle: '@WoodBine',
   socialProfiles: [

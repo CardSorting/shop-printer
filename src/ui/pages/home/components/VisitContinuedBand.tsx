@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, type ReactNode } from 'react';
-import { useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { SLIDE_UP_VARIANTS } from '@ui/animations';
 import { PARALLAX_SPRING } from '../hooks/useParallax';
 import { useSmoothProgress } from '../hooks/useSmoothProgress';
 import { ParallaxMotion } from './ParallaxMotion';
@@ -27,6 +28,8 @@ export function VisitContinuedBand({ id, children }: VisitContinuedBandProps) {
   const glowBackOpacity = useTransform(smooth, [0, 0.5, 1], [0, 0.22, 0.08]);
   const meshX = useTransform(smooth, [0, 1], ['-5%', '5%']);
   const meshY = useTransform(smooth, [0, 1], ['4%', '-6%']);
+  const meshOpacity = useTransform(smooth, [0, 0.4, 1], [0, 0.22, 0.1]);
+  const contentY = useTransform(smooth, [0, 1], ['5%', '-4%']);
 
   return (
     <section id={id} ref={ref} className="landing-visit landing-visit--continued landing-visit--cinematic landing-parallax-scene">
@@ -46,13 +49,25 @@ export function VisitContinuedBand({ id, children }: VisitContinuedBandProps) {
         aria-hidden
       />
       <ParallaxMotion
-        modes={['transform']}
+        modes={['transform', 'fade']}
         x={meshX}
         y={meshY}
+        opacity={meshOpacity}
         className="landing-visit__continued-mesh"
         aria-hidden
       />
-      <StudioContainer className="landing-visit__inner">{children}</StudioContainer>
+      <StudioContainer className="landing-visit__inner">
+        <ParallaxMotion modes={['shift-y']} y={contentY}>
+          <motion.div
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: '-60px' }}
+            variants={SLIDE_UP_VARIANTS}
+          >
+            {children}
+          </motion.div>
+        </ParallaxMotion>
+      </StudioContainer>
     </section>
   );
 }

@@ -177,3 +177,14 @@ export function useScrollScrubFill(
 ) {
   return useTransform(progress, [start, end], [0, 1]);
 }
+
+/** Brief opacity flash on fast scroll — cinematic velocity feedback */
+export function useScrollVelocityFlash(
+  progress: MotionValue<number>,
+  maxOpacity = 0.14,
+  velocityRange = 2400,
+) {
+  const velocity = useVelocity(progress);
+  const absVel = useTransform(velocity, (v) => Math.min(Math.abs(v) / velocityRange, 1));
+  return useTransform(absVel, [0, 1], [0, maxOpacity]);
+}

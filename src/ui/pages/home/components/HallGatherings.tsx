@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { useRef } from 'react';
 import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
-import { SLIDE_UP_VARIANTS, STAGGER_CONTAINER_VARIANTS } from '@ui/animations';
+import { STAGGER_CONTAINER_VARIANTS } from '@ui/animations';
 import { LANDING_COPY } from '../copy';
 import { HALL_GATHERINGS } from '../constants';
-import { PARALLAX_SPRING, useStaggeredParallaxX, useStaggeredParallaxY } from '../hooks/useParallax';
+import { PARALLAX_SPRING, useStaggeredParallaxX, useStaggeredParallaxY, useStaggeredParallaxRotateY } from '../hooks/useParallax';
 import { useSmoothProgress } from '../hooks/useSmoothProgress';
 import { HallCta } from './HallCta';
+import { CARD_LIFT_HOVER, CARD_TAP, CHIP_POP_HOVER, MICRO_SPRING_SNAPPY } from './MicroMotion';
 import { ParallaxMotion } from './ParallaxMotion';
 
 const { gatherings } = LANDING_COPY;
@@ -34,9 +35,10 @@ function GatheringParallaxItem({
 }) {
   const y = useStaggeredParallaxY(progress, index, 2, [3, -4]);
   const x = useStaggeredParallaxX(progress, index, [-2, 2]);
+  const rotateY = useStaggeredParallaxRotateY(progress, index, 2, [-3, 3]);
 
   return (
-    <ParallaxMotion modes={['transform']} x={x} y={y}>
+    <ParallaxMotion modes={['transform']} x={x} y={y} rotateY={rotateY}>
       {children}
     </ParallaxMotion>
   );
@@ -57,16 +59,16 @@ export function HallGatherings() {
   const flowX = useTransform(smooth, [0, 1], ['-4%', '4%']);
   const flowScale = useTransform(smooth, [0.12, 0.52], [0, 1]);
   const headlineX = useTransform(smooth, [0, 1], ['0%', '-3%']);
+  const headlineClip = useTransform(smooth, [0.05, 0.24], ['inset(100% 0 0 0 round 2px)', 'inset(0% 0 0 0 round 2px)']);
+  const ruleScale = useTransform(smooth, [0.1, 0.3], [0, 1]);
+  const subOpacity = useTransform(smooth, [0.14, 0.32], [0, 1]);
+  const subY = useTransform(smooth, [0.14, 0.34], ['1rem', '0rem']);
 
   return (
     <motion.aside
       ref={ref}
       className="landing-gatherings hall-glass"
       aria-labelledby="gatherings-heading"
-      initial="initial"
-      whileInView="animate"
-      viewport={{ once: true, margin: '-80px' }}
-      variants={SLIDE_UP_VARIANTS}
     >
       <ParallaxMotion
         modes={['shift-y', 'fade']}
@@ -84,13 +86,15 @@ export function HallGatherings() {
               <p className="landing-gatherings__label">{gatherings.label}</p>
               <span className="hall-badge">{gatherings.stamp}</span>
             </div>
-            <ParallaxMotion modes={['shift-x']} x={headlineX}>
+            <ParallaxMotion modes={['shift-y', 'clip']} clipPath={headlineClip}>
             <h3 id="gatherings-heading" className="landing-gatherings__headline font-display">
               {gatherings.headline}
             </h3>
             </ParallaxMotion>
-            <span className="hall-rule" aria-hidden />
+            <ParallaxMotion modes={['scale-x']} scaleX={ruleScale} className="hall-rule landing-gatherings__rule" aria-hidden />
+            <ParallaxMotion modes={['shift-y', 'fade']} y={subY} opacity={subOpacity}>
             <p className="landing-gatherings__sub">{gatherings.sub}</p>
+            </ParallaxMotion>
             <p className="landing-gatherings__aside">{gatherings.aside}</p>
           </div>
 
@@ -133,18 +137,28 @@ export function HallGatherings() {
               transition={{ delay: index * 0.08 }}
             >
               <GatheringParallaxItem progress={smooth} index={index}>
-              <article className="landing-gatherings__card">
+              <motion.article
+                className="landing-gatherings__card"
+                whileHover={CARD_LIFT_HOVER}
+                whileTap={CARD_TAP}
+              >
                   <header className="landing-gatherings__card-head">
                     <span className="landing-gatherings__step">{item.step}</span>
                     <span className="landing-gatherings__scale">{item.scale}</span>
                   </header>
                   <h4 className="landing-gatherings__card-title font-display">{item.label}</h4>
                   <ul className="landing-gatherings__chips">
-                    {item.highlights.map((highlight) => (
-                      <li key={highlight}>{highlight}</li>
+                    {item.highlights.map((highlight, chipIndex) => (
+                      <motion.li
+                        key={highlight}
+                        whileHover={CHIP_POP_HOVER}
+                        transition={MICRO_SPRING_SNAPPY}
+                      >
+                        {highlight}
+                      </motion.li>
                     ))}
                   </ul>
-              </article>
+              </motion.article>
               </GatheringParallaxItem>
             </motion.li>
             );

@@ -1,9 +1,23 @@
+'use client';
+
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
+import { STAGGER_CONTAINER_VARIANTS } from '@ui/animations';
 import { LANDING_COPY } from '../copy';
 import { HALL_CRAVINGS } from '../constants';
+import { CardGridItem } from './MicroMotion';
 
 const { cravings } = LANDING_COPY;
+
+const ITEM_VARIANTS = {
+  initial: { opacity: 0, y: 16 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const },
+  },
+};
 
 export function HallCravingsPicker() {
   return (
@@ -16,22 +30,25 @@ export function HallCravingsPicker() {
         <p className="landing-cravings__sub">{cravings.sub}</p>
       </div>
 
-      <ul className="landing-cravings__grid">
+      <motion.ul
+        className="landing-cravings__grid"
+        initial="initial"
+        whileInView="animate"
+        viewport={{ once: true, margin: '-40px' }}
+        variants={STAGGER_CONTAINER_VARIANTS}
+      >
         {HALL_CRAVINGS.map((item) => (
-          <li key={item.id}>
+          <CardGridItem key={item.id} variants={ITEM_VARIANTS}>
             <Link href={item.href} className="landing-cravings__card group">
               <div>
                 <span className="landing-cravings__card-label">{item.label}</span>
                 <span className="landing-cravings__card-sub">{item.sub}</span>
               </div>
-              <ArrowUpRight
-                className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-                aria-hidden
-              />
+              <ArrowUpRight className="landing-cravings__card-arrow h-4 w-4 shrink-0" aria-hidden />
             </Link>
-          </li>
+          </CardGridItem>
         ))}
-      </ul>
+      </motion.ul>
     </section>
   );
 }

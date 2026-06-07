@@ -106,6 +106,13 @@
   align-items: start;
   padding: 1.25rem 0;
   border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 0.35rem;
+  cursor: default;
+  transition: background 240ms ease;
+}
+
+.landing-visit__stat:hover {
+  background: rgb(255 255 255 / 0.03);
 }
 
 @media (min-width: 640px) {

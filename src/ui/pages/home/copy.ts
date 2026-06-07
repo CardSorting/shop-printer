@@ -13,10 +13,10 @@ export const LANDING_META = {
 export const LANDING_SECTIONS = [
   { id: 'landing-hero', label: 'Welcome', shortLabel: 'Home', hint: 'Start here' },
   { id: 'landing-vendors', label: 'Counters', shortLabel: 'Menu', hint: 'Nine kitchens' },
-  { id: 'landing-visit', label: 'Visit us', shortLabel: 'Visit', hint: 'Hours & location' },
-  { id: 'landing-gatherings', label: 'Private events', shortLabel: 'Events', hint: 'Book the hall' },
-  { id: 'landing-beyond', label: 'The space', shortLabel: 'Space', hint: 'Rooms & layout' },
-  { id: 'landing-directions', label: 'Directions', shortLabel: 'Map', hint: 'Getting here' },
+  { id: 'landing-visit', label: 'Visit us', shortLabel: 'Visit', hint: 'Walk in anytime' },
+  { id: 'landing-gatherings', label: 'Private events', shortLabel: 'Events', hint: 'Book the room' },
+  { id: 'landing-beyond', label: 'The space', shortLabel: 'Space', hint: 'Beyond the line' },
+  { id: 'landing-directions', label: 'Directions', shortLabel: 'Map', hint: 'Pull in' },
 ] as const;
 
 export const LANDING_COPY = {
@@ -32,52 +32,52 @@ export const LANDING_COPY = {
     kicker: 'Salt Lake City’s neighborhood food hall',
     headline: ['Nine kitchens.', 'One big table.'],
     lede:
-      'Independent vendors, open flames, shared seating, and a warehouse room built for the kind of meal that turns into an afternoon — coffee at dawn to cocktails after dark.',
-    aside: 'No host stand. No turn policy. Just pull up a chair.',
+      'Open flames, shared seating, and a restored warehouse built for the meal that becomes an afternoon — espresso at dawn to nightcaps under the barrel roof.',
+    aside: 'No host stand. No turn time. Pull up a chair.',
     collage: {
       volume: 'On the floor today',
-      quote: 'Order from three counters. Eat at one table. Stay until the patio lights come on.',
+      quote: 'Three counters. One table. Stay until the patio lights come on.',
     },
     scroll: 'Walk the hall',
     cta: {
       primary: { label: 'See the counters', href: '#landing-vendors' },
-      secondary: { label: 'Find us & hours', href: '/support' },
+      secondary: { label: 'Hours & directions', href: '#landing-visit' },
     },
     byDaypart: {
       morning: {
         lede:
-          'Warm cookies, fresh slices, and quiet tables before the lunch rush — nine kitchens waking up along one wall.',
-        aside: 'Chunky opens early. Mozz pulls from the oven. Stay as long as you want.',
+          'Warm cookies, fresh slices, and quiet tables before the rush — nine kitchens waking up along one wall.',
+        aside: 'Chunky for something sweet. Mozz from the oven. Stay as long as you want.',
         ctaPrimary: { label: 'Morning menu', href: '/collections/coffee' },
-        collageQuote: 'Pastry counter first. Espresso second. The floor is yours until noon.',
+        collageQuote: 'Pastry first. Espresso second. The floor is yours until noon.',
       },
       midday: {
         lede:
-          'Every counter firing at once — steam from the pass, shared plates, and the buzz of a room built for mixing menus.',
-        aside: 'No host stand. No turn policy. Just pull up a chair.',
+          'Every counter firing — steam from the pass, shared plates, and the buzz of a room built for mixing menus.',
+        aside: 'No host stand. No turn time. Pull up a chair.',
         ctaPrimary: { label: 'Order lunch', href: '/collections/bestsellers' },
-        collageQuote: 'Order from three counters. Eat at one table. Stay until the patio fills.',
+        collageQuote: 'Arepas from Caracas. Smoke from Salt City. One table for all of it.',
       },
       afternoon: {
         lede:
-          'Second round from Chunky, a slice from Mozz, laptop-friendly corners — the hall slows down without emptying out.',
-        aside: 'Marcato for a stromboli. DeadPan for a sando. Nobody clocks your table.',
+          'Second round from Chunky, a slice from Mozz, laptop corners in the slow middle of the day — the hall quiets without emptying out.',
+        aside: 'Marcato stromboli. DeadPan sando. Nobody clocks your table.',
         ctaPrimary: { label: 'Afternoon menu', href: '/collections/bestsellers' },
         collageQuote: 'The rush is over. The room is yours for a slow round.',
       },
       evening: {
         lede:
-          'Patio lights, shared mains, smoke from Salt City Barbecue, and slices from Mozz — dinner as a room, not a reservation.',
-        aside: 'Walk in. Mix counters. Stay for nightcaps.',
+          'Patio lights, shared mains, smoke from Salt City Barbecue, slices from Mozz — dinner as a room, not a reservation.',
+        aside: 'Walk in. Mix counters. Stay for one more round.',
         ctaPrimary: { label: 'Dinner menu', href: '/collections/hearty' },
-        collageQuote: 'Cocktails, shared plates, and the warehouse lit up after dark.',
+        collageQuote: 'Cocktails, shared plates, warehouse lit up after dark.',
       },
       late: {
         lede:
           'Final bowls from Tosh\'s, burgers from Doms, cookies from Chunky if you\'re lucky — the hall winding down together.',
-        aside: 'Last call energy. Same communal tables. One more round if you\'re quick.',
+        aside: 'Last-call energy. Same communal tables. One more round if you\'re quick.',
         ctaPrimary: { label: 'Late menu', href: '/collections/bestsellers' },
-        collageQuote: 'Tonkotsu, nightcaps, and the room going quiet by degrees.',
+        collageQuote: 'Tonkotsu, nightcaps, the room going quiet by degrees.',
       },
     },
   },
@@ -93,35 +93,35 @@ export const LANDING_COPY = {
   counterLine: {
     label: 'Walk the line',
     headline: 'Nine kitchens along one wall.',
-    hint: 'Scroll the counter line — order from any window, mix plates at one table.',
+    hint: 'Scroll the counter line — order at any window, mix plates at one table.',
     footer: 'Every counter is its own restaurant · Same room · Same buzz',
   },
 
   daypart: {
     morning: {
       greeting: 'Morning on the floor',
-      hint: 'Espresso, pastries, and quiet tables before the lunch rush.',
-      suggestion: 'Start at Chunky or grab a slice from Mozz',
+      hint: 'Espresso, pastry, and quiet tables before the rush.',
+      suggestion: 'Chunky for cookies · Mozz for a slice',
     },
     midday: {
       greeting: 'Lunch rush energy',
       hint: 'Steam from the pass, shared plates, every counter firing.',
-      suggestion: 'Mix arepas from Caracas Grill with ramen from Tosh\'s',
+      suggestion: 'Arepas from Caracas · ramen from Tosh\'s · same table',
     },
     afternoon: {
       greeting: 'Slow afternoon',
-      hint: 'Cookies from Chunky, a slice from Mozz, laptop-friendly corners.',
-      suggestion: 'Marcato stromboli · Chunky cookies · slow table',
+      hint: 'Cookies, slices, laptop-friendly corners — the hall in low gear.',
+      suggestion: 'Marcato stromboli · DeadPan sando · slow table',
     },
     evening: {
       greeting: 'Evening in the hall',
-      hint: 'Cocktails, shared mains, patio lights, one more round.',
+      hint: 'Patio lights, shared mains, smoke from the pass, one more round.',
       suggestion: 'Salt City Barbecue for smoke · Mozz for a pie',
     },
     late: {
-      greeting: 'Last call vibes',
+      greeting: 'Last call',
       hint: 'Final plates, nightcaps, the room winding down together.',
-      suggestion: "Tosh's Ramen Express · Doms Burgers · whatever's still on the pass",
+      suggestion: "Tosh's tonkotsu · Doms smash · whatever's still firing",
     },
   },
 
@@ -138,13 +138,13 @@ export const LANDING_COPY = {
       title: 'Every counter is firing',
       energy: 'Full buzz · shared tables',
       hotCounters: ['Caracas Grill', 'Salt City Barbecue', 'Doms Burgers'],
-      cta: { label: 'Order lunch now', href: '/collections/bestsellers' },
+      cta: { label: 'Order lunch', href: '/collections/bestsellers' },
     },
     afternoon: {
-      title: 'Second round weather',
+      title: 'Second-round weather',
       energy: 'Relaxed · laptop-friendly',
       hotCounters: ['Mozz', 'DeadPan', 'Chunky'],
-      cta: { label: 'Browse afternoon menu', href: '/collections/bestsellers' },
+      cta: { label: 'Browse afternoon', href: '/collections/bestsellers' },
     },
     evening: {
       title: 'Patio lights & shared plates',
@@ -168,7 +168,7 @@ export const LANDING_COPY = {
     stamp: 'SLC · Warehouse District',
     routeKicker: 'Route sheet',
     marginNote: '≈ 5 min from downtown',
-    mapCaption: '235 S 500 W · tap to open full map',
+    mapCaption: '235 S 500 W · tap for full map',
     address: { label: 'Address' },
     parking: {
       label: 'Parking',
@@ -176,7 +176,7 @@ export const LANDING_COPY = {
     },
     arrival: {
       label: 'First time?',
-      detail: 'Look for the barrel roof and open kitchen smoke — main entrance faces 500 W.',
+      detail: 'Look for the barrel roof and open-kitchen smoke — main entrance faces 500 W.',
     },
     mapsCta: 'Open in Google Maps',
     directionsLabel: 'Get directions',
@@ -213,13 +213,13 @@ export const LANDING_COPY = {
 
   amenities: {
     label: 'On the floor',
-    headline: 'Everything you need for a long afternoon.',
+    headline: 'Built for a long afternoon.',
   },
 
   cravings: {
     label: 'Start here',
     headline: 'What sounds good right now?',
-    sub: 'Pick a mood — we’ll point you to the right counters.',
+    sub: 'Pick a mood — we’ll point you to the right counter.',
   },
 
   stats: {
@@ -229,7 +229,7 @@ export const LANDING_COPY = {
   combos: {
     label: 'Regular routes',
     headline: 'How locals plate a visit.',
-    sub: 'Three counters, one table, zero rules — copy a round or invent your own.',
+    sub: 'Three counters, one table, zero rules — copy a round or build your own.',
     cta: 'Build your order',
   },
 
@@ -238,18 +238,19 @@ export const LANDING_COPY = {
     label: 'Beyond the counters',
     stamp: 'After dark',
     headline: ['More than', 'a food hall.'],
-    sub: 'The barrel roof hosts lunch rush at noon and a full room by nine.',
-    aside: 'Same floor — different energy every night.',
+    sub: 'The barrel roof runs lunch rush at noon and a full room by nine.',
+    aside: 'Same floor · different energy every night.',
     timelineStart: 'Noon rush',
     timelineMid: 'Evening',
     timelineEnd: 'Full room',
     programLabel: 'Room program',
+    programLive: 'Open to bookings',
     stats: [
       { value: '9', label: 'Counters by day' },
       { value: '1', label: 'Barrel roof' },
       { value: '∞', label: 'Nights possible' },
     ],
-    footNote: 'Your night · your crowd · our room',
+    footNote: 'Your crowd · your night · our room',
     imageCaption: '235 S 500 W · Warehouse District',
     imageChips: ['Live music', 'Private buyouts', 'Pop-ups'],
     calendar: { label: 'See what’s on', href: '/blog' },
@@ -258,17 +259,17 @@ export const LANDING_COPY = {
 
   closing: {
     headline: 'The table’s set.',
-    sub: 'Walk in, mix counters, stay longer than planned — that’s the whole WoodBine ritual.',
+    sub: 'Walk in, mix counters, stay longer than you planned — that’s the whole WoodBine ritual.',
     primary: { label: 'Browse hall favorites', href: '/collections/bestsellers' },
-    secondary: { label: 'Plan your visit', href: '/support' },
+    secondary: { label: 'Plan your visit', href: '#landing-visit' },
   },
 
   hallNews: {
     label: 'On the bulletin',
-    headline: 'This week at WoodBine.',
+    headline: 'This week on the floor.',
     cta: 'All hall news',
     ctaHref: '/blog',
-    empty: 'Fresh updates from the floor — check back soon.',
+    empty: 'Fresh updates from the pass — check back soon.',
   },
 
   firstTimer: {
@@ -290,7 +291,7 @@ export const LANDING_COPY = {
   gatherings: {
     label: 'Gatherings',
     headline: 'Feed twelve or fill the warehouse.',
-    sub: 'Pick your scale — shared table, birthday crew, or the whole hall after dark.',
+    sub: 'Shared table, birthday crew, or the whole hall after dark — pick your scale.',
     aside: 'Same room · your crowd · your night',
     stamp: 'Private events',
     footNote: 'Team lunch to after-hours buyout',
@@ -305,7 +306,7 @@ export const LANDING_COPY = {
     rail: 'Guest guide',
     headline: ['Your first lap', 'takes five minutes.'],
     body:
-      'Walk the counter line. Read every menu. Grab a drink on the way to your seat. WoodBine is designed so you never need permission — only an appetite and however much time you want to spend.',
+      'Walk the counter line. Read every menu. Grab a drink on the way to your seat. WoodBine is built so you never need permission — only an appetite and however long you want to stay.',
     pullquote: 'The hall belongs to whoever shows up — solo with a book, crew of twelve, or somewhere in between.',
     figureCaption: 'Barrel roof · open kitchens · every seat near the action.',
     floorGuide: {
@@ -321,12 +322,12 @@ export const LANDING_COPY = {
       {
         step: '02',
         title: 'Claim a spot',
-        body: 'Communal tables, bar seats, patio, quiet corners. Everyday visits are walk-in — sit where the energy feels right.',
+        body: 'Communal tables, bar seats, patio, quiet corners. Walk in daily — sit where the energy feels right.',
       },
       {
         step: '03',
         title: 'Stay for the room',
-        body: 'Dessert from another counter. A second round outside. Ping pong between courses. Nobody rushes you out.',
+        body: 'Dessert from another counter. A second round outside. Cornhole between courses. Nobody rushes you out.',
       },
     ],
     pillars: [
@@ -354,7 +355,7 @@ export const LANDING_COPY = {
   editorial: {
     kicker: 'Sensory notes',
     quote: 'You smell the smoke before you read the menu.',
-    sub: 'Char from the grill, citrus from the raw bar, fresh bread from the oven — the hall announces itself the moment you walk in.',
+    sub: 'Char from the grill, citrus from the raw bar, bread from the oven — the hall announces itself the moment you walk in.',
     cta: { label: 'First visit guide', href: '/support' },
     senses: ['Wood smoke', 'Fresh espresso', 'Griddled bread', 'Citrus & brine', 'Toasting glasses'],
   },
@@ -366,7 +367,7 @@ export const LANDING_COPY = {
     headline: ['The table', 'next to yours.'],
     featured: {
       quote:
-        'Quick lunch became a three-hour tour — tacos, then oysters, then affogato. We know every counter by name now. Thursdays are ours.',
+        'Quick lunch became a three-hour lap — arepas, then sushi, then warm cookies. We know every counter by name now. Thursdays are ours.',
       role: 'Communal table · Weekly crew',
     },
     cards: [
@@ -391,7 +392,7 @@ export const LANDING_COPY = {
     rail: 'Nine kitchens · one room',
     headline: ['One hall,', 'every craving.'],
     lede:
-      'Shared tables, open seating, and a warehouse room built for grazing — pizza, BBQ, ramen, and cookies from the same floor.',
+      'Shared tables, open seating, and a warehouse floor built for grazing — pizza, smoke, ramen, and cookies from the same room.',
     directoryLabel: 'On the floor',
     directoryHint: 'Nine kitchens · walk in · mix menus at one table',
     cta: { label: 'Walk the hall', href: '/collections/bestsellers' },
@@ -407,7 +408,7 @@ export const LANDING_COPY = {
     label: 'Menu',
     headline: ['On the pass', 'now.'],
     lede:
-      "What regulars order on repeat — add to cart, pay online, and pick up at any counter when you arrive.",
+      'What regulars order on repeat — add to cart, pay online, pick up at any counter when you arrive.',
     categoriesLabel: 'Browse by craving',
     vendorFilterLabel: 'Filter by counter',
     allCounters: 'All counters',
@@ -428,22 +429,22 @@ export const LANDING_COPY = {
     coords: '235 S 500 W · SLC',
     headline: ['The door’s', 'unlocked.'],
     lede:
-      'Team lunches, birthday tables, first dates, and neighbors who became regulars — WoodBine is where Salt Lake eats together.',
-    sub: 'Walk-ins every day. Private buyouts for your crew.',
-    aside: 'All ages welcome on the floor.',
+      'Lunch crews from downtown. Birthday tables passing plates. First dates over ramen and slices — Salt Lake eats together here.',
+    sub: 'Walk-ins every day. Buy out the hall when your crowd needs the whole room.',
+    aside: 'All ages on the floor · patio open · stay until close.',
     stats: [
-      { label: 'Walk in', sub: 'Any counter, any seat' },
-      { label: 'Linger', sub: 'Patio · games · second round' },
+      { label: 'Walk in', sub: 'Any counter · any seat' },
+      { label: 'Linger', sub: 'Patio · cornhole · dessert round two' },
       { label: 'Return', sub: 'They’ll know your order' },
     ],
     card: {
       kicker: 'Plan your visit',
       title: 'Pull up to the warehouse.',
-      body: 'Parking, hours, vendor list, and a first-timer guide — everything between here and your first bite.',
+      body: 'Street parking on 500 W, daily hours, all nine kitchens, and a first-timer guide — everything from pull-up to first bite.',
       cta: { label: 'Hours & directions', href: '#landing-directions' },
     },
   },
 } as const;
 
 export const LANDING_SEO_HEADLINE =
-  'WoodBine — Salt Lake City’s neighborhood food hall in a restored warehouse';
+  'WoodBine — Salt Lake City’s neighborhood food hall in a restored warehouse on 500 West';

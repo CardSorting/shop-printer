@@ -28,12 +28,18 @@ export function HomePage() {
       <StudioShell guided cinematic>
         <HeroSection />
         <LandingSectionBridge />
+        <LandingSceneCut
+          from="01"
+          to="02"
+          title="The counters"
+          subtitle="Nine kitchens · one wall · mix whatever you want"
+        />
         <VendorsSection />
         <LandingSceneCut
           from="02"
           to="03"
-          title="Visit the hall"
-          subtitle="Hours, private events, the space — and how to find us"
+          title="Plan your visit"
+          subtitle="Hours · events · directions — everything before you walk in"
         />
         <VisitSection />
       </StudioShell>

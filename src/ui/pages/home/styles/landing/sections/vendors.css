@@ -80,6 +80,10 @@
   color: white;
 }
 
+.landing-vendors__rule {
+  transform-origin: left center;
+}
+
 .landing-vendors__lede {
   max-width: 20rem;
   font-size: 0.875rem;

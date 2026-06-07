@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import Image from 'next/image';
-import { useScroll, useTransform } from 'framer-motion';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import type { HALL_FOOD_PARALLAX_FRAMES } from '../constants';
 import {
   PARALLAX_SPRING,
@@ -23,6 +23,7 @@ type HallFoodParallaxBreakProps = {
 
 export function HallFoodParallaxBreak({ frame, step, total }: HallFoodParallaxBreakProps) {
   const ref = useRef<HTMLElement>(null);
+  const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ['start start', 'end end'],
@@ -78,6 +79,9 @@ export function HallFoodParallaxBreak({ frame, step, total }: HallFoodParallaxBr
   const scrimOpacity = useTransform(smooth, [0, 0.36, 0.54, 0.72, 1], [0, 0, 0.78, 0.88, 0.96]);
   const scrimY = useTransform(smooth, [0, 1], ['16%', '-12%']);
 
+  const railTopOpacity = useTransform(smooth, [0, 0.14, 0.42, 0.78, 1], [0.92, 0.5, 0.22, 0.42, 0.82]);
+  const railBottomOpacity = useTransform(smooth, [0, 0.2, 0.55, 0.9, 1], [0.72, 0.32, 0.14, 0.36, 0.78]);
+
   const hintOpacity = useTransform(smooth, [0, 0.1, 0.2], [1, 0.55, 0]);
   const hintY = useTransform(smooth, [0, 0.2], ['0rem', '-1.25rem']);
 
@@ -114,6 +118,18 @@ export function HallFoodParallaxBreak({ frame, step, total }: HallFoodParallaxBr
     >
       <SectionScrollSeam targetRef={ref} variant="dark" />
       <div className="landing-food-pass__pin">
+        <ParallaxMotion
+          modes={['fade']}
+          opacity={railTopOpacity}
+          className="landing-food-pass__cinema-rail landing-food-pass__cinema-rail--top"
+          aria-hidden
+        />
+        <ParallaxMotion
+          modes={['fade']}
+          opacity={railBottomOpacity}
+          className="landing-food-pass__cinema-rail landing-food-pass__cinema-rail--bottom"
+          aria-hidden
+        />
         <ParallaxMotion
           modes={['transform', 'filter']}
           x={imageX}
@@ -216,7 +232,12 @@ export function HallFoodParallaxBreak({ frame, step, total }: HallFoodParallaxBr
           className="landing-food-pass__scroll-hint"
           aria-hidden
         >
-          Keep scrolling
+          <motion.span
+            animate={reduceMotion ? undefined : { y: [0, 5, 0], opacity: [0.72, 1, 0.72] }}
+            transition={reduceMotion ? undefined : { duration: 1.85, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            Keep scrolling
+          </motion.span>
         </ParallaxMotion>
 
         <div className="landing-food-pass__story" aria-hidden>
@@ -261,7 +282,14 @@ export function HallFoodParallaxBreak({ frame, step, total }: HallFoodParallaxBr
           )}
 
           <ParallaxMotion modes={['shift-y', 'fade']} y={exitY} opacity={exitOpacity}>
-            <p className="landing-food-pass__next-hint">Continue scrolling ↓</p>
+            <p className="landing-food-pass__next-hint">
+              <motion.span
+                animate={reduceMotion ? undefined : { y: [0, 4, 0], opacity: [0.65, 1, 0.65] }}
+                transition={reduceMotion ? undefined : { duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+              >
+                Continue scrolling ↓
+              </motion.span>
+            </p>
           </ParallaxMotion>
         </ParallaxMotion>
       </div>

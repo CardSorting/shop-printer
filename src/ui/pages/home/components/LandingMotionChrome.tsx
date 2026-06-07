@@ -1,11 +1,15 @@
 'use client';
 
+import { useRef } from 'react';
 import { useScroll, useTransform } from 'framer-motion';
-import { PARALLAX_SPRING } from '../hooks/useParallax';
+import { PARALLAX_SPRING, useScrollVelocityFlash, useScrollVelocityScale } from '../hooks/useParallax';
 import { usePointerParallax } from '../hooks/usePointerParallax';
 import { useSmoothProgress } from '../hooks/useSmoothProgress';
 import { LandingCinematicOverlay } from './LandingCinematicOverlay';
 import { LandingFoodStoryRail } from './LandingFoodStoryRail';
+import { LandingPageCurtain } from './LandingPageCurtain';
+import { LandingScrollChapterRail } from './LandingScrollChapterRail';
+import { LandingScrollTicker } from './LandingScrollTicker';
 import { ParallaxMotion } from './ParallaxMotion';
 
 /** Fixed scroll UI + page-level ambient motion tied to document progress */
@@ -21,11 +25,24 @@ export function LandingMotionChrome() {
   const gridY = useTransform(smooth, [0, 1], ['-5%', '8%']);
   const gridOpacity = useTransform(smooth, [0, 0.3, 0.7, 1], [0, 0.12, 0.12, 0.08]);
   const gridX = useTransform(smooth, [0, 1], ['-3%', '4%']);
+  const gridBackRotate = useTransform(smooth, [0, 1], ['0deg', '1.2deg']);
+  const gridBackX = useTransform(smooth, [0, 1], ['2%', '-3%']);
+  const orbVelocityScale = useScrollVelocityScale(smooth, [1, 1.06]);
+  const velocityFlash = useScrollVelocityFlash(smooth, 0.16);
 
   return (
     <>
+      <LandingPageCurtain />
       <LandingCinematicOverlay />
       <div className="landing-page-ambient" aria-hidden>
+        <ParallaxMotion
+          modes={['transform', 'fade']}
+          x={gridBackX}
+          y={gridY}
+          rotate={gridBackRotate}
+          opacity={gridOpacity}
+          className="landing-page-ambient__grid landing-page-ambient__grid--back"
+        />
         <ParallaxMotion
           modes={['transform', 'fade']}
           x={gridX}
@@ -51,12 +68,22 @@ export function LandingMotionChrome() {
           modes={['transform', 'fade']}
           x={pointer.fore.x}
           y={pointer.fore.y}
+          scale={orbVelocityScale}
           opacity={fieldOpacity}
           className="landing-page-ambient__orb landing-page-ambient__orb--front"
         />
       </div>
 
+      <ParallaxMotion
+        modes={['fade']}
+        opacity={velocityFlash}
+        className="landing-page-ambient__flash"
+        aria-hidden
+      />
+
       <LandingFoodStoryRail />
+      <LandingScrollChapterRail progress={smooth} />
+      <LandingScrollTicker progress={smooth} />
     </>
   );
 }

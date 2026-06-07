@@ -25,6 +25,20 @@
   text-align: center;
 }
 
+.landing-hall-stats__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.65rem;
+  cursor: default;
+  transition: background 240ms ease;
+}
+
+.landing-hall-stats__stat:hover {
+  background: rgb(245 158 11 / 0.06);
+}
+
 .landing-hall-stats__value {
   display: block;
   font-size: clamp(2rem, 4vw, 2.75rem);

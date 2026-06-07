@@ -79,7 +79,11 @@ export function buildRootLayoutMetadata(config: SeoSiteConfig): Metadata {
       telephone: false,
     },
     icons: {
-      icon: '/icon.png',
+      icon: [
+        { url: '/icon.svg', type: 'image/svg+xml' },
+        { url: '/favicon.png', sizes: '192x192', type: 'image/png' },
+        { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      ],
       shortcut: '/favicon.png',
       apple: '/icon.png',
     },

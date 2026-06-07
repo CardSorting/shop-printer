@@ -21,6 +21,28 @@
   align-items: flex-end;
 }
 
+.landing-food-pass__cinema-rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 12;
+  height: clamp(2.5rem, 6vh, 4rem);
+  pointer-events: none;
+  background: linear-gradient(to bottom, var(--landing-ink), rgb(12 11 10 / 0.72) 55%, transparent);
+  transform-origin: top center;
+  will-change: transform, opacity;
+}
+
+.landing-food-pass__cinema-rail--top {
+  top: 0;
+}
+
+.landing-food-pass__cinema-rail--bottom {
+  bottom: 0;
+  transform-origin: bottom center;
+  background: linear-gradient(to top, var(--landing-ink), rgb(12 11 10 / 0.78) 50%, transparent);
+}
+
 .landing-food-pass__media {
   position: absolute;
   inset: -14% 0;
@@ -351,6 +373,7 @@
     display: none;
   }
 
+  .landing-food-pass__cinema-rail,
   .landing-food-pass__depth-frame {
     opacity: 0.2 !important;
   }

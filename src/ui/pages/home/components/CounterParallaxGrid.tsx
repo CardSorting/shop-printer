@@ -8,8 +8,10 @@ import { STAGGER_CONTAINER_VARIANTS } from '@ui/animations';
 import { LANDING_COPY } from '../copy';
 import { HALL_COUNTERS } from '../constants';
 import { useHallDaypart } from '../hooks/useHallDaypart';
-import { useStaggeredParallaxX, useStaggeredParallaxY } from '../hooks/useParallax';
+import { useStaggeredParallaxX, useStaggeredParallaxY, useStaggeredParallaxRotateY } from '../hooks/useParallax';
+import { CARD_LIFT_SUBTLE, CARD_TAP } from './MicroMotion';
 import { ParallaxMotion } from './ParallaxMotion';
+import { PointerTiltSurface } from './PointerMotionSurfaces';
 
 const { vendors } = LANDING_COPY;
 
@@ -42,6 +44,7 @@ function CounterGridTile({
 }) {
   const y = useStaggeredParallaxY(progress, index, 4, [5, -7]);
   const x = useStaggeredParallaxX(progress, index, [-2.5, 2.5]);
+  const rotateY = useStaggeredParallaxRotateY(progress, index, 4, [-3.5, 3.5]);
   const depth = 0.65 + (index % 4) * 0.28;
   const imageY = useTransform(progress, [0, 1], [`${6 * depth}%`, `${-10 * depth}%`]);
   const imageScale = useTransform(progress, [0, 0.45, 1], [1.14, 1.02, 1.1]);
@@ -51,10 +54,12 @@ function CounterGridTile({
       className={`landing-counter-grid__cell landing-counter-grid__cell--${counter.layout}${isHot ? ' landing-counter-grid__cell--hot' : ''}`}
       variants={TILE_VARIANTS}
       transition={{ delay: index * 0.04 }}
+      whileHover={CARD_LIFT_SUBTLE}
+      whileTap={CARD_TAP}
     >
-      <ParallaxMotion modes={['transform']} x={x} y={y} className="landing-counter-grid__parallax">
+      <ParallaxMotion modes={['transform']} x={x} y={y} rotateY={rotateY} className="landing-counter-grid__parallax">
         <Link href={counter.href} className="landing-counter-grid__link group">
-          <div className="landing-counter-grid__media">
+          <PointerTiltSurface className="landing-counter-grid__media" maxRotate={isHot ? 6 : 4.5}>
             <ParallaxMotion modes={['transform']} y={imageY} scale={imageScale} className="landing-counter-grid__media-inner">
               <Image
                 src={counter.img}
@@ -83,7 +88,7 @@ function CounterGridTile({
                 </span>
               </div>
             </div>
-          </div>
+          </PointerTiltSurface>
         </Link>
       </ParallaxMotion>
     </motion.li>
@@ -96,6 +101,8 @@ function CounterGridTileStatic({ counter, index, isHot }: { counter: Counter; in
       className={`landing-counter-grid__cell landing-counter-grid__cell--${counter.layout}${isHot ? ' landing-counter-grid__cell--hot' : ''}`}
       variants={TILE_VARIANTS}
       transition={{ delay: index * 0.04 }}
+      whileHover={CARD_LIFT_SUBTLE}
+      whileTap={CARD_TAP}
     >
       <Link href={counter.href} className="landing-counter-grid__link group">
         <div className="landing-counter-grid__media">
@@ -133,19 +140,45 @@ function CounterGridTileStatic({ counter, index, isHot }: { counter: Counter; in
   );
 }
 
+function CounterGridRail({ progress }: { progress: MotionValue<number> }) {
+  const railY = useTransform(progress, [0, 0.35], ['5%', '-3%']);
+  const countScale = useTransform(progress, [0.06, 0.28], [0.88, 1]);
+  const countOpacity = useTransform(progress, [0.04, 0.2], [0.35, 1]);
+
+  return (
+    <div className="landing-counter-grid__rail">
+      <div>
+        <p className="landing-counter-grid__label">{vendors.directoryLabel}</p>
+        <p className="landing-counter-grid__hint">{vendors.directoryHint}</p>
+      </div>
+      <ParallaxMotion modes={['shift-y']} y={railY}>
+        <ParallaxMotion modes={['transform', 'fade']} scale={countScale} opacity={countOpacity}>
+          <span className="landing-counter-grid__count font-display">{HALL_COUNTERS.length} kitchens</span>
+        </ParallaxMotion>
+      </ParallaxMotion>
+    </div>
+  );
+}
+
+function CounterGridRailStatic() {
+  return (
+    <div className="landing-counter-grid__rail">
+      <div>
+        <p className="landing-counter-grid__label">{vendors.directoryLabel}</p>
+        <p className="landing-counter-grid__hint">{vendors.directoryHint}</p>
+      </div>
+      <span className="landing-counter-grid__count font-display">{HALL_COUNTERS.length} kitchens</span>
+    </div>
+  );
+}
+
 export function CounterParallaxGrid({ progress }: CounterParallaxGridProps) {
   const { daypart } = useHallDaypart();
   const hotNames = new Set(LANDING_COPY.nowBoard[daypart].hotCounters);
 
   return (
     <div className="landing-counter-grid-wrap">
-      <div className="landing-counter-grid__rail">
-        <div>
-          <p className="landing-counter-grid__label">{vendors.directoryLabel}</p>
-          <p className="landing-counter-grid__hint">{vendors.directoryHint}</p>
-        </div>
-        <span className="landing-counter-grid__count font-display">{HALL_COUNTERS.length} kitchens</span>
-      </div>
+      {progress ? <CounterGridRail progress={progress} /> : <CounterGridRailStatic />}
 
       <motion.ul
         className="landing-counter-grid"

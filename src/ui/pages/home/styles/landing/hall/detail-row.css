@@ -1,0 +1,43 @@
+.landing-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.35rem 0.45rem;
+  margin: 0 -0.45rem;
+  border-radius: 0.45rem;
+  cursor: default;
+  transition: background 240ms ease;
+}
+
+.landing-detail-row:hover {
+  background: rgb(255 255 255 / 0.04);
+}
+
+.landing-detail-row__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-primary-400);
+}
+
+.landing-detail-row__copy {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: rgb(243 244 246 / 0.85);
+}
+
+.landing-detail-row__copy a {
+  color: var(--color-primary-300);
+  text-decoration: none;
+  transition: color 200ms ease;
+}
+
+.landing-detail-row__copy a:hover {
+  color: var(--color-primary-200);
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-detail-row:hover {
+    background: transparent;
+  }
+}

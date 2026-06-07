@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { LANDING_COPY } from '../copy';
 import { FIRST_VISIT_TIPS } from '../constants';
+import { AccordionRow } from './MicroMotion';
 
 const { firstTimer } = LANDING_COPY;
 
@@ -20,23 +20,15 @@ export function HallFirstTimerTips() {
       </div>
 
       <div className="landing-first-timer__list">
-        {FIRST_VISIT_TIPS.map((tip, i) => {
-          const open = openIndex === i;
-          return (
-            <div key={tip.q} className={`landing-first-timer__item ${open ? 'landing-first-timer__item--open' : ''}`}>
-              <button
-                type="button"
-                className="landing-first-timer__trigger"
-                aria-expanded={open}
-                onClick={() => setOpenIndex(open ? null : i)}
-              >
-                <span>{tip.q}</span>
-                <ChevronDown className="landing-first-timer__chevron h-4 w-4" aria-hidden />
-              </button>
-              {open && <p className="landing-first-timer__answer">{tip.a}</p>}
-            </div>
-          );
-        })}
+        {FIRST_VISIT_TIPS.map((tip, i) => (
+          <AccordionRow
+            key={tip.q}
+            question={tip.q}
+            answer={tip.a}
+            open={openIndex === i}
+            onToggle={() => setOpenIndex(openIndex === i ? null : i)}
+          />
+        ))}
       </div>
     </div>
   );

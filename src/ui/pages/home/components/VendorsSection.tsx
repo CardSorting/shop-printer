@@ -11,7 +11,8 @@ import { CounterParallaxGrid } from './CounterParallaxGrid';
 import { HallCta } from './HallCta';
 import { ParallaxMotion } from './ParallaxMotion';
 import { SectionScrollSeam } from './SectionScrollSeam';
-import { SectionLabel, StudioContainer, StudioHeading } from './StudioShell';
+import { SectionLabelMotion } from './SectionLabelMotion';
+import { StudioContainer, StudioHeading } from './StudioShell';
 
 const { vendors } = LANDING_COPY;
 
@@ -30,6 +31,9 @@ export function VendorsSection() {
   const meshX = useTransform(smooth, [0, 1], ['-4%', '5%']);
   const meshOpacity = useTransform(smooth, [0, 0.35, 1], [0, 0.22, 0.1]);
   const meshRotate = useTransform(smooth, [0, 1], ['-0.8deg', '0.6deg']);
+  const titleClip = useTransform(smooth, [0.02, 0.22], ['inset(100% 0 0 0 round 2px)', 'inset(0% 0 0 0 round 2px)']);
+  const ruleScale = useTransform(smooth, [0.1, 0.3], [0, 1]);
+  const headerOpacity = useTransform(smooth, [0, 0.12, 0.88, 1], [0.4, 1, 1, 0.85]);
 
   return (
     <section id="landing-vendors" ref={ref} className="landing-vendors landing-vendors--hall landing-vendors--cinematic grain-overlay landing-parallax-scene">
@@ -69,7 +73,7 @@ export function VendorsSection() {
       </ParallaxMotion>
 
       <StudioContainer>
-        <ParallaxMotion modes={['shift-y']} y={headerY}>
+        <ParallaxMotion modes={['shift-y', 'fade']} y={headerY} opacity={headerOpacity}>
           <motion.div
             initial="initial"
             whileInView="animate"
@@ -78,8 +82,8 @@ export function VendorsSection() {
             className="landing-vendors__header landing-vendors__header--simple"
           >
             <div>
-              <SectionLabel label={vendors.label} dark />
-              <ParallaxMotion modes={['shift-y']} y={titleY}>
+              <SectionLabelMotion label={vendors.label} dark hall={false} />
+              <ParallaxMotion modes={['shift-y', 'clip']} y={titleY} clipPath={titleClip}>
               <StudioHeading size="display" className="landing-vendors__title">
                 {vendors.headline[0]}
                 <ParallaxMotion modes={['shift-x']} x={accentX} as="span" className="landing-heading__accent-light">
@@ -87,6 +91,7 @@ export function VendorsSection() {
                 </ParallaxMotion>
               </StudioHeading>
               </ParallaxMotion>
+              <ParallaxMotion modes={['scale-x']} scaleX={ruleScale} className="hall-rule landing-vendors__rule" aria-hidden />
               <ParallaxMotion modes={['shift-y']} y={ledeY}>
               <p className="landing-vendors__lede landing-vendors__lede--inline">{vendors.lede}</p>
               </ParallaxMotion>

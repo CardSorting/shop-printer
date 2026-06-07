@@ -13,11 +13,12 @@ import { ArrowRight, ChevronDown } from 'lucide-react';
 import { DEFAULT_FOOD_HALL_IMAGE } from '@utils/imageFallback';
 import { LANDING_COPY, LANDING_SEO_HEADLINE } from '../copy';
 import { useHallDaypart } from '../hooks/useHallDaypart';
-import { PARALLAX_SPRING, useHeroParallax, useScrollVelocityScale } from '../hooks/useParallax';
+import { PARALLAX_SPRING, useHeroParallax, useScrollVelocityBlur, useScrollVelocityScale } from '../hooks/useParallax';
 import { useElementPointerParallax } from '../hooks/usePointerParallax';
 import { useSmoothProgress } from '../hooks/useSmoothProgress';
 import { scrollToLandingSection } from '../hooks/useLandingSectionNav';
 import { HallCta } from './HallCta';
+import { CARD_LIFT_SUBTLE, CARD_TAP } from './MicroMotion';
 import { HallInfoRibbon } from './HallInfoRibbon';
 import { ParallaxMotion } from './ParallaxMotion';
 import { StudioContainer } from './StudioShell';
@@ -49,12 +50,19 @@ const HERO_ITEM_VARIANTS: Variants = {
   visible: { opacity: 1, y: 0, transition: SNAP_SOFT },
 };
 
-const HERO_HEADLINE_VARIANTS: Variants = {
-  hidden: { opacity: 0, y: 14, clipPath: 'inset(100% 0 0 0 round 2px)' },
+const HERO_HEADLINE_CONTAINER: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.02 },
+  },
+};
+
+const HERO_LINE_VARIANTS: Variants = {
+  hidden: { opacity: 0, y: '108%' },
   visible: {
     opacity: 1,
     y: 0,
-    clipPath: 'inset(0% 0 0 0 round 2px)',
     transition: SNAP,
   },
 };
@@ -78,6 +86,7 @@ export function HeroSection() {
   const smooth = useSmoothProgress(scrollYProgress, PARALLAX_SPRING.hero);
   const pointer = useElementPointerParallax(ref, { strength: 4.5, stiffness: 88, damping: 15 });
   const velocityScale = useScrollVelocityScale(smooth, [1, 1.022]);
+  const velocityBlur = useScrollVelocityBlur(smooth, 2.5);
 
   const mediaY = useTransform(smooth, [0, 0.35, 1], ['0%', '10%', '26%']);
   const mediaX = useTransform(smooth, [0, 0.5, 1], ['0%', '-1.5%', '-5%']);
@@ -103,6 +112,10 @@ export function HeroSection() {
   const pillY = useTransform(smooth, [0, 1], ['0%', '-32%']);
   const scrollCueOpacity = useTransform(smooth, [0, 0.2, 0.4], [1, 0.75, 0]);
   const scrollCueY = useTransform(smooth, [0, 0.4], ['0%', '1.5rem']);
+  const watermarkY = useTransform(smooth, [0, 1], ['0%', '24%']);
+  const watermarkX = useTransform(smooth, [0, 1], ['0%', '-10%']);
+  const watermarkOpacity = useTransform(smooth, [0, 0.32, 0.72, 1], [0.055, 0.04, 0.022, 0.01]);
+  const watermarkScale = useTransform(smooth, [0, 0.5, 1], [1, 1.08, 1.16]);
 
   const hoursLabel = formatHoursRange(SITE_HOURS_OPENS ?? '11:00', SITE_HOURS_CLOSES ?? '22:00');
   const openLabel =
@@ -113,7 +126,8 @@ export function HeroSection() {
     : { initial: 'hidden' as const, animate: 'visible' as const, variants: HERO_CARD_VARIANTS };
 
   const itemVariants = reduceMotion ? undefined : HERO_ITEM_VARIANTS;
-  const headlineVariants = reduceMotion ? HERO_ITEM_VARIANTS : HERO_HEADLINE_VARIANTS;
+  const lineVariants = reduceMotion ? undefined : HERO_LINE_VARIANTS;
+  const headlineContainerVariants = reduceMotion ? undefined : HERO_HEADLINE_CONTAINER;
 
   return (
     <section
@@ -137,10 +151,11 @@ export function HeroSection() {
           aria-hidden
         >
           <ParallaxMotion
-            modes={['transform']}
+            modes={['transform', 'filter']}
             x={pointer.x}
             y={pointer.y}
             scale={velocityScale}
+            filter={velocityBlur}
             className="landing-hero__media-inner"
           >
             <Image
@@ -172,6 +187,19 @@ export function HeroSection() {
       <ParallaxMotion modes={['shift-y', 'fade']} y={orbBackY} opacity={orbBackOpacity} className="landing-hero__depth-orb landing-hero__depth-orb--back" aria-hidden />
       <ParallaxMotion modes={['shift-y']} y={orbFrontY} className="landing-hero__depth-orb landing-hero__depth-orb--front" aria-hidden />
 
+      <ParallaxMotion
+        modes={['transform', 'fade']}
+        x={watermarkX}
+        y={watermarkY}
+        scale={watermarkScale}
+        opacity={watermarkOpacity}
+        className="landing-hero__watermark font-display"
+        aria-hidden
+      >
+        01
+      </ParallaxMotion>
+
+      <span className="landing-hero__cinema-rail landing-hero__cinema-rail--head" aria-hidden />
       <ParallaxMotion modes={['fade']} opacity={cinemaFadeOpacity} className="landing-hero__cinema-fade" aria-hidden />
       <span className="landing-hero__cinema-rail landing-hero__cinema-rail--foot" aria-hidden />
 
@@ -182,6 +210,7 @@ export function HeroSection() {
           initial={reduceMotion ? false : { opacity: 0, x: 8 }}
           animate={{ opacity: 1, x: 0 }}
           transition={reduceMotion ? { duration: 0 } : { ...SNAP_SOFT, delay: 0.12 }}
+          {...(reduceMotion ? {} : { whileHover: { y: -2, scale: 1.03, transition: SNAP_SOFT }, whileTap: CARD_TAP })}
         >
           {hero.coords}
         </motion.p>
@@ -192,6 +221,7 @@ export function HeroSection() {
           <motion.article
             className="landing-hero__card hall-glass"
             {...cardMotion}
+            {...(reduceMotion ? {} : { whileHover: CARD_LIFT_SUBTLE, whileTap: CARD_TAP })}
             aria-label="Welcome to WoodBine"
           >
             <span className="landing-hero__card-glow" aria-hidden />
@@ -215,16 +245,25 @@ export function HeroSection() {
               {hero.kicker}
             </motion.p>
 
-            <motion.div className="landing-hero__headline-lockup" variants={headlineVariants}>
+            <motion.div className="landing-hero__headline-lockup" variants={headlineContainerVariants}>
               <h1
                 data-seo-speakable
                 className="landing-heading landing-heading--hero"
                 aria-label={LANDING_SEO_HEADLINE}
               >
                 <span className="sr-only">{LANDING_SEO_HEADLINE}</span>
-                <span className="landing-hero__line font-display">{hero.headline[0]}</span>
-                <span className="landing-hero__line font-display landing-heading__accent-light">
-                  {hero.headline[1]}
+                <span className="landing-hero__headline-line">
+                  <motion.span className="landing-hero__line font-display" variants={lineVariants}>
+                    {hero.headline[0]}
+                  </motion.span>
+                </span>
+                <span className="landing-hero__headline-line">
+                  <motion.span
+                    className="landing-hero__line font-display landing-heading__accent-light"
+                    variants={lineVariants}
+                  >
+                    {hero.headline[1]}
+                  </motion.span>
                 </span>
               </h1>
             </motion.div>
@@ -259,6 +298,12 @@ export function HeroSection() {
           initial={reduceMotion ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={reduceMotion ? { duration: 0 } : { ...SNAP_SOFT, delay: 0.28 }}
+          {...(reduceMotion
+            ? {}
+            : {
+                whileHover: { y: -2, scale: 1.02, transition: SNAP_SOFT },
+                whileTap: { scale: 0.98, transition: { duration: 0.1 } },
+              })}
           onClick={(event) => {
             event.preventDefault();
             scrollToLandingSection('landing-vendors');
@@ -266,7 +311,13 @@ export function HeroSection() {
         >
           <span className="landing-hero__scroll-cue-icon" aria-hidden>
             <span className="landing-hero__scroll-line" />
-            <ChevronDown className="landing-hero__scroll-chevron" />
+            <motion.span
+              animate={reduceMotion ? undefined : { y: [0, 5, 0] }}
+              transition={reduceMotion ? undefined : { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+              className="landing-hero__scroll-chevron-wrap"
+            >
+              <ChevronDown className="landing-hero__scroll-chevron" />
+            </motion.span>
           </span>
           <span>{hero.scroll}</span>
         </motion.a>

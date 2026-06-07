@@ -15,12 +15,13 @@
   border: 1px solid rgb(12 11 10 / 0.08);
   background: rgb(255 255 255 / 0.5);
   text-align: center;
-  transition: border-color 200ms, background 200ms;
+  transition: border-color 280ms ease, background 280ms ease, box-shadow 280ms ease;
 }
 
 .landing-daypart-timeline__item--active {
   border-color: var(--color-primary-400);
   background: rgb(255 247 237 / 0.9);
+  box-shadow: 0 8px 24px -16px rgb(180 83 9 / 0.35);
 }
 
 .landing-daypart-timeline__time {
@@ -51,4 +52,22 @@
   text-transform: uppercase;
   color: #fff;
   background: var(--color-primary-600);
+  animation: landing-daypart-live-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes landing-daypart-live-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(217 119 6 / 0.35);
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px rgb(217 119 6 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-daypart-timeline__live {
+    animation: none;
+  }
 }

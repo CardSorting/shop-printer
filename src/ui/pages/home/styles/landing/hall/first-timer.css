@@ -42,14 +42,15 @@
   text-align: left;
   color: var(--landing-ink);
   cursor: pointer;
+  border-radius: 0.35rem;
+  transition: background 240ms ease;
 }
 
-.landing-first-timer__item--open .landing-first-timer__chevron {
-  transform: rotate(180deg);
+.landing-first-timer__trigger:hover {
+  background: rgb(255 255 255 / 0.45);
 }
 
 .landing-first-timer__chevron {
-  transition: transform 200ms;
   color: var(--landing-muted);
 }
 

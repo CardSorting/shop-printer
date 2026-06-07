@@ -9,9 +9,11 @@ import { HALL_BEYOND_GROUPS } from '../constants';
 import { PARALLAX_SPRING, useDepthLayerY, useScrollScrubFill, useStaggeredParallaxY } from '../hooks/useParallax';
 import { useSmoothProgress } from '../hooks/useSmoothProgress';
 import { HallCta } from './HallCta';
+import { ElementPointerSurface } from './PointerMotionSurfaces';
+import { CARD_LIFT_SUBTLE, CARD_TAP, HoverRow, ModeChip, StatPop } from './MicroMotion';
 import { ParallaxMotion } from './ParallaxMotion';
 import { SectionScrollSeam } from './SectionScrollSeam';
-import { SectionLabel } from './StudioShell';
+import { SectionLabelMotion } from './SectionLabelMotion';
 
 const { beyond } = LANDING_COPY;
 
@@ -65,7 +67,7 @@ function BeyondModeChip({
 
   return (
     <ParallaxMotion modes={['shift-y']} y={y} as="li">
-      {children}
+      <ModeChip>{children}</ModeChip>
     </ParallaxMotion>
   );
 }
@@ -110,6 +112,8 @@ export function HallBeyondSection() {
   const energyFill = useScrollScrubFill(smooth, 0.06, 0.48);
   const energyFillLate = useScrollScrubFill(smooth, 0.32, 0.78);
   const headlineAccentX = useTransform(smooth, [0, 1], ['0%', '-3.5%']);
+  const headlineClip = useTransform(smooth, [0.04, 0.22], ['inset(100% 0 0 0 round 2px)', 'inset(0% 0 0 0 round 2px)']);
+  const ruleScale = useTransform(smooth, [0.1, 0.3], [0, 1]);
 
   return (
     <section id="landing-beyond" ref={ref} className="landing-beyond landing-parallax-scene" aria-labelledby="beyond-heading">
@@ -145,16 +149,18 @@ export function HallBeyondSection() {
           variants={SLIDE_UP_VARIANTS}
         >
           <div className="landing-beyond__header-top">
-            <SectionLabel index={beyond.index} label={beyond.label} dark hall />
+            <SectionLabelMotion index={beyond.index} label={beyond.label} dark hall />
             <span className="hall-badge landing-beyond__stamp">{beyond.stamp}</span>
           </div>
+          <ParallaxMotion modes={['shift-y', 'clip']} clipPath={headlineClip}>
           <h2 id="beyond-heading" className="landing-beyond__headline font-display">
             {beyond.headline[0]}
             <ParallaxMotion modes={['shift-x']} x={headlineAccentX} as="span" className="landing-beyond__headline-accent">
               {beyond.headline[1]}
             </ParallaxMotion>
           </h2>
-          <span className="hall-rule landing-beyond__rule" aria-hidden />
+          </ParallaxMotion>
+          <ParallaxMotion modes={['scale-x']} scaleX={ruleScale} className="hall-rule landing-beyond__rule" aria-hidden />
           <p className="landing-beyond__sub">{beyond.sub}</p>
           <p className="landing-beyond__aside font-display">{beyond.aside}</p>
           <ul className="landing-beyond__modes" aria-label="Room modes">
@@ -188,21 +194,22 @@ export function HallBeyondSection() {
         <dl className="landing-beyond__stats">
           {beyond.stats.map((stat, index) => (
             <BeyondStat key={stat.label} progress={smooth} index={index}>
-              <div className="landing-beyond__stat">
+              <StatPop className="landing-beyond__stat">
                 <dt className="landing-beyond__stat-value font-display">{stat.value}</dt>
                 <dd className="landing-beyond__stat-label">{stat.label}</dd>
-              </div>
+              </StatPop>
             </BeyondStat>
           ))}
         </dl>
         </ParallaxMotion>
 
         <ParallaxMotion modes={['transform']} y={programY} rotateX={programTiltX} className="landing-beyond__program-shell hall-glass">
+          <ElementPointerSurface className="landing-beyond__program-tilt" strength={2.8} stiffness={76} damping={16}>
           <div className="landing-beyond__program-head">
             <p className="landing-beyond__program-label">{beyond.programLabel}</p>
             <span className="landing-beyond__program-live">
               <span className="landing-beyond__program-live-dot" aria-hidden />
-              Open to bookings
+              {beyond.programLive}
             </span>
           </div>
 
@@ -219,6 +226,8 @@ export function HallBeyondSection() {
                 whileInView={COLUMN_STAGGER.animate}
                 viewport={{ once: true, margin: '-40px' }}
                 transition={{ duration: 0.65, delay: groupIndex * 0.1, ease: [0.16, 1, 0.3, 1] as const }}
+                whileHover={CARD_LIFT_SUBTLE}
+                whileTap={CARD_TAP}
               >
                 <header className="landing-beyond__column-head">
                   <div className="landing-beyond__column-meta">
@@ -232,13 +241,14 @@ export function HallBeyondSection() {
                     const isWildcard = group.id === 'gather' && itemIndex === group.items.length - 1;
 
                     return (
-                      <li
+                      <HoverRow
                         key={item.label}
                         className={`landing-beyond__item${isWildcard ? ' landing-beyond__item--wildcard' : ''}`}
+                        shift={isWildcard ? 4 : 6}
                       >
                         <span className="landing-beyond__item-label font-display">{item.label}</span>
                         <span className="landing-beyond__item-detail">{item.detail}</span>
-                      </li>
+                      </HoverRow>
                     );
                   })}
                 </ul>
@@ -246,6 +256,7 @@ export function HallBeyondSection() {
               </BeyondColumn>
             ))}
           </div>
+          </ElementPointerSurface>
         </ParallaxMotion>
 
         <ParallaxMotion modes={['shift-y']} y={footY}>

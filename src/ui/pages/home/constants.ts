@@ -132,16 +132,16 @@ export const HALL_AMENITIES = [
   { id: 'patio', label: 'Covered patio', detail: 'Year-round outdoor' },
   { id: 'games', label: 'Games yard', detail: 'Ping pong & cornhole' },
   { id: 'all-ages', label: 'All ages', detail: 'Families on the floor' },
-  { id: 'pickup', label: 'Order ahead', detail: 'Pick up at the hall' },
+  { id: 'pickup', label: 'Order ahead', detail: 'Pick up when you arrive' },
   { id: 'wifi', label: 'Guest Wi‑Fi', detail: 'Work-friendly mornings' },
   { id: 'events', label: 'Private events', detail: 'After-hours buyouts' },
 ] as const;
 
 export const HALL_ZONES = [
-  { id: 'counters', label: 'The line', description: 'Nine open kitchens along the main wall — order at any counter, mix plates across vendors.' },
+  { id: 'counters', label: 'The line', description: 'Nine open kitchens along the main wall — order at any window, mix plates across vendors.' },
   { id: 'communal', label: 'Communal floor', description: 'Long shared tables at the center. Slide in, split dishes, meet whoever sits down next.' },
   { id: 'patio', label: 'Patio & yard', description: 'Covered outdoor seating, cornhole, and the slow-down zone for second rounds.' },
-  { id: 'bar', label: 'Bar & lounge', description: 'Cocktails, wine, and espresso — the same room from morning coffee to evening drinks.' },
+  { id: 'bar', label: 'Bar & lounge', description: 'Cocktails, wine, and espresso — morning coffee to evening drinks in the same room.' },
 ] as const;
 
 export const MENU_CATEGORIES = [
@@ -154,18 +154,18 @@ export const MENU_CATEGORIES = [
 
 /** Mood-based entry points — how guests actually think about food halls */
 export const HALL_CRAVINGS = [
-  { id: 'hearty', label: 'Something hearty', sub: 'Smoke · bowls · pasta', href: '/collections/hearty' },
-  { id: 'light', label: 'Keep it light', sub: 'Salads · crudo · citrus', href: '/collections/seasonal' },
-  { id: 'coffee', label: 'Coffee & pastry', sub: 'Espresso · bakes · AM', href: '/collections/coffee' },
+  { id: 'hearty', label: 'Something hearty', sub: 'Smoke · bowls · burgers', href: '/collections/hearty' },
+  { id: 'light', label: 'Keep it light', sub: 'Sushi · citrus · bright', href: '/collections/seasonal' },
+  { id: 'coffee', label: 'Coffee & pastry', sub: 'Espresso · cookies · AM', href: '/collections/coffee' },
   { id: 'drinks', label: 'Drinks & bar', sub: 'Cocktails · wine · beer', href: '/collections/coffee' },
-  { id: 'share', label: 'Share with the table', sub: 'Pizza · tacos · plates', href: '/collections/bestsellers' },
-  { id: 'sweet', label: 'Something sweet', sub: 'Dessert · affogato', href: '/collections/seasonal' },
+  { id: 'share', label: 'Share with the table', sub: 'Pizza · arepas · plates', href: '/collections/bestsellers' },
+  { id: 'sweet', label: 'Something sweet', sub: 'Cookies · dessert · affogato', href: '/collections/seasonal' },
 ] as const;
 
 export const FIRST_VISIT_TIPS = [
   {
     q: 'Can I order from more than one counter?',
-    a: 'Yes — that’s the whole point. Grab plates from any kitchen, bring them to one table, and mix freely.',
+    a: 'Yes — that’s the whole point. Grab from any kitchen, bring it to one table, and mix freely.',
   },
   {
     q: 'Do I need a reservation?',
@@ -173,7 +173,7 @@ export const FIRST_VISIT_TIPS = [
   },
   {
     q: 'How does order-ahead work?',
-    a: 'Add to cart online, pay, and pick up at any open counter when you arrive. No separate app required.',
+    a: 'Add to cart online, pay, and pick up at any open counter when you arrive. No separate app.',
   },
   {
     q: 'Is the hall kid-friendly?',
@@ -194,7 +194,7 @@ export const HALL_GATHERINGS = [
     step: '02',
     label: 'Mark the occasion',
     scale: '8–25 guests',
-    highlights: ['Long shared tables', 'One table for everyone', 'Patio overflow'],
+    highlights: ['Long shared tables', 'Room for the whole crew', 'Patio overflow'],
   },
   {
     id: 'buyout',
@@ -221,9 +221,9 @@ export const HALL_BEYOND_GROUPS = [
     title: 'Perform',
     tagline: 'Music · film · mic nights',
     items: [
-      { label: 'Concert hall', detail: 'Live music under the roof' },
+      { label: 'Concert hall', detail: 'Live music under the barrel roof' },
       { label: 'Movie nights', detail: 'Screenings on the floor' },
-      { label: 'Comedy club', detail: 'Stand-up · variety · mic nights' },
+      { label: 'Comedy club', detail: 'Stand-up · variety · open mic' },
     ],
   },
   {
@@ -231,7 +231,7 @@ export const HALL_BEYOND_GROUPS = [
     title: 'Everyday',
     tagline: 'Dates · laptops · makers',
     items: [
-      { label: 'Date spot', detail: 'Drinks to dessert · no reservation' },
+      { label: 'Date spot', detail: 'Drinks to dessert · walk in anytime' },
       { label: 'Work space', detail: 'Morning laptop regulars' },
       { label: 'Marketplace', detail: 'Weekend pop-ups & makers' },
     ],
@@ -239,7 +239,7 @@ export const HALL_BEYOND_GROUPS = [
 ] as const;
 
 export const HALL_STATS = [
-  { value: '12', label: 'Open kitchens', detail: 'Independent counters' },
+  { value: '9', label: 'Open kitchens', detail: 'Independent counters' },
   { value: '0', label: 'Reservations needed', detail: 'Walk in daily' },
   { value: '1', label: 'Pick-up window', detail: 'Order online · collect in hall' },
   { value: '∞', label: 'Counters per visit', detail: 'Mix as many as you want' },
@@ -264,7 +264,7 @@ export const HALL_COMBOS = [
   {
     id: 'morning-crawl',
     title: 'The comfort crawl',
-    subtitle: 'Burger · sando · slice',
+    subtitle: 'Burger · sando · stromboli',
     stops: ['Doms Burgers', 'DeadPan', 'Marcato'],
     href: '/collections/bestsellers',
   },
@@ -279,8 +279,8 @@ export const HALL_FOOD_PARALLAX_FRAMES = [
     alt: 'Espresso, pastry, and morning light on the WoodBine counter',
     objectPosition: '50% 38%',
     kicker: 'Morning on the floor',
-    caption: 'Pastry steam before the lunch rush.',
-    detail: 'Espresso · croissants · the first table',
+    caption: 'Pastry steam before the rush.',
+    detail: 'Espresso · cookies · the first table',
     align: 'left',
   },
   {
@@ -290,8 +290,8 @@ export const HALL_FOOD_PARALLAX_FRAMES = [
     alt: 'Shared plates from multiple counters on a communal table',
     objectPosition: '50% 45%',
     kicker: 'On the pass',
-    caption: 'Mix three counters. Eat at one table.',
-    detail: 'Small plates · shared middle · one bill',
+    caption: 'Three counters. One table.',
+    detail: 'Mix menus · share the middle · stay awhile',
     align: 'right',
   },
   {

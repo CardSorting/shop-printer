@@ -47,3 +47,7 @@
   background: var(--landing-ink);
   color: #fff;
 }
+
+.landing-order-dock__link-wrap {
+  display: contents;
+}

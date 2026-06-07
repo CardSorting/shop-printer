@@ -6,6 +6,7 @@ import { useMotionValueEvent, type MotionValue } from 'framer-motion';
 import { useState } from 'react';
 import { useCart } from '@ui/hooks/useCart';
 import { LANDING_COPY } from '../copy';
+import { HoverLink, Pressable } from './MicroMotion';
 
 const { orderDock, pulse } = LANDING_COPY;
 
@@ -30,28 +31,34 @@ export function HallOrderDock({ progress }: HallOrderDockProps) {
       aria-hidden={!visible}
     >
       {totalItems > 0 ? (
-        <button
+        <Pressable
           type="button"
           className="landing-order-dock__btn landing-order-dock__btn--primary"
           onClick={() => openCart()}
         >
           <ShoppingBag className="h-4 w-4" aria-hidden />
           {orderLabel}
-        </button>
+        </Pressable>
       ) : (
-        <Link href={pulse.menu.href} className="landing-order-dock__btn landing-order-dock__btn--primary">
-          <ShoppingBag className="h-4 w-4" aria-hidden />
-          {orderLabel}
-        </Link>
+        <HoverLink className="landing-order-dock__link-wrap">
+          <Link href={pulse.menu.href} className="landing-order-dock__btn landing-order-dock__btn--primary">
+            <ShoppingBag className="h-4 w-4" aria-hidden />
+            {orderLabel}
+          </Link>
+        </HoverLink>
       )}
-      <Link href={pulse.vendors.href} className="landing-order-dock__btn">
-        <Store className="h-4 w-4" aria-hidden />
-        {orderDock.counters}
-      </Link>
-      <Link href={pulse.visit.href} className="landing-order-dock__btn">
-        <MapPin className="h-4 w-4" aria-hidden />
-        {orderDock.map}
-      </Link>
+      <HoverLink className="landing-order-dock__link-wrap">
+        <Link href={pulse.vendors.href} className="landing-order-dock__btn">
+          <Store className="h-4 w-4" aria-hidden />
+          {orderDock.counters}
+        </Link>
+      </HoverLink>
+      <HoverLink className="landing-order-dock__link-wrap">
+        <Link href={pulse.visit.href} className="landing-order-dock__btn">
+          <MapPin className="h-4 w-4" aria-hidden />
+          {orderDock.map}
+        </Link>
+      </HoverLink>
     </nav>
   );
 }

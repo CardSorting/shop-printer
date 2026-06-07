@@ -1,4 +1,13 @@
+.hall-cta-wrap {
+  display: inline-flex;
+}
+
+.hall-cta-magnetic {
+  display: inline-flex;
+}
+
 .hall-cta {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -8,11 +17,32 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   text-decoration: none;
-  transition: transform 200ms, background 200ms, border-color 200ms, color 200ms;
+  overflow: hidden;
+  transition: background 200ms, border-color 200ms, color 200ms, box-shadow 280ms;
 }
 
 .hall-cta:hover {
-  transform: translateY(-1px);
+  transform: none;
+}
+
+.hall-cta__shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    rgb(255 255 255 / 0.28) 50%,
+    transparent 62%
+  );
+  background-size: 220% 100%;
+  opacity: 0;
+  transition: opacity 280ms;
+}
+
+.hall-cta--primary:hover .hall-cta__shimmer {
+  opacity: 1;
+  animation: landing-shimmer 1.1s ease;
 }
 
 .hall-cta--primary {
@@ -24,6 +54,7 @@
 
 .hall-cta--primary:hover {
   background: var(--color-primary-400);
+  box-shadow: 0 12px 32px -10px rgb(245 158 11 / 0.65);
 }
 
 .hall-cta--secondary {
