@@ -11,6 +11,7 @@ export const WOODBINE_BRAND = {
   tagline: 'Old Hall. New Flavors.',
   email: 'hello@woodbineslc.com',
   logoGif: '/Woodbine.gif',
+  logoWhite: '/images/brand/woodbine-logo-white.png',
   defaultOgImage: SEO_DEFAULT_OG_IMAGE,
   twitterHandle: '@WoodBine',
   socialProfiles: [
@@ -38,6 +39,8 @@ export const SITE_CTA =
   'Whether you’re looking for a sando and cold beer on a covered patio or an iced latte and a place to do some work, we can answer the call. WoodBine is for casual lunch meetings, private events scaled to your liking, a low-key, lingering dinner with friends, and scrappy games of ping pong or cornhole. Provisions, pals, and a good amount of play—all under one big, barrel roof.';
 
 export const SITE_GATHERING_LINE = 'Come for the food, stay for the people—and the space.';
+
+export const SITE_FOOTER_CLOSER = 'Nine kitchens · one roof · pull up a chair.';
 
 export const SITE_VENDOR_LINE =
   'Every vendor here is a neighbor with a story—small kitchens, big personalities, and flavors worth passing the word about.';
