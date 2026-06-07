@@ -8,24 +8,41 @@
   --lp-y: 0%;
   --lp-scale: 1;
   --lp-rotate: 0deg;
+  --lp-rotate-x: 0deg;
+  --lp-rotate-y: 0deg;
   --lp-opacity: 1;
   --lp-filter: none;
   --lp-scale-x: 1;
   --lp-height: 0%;
+  --lp-clip: none;
+}
+
+.landing-parallax-scene {
+  perspective: clamp(900px, 120vw, 1400px);
+  perspective-origin: 50% 42%;
 }
 
 .landing-parallax--transform {
-  transform: translate3d(var(--lp-x), var(--lp-y), 0) scale(var(--lp-scale)) rotate(var(--lp-rotate));
+  transform:
+    translate3d(var(--lp-x), var(--lp-y), 0)
+    rotateX(var(--lp-rotate-x))
+    rotateY(var(--lp-rotate-y))
+    scale(var(--lp-scale))
+    rotate(var(--lp-rotate));
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
   will-change: transform;
 }
 
 .landing-parallax--shift-x {
-  transform: translateX(var(--lp-x));
+  transform: translate3d(var(--lp-x), 0, 0);
+  backface-visibility: hidden;
   will-change: transform;
 }
 
 .landing-parallax--shift-y {
-  transform: translateY(var(--lp-y));
+  transform: translate3d(0, var(--lp-y), 0);
+  backface-visibility: hidden;
   will-change: transform;
 }
 
@@ -40,13 +57,22 @@
 .landing-parallax--scale-x {
   transform: scaleX(var(--lp-scale-x));
   transform-origin: left;
+  backface-visibility: hidden;
 }
 
 .landing-parallax--height {
   height: var(--lp-height);
 }
 
+.landing-parallax--clip {
+  clip-path: var(--lp-clip);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .landing-parallax-scene {
+    perspective: none;
+  }
+
   .landing-parallax--transform,
   .landing-parallax--shift-x,
   .landing-parallax--shift-y,
@@ -60,5 +86,9 @@
 
   .landing-parallax--filter {
     filter: none !important;
+  }
+
+  .landing-parallax--clip {
+    clip-path: none !important;
   }
 }

@@ -7,11 +7,12 @@
 
 .landing-visit__media {
   position: absolute;
-  inset: 0;
+  inset: -8% 0;
+  will-change: transform, opacity;
 }
 
 .landing-visit__media img {
-  opacity: 0.22;
+  opacity: 1;
 }
 
 .landing-visit__scrim {

@@ -54,14 +54,14 @@ export function HallPulseBar() {
           <Link href={pulse.vendors.href} className="landing-pulse__link">
             {pulse.vendors.label}
           </Link>
-          <Link href="#landing-counter-line" className="landing-pulse__link landing-pulse__link--hide-sm">
-            {pulse.line.label}
-          </Link>
           <Link href={pulse.visit.href} className="landing-pulse__link">
             {pulse.visit.label}
           </Link>
           <Link href={pulse.events.href} className="landing-pulse__link landing-pulse__link--hide-sm">
             {pulse.events.label}
+          </Link>
+          <Link href={pulse.directions.href} className="landing-pulse__link landing-pulse__link--hide-sm">
+            {pulse.directions.label}
           </Link>
         </nav>
       </div>

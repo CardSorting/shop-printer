@@ -1,9 +1,17 @@
 'use client';
 
 import { useRef } from 'react';
-import { useScroll, useTransform, type MotionValue } from 'framer-motion';
+import { useScroll, useTransform, useVelocity, type MotionValue } from 'framer-motion';
 
 type ScrollOffset = NonNullable<Parameters<typeof useScroll>[0]>['offset'];
+
+/** Tuned spring pairs for section-specific scroll scrub feel */
+export const PARALLAX_SPRING = {
+  hero: { stiffness: 64, damping: 22 },
+  cinematic: { stiffness: 52, damping: 18 },
+  ambient: { stiffness: 70, damping: 24 },
+  crisp: { stiffness: 82, damping: 28 },
+} as const;
 
 /** Bind scroll progress to a section element */
 export function useSectionParallax(offset: ScrollOffset = ['start end', 'end start']) {
@@ -62,6 +70,85 @@ export function useParallaxOpacity(
 export function useParallaxRotate(
   progress: MotionValue<number>,
   range: [number, number] = [-2, 2],
+  input: [number, number] = [0, 1],
 ) {
-  return useTransform(progress, [0, 1], range);
+  return useTransform(progress, input, [`${range[0]}deg`, `${range[1]}deg`]);
+}
+
+/** 3D tilt for perspective scenes */
+export function useParallaxTilt(
+  progress: MotionValue<number>,
+  axis: 'x' | 'y',
+  range: [number, number],
+  input: [number, number] = [0, 1],
+) {
+  return useTransform(progress, input, [`${range[0]}deg`, `${range[1]}deg`]);
+}
+
+/** Velocity-reactive blur — peaks during fast scroll, clears when idle */
+export function useScrollVelocityBlur(
+  progress: MotionValue<number>,
+  maxBlur = 4,
+  velocityRange = 2200,
+) {
+  const velocity = useVelocity(progress);
+  return useTransform(
+    velocity,
+    [-velocityRange, 0, velocityRange],
+    [`blur(${maxBlur}px)`, 'blur(0px)', `blur(${maxBlur}px)`],
+  );
+}
+
+/** Per-item Y drift scaled by grid column — classic staggered depth */
+export function useStaggeredParallaxY(
+  progress: MotionValue<number>,
+  index: number,
+  columns = 3,
+  range: [number, number] = [4, -5],
+  input: [number, number] = [0, 1],
+) {
+  const depth = 0.7 + (index % columns) * 0.38;
+  return useTransform(progress, input, [
+    `${range[0] * depth}%`,
+    `${range[1] * depth}%`,
+  ]);
+}
+
+/** Per-item X drift for alternating columns */
+export function useStaggeredParallaxX(
+  progress: MotionValue<number>,
+  index: number,
+  range: [number, number] = [-2, 2],
+  input: [number, number] = [0, 1],
+) {
+  const sign = index % 2 === 0 ? 1 : -1;
+  return useTransform(progress, input, [
+    `${range[0] * sign}%`,
+    `${range[1] * sign}%`,
+  ]);
+}
+
+/** Multi-stop depth layer — speed scales output range */
+export function useDepthLayerY(
+  progress: MotionValue<number>,
+  speed: number,
+  stops: [number, number][] = [
+    [0, 6],
+    [1, -8],
+  ],
+) {
+  const input = stops.map(([p]) => p);
+  const output = stops.map(([, v]) => `${v * speed}%`);
+  return useTransform(progress, input, output);
+}
+
+/** Scale pulse tied to scroll velocity — subtle zoom on fast scrub */
+export function useScrollVelocityScale(
+  progress: MotionValue<number>,
+  range: [number, number] = [1, 1.04],
+  velocityRange = 1800,
+) {
+  const velocity = useVelocity(progress);
+  const absVel = useTransform(velocity, (v) => Math.min(Math.abs(v) / velocityRange, 1));
+  return useTransform(absVel, [0, 1], range);
 }

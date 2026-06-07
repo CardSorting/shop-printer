@@ -11,9 +11,12 @@ export const LANDING_META = {
 } as const;
 
 export const LANDING_SECTIONS = [
-  { id: 'landing-hero', label: 'Welcome' },
-  { id: 'landing-vendors', label: 'Counters' },
-  { id: 'landing-visit', label: 'Visit' },
+  { id: 'landing-hero', label: 'Welcome', shortLabel: 'Home', hint: 'Start here' },
+  { id: 'landing-vendors', label: 'Counters', shortLabel: 'Menu', hint: 'Twelve kitchens' },
+  { id: 'landing-visit', label: 'Visit us', shortLabel: 'Visit', hint: 'Hours & location' },
+  { id: 'landing-gatherings', label: 'Private events', shortLabel: 'Events', hint: 'Book the hall' },
+  { id: 'landing-beyond', label: 'The space', shortLabel: 'Space', hint: 'Rooms & layout' },
+  { id: 'landing-directions', label: 'Directions', shortLabel: 'Map', hint: 'Getting here' },
 ] as const;
 
 export const LANDING_COPY = {
@@ -180,11 +183,11 @@ export const LANDING_COPY = {
   },
 
   pulse: {
-    menu: { label: 'Menu', href: '/collections/bestsellers' },
+    menu: { label: 'Order food', href: '/collections/bestsellers' },
     vendors: { label: 'All counters', href: '#landing-vendors' },
-    line: { label: 'Walk the line', href: '#landing-counter-line' },
-    visit: { label: 'Hours & map', href: '/support' },
-    events: { label: 'Hall news', href: '/blog' },
+    visit: { label: 'Hours & info', href: '#landing-visit' },
+    events: { label: 'Private events', href: '#landing-gatherings' },
+    directions: { label: 'Directions', href: '#landing-directions' },
   },
 
   tickerUnit: 'through the hall',
@@ -436,7 +439,7 @@ export const LANDING_COPY = {
       kicker: 'Plan your visit',
       title: 'Pull up to the warehouse.',
       body: 'Parking, hours, vendor list, and a first-timer guide — everything between here and your first bite.',
-      cta: { label: 'Hours & directions', href: '/support' },
+      cta: { label: 'Hours & directions', href: '#landing-directions' },
     },
   },
 } as const;

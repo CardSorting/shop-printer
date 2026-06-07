@@ -1,7 +1,47 @@
 .landing-getting-here {
+  position: relative;
+  overflow: hidden;
   margin-top: clamp(3rem, 5vw, 4rem);
   padding: clamp(2rem, 3.5vw, 2.75rem);
   border-radius: 1.25rem;
+}
+
+.landing-getting-here__glow {
+  position: absolute;
+  inset: -25% -10%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 55% 45% at 80% 25%,
+    rgb(245 158 11 / 0.1) 0%,
+    transparent 68%
+  );
+}
+
+.landing-getting-here__map-inner {
+  position: absolute;
+  inset: -4% 0;
+  will-change: transform, filter;
+}
+
+.landing-getting-here__map-frame {
+  position: absolute;
+  inset: clamp(0.65rem, 2vw, 1rem);
+  z-index: 1;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 0.65rem;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.04);
+}
+
+.landing-getting-here__row-parallax {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.landing-getting-here__details {
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 
 .landing-getting-here__header {
@@ -59,6 +99,10 @@
   }
 }
 
+.landing-getting-here__map-col {
+  perspective-origin: 50% 40%;
+}
+
 .landing-getting-here__map-wrap {
   position: relative;
   min-height: clamp(15rem, 38vw, 19rem);
@@ -67,6 +111,8 @@
   border: 1px solid rgb(255 255 255 / 0.1);
   background: rgb(12 11 10 / 0.4);
   box-shadow: 0 24px 48px -32px rgb(0 0 0 / 0.6);
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 
 .landing-getting-here__map {
@@ -98,6 +144,7 @@
   background: var(--color-primary-500);
   border: 2px solid #fff;
   box-shadow: 0 0 0 4px rgb(245 158 11 / 0.3);
+  animation: landing-map-pulse 2.4s ease-in-out infinite;
 }
 
 .landing-getting-here__map-pin-label {

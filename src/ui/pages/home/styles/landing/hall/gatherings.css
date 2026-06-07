@@ -1,7 +1,26 @@
 .landing-gatherings {
+  position: relative;
+  overflow: hidden;
   margin-top: clamp(3.5rem, 6vw, 5rem);
   padding: clamp(2rem, 3.5vw, 2.75rem);
   border-radius: 1.25rem;
+}
+
+.landing-gatherings__glow {
+  position: absolute;
+  inset: -25% -15%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 55% 45% at 70% 20%,
+    rgb(245 158 11 / 0.1) 0%,
+    transparent 65%
+  );
+  will-change: transform, opacity;
+}
+
+.landing-gatherings__panel {
+  position: relative;
+  z-index: 1;
 }
 
 .landing-gatherings__header {
@@ -95,6 +114,8 @@
 .landing-gatherings__flow-fill {
   position: absolute;
   inset: 0;
+  display: block;
+  transform-origin: left center;
   background: linear-gradient(
     90deg,
     var(--color-primary-500) 0%,
