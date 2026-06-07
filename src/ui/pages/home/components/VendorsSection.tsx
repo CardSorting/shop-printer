@@ -7,13 +7,11 @@ import { useHallDaypart } from '../hooks/useHallDaypart';
 import { useSimulatedHallPulse } from '../hooks/useSimulatedHallPulse';
 import { useSmoothProgress } from '../hooks/useSmoothProgress';
 import { CounterParallaxGrid } from './CounterParallaxGrid';
-import { HallCta } from './HallCta';
 import { ParallaxMotion } from './ParallaxMotion';
 import { SectionScrollSeam } from './SectionScrollSeam';
 import { SectionLabelMotion } from './SectionLabelMotion';
 import { StudioContainer, StudioHeading } from './StudioShell';
-import { VendorsFloorBanner } from './VendorsFloorBanner';
-import { VendorsSocialCta } from './VendorsSocialCta';
+import { VendorsHallStrip } from './VendorsHallStrip';
 
 const { vendors, nowBoard } = LANDING_COPY;
 
@@ -69,14 +67,12 @@ const HEADER_LEDE: Variants = {
   },
 };
 
-const HEADER_CTA: Variants = {
-  initial: { opacity: 0, x: 32, y: 18, scale: 0.96 },
+const HEADER_STRIP: Variants = {
+  initial: { opacity: 0, y: 18 },
   animate: {
     opacity: 1,
-    x: 0,
     y: 0,
-    scale: 1,
-    transition: { duration: 0.76, ease: [0.16, 1, 0.3, 1], delay: 0.22 },
+    transition: { duration: 0.68, ease: [0.16, 1, 0.3, 1], delay: 0.14 },
   },
 };
 
@@ -111,7 +107,6 @@ export function VendorsSection() {
   const gridSectionOpacity = useTransform(smooth, [0, 0.12, 0.28], [0.35, 0.9, 1]);
   const gridSectionScale = useScrollVelocityScale(smooth, [1, 1.018], 1400);
   const gridRotateX = useTransform(smooth, [0, 0.45, 1], ['2.2deg', '0deg', '-1.4deg']);
-  const ctaX = useTransform(smooth, [0, 1], ['0%', '-3%']);
   const entrySweep = useTransform(smooth, [0, 0.12], [0, 1]);
   const cinemaFadeOpacity = useTransform(smooth, [0, 0.08, 0.22, 0.92, 1], [0.55, 0.28, 0.12, 0.1, 0.22]);
 
@@ -219,13 +214,11 @@ export function VendorsSection() {
                   <p className="landing-vendors__lede landing-vendors__lede--inline">{vendors.lede}</p>
                 </ParallaxMotion>
               </motion.div>
-            </div>
 
-            <motion.div variants={reduceMotion ? undefined : HEADER_CTA} className="landing-vendors__cta-wrap">
-              <ParallaxMotion modes={['shift-x']} x={ctaX}>
-                <VendorsSocialCta pulse={pulse} isOpen={isOpen} />
-              </ParallaxMotion>
-            </motion.div>
+              <motion.div variants={reduceMotion ? undefined : HEADER_STRIP}>
+                <VendorsHallStrip pulse={pulse} isOpen={isOpen} />
+              </motion.div>
+            </div>
           </motion.div>
         </ParallaxMotion>
 
@@ -238,7 +231,6 @@ export function VendorsSection() {
           className="landing-vendors__grid-stage"
         >
           <CounterParallaxGrid progress={smooth} pulse={pulse} isOpen={isOpen} />
-          <VendorsFloorBanner progress={smooth} pulse={pulse} isOpen={isOpen} />
         </ParallaxMotion>
       </StudioContainer>
 

@@ -17,6 +17,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "seed": "tsx --env-file=.env --tsconfig tsconfig.json migrate-and-seed.ts",
+    "generate:counter-videos": "tsx scripts/generate-counter-videos.ts",
     "setup": "./scripts/setup.sh",
     "deploy": "./scripts/deploy-optimized.sh"
   },

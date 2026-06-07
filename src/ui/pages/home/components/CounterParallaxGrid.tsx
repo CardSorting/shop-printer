@@ -1,16 +1,19 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion, useTransform, type MotionValue, type Variants } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import { LANDING_COPY } from '../copy';
 import { HALL_COUNTERS } from '../constants';
 import { useHallDaypart } from '../hooks/useHallDaypart';
+import { warmAllCounterVideos } from '../hooks/useCounterVideoWarmCache';
 import { useStaggeredParallaxX, useStaggeredParallaxY, useStaggeredParallaxRotateY } from '../hooks/useParallax';
 import type { SimulatedHallPulse } from '../hooks/useSimulatedHallPulse';
 import type { StallCrowdSignal } from '../utils/stallCrowd';
+import { getCounterVideoSrc } from '../utils/counterMedia';
 import { CARD_LIFT_SUBTLE, CARD_TAP } from './MicroMotion';
+import { CounterHoverMedia } from './CounterHoverMedia';
 import { StallCrowdChip } from './HallLiveTickers';
 import { ParallaxMotion } from './ParallaxMotion';
 import { PointerTiltSurface } from './PointerMotionSurfaces';
@@ -117,6 +120,7 @@ function CounterGridTile({
   reduceMotion,
   stallSignal,
   showStallCrowd,
+  preloadVideo,
 }: {
   counter: Counter;
   progress: MotionValue<number>;
@@ -125,6 +129,7 @@ function CounterGridTile({
   reduceMotion: boolean | null;
   stallSignal?: StallCrowdSignal;
   showStallCrowd?: boolean;
+  preloadVideo?: boolean;
 }) {
   const y = useStaggeredParallaxY(progress, index, 4, [8, -10]);
   const x = useStaggeredParallaxX(progress, index, [-4, 4]);
@@ -166,12 +171,13 @@ function CounterGridTile({
             />
             <ParallaxMotion modes={['clip']} clipPath={mediaClip} className="landing-counter-grid__media-clip">
               <ParallaxMotion modes={['transform']} y={imageY} scale={imageScale} className="landing-counter-grid__media-inner">
-                <Image
-                  src={counter.img}
+                <CounterHoverMedia
+                  img={counter.img}
                   alt={counter.alt}
-                  fill
                   sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  className="landing-counter-grid__image object-cover"
+                  priority={isHero}
+                  eagerVideo={isHero}
+                  preloadVideo={preloadVideo}
                 />
               </ParallaxMotion>
             </ParallaxMotion>
@@ -235,6 +241,7 @@ function CounterGridTileStatic({
   reduceMotion,
   stallSignal,
   showStallCrowd,
+  preloadVideo,
 }: {
   counter: Counter;
   index: number;
@@ -242,6 +249,7 @@ function CounterGridTileStatic({
   reduceMotion: boolean | null;
   stallSignal?: StallCrowdSignal;
   showStallCrowd?: boolean;
+  preloadVideo?: boolean;
 }) {
   const isHero = counter.layout === 'hero';
   const showChip = Boolean(showStallCrowd && stallSignal && stallSignal.level !== 'quiet');
@@ -257,12 +265,13 @@ function CounterGridTileStatic({
       <Link href={counter.href} className="landing-counter-grid__link group">
         <div className="landing-counter-grid__media">
           <div className="landing-counter-grid__media-inner">
-            <Image
-              src={counter.img}
+            <CounterHoverMedia
+              img={counter.img}
               alt={counter.alt}
-              fill
               sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="landing-counter-grid__image object-cover"
+              priority={isHero}
+              eagerVideo={isHero}
+              preloadVideo={preloadVideo}
             />
           </div>
           <div className="landing-counter-grid__scrim" aria-hidden />
@@ -349,10 +358,32 @@ function CounterGridRailStatic({ reduceMotion }: { reduceMotion: boolean | null 
 
 export function CounterParallaxGrid({ progress, pulse, isOpen: isOpenProp }: CounterParallaxGridProps) {
   const reduceMotion = useReducedMotion();
+  const wrapRef = useRef<HTMLDivElement>(null);
   const { daypart, isOpen: isOpenHook } = useHallDaypart();
   const isOpen = isOpenProp ?? isOpenHook;
   const showStallCrowd = isOpen === true && !!pulse?.stallCrowd;
   const hotNames = new Set(LANDING_COPY.nowBoard[daypart].hotCounters);
+  const [preloadVideos, setPreloadVideos] = useState(false);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    const el = wrapRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setPreloadVideos(true);
+          warmAllCounterVideos(HALL_COUNTERS.map((counter) => getCounterVideoSrc(counter.img)));
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '320px 0px' },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [reduceMotion]);
 
   const gridMotion = reduceMotion
     ? {}
@@ -364,7 +395,7 @@ export function CounterParallaxGrid({ progress, pulse, isOpen: isOpenProp }: Cou
       };
 
   return (
-    <div className="landing-counter-grid-wrap">
+    <div ref={wrapRef} className="landing-counter-grid-wrap">
       {progress ? <CounterGridRail progress={progress} /> : <CounterGridRailStatic reduceMotion={reduceMotion} />}
 
       <motion.ul className="landing-counter-grid" {...gridMotion}>
@@ -381,6 +412,7 @@ export function CounterParallaxGrid({ progress, pulse, isOpen: isOpenProp }: Cou
               reduceMotion={reduceMotion}
               stallSignal={pulse?.stallCrowd[counter.name]}
               showStallCrowd={showStallCrowd}
+              preloadVideo={preloadVideos}
             />
           ) : (
             <CounterGridTileStatic
@@ -391,6 +423,7 @@ export function CounterParallaxGrid({ progress, pulse, isOpen: isOpenProp }: Cou
               reduceMotion={reduceMotion}
               stallSignal={pulse?.stallCrowd[counter.name]}
               showStallCrowd={showStallCrowd}
+              preloadVideo={preloadVideos}
             />
           );
         })}
