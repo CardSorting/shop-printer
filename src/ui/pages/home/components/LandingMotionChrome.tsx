@@ -4,8 +4,8 @@ import { useScroll, useTransform } from 'framer-motion';
 import { PARALLAX_SPRING } from '../hooks/useParallax';
 import { usePointerParallax } from '../hooks/usePointerParallax';
 import { useSmoothProgress } from '../hooks/useSmoothProgress';
+import { LandingCinematicOverlay } from './LandingCinematicOverlay';
 import { LandingFoodStoryRail } from './LandingFoodStoryRail';
-import { LandingSectionNav } from './LandingSectionNav';
 import { ParallaxMotion } from './ParallaxMotion';
 
 /** Fixed scroll UI + page-level ambient motion tied to document progress */
@@ -24,6 +24,7 @@ export function LandingMotionChrome() {
 
   return (
     <>
+      <LandingCinematicOverlay />
       <div className="landing-page-ambient" aria-hidden>
         <ParallaxMotion
           modes={['transform', 'fade']}
@@ -55,7 +56,6 @@ export function LandingMotionChrome() {
         />
       </div>
 
-      <LandingSectionNav progress={smooth} />
       <LandingFoodStoryRail />
     </>
   );

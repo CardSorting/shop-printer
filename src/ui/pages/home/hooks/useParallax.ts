@@ -7,7 +7,7 @@ type ScrollOffset = NonNullable<Parameters<typeof useScroll>[0]>['offset'];
 
 /** Tuned spring pairs for section-specific scroll scrub feel */
 export const PARALLAX_SPRING = {
-  hero: { stiffness: 64, damping: 22 },
+  hero: { stiffness: 118, damping: 28 },
   cinematic: { stiffness: 52, damping: 18 },
   ambient: { stiffness: 70, damping: 24 },
   crisp: { stiffness: 82, damping: 28 },

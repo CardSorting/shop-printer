@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 
 type HallCtaProps = {
   href: string;
@@ -8,6 +8,7 @@ type HallCtaProps = {
   className?: string;
   icon?: ReactNode;
   dark?: boolean;
+  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 };
 
 export function HallCta({
@@ -17,10 +18,12 @@ export function HallCta({
   className = '',
   icon,
   dark = false,
+  onClick,
 }: HallCtaProps) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={`hall-cta hall-cta--${variant} ${dark ? 'hall-cta--dark' : ''} ${className}`.trim()}
     >
       <span className="hall-cta__label">{label}</span>

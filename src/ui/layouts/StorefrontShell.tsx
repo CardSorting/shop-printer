@@ -54,10 +54,11 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
 
     const isProductPage = pathname.startsWith('/products/');
     const productHandle = isProductPage ? pathname.split('/').pop() : undefined;
+    const isHome = pathname === '/';
 
 
     return (
-        <div className="min-h-screen flex flex-col bg-gray-50 relative">
+        <div className={`relative flex min-h-screen flex-col ${isHome ? 'bg-[#0c0b0a]' : 'bg-gray-50'}`}>
             <PageProgressBar />
             <Navbar />
             <AnimatePresence mode="popLayout" initial={false}>
@@ -67,7 +68,7 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
                     animate="animate"
                     exit="exit"
                     variants={PAGE_TRANSITION_VARIANTS}
-                    className="flex-1 w-full pb-20 lg:pb-0"
+                    className="relative z-0 w-full flex-1 pb-20 lg:pb-0"
                 >
                     {children}
                 </motion.main>

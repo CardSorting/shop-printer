@@ -17,7 +17,7 @@ export function LandingSectionBridge() {
   const glowX = useTransform(smooth, [0, 1], ['-4%', '4%']);
 
   return (
-    <div className="landing-section-bridge-wrap" aria-hidden>
+    <div className="landing-section-bridge-wrap landing-section-bridge-wrap--cinematic" aria-hidden>
       <ParallaxMotion
         modes={['transform', 'fade']}
         x={glowX}
@@ -31,7 +31,7 @@ export function LandingSectionBridge() {
         y={y}
         opacity={opacity}
         scaleX={scaleX}
-        className="landing-section-bridge"
+        className="landing-section-bridge landing-section-bridge--cinematic"
       />
     </div>
   );

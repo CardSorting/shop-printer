@@ -8,6 +8,7 @@ import { useCart } from '../hooks/useCart';
 export function BottomNav() {
   const pathname = usePathname();
   const { totalItems, openCart } = useCart();
+  const isHome = pathname === '/';
 
   const navItems = [
     { label: 'Home', icon: Home, href: '/' },
@@ -19,7 +20,13 @@ export function BottomNav() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-nav lg:hidden">
       {/* Safe Area Spacer */}
-      <div className="h-[calc(4.5rem+env(safe-area-inset-bottom))] bg-white/80 backdrop-blur-xl border-t border-gray-100 px-6 pb-[env(safe-area-inset-bottom)] flex items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+      <div
+        className={`h-[calc(4.5rem+env(safe-area-inset-bottom))] px-6 pb-[env(safe-area-inset-bottom)] flex items-center justify-between transition-colors duration-500 ${
+          isHome
+            ? 'border-t border-white/10 bg-[#0c0b0a]/90 shadow-[0_-12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl'
+            : 'border-t border-gray-100 bg-white/80 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl'
+        }`}
+      >
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -28,9 +35,25 @@ export function BottomNav() {
             <Link 
               key={item.label}
               href={item.href}
-              className={`flex flex-col items-center gap-1 transition-all ${isActive ? 'text-primary-600' : 'text-gray-400 hover:text-gray-900'}`}
+              className={`flex flex-col items-center gap-1 transition-all ${
+                isHome
+                  ? isActive
+                    ? 'text-primary-400'
+                    : 'text-white/45 hover:text-white/85'
+                  : isActive
+                    ? 'text-primary-600'
+                    : 'text-gray-400 hover:text-gray-900'
+              }`}
             >
-              <div className={`relative p-2 rounded-2xl transition-all ${isActive ? 'bg-primary-50' : 'bg-transparent'}`}>
+              <div className={`relative p-2 rounded-2xl transition-all ${
+                isHome
+                  ? isActive
+                    ? 'bg-white/10'
+                    : 'bg-transparent'
+                  : isActive
+                    ? 'bg-primary-50'
+                    : 'bg-transparent'
+              }`}>
                 <Icon className={`w-6 h-6 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
               </div>
               <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
@@ -41,9 +64,13 @@ export function BottomNav() {
         {/* Floating Cart Trigger */}
         <button 
           onClick={openCart}
-          className="relative flex flex-col items-center gap-1 text-gray-400 hover:text-gray-900"
+          className={`relative flex flex-col items-center gap-1 ${isHome ? 'text-white/45 hover:text-white/85' : 'text-gray-400 hover:text-gray-900'}`}
         >
-          <div className="relative p-2 rounded-2xl bg-gray-900 text-white shadow-xl shadow-gray-200 -translate-y-4 border-4 border-white">
+          <div className={`relative p-2 rounded-2xl shadow-xl -translate-y-4 border-4 ${
+            isHome
+              ? 'border-[#0c0b0a] bg-white text-gray-900 shadow-black/40'
+              : 'border-white bg-gray-900 text-white shadow-gray-200'
+          }`}>
             <ShoppingBag className="w-6 h-6" />
             {totalItems > 0 && (
               <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-500 text-[10px] font-black text-white ring-2 ring-gray-900">

@@ -10,19 +10,134 @@
 }
 
 .landing-hero--simple {
-  min-height: min(88svh, 44rem);
+  min-height: min(92svh, 48rem);
   justify-content: center;
+}
+
+.landing-hero__media-reveal {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
 }
 
 .landing-hero__content--simple {
   position: relative;
   z-index: 2;
   width: 100%;
-  padding-block: clamp(5rem, 12vh, 7rem);
+  padding-block: clamp(2rem, 5vh, 3rem);
+}
+
+.landing-page--cinematic .landing-hero__content--simple {
+  padding-block: clamp(2rem, 5vh, 3rem) clamp(1.5rem, 4vh, 2.5rem);
+}
+
+.landing-hero__card {
+  position: relative;
+  isolation: isolate;
+  max-width: min(44rem, 100%);
+  padding: clamp(1.35rem, 3.5vw, 2.15rem);
+  border-radius: 1.35rem;
+  overflow: hidden;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: layout style;
+}
+
+.landing-hero__card-glow {
+  position: absolute;
+  inset: -30% -20% auto;
+  height: 70%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 20% 0%,
+    rgb(245 158 11 / 0.14) 0%,
+    transparent 62%
+  );
+  z-index: 0;
+}
+
+.landing-hero__headline-lockup .landing-hero__line {
+  display: block;
+}
+
+.landing-hero__headline-lockup .landing-hero__line + .landing-hero__line {
+  margin-top: 0.08em;
+}
+
+.landing-hero__card-accent {
+  display: block;
+  width: clamp(4rem, 18vw, 7rem);
+  height: 2px;
+  margin-bottom: 1.35rem;
+  transform-origin: left center;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--color-primary-400) 0%,
+    rgb(255 255 255 / 0.35) 100%
+  );
+  box-shadow: 0 0 18px rgb(245 158 11 / 0.35);
+}
+
+.landing-hero__mobile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-bottom: 1.15rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(12 11 10 / 0.28);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: rgb(243 244 246 / 0.92);
+}
+
+@media (min-width: 768px) {
+  .landing-hero__mobile-meta {
+    display: none;
+  }
+}
+
+.landing-hero__mobile-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #9ca3af;
+  flex-shrink: 0;
+}
+
+.landing-hero__mobile-dot--open {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgb(34 197 94 / 0.22);
+}
+
+.landing-hero__mobile-dot--closed {
+  background: #f59e0b;
+}
+
+.landing-hero__mobile-status {
+  color: #fff;
+}
+
+.landing-hero__mobile-sep {
+  opacity: 0.35;
+}
+
+.landing-hero__mobile-hours {
+  color: rgb(243 244 246 / 0.72);
+  font-weight: 500;
+}
+
+.landing-hero__headline-line {
+  display: block;
+  overflow: hidden;
 }
 
 .landing-hero__copy--simple {
-  max-width: 42rem;
+  max-width: none;
 }
 
 .landing-hero__copy--simple .landing-hero__rule {
@@ -161,6 +276,7 @@
 
 .landing-hero__line {
   display: block;
+  will-change: transform, opacity;
 }
 
 .landing-hero__line--accent {
@@ -294,7 +410,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.5rem;
   transform: translateX(-50%);
   font-size: 0.6875rem;
   font-weight: 600;
@@ -302,16 +418,35 @@
   text-transform: uppercase;
   text-decoration: none;
   color: rgb(255 255 255 / 0.55);
-  transition: color 200ms;
+  transition: color 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .landing-hero__scroll-cue:hover {
-  color: rgb(255 255 255 / 0.85);
+  color: rgb(255 255 255 / 0.92);
+}
+
+.landing-hero__scroll-cue-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  animation: landing-hero-cue-bob 1.25s ease-in-out infinite;
 }
 
 .landing-hero__scroll-cue .landing-hero__scroll-line {
+  display: block;
   width: 1px;
-  height: 2.25rem;
-  background: rgb(255 255 255 / 0.35);
-  animation: landing-scroll-pulse 2s ease-in-out infinite;
+  height: 1.35rem;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.75), rgb(255 255 255 / 0.1));
+}
+
+.landing-hero__scroll-chevron {
+  width: 0.875rem;
+  height: 0.875rem;
+  opacity: 0.8;
+}
+
+@keyframes landing-hero-cue-bob {
+  0%, 100% { transform: translateY(0); opacity: 0.55; }
+  50% { transform: translateY(5px); opacity: 1; }
 }

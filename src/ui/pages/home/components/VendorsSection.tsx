@@ -7,7 +7,7 @@ import { SLIDE_UP_VARIANTS } from '@ui/animations';
 import { LANDING_COPY } from '../copy';
 import { PARALLAX_SPRING, useSectionParallax } from '../hooks/useParallax';
 import { useSmoothProgress } from '../hooks/useSmoothProgress';
-import { CounterDirectory } from './CounterDirectory';
+import { CounterParallaxGrid } from './CounterParallaxGrid';
 import { HallCta } from './HallCta';
 import { ParallaxMotion } from './ParallaxMotion';
 import { SectionScrollSeam } from './SectionScrollSeam';
@@ -32,7 +32,7 @@ export function VendorsSection() {
   const meshRotate = useTransform(smooth, [0, 1], ['-0.8deg', '0.6deg']);
 
   return (
-    <section id="landing-vendors" ref={ref} className="landing-vendors landing-vendors--hall grain-overlay landing-parallax-scene">
+    <section id="landing-vendors" ref={ref} className="landing-vendors landing-vendors--hall landing-vendors--cinematic grain-overlay landing-parallax-scene">
       <SectionScrollSeam targetRef={ref} variant="dark" />
       <ParallaxMotion
         modes={['shift-y', 'fade']}
@@ -102,7 +102,7 @@ export function VendorsSection() {
           </motion.div>
         </ParallaxMotion>
 
-        <CounterDirectory progress={smooth} />
+        <CounterParallaxGrid progress={smooth} />
       </StudioContainer>
 
       <SectionScrollSeam targetRef={ref} variant="dark" className="landing-section-seam--exit" />

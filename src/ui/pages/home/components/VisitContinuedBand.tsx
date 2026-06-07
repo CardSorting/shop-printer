@@ -29,7 +29,7 @@ export function VisitContinuedBand({ id, children }: VisitContinuedBandProps) {
   const meshY = useTransform(smooth, [0, 1], ['4%', '-6%']);
 
   return (
-    <section id={id} ref={ref} className="landing-visit landing-visit--continued landing-parallax-scene">
+    <section id={id} ref={ref} className="landing-visit landing-visit--continued landing-visit--cinematic landing-parallax-scene">
       <SectionScrollSeam targetRef={ref} variant="dark" />
       <ParallaxMotion
         modes={['shift-y', 'fade']}

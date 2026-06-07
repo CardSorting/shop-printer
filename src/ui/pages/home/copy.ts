@@ -7,12 +7,12 @@ export const LANDING_META = {
   name: 'WoodBine',
   tagline: 'Old Hall. New Flavors.',
   neighborhood: 'Warehouse District · Salt Lake City',
-  vendorCount: 12,
+  vendorCount: 9,
 } as const;
 
 export const LANDING_SECTIONS = [
   { id: 'landing-hero', label: 'Welcome', shortLabel: 'Home', hint: 'Start here' },
-  { id: 'landing-vendors', label: 'Counters', shortLabel: 'Menu', hint: 'Twelve kitchens' },
+  { id: 'landing-vendors', label: 'Counters', shortLabel: 'Menu', hint: 'Nine kitchens' },
   { id: 'landing-visit', label: 'Visit us', shortLabel: 'Visit', hint: 'Hours & location' },
   { id: 'landing-gatherings', label: 'Private events', shortLabel: 'Events', hint: 'Book the hall' },
   { id: 'landing-beyond', label: 'The space', shortLabel: 'Space', hint: 'Rooms & layout' },
@@ -30,7 +30,7 @@ export const LANDING_COPY = {
       neighborhood: 'Warehouse District',
     },
     kicker: 'Salt Lake City’s neighborhood food hall',
-    headline: ['Twelve kitchens.', 'One big table.'],
+    headline: ['Nine kitchens.', 'One big table.'],
     lede:
       'Independent vendors, open flames, shared seating, and a warehouse room built for the kind of meal that turns into an afternoon — coffee at dawn to cocktails after dark.',
     aside: 'No host stand. No turn policy. Just pull up a chair.',
@@ -46,8 +46,8 @@ export const LANDING_COPY = {
     byDaypart: {
       morning: {
         lede:
-          'Espresso steam, warm pastry, and quiet tables before the lunch rush — twelve kitchens waking up along one wall.',
-        aside: 'Mainline opens first. Hearth pulls from the oven. Stay as long as you want.',
+          'Warm cookies, fresh slices, and quiet tables before the lunch rush — nine kitchens waking up along one wall.',
+        aside: 'Chunky opens early. Mozz pulls from the oven. Stay as long as you want.',
         ctaPrimary: { label: 'Morning menu', href: '/collections/coffee' },
         collageQuote: 'Pastry counter first. Espresso second. The floor is yours until noon.',
       },
@@ -60,22 +60,22 @@ export const LANDING_COPY = {
       },
       afternoon: {
         lede:
-          'Second coffee, dessert from Crema, laptop-friendly corners — the hall slows down without emptying out.',
-        aside: 'Slice Society for a slice. Bar Volta for a spritz. Nobody clocks your table.',
+          'Second round from Chunky, a slice from Mozz, laptop-friendly corners — the hall slows down without emptying out.',
+        aside: 'Marcato for a stromboli. DeadPan for a sando. Nobody clocks your table.',
         ctaPrimary: { label: 'Afternoon menu', href: '/collections/bestsellers' },
         collageQuote: 'The rush is over. The room is yours for a slow round.',
       },
       evening: {
         lede:
-          'Patio lights, shared mains, smoke from Ember & Oak, and pours from Grain & Grape — dinner as a room, not a reservation.',
+          'Patio lights, shared mains, smoke from Salt City Barbecue, and slices from Mozz — dinner as a room, not a reservation.',
         aside: 'Walk in. Mix counters. Stay for nightcaps.',
         ctaPrimary: { label: 'Dinner menu', href: '/collections/hearty' },
         collageQuote: 'Cocktails, shared plates, and the warehouse lit up after dark.',
       },
       late: {
         lede:
-          'Final plates from Ramen Post, last pours at Bar Volta, dessert if you’re lucky — the hall winding down together.',
-        aside: 'Last call energy. Same communal tables. One more round if you’re quick.',
+          'Final bowls from Tosh\'s, burgers from Doms, cookies from Chunky if you\'re lucky — the hall winding down together.',
+        aside: 'Last call energy. Same communal tables. One more round if you\'re quick.',
         ctaPrimary: { label: 'Late menu', href: '/collections/bestsellers' },
         collageQuote: 'Tonkotsu, nightcaps, and the room going quiet by degrees.',
       },
@@ -92,7 +92,7 @@ export const LANDING_COPY = {
 
   counterLine: {
     label: 'Walk the line',
-    headline: 'Twelve kitchens along one wall.',
+    headline: 'Nine kitchens along one wall.',
     hint: 'Scroll the counter line — order from any window, mix plates at one table.',
     footer: 'Every counter is its own restaurant · Same room · Same buzz',
   },
@@ -101,27 +101,27 @@ export const LANDING_COPY = {
     morning: {
       greeting: 'Morning on the floor',
       hint: 'Espresso, pastries, and quiet tables before the lunch rush.',
-      suggestion: 'Start at Mainline Coffee or Hearth Bakery',
+      suggestion: 'Start at Chunky or grab a slice from Mozz',
     },
     midday: {
       greeting: 'Lunch rush energy',
       hint: 'Steam from the pass, shared plates, every counter firing.',
-      suggestion: 'Mix a bowl from Verde with tacos from Firebird',
+      suggestion: 'Mix arepas from Caracas Grill with ramen from Tosh\'s',
     },
     afternoon: {
       greeting: 'Slow afternoon',
-      hint: 'Second coffee, dessert from Crema, laptop-friendly corners.',
-      suggestion: 'Bar Volta for a spritz · Slice Society for a slice',
+      hint: 'Cookies from Chunky, a slice from Mozz, laptop-friendly corners.',
+      suggestion: 'Marcato stromboli · Chunky cookies · slow table',
     },
     evening: {
       greeting: 'Evening in the hall',
       hint: 'Cocktails, shared mains, patio lights, one more round.',
-      suggestion: 'Ember & Oak for smoke · Grain & Grape for pours',
+      suggestion: 'Salt City Barbecue for smoke · Mozz for a pie',
     },
     late: {
       greeting: 'Last call vibes',
       hint: 'Final plates, nightcaps, the room winding down together.',
-      suggestion: 'Ramen Post · Bar Volta · whatever’s still on the pass',
+      suggestion: "Tosh's Ramen Express · Doms Burgers · whatever's still on the pass",
     },
   },
 
@@ -131,31 +131,31 @@ export const LANDING_COPY = {
     morning: {
       title: 'Pastry steam & first espresso',
       energy: 'Quiet · unhurried',
-      hotCounters: ['Mainline Coffee', 'Hearth Bakery', 'Crema'],
+      hotCounters: ['Chunky', 'Mozz', 'Marcato'],
       cta: { label: 'See morning menu', href: '/collections/coffee' },
     },
     midday: {
       title: 'Every counter is firing',
       energy: 'Full buzz · shared tables',
-      hotCounters: ['Firebird Tacos', 'Ember & Oak', 'The Wok'],
+      hotCounters: ['Caracas Grill', 'Salt City Barbecue', 'Doms Burgers'],
       cta: { label: 'Order lunch now', href: '/collections/bestsellers' },
     },
     afternoon: {
       title: 'Second round weather',
       energy: 'Relaxed · laptop-friendly',
-      hotCounters: ['Slice Society', 'Verde', 'Bar Volta'],
+      hotCounters: ['Mozz', 'DeadPan', 'Chunky'],
       cta: { label: 'Browse afternoon menu', href: '/collections/bestsellers' },
     },
     evening: {
       title: 'Patio lights & shared plates',
       energy: 'Social · slow dinner',
-      hotCounters: ['Ember & Oak', 'Grain & Grape', 'Tidal'],
+      hotCounters: ['Salt City Barbecue', 'Mozz', 'Shwe Letyar'],
       cta: { label: 'See dinner menu', href: '/collections/hearty' },
     },
     late: {
       title: 'Final plates & nightcaps',
       energy: 'Winding down together',
-      hotCounters: ['Ramen Post', 'Bar Volta', 'Crema'],
+      hotCounters: ["Tosh's Ramen Express", 'Doms Burgers', 'Chunky'],
       cta: { label: 'Last call menu', href: '/collections/bestsellers' },
     },
   },
@@ -195,7 +195,7 @@ export const LANDING_COPY = {
   marquee: {
     forward: [
       'Walk Right In',
-      '12 Open Kitchens',
+      '9 Open Kitchens',
       'Mix Any Counters',
       'Shared Tables',
       'Covered Patio',
@@ -245,7 +245,7 @@ export const LANDING_COPY = {
     timelineEnd: 'Full room',
     programLabel: 'Room program',
     stats: [
-      { value: '12', label: 'Counters by day' },
+      { value: '9', label: 'Counters by day' },
       { value: '1', label: 'Barrel roof' },
       { value: '∞', label: 'Nights possible' },
     ],
@@ -316,7 +316,7 @@ export const LANDING_COPY = {
       {
         step: '01',
         title: 'Walk the line',
-        body: 'Twelve counters, twelve menus. Smoked meats, raw bar, pizza, ramen, pastries — order from as many as you want.',
+        body: 'Nine counters, nine menus. BBQ, pizza, ramen, sushi, cookies — order from as many as you want.',
       },
       {
         step: '02',
@@ -334,7 +334,7 @@ export const LANDING_COPY = {
         index: '01',
         kicker: 'Morning',
         title: 'Coffee & pastry crawl',
-        body: 'Mainline for espresso, Hearth for something warm. Laptop tables before the floor fills up.',
+        body: 'Chunky for something sweet. Mozz for a slice. Laptop tables before the floor fills up.',
       },
       {
         index: '02',
@@ -372,7 +372,7 @@ export const LANDING_COPY = {
     cards: [
       {
         quote: 'I plate it different when I can see who’s waiting.',
-        role: 'Pass · Ember & Oak',
+        role: 'Pass · Salt City Barbecue',
       },
       {
         quote: 'Best morning office in the city — Wi‑Fi, latte, and a sando with actual crunch.',
@@ -387,17 +387,18 @@ export const LANDING_COPY = {
 
   vendors: {
     index: '04',
-    label: 'Counters',
-    rail: 'The full line · 12 kitchens',
-    headline: ['Every counter', 'is its own restaurant.'],
-    lede: 'Small kitchens, owner-operated, zero franchise playbook — each vendor brings their own menu to the same room, the same buzz, the same regulars.',
-    directoryLabel: 'The full line-up',
-    directoryHint: 'Walk any counter · mix plates across the hall',
-    cta: { label: 'Browse hall favorites', href: '/collections/bestsellers' },
+    label: 'The hall',
+    rail: 'Nine kitchens · one room',
+    headline: ['One hall,', 'every craving.'],
+    lede:
+      'Shared tables, open seating, and a warehouse room built for grazing — pizza, BBQ, ramen, and cookies from the same floor.',
+    directoryLabel: 'On the floor',
+    directoryHint: 'Nine kitchens · walk in · mix menus at one table',
+    cta: { label: 'Walk the hall', href: '/collections/bestsellers' },
     tiles: [
-      { title: 'Ember & Oak', sub: 'Smoke · Char · Share plates' },
-      { title: 'Tidal', sub: 'Oysters · Crudo · Bright' },
-      { title: 'Hearth Bakery', sub: 'Bakes · Pastry · Morning' },
+      { title: 'Mozz', sub: 'Pizza · Slices · Share' },
+      { title: 'Salt City Barbecue', sub: 'Smoke · Char · Plates' },
+      { title: 'Caracas Grill', sub: 'Arepas · Street · Bright' },
     ],
   },
 

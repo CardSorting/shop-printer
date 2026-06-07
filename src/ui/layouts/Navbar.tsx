@@ -6,14 +6,14 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
-import { useCallback, useEffect, useState, useRef } from 'react';
-import { ShoppingCart, User, Menu, X, ChevronRight, ChevronDown, Search, Heart, RefreshCcw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ShoppingCart, User, Menu, X, Search, RefreshCcw } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
-import { BeeLogo, HiveCell } from '../components/Logo';
+import { BeeLogo } from '../components/Logo';
 import Image from 'next/image';
 
 import { useWishlist } from '../hooks/useWishlist';
-import { getProductUrl, getCollectionUrl, STORE_PATHS, getSearchUrl } from '@utils/navigation';
+import { getProductUrl, STORE_PATHS, getSearchUrl } from '@utils/navigation';
 
 import type { NavigationMenu } from '@domain/models';
 
@@ -24,7 +24,7 @@ export function Navbar() {
   const { recentlyViewed } = useWishlist();
   const router = useRouter();
   const pathname = usePathname();
-  
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,7 +65,7 @@ export function Navbar() {
 
   return (
     <>
-      <nav className="relative z-nav py-6 bg-white border-b border-gray-100/50">
+      <nav className="sticky top-0 z-[var(--z-nav)] isolate border-b border-gray-100/50 bg-white/95 py-6 shadow-sm backdrop-blur-xl">
         <div className="w-full px-6 lg:px-16 xl:px-24 flex items-center gap-6 lg:gap-12">
           
           {/* Brand */}
@@ -94,7 +94,7 @@ export function Navbar() {
             <input 
               type="text"
               placeholder="Search vendors & dishes..."
-              className={`w-full pl-10 pr-4 py-2 text-[13px] font-medium bg-gray-100 border-2 border-transparent rounded-full outline-none transition-all duration-300 focus:bg-white focus:border-primary-500/20 focus:ring-4 focus:ring-primary-500/5 placeholder:text-gray-400`}
+              className="w-full pl-10 pr-4 py-2 text-[13px] font-medium bg-gray-100 border-2 border-transparent rounded-full outline-none transition-all duration-300 focus:bg-white focus:border-primary-500/20 focus:ring-4 focus:ring-primary-500/5 placeholder:text-gray-400 text-gray-900"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}

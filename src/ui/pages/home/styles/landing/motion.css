@@ -240,11 +240,14 @@
   .landing-marquee__track,
   .landing-counter-line__track,
   .float-gentle,
-  .landing-getting-here__map-pin-dot {
+  .landing-getting-here__map-pin-dot,
+  .landing-hero__scroll-cue-icon {
     animation: none;
   }
 
   .landing-hero__media,
+  .landing-hero__media-reveal,
+  .landing-hero__card,
   .landing-editorial__media,
   .landing-visit__media,
   .landing-parallax--transform,

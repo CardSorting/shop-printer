@@ -106,7 +106,7 @@ export function VisitSection() {
       <section
         id="landing-visit"
         ref={visitRef}
-        className="landing-visit landing-visit--hall landing-visit--simple grain-overlay landing-parallax-scene"
+        className="landing-visit landing-visit--hall landing-visit--simple landing-visit--cinematic grain-overlay landing-parallax-scene"
       >
         <SectionScrollSeam targetRef={visitRef} variant="dark" />
 

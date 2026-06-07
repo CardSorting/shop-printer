@@ -1,0 +1,182 @@
+/* —— Cinematic homepage: full-bleed hero, scroll vignette, scene transitions —— */
+
+.landing-page--cinematic {
+  background: var(--landing-ink);
+  color: var(--landing-cream);
+}
+
+.landing-page--cinematic .landing-hero.landing-hero--simple {
+  min-height: min(78svh, 42rem);
+}
+
+.landing-page--cinematic .landing-hero--cinematic {
+  min-height: min(78svh, 42rem);
+  justify-content: flex-end;
+  padding-bottom: clamp(2rem, 6vh, 3.5rem);
+}
+
+.landing-hero__cinema-fade {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 4;
+  height: clamp(8rem, 22vh, 14rem);
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgb(12 11 10 / 0.35) 45%,
+    var(--landing-ink) 100%
+  );
+}
+
+.landing-hero__cinema-rail {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 5;
+  height: clamp(0.65rem, 1.8vh, 1rem);
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0.45), transparent);
+}
+
+.landing-hero__cinema-rail--foot {
+  top: auto;
+  bottom: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.35), transparent);
+  height: clamp(0.5rem, 1.4vh, 0.75rem);
+}
+
+.landing-cinema-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  box-shadow: inset 0 0 min(18vw, 9rem) rgb(0 0 0 / 0.42);
+  opacity: var(--cinema-vignette, 0.55);
+  transition: opacity 0.4s ease;
+}
+
+.landing-cinema-vignette::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: clamp(0.55rem, 1.6vh, 0.85rem);
+  background: rgb(0 0 0 / 0.55);
+}
+
+.landing-section-bridge-wrap--cinematic {
+  height: clamp(4rem, 10vh, 6rem);
+  margin-top: calc(-1 * clamp(3rem, 8vh, 5rem));
+  margin-bottom: calc(-1 * clamp(1.5rem, 4vh, 2.5rem));
+}
+
+.landing-section-bridge--cinematic {
+  width: min(32rem, 72vw);
+  height: 1px;
+}
+
+.landing-section-bridge-wrap--cinematic .landing-section-bridge__glow {
+  width: min(20rem, 48vw);
+  height: 4rem;
+  filter: blur(16px);
+}
+
+.landing-vendors--cinematic {
+  position: relative;
+  z-index: 2;
+  padding-top: clamp(2rem, 5vh, 3rem);
+}
+
+.landing-page--cinematic .landing-section-seam--dark .landing-section-seam__line {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(255 255 255 / 0.35) 50%,
+    transparent 100%
+  );
+}
+
+/* —— Scene cut between major acts —— */
+
+.landing-scene-cut {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  min-height: clamp(10rem, 24vh, 14rem);
+  padding: clamp(2rem, 5vh, 3rem) clamp(1.25rem, 4vw, 4rem);
+  background:
+    radial-gradient(ellipse 80% 120% at 50% 50%, rgb(245 158 11 / 0.08) 0%, transparent 70%),
+    var(--landing-ink);
+}
+
+.landing-scene-cut__inner {
+  text-align: center;
+}
+
+.landing-scene-cut__chapters {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.42);
+}
+
+.landing-scene-cut__chapters span:first-child,
+.landing-scene-cut__chapters span:last-child {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-primary-400);
+}
+
+.landing-scene-cut__arrow {
+  width: 1.75rem;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(255 255 255 / 0.15), rgb(255 255 255 / 0.45), rgb(255 255 255 / 0.15));
+}
+
+.landing-scene-cut__title {
+  margin: 0.85rem 0 0;
+  font-size: clamp(1.75rem, 4.5vw, 2.75rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.landing-scene-cut__subtitle {
+  margin: 0.75rem auto 0;
+  max-width: 32rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: rgb(255 255 255 / 0.52);
+}
+
+/* —— Visit act —— */
+
+.landing-visit--cinematic {
+  position: relative;
+  z-index: 2;
+}
+
+.landing-page--cinematic .landing-visit--continued {
+  background: var(--landing-ink);
+}
+
+.landing-page--cinematic .landing-visit__continued-glow,
+.landing-page--cinematic .landing-visit__ambient {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-cinema-vignette {
+    display: none;
+  }
+
+  .landing-page--cinematic .landing-hero--cinematic {
+    min-height: min(82svh, 44rem);
+  }
+}

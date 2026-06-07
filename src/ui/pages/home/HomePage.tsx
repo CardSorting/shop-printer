@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import './styles/index.css';
 import { HeroSection } from './components/HeroSection';
 import { LandingSectionBridge } from './components/LandingSectionBridge';
+import { LandingSceneCut } from './components/LandingSceneCut';
 import { VendorsSection } from './components/VendorsSection';
 import { StudioShell } from './components/StudioShell';
 
@@ -24,10 +25,16 @@ export function HomePage() {
   return (
     <>
       <LandingMotionChrome />
-      <StudioShell guided>
+      <StudioShell guided cinematic>
         <HeroSection />
         <LandingSectionBridge />
         <VendorsSection />
+        <LandingSceneCut
+          from="02"
+          to="03"
+          title="Visit the hall"
+          subtitle="Hours, private events, the space — and how to find us"
+        />
         <VisitSection />
       </StudioShell>
     </>

@@ -6,13 +6,14 @@ type StudioShellProps = {
   id?: string;
   dark?: boolean;
   guided?: boolean;
+  cinematic?: boolean;
 };
 
-export function StudioShell({ children, className = '', id, dark = false, guided = false }: StudioShellProps) {
+export function StudioShell({ children, className = '', id, dark = false, guided = false, cinematic = false }: StudioShellProps) {
   return (
     <div
       id={id}
-      className={`landing-page ${guided ? 'landing-page--guided' : ''} ${dark ? 'landing-page--dark' : ''} ${className}`.trim()}
+      className={`landing-page ${guided ? 'landing-page--guided' : ''} ${cinematic ? 'landing-page--cinematic' : ''} ${dark ? 'landing-page--dark' : ''} ${className}`.trim()}
     >
       {children}
     </div>
