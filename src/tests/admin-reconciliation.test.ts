@@ -645,7 +645,7 @@ describe('Operator-Facing Reconciliation & Forensics Integration Tests', () => {
   // ─── Point 6: Webhook Re-Entry Immunity ──────────────────────────────────
 
   describe('Point 6 — Webhook Re-Entry Immunity on Resolved Cases', () => {
-    it('PROVE: finalizeOrderPayment early-exits safely when order or case is already resolved', async () => {
+    it('PROVE: confirmStripePayment early-exits safely when order or case is already resolved', async () => {
       // Setup order in resolved reconciliation state
       const order = createTestOrder('order-123', {
         paymentTransactionId: 'pi_resolved_webhook',
@@ -676,7 +676,7 @@ describe('Operator-Facing Reconciliation & Forensics Integration Tests', () => {
       expect(mockOrderRepo.transitionCheckoutAttemptPhase).not.toHaveBeenCalled();
     });
 
-    it('PROVE: finalizeOrderPayment early-exits safely when case document is resolved', async () => {
+    it('PROVE: confirmStripePayment early-exits safely when case document is resolved', async () => {
       // Setup order in non-terminal state but with a resolved case document
       const order = createTestOrder('order-123', {
         paymentTransactionId: 'pi_case_resolved',

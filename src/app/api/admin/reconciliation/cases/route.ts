@@ -31,11 +31,14 @@ export async function POST(request: Request) {
     }
 
     const services = await getServerServices();
-    await services.orderService.handleReconciliationOperatorAction({
+    const actor = { id: adminUser.id, email: adminUser.email };
+
+    await services.checkout.handleReconciliationOperatorAction({
       caseId,
       action,
       reason,
-      actor: { id: adminUser.id, email: adminUser.email },
+      actor,
+      recordOperatorAction: (input) => services.orderService.handleReconciliationOperatorAction(input),
     });
 
     return NextResponse.json({ success: true, message: 'Operator action applied successfully' });

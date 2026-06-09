@@ -2,13 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 import { CheckoutFlowService } from '../core/order/CheckoutFlowService';
 import * as paymentIntentFlow from '../core/order/checkoutPaymentIntentFlow';
 
-function makeOrderRepo() {
+function makeOrderRepo(overrides: Record<string, any> = {}) {
   return {
+    getAll: vi.fn().mockResolvedValue({ orders: [] }),
+    getReconciliationCase: vi.fn(),
     updatePaymentTransactionId: vi.fn().mockResolvedValue(undefined),
     updateCheckoutAttempt: vi.fn().mockResolvedValue(undefined),
     transitionCheckoutAttemptPhase: vi.fn().mockResolvedValue(undefined),
     updateMetadata: vi.fn().mockResolvedValue(undefined),
     createOrUpdateReconciliationCase: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
   };
 }
 
@@ -28,8 +31,14 @@ function makeMutations(overrides: Record<string, any> = {}) {
   };
 }
 
-function makeFlow(mutations = makeMutations(), orderRepo = makeOrderRepo()) {
-  return new CheckoutFlowService(mutations as any, orderRepo as any);
+function makeFlow(
+  mutations = makeMutations(),
+  orderRepo = makeOrderRepo(),
+  options: { cancelExpiredPendingOrder?: (orderId: string) => Promise<void> } = {},
+) {
+  return new CheckoutFlowService(mutations as any, orderRepo as any, {
+    cancelExpiredPendingOrder: options.cancelExpiredPendingOrder ?? vi.fn().mockResolvedValue(undefined),
+  });
 }
 
 describe('CheckoutFlowService', () => {
@@ -117,5 +126,103 @@ describe('CheckoutFlowService', () => {
 
     expect(result).toEqual({ action: 'finalized', orderId: 'order-1' });
     expect(mutations.confirmStripePayment).toHaveBeenCalled();
+  });
+
+  it('cleanupExpiredPendingOrders finalizes succeeded Stripe payments instead of cancelling', async () => {
+    const order = {
+      id: 'order-cleanup',
+      userId: 'user-1',
+      status: 'pending',
+      paymentTransactionId: 'pi_cleanup',
+      idempotencyKey: 'checkout-cleanup',
+      metadata: {},
+    };
+    const orderRepo = makeOrderRepo({
+      getAll: vi.fn().mockResolvedValue({ orders: [order] }),
+    });
+    const mutations = makeMutations({
+      confirmStripePayment: vi.fn().mockResolvedValue({ id: 'order-cleanup', status: 'processing' }),
+    });
+    const cancelExpiredOrder = vi.fn();
+    const flow = makeFlow(mutations, orderRepo, { cancelExpiredPendingOrder: cancelExpiredOrder });
+
+    const result = await flow.cleanupExpiredPendingOrders(
+      60,
+      { getPaymentIntent: vi.fn().mockResolvedValue({ id: 'pi_cleanup', status: 'succeeded' }) },
+    );
+
+    expect(result.count).toBe(1);
+    expect(mutations.confirmStripePayment).toHaveBeenCalledWith('pi_cleanup', expect.anything(), 'system');
+    expect(cancelExpiredOrder).not.toHaveBeenCalled();
+  });
+
+  it('completeOperatorRetryRecovery finalizes paid-not-finalized cases', async () => {
+    const orderRepo = makeOrderRepo({
+      getReconciliationCase: vi.fn().mockResolvedValue({
+        paymentIntentId: 'pi_retry',
+        reason: 'paid_not_finalized',
+        severity: 'high',
+        operatorVisibleMessage: 'needs recovery',
+        evidence: [],
+      }),
+    });
+    const mutations = makeMutations({
+      confirmStripePayment: vi.fn().mockResolvedValue({ id: 'order-retry', status: 'processing' }),
+    });
+    const flow = makeFlow(mutations, orderRepo);
+    const markCaseResolved = vi.fn().mockResolvedValue(undefined);
+
+    await flow.completeOperatorRetryRecovery({
+      caseId: 'pi_retry_paid_not_finalized',
+      reason: 'operator retry',
+      actor: { id: 'admin-1', email: 'admin@test.com' },
+      markCaseResolved,
+    });
+
+    expect(mutations.confirmStripePayment).toHaveBeenCalledWith('pi_retry', undefined, 'admin@test.com');
+    expect(markCaseResolved).toHaveBeenCalledWith({
+      caseId: 'pi_retry_paid_not_finalized',
+      reason: 'Automated recovery retry completed successfully: operator retry',
+      actor: { id: 'admin-1', email: 'admin@test.com' },
+    });
+  });
+
+  it('handleReconciliationOperatorAction records action then runs retry recovery', async () => {
+    const orderRepo = makeOrderRepo({
+      getReconciliationCase: vi.fn().mockResolvedValue({
+        paymentIntentId: 'pi_route',
+        reason: 'paid_not_finalized',
+        severity: 'high',
+        operatorVisibleMessage: 'needs recovery',
+        evidence: [],
+      }),
+    });
+    const mutations = makeMutations({
+      confirmStripePayment: vi.fn().mockResolvedValue({ id: 'order-route', status: 'processing' }),
+    });
+    const flow = makeFlow(mutations, orderRepo);
+    const recordOperatorAction = vi.fn().mockResolvedValue(undefined);
+
+    await flow.handleReconciliationOperatorAction({
+      caseId: 'pi_route_paid_not_finalized',
+      action: 'retry_recovery',
+      reason: 'operator retry',
+      actor: { id: 'admin-1', email: 'admin@test.com' },
+      recordOperatorAction,
+    });
+
+    expect(recordOperatorAction).toHaveBeenNthCalledWith(1, {
+      caseId: 'pi_route_paid_not_finalized',
+      action: 'retry_recovery',
+      reason: 'operator retry',
+      actor: { id: 'admin-1', email: 'admin@test.com' },
+    });
+    expect(mutations.confirmStripePayment).toHaveBeenCalledWith('pi_route', undefined, 'admin@test.com');
+    expect(recordOperatorAction).toHaveBeenNthCalledWith(2, {
+      caseId: 'pi_route_paid_not_finalized',
+      action: 'mark_resolved',
+      reason: 'Automated recovery retry completed successfully: operator retry',
+      actor: { id: 'admin-1', email: 'admin@test.com' },
+    });
   });
 });

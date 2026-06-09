@@ -17,7 +17,7 @@ test.describe('Chaos & Reliability Regression', () => {
   });
 
   test('PROVE: Database write failure after payment success triggers reconciliation', async ({ request }) => {
-    // Payment succeeds but finalizeOrderPayment fails.
+    // Payment succeeds but confirmStripePayment fails.
     // The subsequent Webhook OR Redirect Verify must be able to resume the finalization.
   });
 });

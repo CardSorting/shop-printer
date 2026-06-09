@@ -17,11 +17,9 @@ import type {
 import { AuditService } from './AuditService';
 import { StripeService } from '@infrastructure/services/StripeService';
 import { OrderAdminService } from './order/OrderAdminService';
-import type { CheckoutFlowService } from './order/CheckoutFlowService';
 import { OrderFulfillmentWorkflowService } from './order/OrderFulfillmentWorkflowService';
 import { OrderLogisticsService } from './order/OrderLogisticsService';
 import { OrderReadService } from './order/OrderReadService';
-import { CHECKOUT_RECOVERY_PHASES } from './order/checkoutWorkflow';
 import type { OrderActor } from './order/types';
 import { logger } from '@utils/logger';
 
@@ -33,7 +31,6 @@ import { logger } from '@utils/logger';
  * and admin mutations can evolve independently.
  */
 export class OrderService {
-  private readonly checkoutFlow: CheckoutFlowService;
   private readonly logisticsService: OrderLogisticsService;
   private readonly fulfillmentWorkflowService: OrderFulfillmentWorkflowService;
   private readonly readService: OrderReadService;
@@ -44,10 +41,9 @@ export class OrderService {
     productRepo: IProductRepository,
     discountRepo: IDiscountRepository,
     audit: AuditService,
-    checkoutFlow: CheckoutFlowService,
-    shippingRepo?: IShippingRepository
+    shippingRepo?: IShippingRepository,
+    private readonly stripeService?: StripeService,
   ) {
-    this.checkoutFlow = checkoutFlow;
     this.logisticsService = new OrderLogisticsService(this.orderRepo, productRepo);
     this.fulfillmentWorkflowService = new OrderFulfillmentWorkflowService(this.orderRepo);
     this.readService = new OrderReadService(this.orderRepo);
@@ -125,99 +121,11 @@ export class OrderService {
     return this.adminService.batchUpdateOrderStatus(ids, status, actor);
   }
 
-  async cleanupExpiredOrders(expirationMinutes = 60): Promise<{ count: number }> {
-    const cutoff = new Date();
-    cutoff.setMinutes(cutoff.getMinutes() - expirationMinutes);
-    const { orders } = await this.orderRepo.getAll({ status: 'pending', to: cutoff });
-    const stripeService = new StripeService();
-    let processed = 0;
-
-    for (const order of orders) {
-      if (order.paymentTransactionId) {
-        try {
-          const paymentIntent = await stripeService.getPaymentIntent(order.paymentTransactionId);
-          if (paymentIntent.status === 'succeeded') {
-            await Promise.resolve((this.orderRepo as any).transitionCheckoutAttemptPhase?.({
-              attemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || order.id,
-              expectedPhases: CHECKOUT_RECOVERY_PHASES,
-              nextPhase: 'RECOVER_OR_RECONCILE',
-              authoritySource: 'stripe',
-              waitingFor: 'verification',
-              reason: 'cleanup_observed_stripe_success',
-              orderId: order.id,
-              paymentIntentId: paymentIntent.id,
-              actor: 'system',
-            })).catch(() => {});
-            logger.info('cleanup_finalizing_stripe_succeeded_payment', {
-              orderId: order.id,
-              paymentIntentId: paymentIntent.id,
-              checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
-            });
-            await this.checkoutFlow.confirmPaymentFromStripe(paymentIntent.id, paymentIntent, 'system');
-            processed++;
-            continue;
-          }
-
-          if (['processing', 'requires_action', 'requires_capture', 'requires_confirmation'].includes(paymentIntent.status)) {
-            logger.warn('cleanup_blocked_by_active_payment_intent', {
-              orderId: order.id,
-              paymentIntentId: paymentIntent.id,
-              stripeStatus: paymentIntent.status,
-            });
-            await this.orderRepo.createOrUpdateReconciliationCase({
-              paymentIntentId: paymentIntent.id,
-              orderId: order.id,
-              checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
-              reason: 'paid_not_finalized',
-              severity: 'high',
-              stripeStatus: paymentIntent.status,
-              operatorVisibleMessage: `Expired pending order ${order.id} has active Stripe PaymentIntent ${paymentIntent.id} in status ${paymentIntent.status}.`,
-              nextAction: 'Wait for Stripe terminal state or manually inspect before cancellation.',
-              details: { cleanupBlocked: true, expirationMinutes },
-              failureClassification: 'transient_external',
-              lastObservedStripeState: paymentIntent.status,
-              lastObservedLocalState: `status:${order.status};paymentState:${order.paymentState || 'unknown'}`,
-              blockingProductionReadiness: false,
-            });
-            continue;
-          }
-        } catch (error) {
-          logger.error('cleanup_stripe_lookup_failed', {
-            orderId: order.id,
-            paymentIntentId: order.paymentTransactionId,
-            error,
-          });
-          await this.orderRepo.createOrUpdateReconciliationCase({
-            paymentIntentId: order.paymentTransactionId,
-            orderId: order.id,
-            checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
-            reason: 'paid_not_finalized',
-            severity: 'critical',
-            stripeStatus: null,
-            operatorVisibleMessage: `Expired pending order ${order.id} could not verify Stripe PaymentIntent ${order.paymentTransactionId} before cancellation.`,
-            nextAction: 'Verify Stripe status manually before cancelling, fulfilling, or refunding.',
-            details: { error: error instanceof Error ? error.message : 'Unknown Stripe lookup error' },
-            failureClassification: 'transient_external',
-            lastObservedStripeState: null,
-            lastObservedLocalState: `status:${order.status};paymentState:${order.paymentState || 'unknown'}`,
-            blockingProductionReadiness: true,
-          });
-          continue;
-        }
-      }
-
-      logger.info('cleanup_cancelling_expired_unpaid_order', {
-        orderId: order.id,
-        checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
-      });
-      await this.adminService.updateOrderStatus(order.id, 'cancelled', {
-        id: 'system',
-        email: 'system@woodbine.com'
-      });
-      processed++;
-    }
-
-    return { count: processed };
+  cancelExpiredPendingOrder(orderId: string): Promise<void> {
+    return this.adminService.updateOrderStatus(orderId, 'cancelled', {
+      id: 'system',
+      email: 'system@woodbine.com',
+    });
   }
 
   getDigitalAssets(userId: string) {
@@ -281,8 +189,7 @@ export class OrderService {
     const limit = options?.limit || 50;
     let stuckWebhookClaims: any[] = [];
     try {
-      const stripeService = new StripeService();
-      stuckWebhookClaims = await stripeService.listStuckWebhookClaims(limit);
+      stuckWebhookClaims = await this.stripeService?.listStuckWebhookClaims(limit) ?? [];
     } catch (error) {
       logger.error('recovery_read_model_stuck_webhook_claims_failed', { error });
     }
@@ -392,53 +299,12 @@ export class OrderService {
     return this.adminService.getForensicTimeline(attemptId);
   }
 
-  async handleReconciliationOperatorAction(params: {
+  handleReconciliationOperatorAction(params: {
     caseId: string;
     action: 'mark_resolved' | 'retry_recovery' | 'initiate_refund_review' | 'acknowledge_external' | 'escalate';
     reason: string;
     actor: { id: string; email: string };
   }): Promise<void> {
-    await this.adminService.handleReconciliationOperatorAction(params);
-
-    if (params.action === 'retry_recovery') {
-      const kase = await this.orderRepo.getReconciliationCase(params.caseId);
-      if (kase && kase.reason === 'paid_not_finalized') {
-        try {
-          await this.checkoutFlow.confirmPaymentFromStripe(kase.paymentIntentId, null, params.actor.email);
-
-          await this.adminService.handleReconciliationOperatorAction({
-            caseId: params.caseId,
-            action: 'mark_resolved',
-            reason: `Automated recovery retry completed successfully: ${params.reason}`,
-            actor: params.actor,
-          });
-        } catch (error: any) {
-          logger.error('reconciliation_operator_action_retry_recovery_failed', { caseId: params.caseId, error });
-          
-          await this.orderRepo.createOrUpdateReconciliationCase({
-            paymentIntentId: kase.paymentIntentId,
-            reason: kase.reason,
-            severity: kase.severity,
-            lifecycleState: 'repair_attempted',
-            repairAttempt: {
-              attemptedAt: new Date().toISOString(),
-              error: error.message,
-            },
-            evidence: [
-              ...(kase.evidence || []),
-              {
-                type: 'recovery_failure',
-                value: `Automated recovery attempt failed: ${error.message}`,
-                recordedAt: new Date().toISOString()
-              }
-            ],
-            operatorVisibleMessage: kase.operatorVisibleMessage,
-            nextAction: 'Automated recovery failed. Manual intervention or escalation required.',
-          });
-
-          throw new Error(`Automated recovery failed: ${error.message}`);
-        }
-      }
-    }
+    return this.adminService.handleReconciliationOperatorAction(params);
   }
 }

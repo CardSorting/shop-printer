@@ -9,7 +9,7 @@
 
 | Area | Current evidence | Notes |
 | --- | --- | --- |
-| Checkout integrity | `OrderCheckoutService`, checkout workflow phases, reconciliation cases, and focused checkout tests. | Covers idempotency, payment mapping, rollback, and unsafe-state escalation. |
+| Checkout integrity | `CheckoutFlowService` (`services.checkout`), checkout workflow phases, reconciliation cases, and focused checkout tests. | Covers idempotency, payment mapping, rollback, and unsafe-state escalation. |
 | Core throughput | `npm run benchmark:order-flow` with raw output in `.wiki/architecture/order-flow-throughput-results.json`. | Core orchestration benchmark only, not production Firestore/Stripe capacity. |
 | API surface | 136 `src/app/api/**/route.ts` files. | Public, customer, admin, checkout, webhook, support, concierge, and system routes. |
 | App surface | 59 `src/app/**/page.tsx` files. | Storefront, account, admin, support, blog, and operational pages. |

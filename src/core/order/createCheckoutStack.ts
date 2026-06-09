@@ -11,7 +11,7 @@ import type {
 import type { AuditService } from '../AuditService';
 import { CheckoutFlowService } from './CheckoutFlowService';
 import type { CheckoutMutationBackend } from './checkoutMutationBackend';
-import { OrderCheckoutService } from './OrderCheckoutService';
+import { CheckoutMutationService } from './checkoutMutationService';
 
 export type CheckoutStackDeps = {
   orderRepo: IOrderRepository;
@@ -23,6 +23,7 @@ export type CheckoutStackDeps = {
   locker: ILockProvider;
   shippingRepo?: IShippingRepository;
   checkoutGateway?: ICheckoutGateway;
+  cancelExpiredPendingOrder?: (orderId: string) => Promise<void>;
 };
 
 export type CheckoutStack = {
@@ -32,10 +33,10 @@ export type CheckoutStack = {
 
 /**
  * Single construction path for checkout orchestration.
- * Container and tests should use this instead of wiring OrderCheckoutService directly.
+ * Container and tests should use this instead of wiring CheckoutMutationService directly.
  */
 export function createCheckoutStack(deps: CheckoutStackDeps): CheckoutStack {
-  const mutations = new OrderCheckoutService(
+  const mutations = new CheckoutMutationService(
     deps.orderRepo,
     deps.productRepo,
     deps.cartRepo,
@@ -45,6 +46,9 @@ export function createCheckoutStack(deps: CheckoutStackDeps): CheckoutStack {
     deps.locker,
     deps.shippingRepo,
   );
-  const checkout = new CheckoutFlowService(mutations, deps.orderRepo, deps.checkoutGateway);
+  const checkout = new CheckoutFlowService(mutations, deps.orderRepo, {
+    checkoutGateway: deps.checkoutGateway,
+    cancelExpiredPendingOrder: deps.cancelExpiredPendingOrder,
+  });
   return { checkout, mutations };
 }

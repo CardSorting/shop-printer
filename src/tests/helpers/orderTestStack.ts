@@ -20,6 +20,13 @@ export function createOrderTestStack(mocks: OrderTestStackMocks): {
   checkout: CheckoutFlowService;
   mutations: CheckoutMutationBackend;
 } {
+  const orderService = new OrderService(
+    mocks.orderRepo,
+    mocks.productRepo,
+    mocks.discountRepo,
+    mocks.audit,
+    mocks.shippingRepo,
+  );
   const { checkout, mutations } = createCheckoutStack({
     orderRepo: mocks.orderRepo,
     productRepo: mocks.productRepo,
@@ -30,14 +37,7 @@ export function createOrderTestStack(mocks: OrderTestStackMocks): {
     locker: mocks.locker,
     shippingRepo: mocks.shippingRepo,
     checkoutGateway: mocks.checkoutGateway,
+    cancelExpiredPendingOrder: (orderId) => orderService.cancelExpiredPendingOrder(orderId),
   });
-  const orderService = new OrderService(
-    mocks.orderRepo,
-    mocks.productRepo,
-    mocks.discountRepo,
-    mocks.audit,
-    checkout,
-    mocks.shippingRepo,
-  );
   return { orderService, checkout, mutations };
 }

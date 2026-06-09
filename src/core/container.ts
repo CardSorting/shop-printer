@@ -11,7 +11,7 @@ import { FirestoreDiscountRepository } from '@infrastructure/repositories/firest
 import { FirebaseAuthAdapter } from '@infrastructure/services/FirebaseAuthAdapter';
 import { StripePaymentProcessor } from '@infrastructure/services/StripePaymentProcessor';
 import { StripeService } from '@infrastructure/services/StripeService';
-import { TrustedCheckoutGateway } from '@infrastructure/services/TrustedCheckoutGateway';
+import { TrustedCheckoutGateway } from '@infrastructure/checkout/TrustedCheckoutGateway';
 import { BrevoEmailService } from '@infrastructure/services/BrevoEmailService';
 import { FirestoreSettingsRepository } from '@infrastructure/repositories/firestore/FirestoreSettingsRepository';
 import { FirestoreTransferRepository } from '@infrastructure/repositories/firestore/FirestoreTransferRepository';
@@ -123,13 +123,22 @@ function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
 }
 
-function createOrderService(
+function wireOrderCheckoutStack(
   repos: ReturnType<typeof createRepositories>,
   payment: IPaymentProcessor,
   audit: AuditService,
   locker: ILockProvider,
+  stripeService: StripeService,
   checkoutGateway?: ICheckoutGateway,
 ) {
+  const orderService = new OrderService(
+    repos.orderRepo,
+    repos.productRepo,
+    repos.discountRepo,
+    audit,
+    repos.shippingRepo,
+    stripeService,
+  );
   const { checkout } = createCheckoutStack({
     orderRepo: repos.orderRepo,
     productRepo: repos.productRepo,
@@ -140,15 +149,8 @@ function createOrderService(
     locker,
     shippingRepo: repos.shippingRepo,
     checkoutGateway,
+    cancelExpiredPendingOrder: (orderId) => orderService.cancelExpiredPendingOrder(orderId),
   });
-  const orderService = new OrderService(
-    repos.orderRepo,
-    repos.productRepo,
-    repos.discountRepo,
-    audit,
-    checkout,
-    repos.shippingRepo,
-  );
   return { orderService, checkout };
 }
 
@@ -186,11 +188,13 @@ export function getServiceContainer() {
   const authProvider = new FirebaseAuthAdapter();
   const auditService = new AuditService();
   const authService = new AuthService(authProvider, auditService);
-  const { orderService, checkout } = createOrderService(
+  const stripeService = new StripeService();
+  const { orderService, checkout } = wireOrderCheckoutStack(
     repos,
     new StripePaymentProcessor(),
     auditService,
     new FirestoreLocker(),
+    stripeService,
     createCheckoutGateway(),
   );
 
@@ -214,7 +218,7 @@ export function getServiceContainer() {
     collectionService: new CollectionService(repos.collectionRepo, new AuditService()),
     taxonomyService: new TaxonomyService(repos.taxonomyRepo, new AuditService()),
     wishlistService: new WishlistService(repos.wishlistRepo, repos.productRepo, new AuditService()),
-    stripeService: new StripeService(),
+    stripeService,
     auditService: new AuditService(),
     orderRepo: repos.orderRepo,
     inventoryLocationRepo: repos.inventoryLocationRepo,
@@ -307,8 +311,13 @@ export function getInitialServices() {
     return purchaseOrderServiceInstance;
   };
 
+  const getStripeService = () => {
+    if (!stripeServiceInstance) stripeServiceInstance = new StripeService();
+    return stripeServiceInstance;
+  };
+
   if (!orderServiceInstance || !checkoutInstance) {
-    const stack = createOrderService(
+    const stack = wireOrderCheckoutStack(
       {
         productRepo: productRepoInstance!,
         cartRepo: cartRepoInstance!,
@@ -333,6 +342,7 @@ export function getInitialServices() {
       paymentProcessorInstance!,
       getAuditService(),
       lockProviderInstance!,
+      getStripeService(),
       checkoutGatewayInstance ?? undefined,
     );
     orderServiceInstance = stack.orderService;
@@ -386,10 +396,7 @@ export function getInitialServices() {
     ticketRepository: ticketRepoInstance!,
     knowledgebaseRepository: kbRepoInstance!,
     auditService: getAuditService(),
-    stripeService: (() => {
-      if (!stripeServiceInstance) stripeServiceInstance = new StripeService();
-      return stripeServiceInstance;
-    })(),
+    stripeService: getStripeService(),
     emailService: (() => {
       if (!emailServiceInstance) emailServiceInstance = new BrevoEmailService(getAuditService());
       return emailServiceInstance;

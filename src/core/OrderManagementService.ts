@@ -35,7 +35,7 @@ export class OrderManagementService {
       throw new Error('Refund status changes must be processed through the refund workflow.');
     }
     if (status === 'cancelled' && this.isPaidPaymentState(order)) {
-      throw new Error('Cannot cancel a paid order through OrderManagementService; use OrderService reconciliation workflow.');
+      throw new Error('Cannot cancel a paid order through OrderManagementService; use checkout reconciliation workflow.');
     }
     if (status === 'cancelled') {
       await this.orderRepo.transitionPaymentState(id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'order_management_status_update');
@@ -62,27 +62,4 @@ export class OrderManagementService {
     return this.orderRepo.markHeartbeat(orderId, userId, email);
   }
 
-  async cleanupExpiredOrders(expirationMinutes: number = 60): Promise<{ count: number }> {
-    logger.info(`[OrderManagementService] Cleaning up expired pending orders (cutoff: ${expirationMinutes}m)...`);
-    const cutoff = new Date();
-    cutoff.setMinutes(cutoff.getMinutes() - expirationMinutes);
-    
-    const { orders } = await this.orderRepo.getAll({ status: 'pending', to: cutoff });
-    let processed = 0;
-    for (const order of orders) {
-      if (order.paymentTransactionId || this.isPaidPaymentState(order)) {
-        logger.warn('[OrderManagementService] Skipping expired order with payment evidence; use OrderService cleanup for Stripe-aware reconciliation.', {
-          orderId: order.id,
-          paymentState: order.paymentState,
-          hasPaymentTransactionId: Boolean(order.paymentTransactionId),
-        });
-        continue;
-      }
-      await this.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'order_management_cleanup');
-      await this.orderRepo.guardedUpdateStatus(order.id, [order.status], 'cancelled', 'order_management_cleanup');
-      await this.audit.record({ userId: 'system', userEmail: 'system@woodbine.com', action: 'order_status_changed', targetId: order.id, details: { from: 'pending', to: 'cancelled', reason: 'expired' } });
-      processed++;
-    }
-    return { count: processed };
-  }
 }

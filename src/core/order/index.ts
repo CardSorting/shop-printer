@@ -2,15 +2,16 @@ export { CheckoutFlowService } from './CheckoutFlowService';
 export { createCheckoutStack } from './createCheckoutStack';
 export type { CheckoutStack, CheckoutStackDeps } from './createCheckoutStack';
 export type { CheckoutMutationBackend, RunCheckoutReservationParams } from './checkoutMutationBackend';
-export { verifyPaymentFromClientFlow } from './checkoutVerifyFlow';
 export type {
+  CheckoutStripeLookupPort,
   CompleteWithPaymentMethodParams,
   ReserveCheckoutParams,
   ResolveCheckoutOrderOptions,
   StartClientCheckoutParams,
   StripePaymentFailedResult,
   StripePaymentIntentSnapshot,
-} from './CheckoutFlowService';
+  ReconciliationOperatorAction,
+} from './checkoutTypes';
 export {
   resolveCheckoutOrderByPaymentIntent,
   assertCheckoutOrderMetadataMatch,

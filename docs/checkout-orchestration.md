@@ -10,16 +10,16 @@ Routes / UI / webhooks
        -> createCheckoutStack() -> { checkout, mutations }
             -> CheckoutFlowService
                  -> checkoutClientStartFlow / checkoutPaymentMethodFlow / checkoutStripeWebhookFlow
-                 -> CheckoutMutationBackend (OrderCheckoutService — internal)
+                 -> CheckoutMutationService (CheckoutMutationBackend — internal)
                  -> checkoutOrderResolver / checkoutPaymentIntentFlow / checkoutVerifyFlow
 ```
 
-`OrderService` receives `CheckoutFlowService` via dependency injection (`createCheckoutStack`) for internal cleanup/reconciliation only. It is not exposed on `OrderService` — all external callers use `services.checkout`.
+`OrderService` has no checkout dependency. System cleanup, operator recovery retries, and all payment flows go through `services.checkout`.
 
 ## Responsibilities
 
 - `CheckoutFlowService` (`services.checkout`) is the **only** public checkout API. Legacy `OrderService.initiateCheckout`, `placeOrder`, `finalizeTrustedCheckout`, and related passthroughs have been removed.
-- `OrderCheckoutService` implements `CheckoutMutationBackend` (`runCheckoutReservation`, `confirmStripePayment`, `rollbackUnpaidCheckout`) — internal only, never imported by routes.
+- `CheckoutMutationService` implements `CheckoutMutationBackend` (`runCheckoutReservation`, `confirmStripePayment`, `rollbackUnpaidCheckout`) — internal only, constructed via `createCheckoutStack()`.
 - `checkoutStripeWebhookFlow.ts` owns `payment_intent.payment_failed` convergence logic.
 - `checkoutOrderResolver.ts` is the single order lookup path (`paymentTransactionId` → `metadata.orderId` fallback).
 - `checkoutPaymentIntentFlow.ts` owns client PaymentIntent create/resume phase transitions and rollback side effects.
@@ -36,6 +36,9 @@ Routes / UI / webhooks
 | `confirmPaymentFromStripe` | Stripe `payment_intent.succeeded` webhook, cleanup, reconciliation retry |
 | `handleStripePaymentFailed` | Stripe `payment_intent.payment_failed` webhook |
 | `rollbackUnpaidCheckout` | System cleanup, forensic rollback |
+| `cleanupExpiredPendingOrders` | `POST /api/system/cleanup-orders` (cancel wired at stack construction) |
+| `handleReconciliationOperatorAction` | Admin reconciliation operator actions (`retry_recovery` runs recovery + resolve) |
+| `completeOperatorRetryRecovery` | Internal recovery step used by `handleReconciliationOperatorAction` |
 | `resolveOrder` | Order lookup by PaymentIntent (internal/webhook helpers) |
 - `FirestoreOrderRepository.transitionCheckoutAttemptPhase` is the only writer for checkout attempt phase fields.
 - `OrderAdminService` owns reconciliation case summaries, forensic timeline reads, and operator actions.

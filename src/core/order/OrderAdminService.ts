@@ -244,29 +244,6 @@ export class OrderAdminService {
     return { updatedIds };
   }
 
-  async cleanupExpiredOrders(expirationMinutes = 60): Promise<{ count: number }> {
-    const cutoff = new Date();
-    cutoff.setMinutes(cutoff.getMinutes() - expirationMinutes);
-    const { orders } = await this.orderRepo.getAll({ status: 'pending', to: cutoff });
-    logger.info(`[OrderService] Cleaning up ${orders.length} expired pending orders (cutoff: ${expirationMinutes}m)`);
-
-    for (const order of orders) {
-      await this.updateOrderStatus(order.id, 'cancelled', {
-        id: 'system',
-        email: 'system@woodbine.com'
-      });
-      await this.audit.record({
-        userId: 'system',
-        userEmail: 'system@woodbine.com',
-        action: 'order_status_changed',
-        targetId: order.id,
-        details: { from: 'pending', to: 'cancelled', reason: 'expired', expirationMinutes }
-      });
-    }
-
-    return { count: orders.length };
-  }
-
   async applyDiscountToOrder(orderId: string, code: string, actor: OrderActor): Promise<void> {
     const order = await this.orderRepo.getById(orderId);
     if (!order) throw new OrderNotFoundError(orderId);

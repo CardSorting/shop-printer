@@ -85,8 +85,8 @@ describe('financial recovery hardening', () => {
       charges: { data: [] },
     });
 
-    const { orderService: service, checkout } = makeOrderStack(orderRepo);
-    const result = await service.cleanupExpiredOrders(60);
+    const { checkout } = makeOrderStack(orderRepo);
+    const result = await checkout.cleanupExpiredPendingOrders(60, { getPaymentIntent });
 
     expect(result.count).toBe(1);
     expect(orderRepo.transitionPaymentState).toHaveBeenCalledWith('order-paid-cleanup', ['unpaid', 'requires_payment_method', 'processing'], 'paid', 'payment_finalized', expect.anything());
@@ -110,8 +110,8 @@ describe('financial recovery hardening', () => {
     });
     getPaymentIntent.mockResolvedValue({ id: 'pi_processing_cleanup', status: 'processing' });
 
-    const { orderService: service, checkout } = makeOrderStack(orderRepo);
-    const result = await service.cleanupExpiredOrders(60);
+    const { checkout } = makeOrderStack(orderRepo);
+    const result = await checkout.cleanupExpiredPendingOrders(60, { getPaymentIntent });
 
     expect(result.count).toBe(0);
     expect(orderRepo.guardedUpdateStatus).not.toHaveBeenCalled();

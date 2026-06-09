@@ -11,15 +11,14 @@ export async function POST(request: Request) {
   try {
     requireConfiguredBearerToken(request, 'SYSTEM_JOB_TOKEN');
     const services = await getServerServices();
-    // Default expiration is 60 minutes
-    const count = await services.orderService.cleanupExpiredOrders(60);
-    
+    const { count } = await services.checkout.cleanupExpiredPendingOrders(60, services.stripeService);
+
     logger.info(`System cleanup: Processed ${count} expired orders.`);
-    
-    return Response.json({ 
-      success: true, 
+
+    return Response.json({
+      success: true,
       processed: count,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     return jsonError(error, 'System cleanup failed');

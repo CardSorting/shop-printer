@@ -1,7 +1,7 @@
 import { logger } from '@utils/logger';
 import type { IOrderRepository } from '@domain/repositories';
 import { resolveCheckoutOrderByPaymentIntent } from './checkoutOrderResolver';
-import type { StripePaymentFailedResult, StripePaymentIntentSnapshot } from './CheckoutFlowService';
+import type { StripePaymentFailedResult, StripePaymentIntentSnapshot } from './checkoutTypes';
 
 type StripePaymentFailedDeps = {
   orderRepo: IOrderRepository;

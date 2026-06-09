@@ -35,7 +35,8 @@ import type {
   RunCheckoutReservationParams,
 } from './checkoutMutationBackend';
 
-export class OrderCheckoutService implements CheckoutMutationBackend {
+/** @internal Checkout mutations — construct via createCheckoutStack() only. */
+export class CheckoutMutationService implements CheckoutMutationBackend {
   private readonly RESERVATION_TTL_MS = 15 * 60 * 1000;
 
   constructor(

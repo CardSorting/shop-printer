@@ -6,7 +6,7 @@ import {
   type CheckoutStripePort,
   type ClientPaymentIntentResult,
 } from './checkoutPaymentIntentFlow';
-import type { StartClientCheckoutParams } from './CheckoutFlowService';
+import type { StartClientCheckoutParams } from './checkoutTypes';
 
 export async function startClientCheckoutFlow(params: {
   mutations: CheckoutMutationBackend;

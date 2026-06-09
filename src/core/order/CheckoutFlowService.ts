@@ -1,5 +1,5 @@
 import type { ICheckoutGateway, IOrderRepository } from '@domain/repositories';
-import type { Address, Order } from '@domain/models';
+import type { Order } from '@domain/models';
 import type { CheckoutMutationBackend } from './checkoutMutationBackend';
 import {
   type CheckoutStripePort,
@@ -10,56 +10,35 @@ import { verifyPaymentFromClientFlow } from './checkoutVerifyFlow';
 import { handleStripePaymentFailedFlow } from './checkoutStripeWebhookFlow';
 import { startClientCheckoutFlow } from './checkoutClientStartFlow';
 import { completeCheckoutWithPaymentMethod } from './checkoutPaymentMethodFlow';
-import type { FulfillmentMethod } from './types';
+import { cleanupExpiredPendingOrdersFlow } from './checkoutCleanupFlow';
+import {
+  completeOperatorRetryRecoveryFlow,
+  handleReconciliationOperatorActionFlow,
+} from './checkoutOperatorFlow';
+import type {
+  CheckoutStripeLookupPort,
+  CompleteWithPaymentMethodParams,
+  ReconciliationOperatorAction,
+  ReserveCheckoutParams,
+  ResolveCheckoutOrderOptions,
+  StartClientCheckoutParams,
+  StripePaymentFailedResult,
+  StripePaymentIntentSnapshot,
+} from './checkoutTypes';
 
-export type StartClientCheckoutParams = {
-  userId: string;
-  shippingAddress: Address;
-  idempotencyKey: string;
-  stripe: CheckoutStripePort;
-  userEmail?: string;
-  userName?: string;
-  discountCode?: string;
-  requireHighValueStepUp?: () => Promise<void>;
+export type CheckoutFlowServiceOptions = {
+  checkoutGateway?: ICheckoutGateway;
+  cancelExpiredPendingOrder?: (orderId: string) => Promise<void>;
 };
 
-export type CompleteWithPaymentMethodParams = {
-  userId: string;
-  shippingAddress: Address;
-  paymentMethodId: string;
-  idempotencyKey?: string;
-  discountCode?: string;
-  userEmail?: string;
-  userName?: string;
-  fulfillmentMethod?: FulfillmentMethod;
-};
-
-export type ReserveCheckoutParams = {
-  userId: string;
-  shippingAddress: Address;
-  idempotencyKey?: string;
-  userEmail?: string;
-  userName?: string;
-  discountCode?: string;
-  fulfillmentMethod?: FulfillmentMethod;
-  lockTtlMs?: number;
-};
-
-export type ResolveCheckoutOrderOptions = {
-  stripeMetadataOrderId?: string | null;
-  linkMissingPaymentTransaction?: boolean;
-};
-
-export type StripePaymentIntentSnapshot = {
-  id: string;
-  status: string;
-  metadata?: Record<string, string>;
-};
-
-export type StripePaymentFailedResult =
-  | { action: 'finalized'; orderId: string }
-  | { action: 'rolled_back'; orderId: string }
-  | { action: 'ignored'; reason: string };
+export type {
+  CompleteWithPaymentMethodParams,
+  ReserveCheckoutParams,
+  ResolveCheckoutOrderOptions,
+  StartClientCheckoutParams,
+  StripePaymentFailedResult,
+  StripePaymentIntentSnapshot,
+} from './checkoutTypes';
 
 /**
  * Single checkout orchestration surface. Routes and webhooks should call this
@@ -71,8 +50,12 @@ export class CheckoutFlowService {
   constructor(
     private readonly mutations: CheckoutMutationBackend,
     private readonly orderRepo: IOrderRepository,
-    private readonly checkoutGateway?: ICheckoutGateway,
+    private readonly options: CheckoutFlowServiceOptions = {},
   ) {}
+
+  private get checkoutGateway() {
+    return this.options.checkoutGateway;
+  }
 
   startClientCheckout(params: StartClientCheckoutParams): Promise<ClientPaymentIntentResult> {
     return startClientCheckoutFlow({
@@ -153,6 +136,60 @@ export class CheckoutFlowService {
         rollbackUnpaidCheckout: (orderId, attemptId, pi, reason) =>
           this.rollbackUnpaidCheckout(orderId, attemptId, pi, reason),
       },
+    });
+  }
+
+  cleanupExpiredPendingOrders(
+    expirationMinutes: number,
+    stripe: CheckoutStripeLookupPort,
+  ): Promise<{ count: number }> {
+    const cancelExpiredOrder = this.options.cancelExpiredPendingOrder;
+    if (!cancelExpiredOrder) {
+      throw new Error('cancelExpiredPendingOrder is not configured on the checkout stack');
+    }
+    return cleanupExpiredPendingOrdersFlow(expirationMinutes, {
+      orderRepo: this.orderRepo,
+      stripe,
+      confirmPayment: (pi, piSnapshot, actor) => this.confirmPaymentFromStripe(pi, piSnapshot, actor),
+      cancelExpiredOrder,
+    });
+  }
+
+  handleReconciliationOperatorAction(params: {
+    caseId: string;
+    action: ReconciliationOperatorAction;
+    reason: string;
+    actor: { id: string; email: string };
+    recordOperatorAction: (input: {
+      caseId: string;
+      action: ReconciliationOperatorAction;
+      reason: string;
+      actor: { id: string; email: string };
+    }) => Promise<void>;
+  }): Promise<void> {
+    return handleReconciliationOperatorActionFlow({
+      ...params,
+      runRetryRecovery: (input) => this.completeOperatorRetryRecovery(input),
+    });
+  }
+
+  completeOperatorRetryRecovery(params: {
+    caseId: string;
+    reason: string;
+    actor: { id: string; email: string };
+    markCaseResolved: (input: {
+      caseId: string;
+      reason: string;
+      actor: { id: string; email: string };
+    }) => Promise<void>;
+  }): Promise<void> {
+    return completeOperatorRetryRecoveryFlow({
+      orderRepo: this.orderRepo,
+      caseId: params.caseId,
+      reason: params.reason,
+      actor: params.actor,
+      confirmPayment: (pi, _stripePi, actor) => this.confirmPaymentFromStripe(pi, undefined, actor),
+      markCaseResolved: params.markCaseResolved,
     });
   }
 }

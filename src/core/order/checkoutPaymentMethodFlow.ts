@@ -2,7 +2,7 @@ import * as crypto from 'node:crypto';
 import type { ICheckoutGateway } from '@domain/repositories';
 import type { Order } from '@domain/models';
 import type { CheckoutMutationBackend } from './checkoutMutationBackend';
-import type { CompleteWithPaymentMethodParams } from './CheckoutFlowService';
+import type { CompleteWithPaymentMethodParams } from './checkoutTypes';
 
 export function completeCheckoutWithPaymentMethod(params: {
   mutations: CheckoutMutationBackend;

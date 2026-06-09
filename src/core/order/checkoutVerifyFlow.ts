@@ -7,7 +7,7 @@ import {
   assertCheckoutOrderMetadataMatch,
   resolveCheckoutOrderByPaymentIntent,
 } from './checkoutOrderResolver';
-import type { StripePaymentIntentSnapshot } from './CheckoutFlowService';
+import type { StripePaymentIntentSnapshot } from './checkoutTypes';
 
 export async function verifyPaymentFromClientFlow(params: {
   orderRepo: IOrderRepository;
