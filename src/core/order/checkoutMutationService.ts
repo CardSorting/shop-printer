@@ -16,11 +16,11 @@ import {
   calculateCartTotal,
   calculateShipping,
   calculateTax,
-  coalesceStockUpdates,
   deriveEstimatedDeliveryDate,
 } from '@domain/rules';
 import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
 import { AuditService } from '../AuditService';
+import type { InventoryMutationBackend } from '../inventory/inventoryMutationBackend';
 import { DiscountService } from '../DiscountService';
 import { logger } from '@utils/logger';
 import type { FulfillmentMethod } from './types';
@@ -47,6 +47,7 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
     private payment: IPaymentProcessor,
     private audit: AuditService,
     private locker: ILockProvider,
+    private inventory: InventoryMutationBackend,
     private shippingRepo?: IShippingRepository
   ) {}
 
@@ -232,16 +233,6 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
           const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
 
           const physicalItems = cart.items.filter(item => !item.isDigital);
-          const stockUpdates = coalesceStockUpdates(physicalItems.map(item => ({
-            id: item.productId,
-            variantId: item.variantId,
-            delta: -item.quantity
-          })));
-
-          if (stockUpdates.length > 0) {
-            await this.productRepo.batchUpdateStock(stockUpdates, transaction);
-          }
-
           const reservationExpiresAt = new Date(Date.now() + this.RESERVATION_TTL_MS).toISOString();
           const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
             userId,
@@ -287,7 +278,7 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
             metadata: {
               shippingRateName: shippingResult.rateName,
               shippingServiceCode: shippingResult.serviceCode,
-              inventoryReserved: stockUpdates.length > 0,
+              inventoryReserved: false,
               inventoryReservationReleased: false,
               inventoryReservationFinalized: false,
               inventoryReservationExpiresAt: reservationExpiresAt,
@@ -310,6 +301,37 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
           };
 
           const createdOrder = await this.orderRepo.create(orderData, transaction);
+
+          if (physicalItems.length > 0) {
+            const reserveResult = await this.inventory.reserveInventory({
+              orderId: createdOrder.id,
+              items: physicalItems.map((item) => ({
+                productId: item.productId,
+                variantId: item.variantId,
+                quantity: item.quantity,
+              })),
+              idempotencyKey: attemptId,
+              actor: 'checkout',
+              expiresAt: reservationExpiresAt,
+              transaction,
+            });
+            if (!reserveResult.ok) {
+              throw new DomainError(reserveResult.message);
+            }
+            await this.orderRepo.updateMetadata(createdOrder.id, {
+              ...(createdOrder.metadata || {}),
+              inventoryReserved: true,
+              inventoryReservationId: reserveResult.data.reservationId,
+              inventoryReservationExpiresAt: reserveResult.data.expiresAt,
+            }, transaction);
+            createdOrder.metadata = {
+              ...(createdOrder.metadata || {}),
+              inventoryReserved: true,
+              inventoryReservationId: reserveResult.data.reservationId,
+              inventoryReservationExpiresAt: reserveResult.data.expiresAt,
+            };
+          }
+
           await this.orderRepo.recordCheckoutAttempt({
             id: attemptId,
             idempotencyKey: attemptId,
@@ -365,28 +387,27 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
           logger.error('FATAL: Rollback failed for order after payment failure', { orderId: order.id, err });
         });
 
-        // Restore physical product stock reservations
         const physicalItems = order.items.filter(item => !item.isDigital);
         if (physicalItems.length > 0 && order.metadata?.inventoryReserved) {
-          const stockUpdates = coalesceStockUpdates(physicalItems.map(item => ({
-            id: item.productId,
-            variantId: item.variantId,
-            delta: item.quantity
-          })));
+          const releaseResult = await this.inventory.releaseReservation({
+            orderId: order.id,
+            idempotencyKey: `release:${attemptId}`,
+            actor: 'checkout',
+            reason: 'payment_failed',
+          }).catch(err => {
+            logger.error('FATAL: Failed to restore stock during checkout payment rollback', { orderId: order.id, err });
+            return null;
+          });
 
-          if (stockUpdates.length > 0) {
-            await Promise.resolve(this.productRepo.batchUpdateStock(stockUpdates)).catch(err => {
-              logger.error('FATAL: Failed to restore stock during checkout payment rollback', { orderId: order.id, err });
+          if (releaseResult?.ok || releaseResult === null) {
+            await Promise.resolve(this.orderRepo.updateMetadata(order.id, {
+              ...(order.metadata || {}),
+              inventoryReservationReleased: true,
+              inventoryReservationReleasedAt: new Date().toISOString(),
+            })).catch(err => {
+              logger.error('FATAL: Failed to update metadata for stock release during checkout rollback', { orderId: order.id, err });
             });
           }
-
-          await Promise.resolve(this.orderRepo.updateMetadata(order.id, {
-            ...(order.metadata || {}),
-            inventoryReservationReleased: true,
-            inventoryReservationReleasedAt: new Date().toISOString(),
-          })).catch(err => {
-            logger.error('FATAL: Failed to update metadata for stock release during checkout rollback', { orderId: order.id, err });
-          });
         }
 
         if (order.discountCode) {
@@ -774,6 +795,22 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
           throw new PaymentFailedError('Cannot finalize physical order without an inventory reservation.');
         }
 
+        if (hasReservation) {
+          const confirmResult = await this.inventory.confirmReservation({
+            orderId: order.id,
+            idempotencyKey: `confirm:${paymentIntentId}`,
+            actor: 'checkout',
+            transaction,
+          });
+          if (
+            !confirmResult.ok
+            && confirmResult.code !== 'RESERVATION_INVALID_STATE'
+            && confirmResult.code !== 'RESERVATION_NOT_FOUND'
+          ) {
+            throw new PaymentFailedError(confirmResult.message);
+          }
+        }
+
         await this.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing'], 'paid', 'payment_finalized', transaction);
         await this.orderRepo.transitionFulfillmentState(order.id, ['unfulfilled'], nextStatus === 'processing' ? 'processing' : nextStatus === 'delivered' ? 'delivered' : nextStatus === 'ready_for_pickup' ? 'ready_for_pickup' : nextStatus === 'delivery_started' ? 'delivery_started' : 'unfulfilled', 'payment_finalized', transaction);
         await this.orderRepo.transitionReconciliationState(order.id, ['none', 'resolved'], 'none', 'payment_finalized', transaction);
@@ -1012,14 +1049,15 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
 
       const physicalItems = order.items.filter(item => !item.isDigital);
       if (physicalItems.length > 0 && order.metadata?.inventoryReserved && !order.metadata?.inventoryReservationReleased) {
-        const stockUpdates = coalesceStockUpdates(physicalItems.map(item => ({
-          id: item.productId,
-          variantId: item.variantId,
-          delta: item.quantity
-        })));
-
-        if (stockUpdates.length > 0) {
-          await this.productRepo.batchUpdateStock(stockUpdates, transaction);
+        const releaseResult = await this.inventory.releaseReservation({
+          orderId,
+          idempotencyKey: `release:${checkoutAttemptId}`,
+          actor: 'checkout',
+          reason: 'checkout_cancelled',
+          transaction,
+        });
+        if (!releaseResult?.ok && releaseResult?.code !== 'RESERVATION_NOT_FOUND') {
+          logger.error('Failed to release inventory during checkout rollback', { orderId, message: releaseResult.message });
         }
 
         await this.orderRepo.updateMetadata(orderId, {

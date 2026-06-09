@@ -1,5 +1,4 @@
 'use client';
-"use client";
 
 /**
  * [LAYER: UI]
@@ -129,7 +128,8 @@ export function AdminInventory() {
         return { id: key, stock };
       });
 
-      await services.productService.batchUpdateInventory(inventoryUpdates, actor);
+      const idempotencyKey = crypto.randomUUID();
+      await services.productService.batchUpdateInventory(inventoryUpdates, actor, { idempotencyKey });
       toast('success', `Updated stock for ${entries.length} items`);
       setIsBulkEditing(false);
       setBulkChanges({});

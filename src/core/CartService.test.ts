@@ -62,6 +62,25 @@ describe('CartService', () => {
       mockProductRepo.getById.mockResolvedValue(null);
       await expect(cartService.addToCart('u1', 'p1', 1)).rejects.toThrow(ProductNotFoundError);
     });
+
+    it('should reject add when inventory protocol reports insufficient stock', async () => {
+      const mockProduct = { id: 'p1', name: 'Product 1', price: 1000, stock: 10 };
+      mockProductRepo.getById.mockResolvedValue(mockProduct);
+      mockCartRepo.getByUserId.mockResolvedValue(null);
+      const inventory = {
+        checkAvailability: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            available: false,
+            lines: [{ productId: 'p1', requested: 2, available: 1, sufficient: false }],
+          },
+        }),
+      };
+      cartService = new CartService(mockCartRepo, mockProductRepo, inventory);
+
+      await expect(cartService.addToCart('u1', 'p1', 2)).rejects.toThrow('Insufficient stock');
+      expect(mockCartRepo.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('removeFromCart', () => {

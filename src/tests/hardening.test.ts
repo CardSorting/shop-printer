@@ -57,10 +57,12 @@ describe('Security Hardening Proofs', () => {
         transitionReconciliationState: vi.fn().mockResolvedValue(undefined),
         recordCheckoutAttempt: vi.fn(),
         updateCheckoutAttempt: vi.fn(),
+        updateMetadata: vi.fn().mockResolvedValue(undefined),
         createOrUpdateReconciliationCase: vi.fn(),
       };
       mockProductRepo = {
         getById: vi.fn().mockResolvedValue({ id: 'p1', price: 1000, stock: 10 }),
+        getAll: vi.fn().mockResolvedValue({ products: [{ id: 'p1', stock: 10 }] }),
         batchUpdateStock: vi.fn(),
       };
       mockCartRepo = {

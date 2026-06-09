@@ -49,6 +49,18 @@ import {
   STATS_DOC_PATH
 } from './ProductStatsHelper';
 
+const INVENTORY_PROTOCOL_MSG =
+  'Stock mutations must go through InventoryApplicationService (adjustInventory, applyInventoryDeltas, or reservations).';
+
+function rejectDirectStockMutation(updates: Record<string, unknown>): void {
+  if ('stock' in updates && updates.stock !== undefined) {
+    throw new DomainError(INVENTORY_PROTOCOL_MSG);
+  }
+  if ('_variantStockUpdate' in updates && updates._variantStockUpdate) {
+    throw new DomainError(INVENTORY_PROTOCOL_MSG);
+  }
+}
+
 export class FirestoreProductRepository implements IProductRepository {
   private readonly collectionName = 'products';
 
@@ -240,6 +252,7 @@ export class FirestoreProductRepository implements IProductRepository {
   }
 
   async update(id: string, updates: ProductUpdate, transaction?: any): Promise<Product> {
+    rejectDirectStockMutation(updates as Record<string, unknown>);
     const db = getUnifiedDb();
     const operation = async (t: Transaction) => {
       const docRef = doc(db, this.collectionName, id);
@@ -251,20 +264,6 @@ export class FirestoreProductRepository implements IProductRepository {
       
       const now = serverTimestamp();
       const firestoreUpdates: any = { ...updates, updatedAt: now };
-
-      // Handle variant stock update signal
-      const variantUpdate = (updates as any)._variantStockUpdate;
-      if (variantUpdate) {
-        const variants = [...((currentData as any)?.variants || [])];
-        const vIdx = variants.findIndex((v: any) => v.id === variantUpdate.variantId);
-        if (vIdx !== -1) {
-          variants[vIdx].stock = variantUpdate.stock;
-          variants[vIdx].updatedAt = now;
-          firestoreUpdates.variants = variants;
-          firestoreUpdates.stock = variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
-        }
-        delete firestoreUpdates._variantStockUpdate;
-      }
 
       if (updates.name || updates.sku || updates.handle) {
         const mergedName = updates.name || currentProduct.name;
@@ -307,61 +306,11 @@ export class FirestoreProductRepository implements IProductRepository {
   }
 
   async updateStock(id: string, delta: number, transaction?: any): Promise<void> {
-    const db = getUnifiedDb();
-    const operation = async (t: Transaction) => {
-      const docRef = doc(db, this.collectionName, id);
-      const docSnap = await t.get(docRef);
-      if (!docSnap.exists()) throw new ProductNotFoundError(id);
-
-      const data = docSnap.data() as any;
-      const currentStock = data.stock || 0;
-      const nextStock = currentStock + delta;
-      if (nextStock < 0) throw new InsufficientStockError(id, Math.abs(delta), currentStock);
-
-      const oldProduct = mapDocToProduct(id, data);
-      const updatedData = applyDerivedFields({ ...(data as any), id, stock: nextStock, updatedAt: serverTimestamp() });
-      t.update(docRef, updatedData);
-      
-      const newProduct = mapDocToProduct(id, updatedData);
-      applyStatsDeltas(t, getProductStatsDeltas(oldProduct, newProduct));
-    };
-
-    if (transaction) await operation(transaction);
-    else await runTransaction(db, operation);
+    throw new DomainError(INVENTORY_PROTOCOL_MSG);
   }
 
   async updateVariantStock(variantId: string, delta: number, transaction?: any): Promise<void> {
-    const db = getUnifiedDb();
-    const operation = async (t: Transaction) => {
-      const q = query(collection(db, this.collectionName), where('variantIds', 'array-contains', variantId), limit(1));
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) throw new Error(`Product containing variant ${variantId} not found`);
-      
-      const productId = snapshot.docs[0].id;
-      const docRef = doc(db, this.collectionName, productId);
-      const docSnap = await t.get(docRef);
-      const data = docSnap.data() as any;
-      const variants = [...(data.variants || [])];
-      const vIdx = variants.findIndex((v: any) => v.id === variantId);
-      if (vIdx === -1) throw new Error(`Variant ${variantId} not found in product ${productId}`);
-      
-      const current = variants[vIdx].stock || 0;
-      if (current + delta < 0) throw new InsufficientStockError(productId, Math.abs(delta), current);
-
-      variants[vIdx].stock = current + delta;
-      variants[vIdx].updatedAt = serverTimestamp();
-      const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-
-      const oldProduct = mapDocToProduct(productId, data);
-      const updatedData = applyDerivedFields({ ...data, id: productId, variants, stock: totalStock, updatedAt: serverTimestamp() });
-      t.update(docRef, updatedData);
-      
-      const newProduct = mapDocToProduct(productId, updatedData);
-      applyStatsDeltas(t, getProductStatsDeltas(oldProduct, newProduct));
-    };
-
-    if (transaction) await operation(transaction);
-    else await runTransaction(db, operation);
+    throw new DomainError(INVENTORY_PROTOCOL_MSG);
   }
 
   async batchUpdateStock(updates: { id: string; variantId?: string; delta: number }[], transaction?: any): Promise<void> {
@@ -420,51 +369,7 @@ export class FirestoreProductRepository implements IProductRepository {
   }
 
   async batchSetInventory(updates: { id: string; variantId?: string; stock: number }[]): Promise<void> {
-    const db = getUnifiedDb();
-    await runTransaction(db, async (t: Transaction) => {
-      const productIds = new Set<string>(updates.map(u => u.id));
-      const snapshots = await Promise.all(Array.from(productIds).map(id => t.get(doc(db, this.collectionName, id))));
-      const productMap = new Map<string, any>();
-      snapshots.forEach(snap => { if (snap.exists()) productMap.set(snap.id, snap.data()); });
-      for (const id of productIds) {
-        if (!productMap.has(id)) throw new ProductNotFoundError(id);
-      }
-
-      const accumulatedDeltas: Record<string, number> = {};
-      const finalUpdates = new Map<string, any>();
-
-      for (const update of updates) {
-        const data = finalUpdates.get(update.id) || productMap.get(update.id);
-        if (!data) throw new ProductNotFoundError(update.id);
-
-        const oldProduct = mapDocToProduct(update.id, data);
-        const workingData = { ...data };
-
-        if (update.variantId) {
-          const variants = [...(workingData.variants || [])];
-          const vIdx = variants.findIndex((v: any) => v.id === update.variantId);
-          if (vIdx === -1) throw new DomainError(`Variant ${update.variantId} not found in product ${update.id}`);
-          variants[vIdx].stock = update.stock;
-          variants[vIdx].updatedAt = serverTimestamp();
-          workingData.variants = variants;
-          workingData.stock = variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
-        } else {
-          workingData.stock = update.stock;
-        }
-
-        workingData.updatedAt = serverTimestamp();
-        const enriched = applyDerivedFields({ ...workingData, id: update.id });
-        finalUpdates.set(update.id, enriched);
-        t.update(doc(db, this.collectionName, update.id), enriched);
-
-        const newProduct = mapDocToProduct(update.id, enriched);
-        const deltas = getProductStatsDeltas(oldProduct, newProduct);
-        Object.entries(deltas).forEach(([path, delta]) => {
-          accumulatedDeltas[path] = (accumulatedDeltas[path] || 0) + delta;
-        });
-      }
-      applyStatsDeltas(t, accumulatedDeltas);
-    });
+    throw new DomainError(`${INVENTORY_PROTOCOL_MSG} Use adjustInventory instead of batchSetInventory.`);
   }
 
   async batchDelete(ids: string[]): Promise<void> {
@@ -488,6 +393,9 @@ export class FirestoreProductRepository implements IProductRepository {
   }
 
   async batchUpdate(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]> {
+    for (const update of updates) {
+      rejectDirectStockMutation(update.updates as Record<string, unknown>);
+    }
     const db = getUnifiedDb();
     return await runTransaction(db, async (t: Transaction) => {
       const results: Product[] = [];
@@ -501,21 +409,7 @@ export class FirestoreProductRepository implements IProductRepository {
         const currentData = docSnap.data() as any;
         const currentProduct = mapDocToProduct(update.id, currentData);
         
-        // Handle internal variant stock update signal
         const mergedData = { ...(currentData as any), ...(update.updates as any), id: update.id, updatedAt: serverTimestamp() };
-        const variantUpdate = (update.updates as any)._variantStockUpdate;
-        if (variantUpdate) {
-          const variants = [...(currentData.variants || [])];
-          const vIdx = variants.findIndex((v: any) => v.id === variantUpdate.variantId);
-          if (vIdx !== -1) {
-            variants[vIdx].stock = variantUpdate.stock;
-            variants[vIdx].updatedAt = serverTimestamp();
-            (mergedData as any).variants = variants;
-            (mergedData as any).stock = variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
-          }
-          delete (mergedData as any)._variantStockUpdate;
-        }
-
         const enriched = applyDerivedFields(mergedData);
         t.update(docRef, enriched);
         

@@ -12,6 +12,7 @@ Come for the food, stay for the people—and the space. No membership, no dress 
 | --- | --- |
 | Storefront | Home, product listing/detail, collections, search, cart, checkout, account, orders, wishlist, support, blog, and digital vault pages. |
 | Checkout and orders | `CheckoutApplicationService` (`services.checkout` / `CheckoutFlowService`) is the only checkout boundary for routes. It coordinates sessions, webhooks, recovery, cleanup, and operator actions. `OrderService` handles fulfillment, reads, and admin mutations only. |
+| Inventory | `InventoryApplicationService` (`services.inventory` / `InventoryFlowService`) is the only stock mutation boundary. Reservations, commits, ledger entries, and admin/fulfillment adjustments flow through the inventory protocol. |
 | Admin console | Dashboard, orders, products, bulk editor, inventory, receiving/purchase orders, suppliers, collections, taxonomy, discounts, analytics, support tickets, settings, files, blog, audit, and operations planning routes. |
 | Persistence | Firestore repositories implement Domain repository contracts for products, carts, orders, discounts, settings, suppliers, inventory, support, marketing, wishlists, and digital access. |
 | Security | Signed HTTP-only sessions, admin route guards, same-origin mutation policy, rate-limit guards, idempotency keys, and checkout locks. |
@@ -47,6 +48,12 @@ Checkout is an application protocol, not route spaghetti. All checkout HTTP path
 The full guide — architecture, six public methods, state machines, idempotency, routes, HTTP mapping, observability, file map, and verification ladder — lives in **[docs/checkout.md](docs/checkout.md)**.
 
 See also [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md) for core benchmarks.
+
+## Inventory
+
+Inventory is an application protocol: cached stock counts, reservations, commits, and an append-only ledger. Routes, checkout, fulfillment, and admin call `services.inventory` only — never `productRepo.batchUpdateStock` directly.
+
+The full guide — architecture, public methods, state machine, idempotency, routes, HTTP mapping, and audit checklist — lives in **[docs/inventory.md](docs/inventory.md)**.
 
 ## Benchmark Baseline
 
@@ -105,6 +112,7 @@ Start here:
 - [Risk Map](.wiki/architecture/risk-map.md)
 - [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md)
 - [Checkout](docs/checkout.md)
+- [Inventory](docs/inventory.md)
 - [Whitepaper](docs/woodbine-crm-whitepaper.md)
 
 ## Tech Stack

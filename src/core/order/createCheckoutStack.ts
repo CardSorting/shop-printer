@@ -10,6 +10,7 @@ import type {
 } from '@domain/repositories';
 import type { StripeService } from '@infrastructure/services/StripeService';
 import type { AuditService } from '../AuditService';
+import type { InventoryMutationBackend } from '../inventory/inventoryMutationBackend';
 import { CheckoutFlowService } from './CheckoutFlowService';
 import type { CheckoutMutationBackend } from './checkoutMutationBackend';
 import { CheckoutMutationService } from './checkoutMutationService';
@@ -28,6 +29,7 @@ export type CheckoutStackDeps = {
   checkoutGateway?: ICheckoutGateway;
   stripe?: StripeService;
   eventLog?: ICheckoutEventLog;
+  inventory: InventoryMutationBackend;
   cancelExpiredPendingOrder?: (orderId: string) => Promise<void>;
   recordOperatorAction?: (input: {
     caseId: string;
@@ -55,6 +57,7 @@ export function createCheckoutStack(deps: CheckoutStackDeps): CheckoutStack {
     deps.payment,
     deps.audit,
     deps.locker,
+    deps.inventory,
     deps.shippingRepo,
   );
   const checkout = new CheckoutFlowService(mutations, deps.orderRepo, {

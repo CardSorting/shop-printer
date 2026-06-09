@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PurchaseOrderService } from './PurchaseOrderService';
 import { InvalidPurchaseOrderError, CannotReceivePurchaseOrderError } from '@domain/errors';
+import type { InventoryApplicationService } from './inventory/inventoryApplicationService';
 
 // Mock the bridge
 vi.mock('@infrastructure/firebase/bridge', () => ({
@@ -24,6 +25,8 @@ describe('PurchaseOrderService - receiving Hardening', () => {
   let mockInventoryRepo: any;
   let mockAudit: any;
 
+  let mockInventory: InventoryApplicationService;
+
   beforeEach(() => {
     mockPORepo = {
       save: vi.fn((po) => Promise.resolve(po)),
@@ -36,6 +39,24 @@ describe('PurchaseOrderService - receiving Hardening', () => {
     mockInventoryRepo = {
       adjustQuantity: vi.fn().mockResolvedValue({ productId: 'p1', availableQty: 10 }),
     };
+    mockInventory = {
+      checkAvailability: vi.fn(),
+      reserveInventory: vi.fn(),
+      confirmReservation: vi.fn(),
+      releaseReservation: vi.fn(),
+      adjustInventory: vi.fn(),
+      applyInventoryDeltas: vi.fn().mockResolvedValue({ ok: true, data: { applied: [] } }),
+      receiveStockAtLocation: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          catalog: { applied: [{ productId: 'prod-1', delta: 5 }] },
+          locations: [{ productId: 'prod-1', locationId: 'default', delta: 5, availableQty: 10 }],
+        },
+      }),
+      reconcileInventory: vi.fn(),
+      cleanupExpiredReservations: vi.fn(),
+      getProductLedger: vi.fn(),
+    };
     mockAudit = {
       record: vi.fn(),
       recordWithTransaction: vi.fn(),
@@ -45,7 +66,8 @@ describe('PurchaseOrderService - receiving Hardening', () => {
       mockPORepo,
       mockProductRepo,
       mockInventoryRepo,
-      mockAudit
+      mockAudit,
+      mockInventory,
     );
   });
 
@@ -90,13 +112,16 @@ describe('PurchaseOrderService - receiving Hardening', () => {
 
       expect(result.purchaseOrder.items[0].receivedQty).toBe(5);
       expect(result.purchaseOrder.status).toBe('partially_received');
-      expect(mockInventoryRepo.adjustQuantity).toHaveBeenCalledWith(
-        'prod-1',
-        'default',
-        5,
-        'Received from PO po-1',
-        expect.anything()
+      expect(mockInventory.receiveStockAtLocation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [{ productId: 'prod-1', delta: 5, locationId: 'default' }],
+          actor: 'admin',
+          reason: 'location_receive',
+          purchaseOrderId: 'po-1',
+          locationReason: 'Received from PO po-1',
+        }),
       );
+      expect(mockInventoryRepo.adjustQuantity).not.toHaveBeenCalled();
       expect(mockAudit.recordWithTransaction).toHaveBeenCalled();
     });
 

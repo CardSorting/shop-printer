@@ -8,6 +8,7 @@ import { OrderNotFoundError } from '@domain/errors';
 import { assertValidOrderStatusTransition } from '@domain/rules';
 import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
 import { AuditService } from './AuditService';
+import type { InventoryApplicationService } from './inventory/inventoryApplicationService';
 import { logger } from '@utils/logger';
 
 export class RefundService {
@@ -17,7 +18,8 @@ export class RefundService {
     private audit: AuditService,
     private productRepo?: IProductRepository,
     private discountRepo?: import('@domain/repositories').IDiscountRepository,
-    private locker?: import('@domain/repositories').ILockProvider
+    private locker?: import('@domain/repositories').ILockProvider,
+    private inventory: InventoryApplicationService,
   ) {}
 
   async processRefund(orderId: string, amount: number, actor: { id: string, email: string }, refundAttemptId: string): Promise<void> {
@@ -98,16 +100,24 @@ export class RefundService {
             }, transaction);
 
             // 2. Restock inventory (physical items only)
-            if (isFullRefund && this.productRepo) {
-              const restockUpdates = order.items
-                .filter(item => !item.isDigital)
-                .map(item => ({
-                  id: item.productId,
+            if (isFullRefund) {
+              const restockDeltas = order.items
+                .filter((line) => !line.isDigital)
+                .map((item) => ({
+                  productId: item.productId,
                   variantId: item.variantId,
-                  delta: item.quantity // positive delta = restock
+                  delta: item.quantity,
                 }));
-              if (restockUpdates.length > 0) {
-                await this.productRepo.batchUpdateStock(restockUpdates, transaction);
+              if (restockDeltas.length > 0) {
+                const restockResult = await this.inventory.applyInventoryDeltas({
+                  deltas: restockDeltas,
+                  idempotencyKey: `refund-restock:${refundIdempotencyKey}`,
+                  actor: 'fulfillment',
+                  reason: 'reconciliation',
+                  orderId,
+                  transaction,
+                });
+                if (!restockResult.ok) throw new Error(restockResult.message);
               }
             }
 

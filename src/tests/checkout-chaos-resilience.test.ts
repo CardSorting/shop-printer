@@ -1,5 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { createCheckoutStack } from '../core/order/createCheckoutStack';
+import { createInventoryStack } from '../core/inventory/createInventoryStack';
+import {
+  InMemoryInventoryLedgerRepository,
+  InMemoryInventoryReconciliationRepository,
+  InMemoryInventoryReservationRepository,
+} from './helpers/inMemoryInventoryStores';
 import type { CheckoutFlowService } from '../core/order/CheckoutFlowService';
 import {
   reconstructTimeline,
@@ -394,6 +400,13 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
     db.reset();
     vi.clearAllMocks();
 
+    const inventory = createInventoryStack({
+      productRepo: mockProductRepo,
+      ledgerRepo: new InMemoryInventoryLedgerRepository(),
+      reservationRepo: new InMemoryInventoryReservationRepository(),
+      reconciliationRepo: new InMemoryInventoryReconciliationRepository(),
+    }).inventory;
+
     ({ checkout: flow } = createCheckoutStack({
       orderRepo: mockOrderRepo,
       productRepo: mockProductRepo,
@@ -402,6 +415,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
       payment: mockPayment,
       audit: mockAudit,
       locker: mockLocker,
+      inventory,
     }));
 
     // Default setups

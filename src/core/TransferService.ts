@@ -3,12 +3,14 @@ import type { ITransferRepository, IProductRepository } from '@domain/repositori
 import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
 import { DomainError } from '@domain/errors';
 import { AuditService } from './AuditService';
+import type { InventoryApplicationService } from './inventory/inventoryApplicationService';
 
 export class TransferService {
   constructor(
     private transferRepo: ITransferRepository,
     private productRepo: IProductRepository,
-    private audit: AuditService
+    private audit: AuditService,
+    private inventory: InventoryApplicationService,
   ) {}
 
   async getAllTransfers(): Promise<Transfer[]> {
@@ -22,12 +24,17 @@ export class TransferService {
       if (transfer.status === 'cancelled') throw new DomainError('Cancelled transfers cannot be received');
       if (transfer.status === 'received') return transfer;
 
-      const restockingUpdates = transfer.items.map(item => ({
-        id: item.productId,
-        delta: item.quantity
-      }));
-
-      await this.productRepo.batchUpdateStock(restockingUpdates, transaction);
+      const result = await this.inventory.applyInventoryDeltas({
+        deltas: transfer.items.map((item) => ({
+          productId: item.productId,
+          delta: item.quantity,
+        })),
+        idempotencyKey: `transfer-receive:${id}`,
+        actor: 'admin',
+        reason: 'admin_adjustment',
+        transaction,
+      });
+      if (!result.ok) throw new DomainError(result.message);
 
       const receivedTransfer: Transfer = {
         ...transfer,

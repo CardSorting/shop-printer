@@ -47,9 +47,13 @@ export interface IProductRepository {
   create(product: ProductDraft): Promise<Product>;
   update(id: string, updates: ProductUpdate, transaction?: any): Promise<Product>;
   delete(id: string): Promise<void>;
+  /** @deprecated Use InventoryApplicationService — throws in Firestore implementation. */
   updateStock(id: string, delta: number, transaction?: any): Promise<void>;
+  /** @deprecated Use InventoryApplicationService — throws in Firestore implementation. */
   updateVariantStock(variantId: string, delta: number, transaction?: any): Promise<void>;
+  /** @internal InventoryMutationService only — never call from routes or domain services. */
   batchUpdateStock(updates: { id: string; variantId?: string; delta: number }[], transaction?: any): Promise<void>;
+  /** @deprecated Use InventoryApplicationService.adjustInventory — throws in Firestore implementation. */
   batchSetInventory?(updates: { id: string; variantId?: string; stock: number }[]): Promise<void>;
   batchDelete?(ids: string[]): Promise<void>;
   batchUpdate?(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]>;
@@ -439,4 +443,34 @@ export interface ICustomerSegmentRepository {
   update(id: string, updates: Partial<import('./models').CustomerSegment>): Promise<import('./models').CustomerSegment>;
   delete(id: string): Promise<void>;
   updateCustomerCount(id: string, count: number): Promise<void>;
+}
+
+export interface IInventoryLedgerRepository {
+  append(entry: Omit<import('./inventory').InventoryLedgerEntry, 'id' | 'createdAt'>, transaction?: unknown): Promise<import('./inventory').InventoryLedgerEntry>;
+  findByIdempotencyKey(key: string): Promise<import('./inventory').InventoryLedgerEntry | null>;
+  listByProduct(productId: string, options?: { limit?: number }): Promise<import('./inventory').InventoryLedgerEntry[]>;
+}
+
+export interface IInventoryReservationRepository {
+  create(
+    reservation: Omit<import('./inventory').InventoryReservation, 'id' | 'createdAt' | 'updatedAt'>,
+    transaction?: unknown,
+  ): Promise<import('./inventory').InventoryReservation>;
+  getById(id: string, transaction?: unknown): Promise<import('./inventory').InventoryReservation | null>;
+  getByOrderId(orderId: string, transaction?: unknown): Promise<import('./inventory').InventoryReservation | null>;
+  getByIdempotencyKey(key: string, transaction?: unknown): Promise<import('./inventory').InventoryReservation | null>;
+  updateState(
+    id: string,
+    state: import('./inventory').InventoryReservationState,
+    updates?: Partial<Pick<import('./inventory').InventoryReservation, 'confirmedAt' | 'releasedAt'>>,
+    transaction?: unknown,
+  ): Promise<import('./inventory').InventoryReservation>;
+  listExpiredReserved(before: string, limit?: number): Promise<import('./inventory').InventoryReservation[]>;
+}
+
+export interface IInventoryReconciliationRepository {
+  create(
+    kase: Omit<import('./inventory').InventoryReconciliationCase, 'id' | 'createdAt'>,
+    transaction?: unknown,
+  ): Promise<import('./inventory').InventoryReconciliationCase>;
 }

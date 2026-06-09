@@ -15,6 +15,7 @@ import type {
   ShippingLabel,
 } from '@domain/models';
 import { AuditService } from './AuditService';
+import type { InventoryApplicationService } from './inventory/inventoryApplicationService';
 import { StripeService } from '@infrastructure/services/StripeService';
 import { OrderAdminService } from './order/OrderAdminService';
 import { OrderFulfillmentWorkflowService } from './order/OrderFulfillmentWorkflowService';
@@ -43,11 +44,12 @@ export class OrderService {
     audit: AuditService,
     shippingRepo?: IShippingRepository,
     private readonly stripeService?: StripeService,
+    inventory: InventoryApplicationService,
   ) {
     this.logisticsService = new OrderLogisticsService(this.orderRepo, productRepo);
     this.fulfillmentWorkflowService = new OrderFulfillmentWorkflowService(this.orderRepo);
     this.readService = new OrderReadService(this.orderRepo);
-    this.adminService = new OrderAdminService(this.orderRepo, productRepo, discountRepo, audit);
+    this.adminService = new OrderAdminService(this.orderRepo, productRepo, discountRepo, audit, inventory);
   }
 
   autoAssignShippingMethod(orderId: string): Promise<{ carrier: string; service: string }> {

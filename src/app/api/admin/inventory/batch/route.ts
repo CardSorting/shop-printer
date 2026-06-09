@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { DomainError } from '@domain/errors';
 import { getServerServices } from '@infrastructure/server/services';
+import { inventoryRouteResponse } from '@infrastructure/server/inventoryRouteAdapter';
 import { requireAdminSession, readJsonObject, jsonError, requireString } from '@infrastructure/server/apiGuards';
 
 const MAX_INVENTORY_BATCH_UPDATES = 100;
@@ -33,9 +34,9 @@ export async function POST(request: Request) {
     const user = await requireAdminSession(request);
     const actor = { id: user.id, email: user.email };
     const services = await getServerServices();
-    
+
     const body = await readJsonObject(request);
-    const { updates } = body;
+    const { updates, idempotencyKey: bodyKey, note } = body;
 
     if (!Array.isArray(updates)) throw new DomainError('Updates must be an array');
     if (updates.length === 0) throw new DomainError('Updates must not be empty');
@@ -43,9 +44,29 @@ export async function POST(request: Request) {
       throw new DomainError(`Cannot update more than ${MAX_INVENTORY_BATCH_UPDATES} inventory records at once`);
     }
 
-    await services.productService.batchUpdateInventory(updates.map(parseInventoryUpdate), actor);
+    const parsed = updates.map(parseInventoryUpdate);
+    const idempotencyKey = typeof bodyKey === 'string' && bodyKey.trim()
+      ? bodyKey.trim()
+      : `admin-batch:${actor.id}:${Date.now()}:${parsed.map((u) => `${u.id}:${u.variantId ?? ''}:${u.stock}`).join('|')}`;
 
-    return NextResponse.json({ success: true, updatedCount: updates.length });
+    const result = await services.inventory.adjustInventory({
+      updates: parsed.map((u) => ({
+        productId: u.id,
+        variantId: u.variantId,
+        stock: u.stock,
+      })),
+      idempotencyKey,
+      actor: 'admin',
+      actorUserId: actor.id,
+      actorEmail: actor.email,
+      note: typeof note === 'string' ? note : undefined,
+    });
+
+    if (!result.ok) {
+      return inventoryRouteResponse(result);
+    }
+
+    return NextResponse.json({ success: true, updatedCount: updates.length, duplicate: result.duplicate ?? false });
   } catch (err) {
     console.error('[API] Inventory Batch Update Failed:', err);
     return jsonError(err, 'Inventory Batch Update Failed');

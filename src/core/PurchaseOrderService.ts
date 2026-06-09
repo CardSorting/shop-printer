@@ -30,6 +30,7 @@ import {
   ProductNotFoundError,
 } from '@domain/errors';
 import { purchaseOrderRules } from '@domain/rules';
+import type { InventoryApplicationService } from './inventory/inventoryApplicationService';
 import { AuditService } from './AuditService';
 import { runTransaction, getUnifiedDb, doc } from '@infrastructure/firebase/bridge';
 import { logger } from '@utils/logger';
@@ -121,7 +122,8 @@ export class PurchaseOrderService {
     private purchaseOrderRepo: IPurchaseOrderRepository,
     private productRepo: IProductRepository,
     private inventoryLevelRepo: IInventoryLevelRepository,
-    private auditService: AuditService
+    private auditService: AuditService,
+    private inventory: InventoryApplicationService,
   ) {}
 
 
@@ -528,24 +530,48 @@ export class PurchaseOrderService {
           }
         }
 
-        // 2. Update Inventory Levels (Atomic)
-        const inventoryUpdates: InventoryLevel[] = [];
+        // 2. Update sellable catalog stock and location levels through inventory protocol
         const locationId = input.locationId || 'default';
+        const receiveItems = receivedItems
+          .map((receivedItem) => {
+            const stockableQty = (receivedItem.disposition ?? 'add_to_stock') === 'add_to_stock'
+              ? Math.max(0, receivedItem.receivedQty - (receivedItem.damagedQty ?? 0))
+              : 0;
+            return stockableQty > 0
+              ? {
+                  productId: receivedItem.productId,
+                  delta: stockableQty,
+                  locationId,
+                }
+              : null;
+          })
+          .filter((item): item is { productId: string; delta: number; locationId: string } => item !== null);
 
-        for (const receivedItem of receivedItems) {
-          const stockableQty = (receivedItem.disposition ?? 'add_to_stock') === 'add_to_stock'
-            ? Math.max(0, receivedItem.receivedQty - (receivedItem.damagedQty ?? 0))
-            : 0;
-          if (stockableQty > 0) {
-            const level = await this.inventoryLevelRepo.adjustQuantity(
-              receivedItem.productId,
-              locationId,
-              stockableQty,
-              `Received from PO ${input.purchaseOrderId}`,
-              transaction
-            );
-            inventoryUpdates.push(level);
+        let inventoryUpdates: InventoryLevel[] = [];
+        if (receiveItems.length > 0) {
+          const receiveKey = input.idempotencyKey ?? `session:${crypto.randomUUID()}`;
+          const receiveResult = await this.inventory.receiveStockAtLocation({
+            items: receiveItems,
+            idempotencyKey: `po-receive:${input.purchaseOrderId}:${receiveKey}`,
+            actor: 'admin',
+            reason: 'location_receive',
+            purchaseOrderId: input.purchaseOrderId,
+            locationReason: `Received from PO ${input.purchaseOrderId}`,
+            transaction,
+          });
+          if (!receiveResult.ok) {
+            throw new InvalidPurchaseOrderError(receiveResult.message);
           }
+          inventoryUpdates = receiveResult.data.locations.map((line) => ({
+            productId: line.productId,
+            locationId: line.locationId,
+            availableQty: line.availableQty,
+            reservedQty: 0,
+            incomingQty: 0,
+            reorderPoint: 0,
+            reorderQty: 0,
+            updatedAt: new Date(),
+          }));
         }
 
         // 3. Update Purchase Order Status & Items (Atomic)

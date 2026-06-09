@@ -2,9 +2,10 @@ import * as crypto from 'node:crypto';
 import type { IDiscountRepository, IOrderRepository, IProductRepository } from '@domain/repositories';
 import type { Address, Order, OrderFulfillmentEvent, OrderNote, OrderStatus, PaymentReconciliationCase } from '@domain/models';
 import { OrderNotFoundError, ProductNotFoundError } from '@domain/errors';
-import { assertValidOrderStatusTransition, calculateTax, coalesceStockUpdates, deriveTrackingUrl } from '@domain/rules';
+import { assertValidOrderStatusTransition, calculateTax, deriveTrackingUrl } from '@domain/rules';
 import { doc, getUnifiedDb, runTransaction, serverTimestamp } from '@infrastructure/firebase/bridge';
 import { AuditService } from '../AuditService';
+import type { InventoryApplicationService } from '../inventory/inventoryApplicationService';
 import { DiscountService } from '../DiscountService';
 import { logger } from '@utils/logger';
 import type { OrderActor } from './types';
@@ -14,7 +15,8 @@ export class OrderAdminService {
     private orderRepo: IOrderRepository,
     private productRepo: IProductRepository,
     private discountRepo: IDiscountRepository,
-    private audit: AuditService
+    private audit: AuditService,
+    private inventory: InventoryApplicationService,
   ) {}
 
   private isPaidPaymentState(order: Order): boolean {
@@ -360,15 +362,23 @@ export class OrderAdminService {
         throw new Error('New product does not have sufficient stock.');
       }
 
-      const stockUpdates = [];
+      const deltas: { productId: string; variantId?: string; delta: number }[] = [];
       if (!oldItem.isDigital) {
-        stockUpdates.push({ id: oldProductId, variantId: oldItem.variantId, delta: oldItem.quantity });
+        deltas.push({ productId: oldProductId, variantId: oldItem.variantId, delta: oldItem.quantity });
       }
       if (!newProduct.isDigital) {
-        stockUpdates.push({ id: newProductId, delta: -oldItem.quantity });
+        deltas.push({ productId: newProductId, delta: -oldItem.quantity });
       }
-      if (stockUpdates.length > 0) {
-        await this.productRepo.batchUpdateStock(stockUpdates, transaction);
+      if (deltas.length > 0) {
+        const result = await this.inventory.applyInventoryDeltas({
+          deltas,
+          idempotencyKey: `swap:${orderId}:${oldProductId}:${newProductId}`,
+          actor: 'admin',
+          reason: 'admin_adjustment',
+          orderId,
+          transaction,
+        });
+        if (!result.ok) throw new Error(result.message);
       }
 
       const newItems = order.items.map(item => {
@@ -606,23 +616,16 @@ export class OrderAdminService {
   private async releaseInventoryReservation(order: Order): Promise<void> {
     if (!order.metadata?.inventoryReserved || order.metadata.inventoryReservationReleased) return;
 
-    const stockUpdates = coalesceStockUpdates(order.items
-      .filter(item => !item.isDigital)
-      .map(item => ({
-        id: item.productId,
-        variantId: item.variantId,
-        delta: item.quantity
-      })));
-
-    if (stockUpdates.length > 0) {
-      await this.productRepo.batchUpdateStock(stockUpdates);
-    }
-
-    await this.orderRepo.updateMetadata(order.id, {
-      ...(order.metadata || {}),
-      inventoryReservationReleased: true,
-      inventoryReservationReleasedAt: new Date().toISOString(),
+    const attemptId = order.metadata?.checkoutAttemptId ?? order.idempotencyKey ?? order.id;
+    const result = await this.inventory.releaseReservation({
+      orderId: order.id,
+      idempotencyKey: `release:${attemptId}`,
+      actor: 'admin',
+      reason: 'admin',
     });
+    if (!result.ok && result.code !== 'RESERVATION_NOT_FOUND') {
+      throw new Error(result.message);
+    }
   }
 
   async getReconciliationCasesReadModel(options?: { limit?: number }): Promise<any> {

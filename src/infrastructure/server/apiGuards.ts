@@ -527,7 +527,9 @@ export function parseProductUpdate(body: Record<string, unknown>): ProductUpdate
     if ('seoTitle' in body) update.seoTitle = optionalString(body.seoTitle, 'seoTitle');
     if ('seoDescription' in body) update.seoDescription = optionalString(body.seoDescription, 'seoDescription');
     if ('salesChannels' in body) update.salesChannels = optionalSalesChannels(body.salesChannels);
-    if ('stock' in body) update.stock = requireInteger(body.stock, 'stock');
+    if ('stock' in body) {
+        throw new DomainError('Stock cannot be updated via product PATCH. Use POST /api/admin/inventory/batch.');
+    }
     if ('trackQuantity' in body) update.trackQuantity = optionalBoolean(body.trackQuantity, 'trackQuantity');
     if ('continueSellingWhenOutOfStock' in body) update.continueSellingWhenOutOfStock = optionalBoolean(body.continueSellingWhenOutOfStock, 'continueSellingWhenOutOfStock');
     if ('reorderPoint' in body) update.reorderPoint = optionalInteger(body.reorderPoint, 'reorderPoint');

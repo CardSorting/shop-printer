@@ -1,5 +1,44 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCheckoutStack } from '@core/order/createCheckoutStack';
+import type { InventoryApplicationService } from '@core/inventory/inventoryApplicationService';
+
+function makeInventoryMock(): InventoryApplicationService {
+  return {
+    checkAvailability: vi.fn().mockResolvedValue({ ok: true, data: { available: true, lines: [] } }),
+    reserveInventory: vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        reservationId: 'r1',
+        orderId: 'o1',
+        state: 'reserved',
+        expiresAt: new Date().toISOString(),
+        lines: [],
+      },
+    }),
+    confirmReservation: vi.fn().mockResolvedValue({
+      ok: true,
+      data: { reservationId: 'r1', orderId: 'o1', state: 'committed' },
+    }),
+    releaseReservation: vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        reservationId: 'r1',
+        orderId: 'o1',
+        state: 'released',
+        restoredLines: [],
+      },
+    }),
+    adjustInventory: vi.fn().mockResolvedValue({ ok: true, data: { adjustments: [] } }),
+    applyInventoryDeltas: vi.fn().mockResolvedValue({ ok: true, data: { applied: [] } }),
+    receiveStockAtLocation: vi.fn().mockResolvedValue({ ok: true, data: { catalog: { applied: [] }, locations: [] } }),
+    reconcileInventory: vi.fn().mockResolvedValue({ ok: true, data: { scanned: 0, discrepancies: [] } }),
+    cleanupExpiredReservations: vi.fn().mockResolvedValue({
+      ok: true,
+      data: { scanned: 0, expired: 0, released: 0, failed: 0, errors: [] },
+    }),
+    getProductLedger: vi.fn().mockResolvedValue({ ok: true, data: { productId: 'p1', entries: [] } }),
+  };
+}
 
 const runCheckoutReservation = vi.fn();
 const createCheckoutSession = vi.fn();
@@ -101,15 +140,17 @@ describe('checkout create payment intent retry handling', () => {
       getLatestCheckoutAttemptForUser,
       updateMetadata,
     };
+    const inventory = makeInventoryMock();
     const { checkout, mutations } = createCheckoutStack({
       orderRepo: orderRepo as any,
-      productRepo: { batchUpdateStock } as any,
+      productRepo: { batchUpdateStock, getById: vi.fn(), getAll: vi.fn() } as any,
       cartRepo: { getByUserId: getCartByUserId, save: saveCart } as any,
       discountRepo: { getByCode: vi.fn() } as any,
       payment: { processPayment: vi.fn(), refundPayment: vi.fn() } as any,
       audit: { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
       locker: { acquireLock: vi.fn(), releaseLock: vi.fn() } as any,
       stripe: { createPaymentIntent, getPaymentIntent, cancelPaymentIntent } as any,
+      inventory,
     });
     vi.spyOn(mutations, 'runCheckoutReservation').mockImplementation(runCheckoutReservation);
 

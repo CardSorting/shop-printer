@@ -2,20 +2,22 @@
  * [LAYER: CORE]
  */
 import type { ICartRepository, IProductRepository } from '@domain/repositories';
-import type { Cart, CartItem } from '@domain/models';
+import type { Cart, CartItem, Product } from '@domain/models';
 import {
   addCartItem,
   removeCartItem,
   updateCartItemQuantity,
   calculateCartTotal,
 } from '@domain/rules';
-import { ProductNotFoundError } from '@domain/errors';
+import { InsufficientStockError, ProductNotFoundError } from '@domain/errors';
 import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
+import type { InventoryApplicationService } from './inventory/inventoryApplicationService';
 
 export class CartService {
   constructor(
     private cartRepo: ICartRepository,
-    private productRepo: IProductRepository
+    private productRepo: IProductRepository,
+    private inventory?: Pick<InventoryApplicationService, 'checkAvailability'>,
   ) {}
 
   async getCart(userId: string): Promise<Cart | null> {
@@ -38,6 +40,9 @@ export class CartService {
       // Transactional product read prevents stale-read race
       const product = await this.productRepo.getById(productId, transaction);
       if (!product) throw new ProductNotFoundError(productId);
+
+      const existingQty = items.find((i) => i.productId === productId && i.variantId === variantId)?.quantity ?? 0;
+      await this.assertAvailability(product, existingQty + quantity, variantId);
 
       const updatedItems = addCartItem(items, product, quantity, variantId);
 
@@ -99,6 +104,8 @@ export class CartService {
       const product = await this.productRepo.getById(productId, transaction);
       if (!product) throw new ProductNotFoundError(productId);
 
+      await this.assertAvailability(product, quantity, variantId);
+
       const updatedItems = updateCartItemQuantity(items, productId, quantity, product, variantId);
 
       const updatedCart: Cart = {
@@ -145,5 +152,28 @@ export class CartService {
 
   getCartTotal(items: CartItem[]): number {
     return calculateCartTotal(items);
+  }
+
+  private async assertAvailability(product: Product, requestedQty: number, variantId?: string): Promise<void> {
+    if (product.isDigital || product.continueSellingWhenOutOfStock || !this.inventory) return;
+
+    const result = await this.inventory.checkAvailability({
+      items: [{ productId: product.id, variantId, quantity: requestedQty }],
+    });
+
+    if (!result.ok) {
+      throw new InsufficientStockError(variantId || product.id, requestedQty, 0);
+    }
+
+    if (!result.data.available) {
+      const line = result.data.lines.find(
+        (entry) => entry.productId === product.id && entry.variantId === variantId,
+      ) ?? result.data.lines[0];
+      throw new InsufficientStockError(
+        variantId || product.id,
+        requestedQty,
+        line?.available ?? 0,
+      );
+    }
   }
 }

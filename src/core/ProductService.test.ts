@@ -7,6 +7,8 @@ describe('ProductService', () => {
   let mockRepo: any;
   let mockAudit: any;
 
+  let mockInventory: any;
+
   beforeEach(() => {
     mockRepo = {
       getAll: vi.fn(),
@@ -20,7 +22,10 @@ describe('ProductService', () => {
     mockAudit = {
       record: vi.fn(),
     };
-    productService = new ProductService(mockRepo, mockAudit);
+    mockInventory = {
+      adjustInventory: vi.fn().mockResolvedValue({ ok: true, data: { adjustments: [] } }),
+    };
+    productService = new ProductService(mockRepo, mockAudit, mockInventory);
   });
 
   describe('getProducts', () => {
@@ -49,13 +54,20 @@ describe('ProductService', () => {
         category: 'Art',
         imageUrl: 'http://image.png'
       };
-      const created = { ...draft, id: 'p1' };
+      const created = { ...draft, id: 'p1', stock: 0 };
       mockRepo.create.mockResolvedValue(created);
 
       const result = await productService.createProduct(draft as any, { id: 'admin', email: 'admin@test.com' });
 
       expect(result.id).toBe('p1');
-      expect(mockRepo.create).toHaveBeenCalledWith(draft);
+      expect(result.stock).toBe(10);
+      expect(mockRepo.create).toHaveBeenCalledWith({ ...draft, stock: 0 });
+      expect(mockInventory.adjustInventory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          updates: [{ productId: 'p1', stock: 10 }],
+          actor: 'admin',
+        }),
+      );
       expect(mockAudit.record).toHaveBeenCalled();
     });
   });

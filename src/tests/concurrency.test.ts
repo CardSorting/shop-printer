@@ -45,6 +45,7 @@ describe('OrderService Concurrency', () => {
       transitionFulfillmentState: vi.fn().mockResolvedValue(undefined),
       transitionReconciliationState: vi.fn().mockResolvedValue(undefined),
       updateStatus: vi.fn().mockResolvedValue(undefined),
+      updateMetadata: vi.fn().mockResolvedValue(undefined),
       guardedUpdateStatus: vi.fn().mockImplementation(async (_id, _allowed, status, _reason, transaction) => {
         return mockOrderRepo.updateStatus(_id, status, transaction);
       }),
@@ -52,6 +53,7 @@ describe('OrderService Concurrency', () => {
     };
     mockProductRepo = {
       getById: vi.fn().mockResolvedValue({ id: 'p1', price: 1000, stock: 1 }),
+      getAll: vi.fn().mockResolvedValue({ products: [{ id: 'p1', stock: 1 }] }),
       batchUpdateStock: vi.fn(),
     };
     mockCartRepo = {
@@ -422,9 +424,7 @@ describe('OrderService Concurrency', () => {
     expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o1', 'cancelled', undefined);
 
     // Verify physical product stock was batch updated to be restored (delta of positive item quantity)
-    expect(mockProductRepo.batchUpdateStock).toHaveBeenLastCalledWith([
-      { id: 'p1', delta: 1, variantId: undefined }
-    ]);
+    expect(mockProductRepo.batchUpdateStock).toHaveBeenLastCalledWith([{ id: 'p1', delta: 1 }], undefined);
 
     // Verify metadata is updated with inventoryReservationReleased: true
     expect(mockOrderRepo.updateMetadata).toHaveBeenCalledWith('o1', expect.objectContaining({
@@ -470,6 +470,6 @@ describe('OrderService Concurrency', () => {
       'finalizer write failed'
     ]));
     expect(mockProductRepo.batchUpdateStock).toHaveBeenCalledWith([{ id: 'p1', delta: -1 }], expect.anything());
-    expect(mockProductRepo.batchUpdateStock).not.toHaveBeenCalledWith([{ id: 'p1', delta: 1, variantId: undefined }]);
+    expect(mockProductRepo.batchUpdateStock).not.toHaveBeenCalledWith([{ id: 'p1', delta: 1 }], expect.anything());
   });
 });

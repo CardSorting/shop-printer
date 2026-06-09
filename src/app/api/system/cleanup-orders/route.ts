@@ -1,39 +1,54 @@
+import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { checkoutPartialReportResponse, checkoutRouteResponse } from '@infrastructure/server/checkoutRouteAdapter';
+import { checkoutRouteResponse } from '@infrastructure/server/checkoutRouteAdapter';
+import { inventoryRouteResponse } from '@infrastructure/server/inventoryRouteAdapter';
 import { logger } from '@utils/logger';
 import { jsonError, requireConfiguredBearerToken } from '@infrastructure/server/apiGuards';
 
 /**
  * [LAYER: SYSTEM]
- * Background Job for Cleaning up Expired Pending Orders
- * This prevents inventory leakage from abandoned checkouts.
+ * Background job for cleaning up expired pending orders and inventory reservations.
  */
 export async function POST(request: Request) {
   try {
     requireConfiguredBearerToken(request, 'SYSTEM_JOB_TOKEN');
     const services = await getServerServices();
-    const result = await services.checkout.cleanupExpiredPendingOrders({ maxAgeMinutes: 60 });
 
-    if (result.ok) {
-      const payload = {
-        success: true,
-        report: result.data,
-        timestamp: new Date().toISOString(),
-      };
-      logger.info('checkout_cleanup_completed', {
-        scanned: result.data.scanned,
-        cancelled: result.data.cancelled,
-        failed: result.data.failed,
-        errorCount: result.data.errors.length,
-        orderIds: result.data.errors.map((e) => e.orderId),
-      });
-      return checkoutPartialReportResponse({
-        ok: true,
-        data: payload,
-      });
+    const [checkoutResult, inventoryResult] = await Promise.all([
+      services.checkout.cleanupExpiredPendingOrders({ maxAgeMinutes: 60 }),
+      services.inventory.cleanupExpiredReservations({ limit: 100 }),
+    ]);
+
+    if (!checkoutResult.ok) {
+      return checkoutRouteResponse(checkoutResult);
+    }
+    if (!inventoryResult.ok) {
+      return inventoryRouteResponse(inventoryResult);
     }
 
-    return checkoutRouteResponse(result);
+    const payload = {
+      success: true,
+      checkout: checkoutResult.data,
+      inventory: inventoryResult.data,
+      timestamp: new Date().toISOString(),
+    };
+
+    logger.info('system_cleanup_completed', {
+      checkoutScanned: checkoutResult.data.scanned,
+      checkoutCancelled: checkoutResult.data.cancelled,
+      checkoutFailed: checkoutResult.data.failed,
+      inventoryScanned: inventoryResult.data.scanned,
+      inventoryReleased: inventoryResult.data.released,
+      inventoryFailed: inventoryResult.data.failed,
+    });
+
+    const partial =
+      checkoutResult.data.failed > 0
+      || checkoutResult.data.errors.length > 0
+      || inventoryResult.data.failed > 0
+      || inventoryResult.data.errors.length > 0;
+
+    return NextResponse.json(payload, { status: partial ? 207 : 200 });
   } catch (error) {
     return jsonError(error, 'System cleanup failed');
   }

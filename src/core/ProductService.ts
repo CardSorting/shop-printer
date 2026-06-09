@@ -21,6 +21,7 @@ import type {
   ProductUpdate,
 } from '@domain/models';
 import { AuditService } from './AuditService';
+import type { InventoryApplicationService } from './inventory/inventoryApplicationService';
 import { DomainError, ProductNotFoundError } from '@domain/errors';
 import { logger } from '@utils/logger';
 import { Sanitizer } from '@utils/sanitizer';
@@ -74,7 +75,8 @@ export function isProductManagementSort(value: string): value is ProductManageme
 export class ProductService {
   constructor(
     private repo: IProductRepository,
-    private audit: AuditService
+    private audit: AuditService,
+    private inventory: InventoryApplicationService,
   ) {}
 
   async getProducts(options?: {
@@ -349,7 +351,18 @@ export class ProductService {
 
   async createProduct(data: ProductDraft, actor: { id: string, email: string }): Promise<Product> {
     assertValidProductDraft(data);
-    const product = await this.repo.create(data);
+    const initialStock = data.stock ?? 0;
+    const product = await this.repo.create({ ...data, stock: 0 });
+    if (initialStock > 0) {
+      const result = await this.inventory.adjustInventory({
+        updates: [{ productId: product.id, stock: initialStock }],
+        idempotencyKey: `product-create:${product.id}`,
+        actor: 'admin',
+        actorUserId: actor.id,
+        actorEmail: actor.email,
+      });
+      if (!result.ok) throw new DomainError(result.message);
+    }
     await this.audit.record({
       userId: actor.id,
       userEmail: actor.email,
@@ -360,22 +373,39 @@ export class ProductService {
         sku: product.sku ?? null,
         manufacturer: product.manufacturer ?? null,
         supplier: product.supplier ?? null,
+        initialStock,
       }
     });
-    return product;
+    return { ...product, stock: initialStock };
   }
 
   async updateProduct(id: string, updates: ProductUpdate, actor: { id: string, email: string }): Promise<Product> {
     assertValidProductUpdate(updates);
-    const product = await this.repo.update(id, updates);
+    const { stock, ...catalogUpdates } = updates;
+    if (stock !== undefined) {
+      const result = await this.inventory.adjustInventory({
+        updates: [{ productId: id, stock }],
+        idempotencyKey: `product-update:${id}:${actor.id}:${Date.now()}`,
+        actor: 'admin',
+        actorUserId: actor.id,
+        actorEmail: actor.email,
+      });
+      if (!result.ok) throw new DomainError(result.message);
+    }
+    if (Object.keys(catalogUpdates).length === 0) {
+      const product = await this.repo.getById(id);
+      if (!product) throw new ProductNotFoundError(id);
+      return stock !== undefined ? { ...product, stock } : product;
+    }
+    const product = await this.repo.update(id, catalogUpdates);
     await this.audit.record({
       userId: actor.id,
       userEmail: actor.email,
       action: 'product_updated',
       targetId: id,
-      details: updates
+      details: catalogUpdates
     });
-    return product;
+    return stock !== undefined ? { ...product, stock } : product;
   }
 
   async deleteProduct(id: string, actor: { id: string, email: string }): Promise<void> {
@@ -389,13 +419,42 @@ export class ProductService {
   }
 
   async batchUpdateProducts(updates: { id: string; updates: ProductUpdate }[], actor: { id: string, email: string }): Promise<Product[]> {
-    updates.forEach(({ updates: u }) => assertValidProductUpdate(u));
-    
+    const inventoryUpdates: { productId: string; variantId?: string; stock: number }[] = [];
+    const catalogUpdates = updates.map(({ id, updates: u }) => {
+      const { stock, ...rest } = u;
+      if (stock !== undefined) {
+        inventoryUpdates.push({ productId: id, stock });
+      }
+      assertValidProductUpdate(rest);
+      return { id, updates: rest };
+    });
+
+    if (inventoryUpdates.length > 0) {
+      const result = await this.inventory.adjustInventory({
+        updates: inventoryUpdates,
+        idempotencyKey: `product-batch:${actor.id}:${Date.now()}`,
+        actor: 'admin',
+        actorUserId: actor.id,
+        actorEmail: actor.email,
+      });
+      if (!result.ok) throw new DomainError(result.message);
+    }
+
+    const hasCatalogChanges = catalogUpdates.some(({ updates: u }) => Object.keys(u).length > 0);
+    if (!hasCatalogChanges) {
+      return Promise.all(catalogUpdates.map(async ({ id, updates: u }) => {
+        const product = await this.repo.getById(id);
+        if (!product) throw new ProductNotFoundError(id);
+        const stockUpdate = inventoryUpdates.find((entry) => entry.productId === id);
+        return stockUpdate ? { ...product, stock: stockUpdate.stock } : product;
+      }));
+    }
+
     let products: Product[];
     if (this.repo.batchUpdate) {
-      products = await this.repo.batchUpdate(updates);
+      products = await this.repo.batchUpdate(catalogUpdates);
     } else {
-      products = await Promise.all(updates.map(({ id, updates: u }) => this.repo.update(id, u)));
+      products = await Promise.all(catalogUpdates.map(({ id, updates: u }) => this.repo.update(id, u)));
     }
 
     await this.audit.record({
@@ -409,7 +468,11 @@ export class ProductService {
     return products;
   }
 
-  async batchUpdateInventory(updates: { id: string; variantId?: string; stock: number }[], actor: { id: string, email: string }): Promise<void> {
+  async batchUpdateInventory(
+    updates: { id: string; variantId?: string; stock: number }[],
+    actor: { id: string; email: string },
+    options?: { idempotencyKey?: string; note?: string },
+  ): Promise<void> {
     if (updates.length === 0) throw new DomainError('Inventory updates must not be empty');
     updates.forEach((update, index) => {
       if (!update.id?.trim()) throw new DomainError(`updates[${index}].id is required`);
@@ -417,37 +480,23 @@ export class ProductService {
       if (!Number.isInteger(update.stock) || update.stock < 0) throw new DomainError(`updates[${index}].stock must be a non-negative integer`);
     });
 
-    if (this.repo.batchSetInventory) {
-      await this.repo.batchSetInventory(updates);
-    } else {
-      const productUpdates = updates.map(update => {
-        if (update.variantId) {
-          return {
-            id: update.id,
-            updates: {
-              _variantStockUpdate: { variantId: update.variantId, stock: update.stock }
-            } as any
-          };
-        }
-        return {
-          id: update.id,
-          updates: { stock: update.stock }
-        };
-      });
-
-      if (this.repo.batchUpdate) {
-        await this.repo.batchUpdate(productUpdates as any);
-      } else {
-        await Promise.all(productUpdates.map(u => this.repo.update(u.id, u.updates as any)));
-      }
-    }
-
+    const idempotencyKey = options?.idempotencyKey?.trim()
+      || `admin-batch:${actor.id}:${Date.now()}:${updates.map((u) => `${u.id}:${u.variantId ?? ''}:${u.stock}`).join('|')}`;
+    const result = await this.inventory.adjustInventory({
+      updates: updates.map((u) => ({ productId: u.id, variantId: u.variantId, stock: u.stock })),
+      idempotencyKey,
+      actor: 'admin',
+      actorUserId: actor.id,
+      actorEmail: actor.email,
+      note: options?.note,
+    });
+    if (!result.ok) throw new DomainError(result.message);
     await this.audit.record({
       userId: actor.id,
       userEmail: actor.email,
       action: 'inventory_batch_updated',
       targetId: 'multiple',
-      details: { count: updates.length }
+      details: { count: updates.length },
     });
   }
 

@@ -34,7 +34,12 @@ import { CartService } from './CartService';
 import { OrderService } from './OrderService';
 import { createCheckoutStack } from './order/createCheckoutStack';
 import type { CheckoutApplicationService } from './order/checkoutApplicationService';
+import { createInventoryStack } from './inventory/createInventoryStack';
+import type { InventoryApplicationService } from './inventory/inventoryApplicationService';
 import { FirestoreCheckoutEventLog } from '@infrastructure/checkout/FirestoreCheckoutEventLog';
+import { FirestoreInventoryLedgerRepository } from '@infrastructure/repositories/firestore/FirestoreInventoryLedgerRepository';
+import { FirestoreInventoryReservationRepository } from '@infrastructure/repositories/firestore/FirestoreInventoryReservationRepository';
+import { FirestoreInventoryReconciliationRepository } from '@infrastructure/repositories/firestore/FirestoreInventoryReconciliationRepository';
 import { ShippingService } from './ShippingService';
 import { AuthService } from './AuthService';
 import { DiscountService } from './DiscountService';
@@ -119,7 +124,39 @@ let campaignEventRepoInstance: any | null = null;
 let segmentRepoInstance: any | null = null;
 let orderServiceInstance: OrderService | null = null;
 let checkoutInstance: CheckoutApplicationService | null = null;
+let inventoryInstance: InventoryApplicationService | null = null;
 let checkoutEventLogInstance: FirestoreCheckoutEventLog | null = null;
+let inventoryLedgerRepoInstance: FirestoreInventoryLedgerRepository | null = null;
+let inventoryReservationRepoInstance: FirestoreInventoryReservationRepository | null = null;
+let inventoryReconciliationRepoInstance: FirestoreInventoryReconciliationRepository | null = null;
+
+function createInventoryApplication(
+  productRepo: IProductRepository,
+  orderRepo?: IOrderRepository,
+  inventoryLevelRepo?: IInventoryLevelRepository,
+): InventoryApplicationService {
+  if (!inventoryLedgerRepoInstance) inventoryLedgerRepoInstance = new FirestoreInventoryLedgerRepository();
+  if (!inventoryReservationRepoInstance) inventoryReservationRepoInstance = new FirestoreInventoryReservationRepository();
+  if (!inventoryReconciliationRepoInstance) inventoryReconciliationRepoInstance = new FirestoreInventoryReconciliationRepository();
+  return createInventoryStack({
+    productRepo,
+    ledgerRepo: inventoryLedgerRepoInstance,
+    reservationRepo: inventoryReservationRepoInstance,
+    reconciliationRepo: inventoryReconciliationRepoInstance,
+    inventoryLevelRepo,
+    onReservationReleased: orderRepo
+      ? async ({ orderId }) => {
+          const order = await orderRepo.getById(orderId);
+          if (!order?.metadata?.inventoryReserved || order.metadata.inventoryReservationReleased) return;
+          await orderRepo.updateMetadata(orderId, {
+            ...(order.metadata || {}),
+            inventoryReservationReleased: true,
+            inventoryReservationReleasedAt: new Date().toISOString(),
+          });
+        }
+      : undefined,
+  }).inventory;
+}
 
 function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
@@ -131,6 +168,7 @@ function wireOrderCheckoutStack(
   audit: AuditService,
   locker: ILockProvider,
   stripeService: StripeService,
+  inventory: InventoryApplicationService,
   checkoutGateway?: ICheckoutGateway,
 ) {
   const orderService = new OrderService(
@@ -140,6 +178,7 @@ function wireOrderCheckoutStack(
     audit,
     repos.shippingRepo,
     stripeService,
+    inventory,
   );
   const eventLog = checkoutEventLogInstance ?? new FirestoreCheckoutEventLog();
   checkoutEventLogInstance = eventLog;
@@ -155,6 +194,7 @@ function wireOrderCheckoutStack(
     checkoutGateway,
     stripe: stripeService,
     eventLog,
+    inventory,
     cancelExpiredPendingOrder: (orderId) => orderService.cancelExpiredPendingOrder(orderId),
     recordOperatorAction: (input) => orderService.handleReconciliationOperatorAction(input),
   });
@@ -196,31 +236,34 @@ export function getServiceContainer() {
   const auditService = new AuditService();
   const authService = new AuthService(authProvider, auditService);
   const stripeService = new StripeService();
+  const inventory = createInventoryApplication(repos.productRepo, repos.orderRepo, repos.inventoryLevelRepo);
   const { orderService, checkout } = wireOrderCheckoutStack(
     repos,
     new StripePaymentProcessor(),
     auditService,
     new FirestoreLocker(),
     stripeService,
+    inventory,
     createCheckoutGateway(),
   );
 
   return {
     authProvider,
     authService,
-    productService: new ProductService(repos.productRepo, auditService),
-    cartService: new CartService(repos.cartRepo, repos.productRepo),
+    productService: new ProductService(repos.productRepo, auditService, inventory),
+    cartService: new CartService(repos.cartRepo, repos.productRepo, inventory),
     orderService,
     checkout,
+    inventory,
     fulfillmentService: new FulfillmentService(repos.orderRepo, repos.shippingRepo),
     orderManagementService: new OrderManagementService(repos.orderRepo, new AuditService()),
-    orderQueryService: new OrderQueryService(repos.orderRepo, new ProductService(repos.productRepo, new AuditService())),
-    refundService: new RefundService(repos.orderRepo, new StripePaymentProcessor(), new AuditService(), repos.productRepo, repos.discountRepo, new FirestoreLocker()),
+    orderQueryService: new OrderQueryService(repos.orderRepo, new ProductService(repos.productRepo, new AuditService(), inventory)),
+    refundService: new RefundService(repos.orderRepo, new StripePaymentProcessor(), new AuditService(), repos.productRepo, repos.discountRepo, new FirestoreLocker(), inventory),
     discountService: new DiscountService(repos.discountRepo, new AuditService(), repos.orderRepo),
     settingsService: new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
     shippingService: new ShippingService(repos.shippingRepo, new AuditService()),
-    transferService: new TransferService(repos.transferRepo, repos.productRepo, new AuditService()),
-    purchaseOrderService: new PurchaseOrderService(repos.purchaseOrderRepo, repos.productRepo, repos.inventoryLevelRepo, new AuditService()),
+    transferService: new TransferService(repos.transferRepo, repos.productRepo, new AuditService(), inventory),
+    purchaseOrderService: new PurchaseOrderService(repos.purchaseOrderRepo, repos.productRepo, repos.inventoryLevelRepo, new AuditService(), inventory),
     supplierService: new SupplierService(repos.supplierRepo, new AuditService()),
     collectionService: new CollectionService(repos.collectionRepo, new AuditService()),
     taxonomyService: new TaxonomyService(repos.taxonomyRepo, new AuditService()),
@@ -235,11 +278,12 @@ export function getServiceContainer() {
     emailService: new BrevoEmailService(new AuditService()),
     rateLimitService: new RateLimitService(new AuditService()),
     operationsRuntimeService: new OperationsRuntimeService(
-      new OrderQueryService(repos.orderRepo, new ProductService(repos.productRepo, new AuditService())),
-      new ProductService(repos.productRepo, new AuditService()),
-      new PurchaseOrderService(repos.purchaseOrderRepo, repos.productRepo, repos.inventoryLevelRepo, new AuditService()),
+      new OrderQueryService(repos.orderRepo, new ProductService(repos.productRepo, new AuditService(), inventory)),
+      new ProductService(repos.productRepo, new AuditService(), inventory),
+      new PurchaseOrderService(repos.purchaseOrderRepo, repos.productRepo, repos.inventoryLevelRepo, new AuditService(), inventory),
       new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
-      new AuditService()
+      new AuditService(),
+      inventory,
     ),
     campaignService: new CampaignService(
       repos.campaignRepo,
@@ -312,7 +356,8 @@ export function getInitialServices() {
         purchaseOrderRepoInstance!,
         productRepoInstance!,
         inventoryLevelRepoInstance!,
-        getAuditService()
+        getAuditService(),
+        inventoryInstance!,
       );
     }
     return purchaseOrderServiceInstance;
@@ -323,7 +368,9 @@ export function getInitialServices() {
     return stripeServiceInstance;
   };
 
-  if (!orderServiceInstance || !checkoutInstance) {
+  if (!orderServiceInstance || !checkoutInstance || !inventoryInstance) {
+    const inventory = createInventoryApplication(productRepoInstance!, orderRepoInstance!, inventoryLevelRepoInstance!);
+    inventoryInstance = inventory;
     const stack = wireOrderCheckoutStack(
       {
         productRepo: productRepoInstance!,
@@ -350,6 +397,7 @@ export function getInitialServices() {
       getAuditService(),
       lockProviderInstance!,
       getStripeService(),
+      inventory,
       checkoutGatewayInstance ?? undefined,
     );
     orderServiceInstance = stack.orderService;
@@ -359,14 +407,15 @@ export function getInitialServices() {
   return {
     authProvider: authProviderInstance!,
     authService: authServiceInstance,
-    productService: new ProductService(productRepoInstance!, getAuditService()),
-    cartService: new CartService(cartRepoInstance!, productRepoInstance!),
+    productService: new ProductService(productRepoInstance!, getAuditService(), inventoryInstance!),
+    cartService: new CartService(cartRepoInstance!, productRepoInstance!, inventoryInstance!),
     orderService: orderServiceInstance,
     checkout: checkoutInstance,
+    inventory: inventoryInstance!,
     fulfillmentService: new FulfillmentService(orderRepoInstance!, shippingRepoInstance!),
     orderManagementService: new OrderManagementService(orderRepoInstance!, getAuditService()),
     orderQueryService: new OrderQueryService(orderRepoInstance!, new ProductService(productRepoInstance!, getAuditService())),
-    refundService: new RefundService(orderRepoInstance!, paymentProcessorInstance!, getAuditService(), productRepoInstance!, discountRepoInstance!, lockProviderInstance!),
+    refundService: new RefundService(orderRepoInstance!, paymentProcessorInstance!, getAuditService(), productRepoInstance!, discountRepoInstance!, lockProviderInstance!, inventoryInstance!),
     discountService: new DiscountService(discountRepoInstance!, getAuditService(), orderRepoInstance!),
     settingsService: new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),
     shippingService: (() => {
@@ -374,7 +423,7 @@ export function getInitialServices() {
       return shippingServiceInstance;
     })(),
     transferService: (() => {
-      if (!transferServiceInstance) transferServiceInstance = new TransferService(transferRepoInstance!, productRepoInstance!, getAuditService());
+      if (!transferServiceInstance) transferServiceInstance = new TransferService(transferRepoInstance!, productRepoInstance!, getAuditService(), inventoryInstance!);
       return transferServiceInstance;
     })(),
     purchaseOrderService: getPurchaseOrderService(),
@@ -413,11 +462,12 @@ export function getInitialServices() {
       return rateLimitServiceInstance;
     })(),
     operationsRuntimeService: new OperationsRuntimeService(
-      new OrderQueryService(orderRepoInstance!, new ProductService(productRepoInstance!, getAuditService())),
-      new ProductService(productRepoInstance!, getAuditService()),
+      new OrderQueryService(orderRepoInstance!, new ProductService(productRepoInstance!, getAuditService(), inventoryInstance!)),
+      new ProductService(productRepoInstance!, getAuditService(), inventoryInstance!),
       getPurchaseOrderService(),
       new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),
-      getAuditService()
+      getAuditService(),
+      inventoryInstance!,
     ),
     conciergeService: (() => {
       if (!conciergeServiceInstance) conciergeServiceInstance = new ConciergeService(getAuditService());

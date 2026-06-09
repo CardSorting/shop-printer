@@ -8,6 +8,7 @@ import type { ProductService } from './ProductService';
 import type { OrderQueryService } from './OrderQueryService';
 import type { PurchaseOrderService } from './PurchaseOrderService';
 import type { SettingsService } from './SettingsService';
+import type { InventoryApplicationService } from './inventory/inventoryApplicationService';
 import { AuditService } from './AuditService';
 import { OperationalPlannerService } from './OperationalPlannerService';
 
@@ -18,6 +19,7 @@ export class OperationsRuntimeService {
     private purchaseOrderService: PurchaseOrderService,
     private settingsService: SettingsService,
     private auditService: AuditService,
+    private inventory: InventoryApplicationService,
     private planner: OperationalPlannerService = new OperationalPlannerService(auditService)
   ) {}
 
@@ -108,11 +110,19 @@ export class OperationsRuntimeService {
 
   private async executeTool(toolId: string, input: any, actor: OperationalActor) {
     switch (toolId) {
-      case 'product.batch_update_inventory':
-        return this.productService.batchUpdateInventory(this.parseInventoryUpdates(input), {
-          id: actor.userId,
-          email: actor.email,
+      case 'product.batch_update_inventory': {
+        const updates = this.parseInventoryUpdates(input);
+        const idempotencyKey = `ops-batch:${actor.userId}:${Date.now()}`;
+        const result = await this.inventory.adjustInventory({
+          updates: updates.map((u) => ({ productId: u.id, variantId: u.variantId, stock: u.stock })),
+          idempotencyKey,
+          actor: 'admin',
+          actorUserId: actor.userId,
+          actorEmail: actor.email,
         });
+        if (!result.ok) throw new Error(result.message);
+        return result.data;
+      }
 
       case 'purchase_order.draft':
         return this.purchaseOrderService.createPurchaseOrder({

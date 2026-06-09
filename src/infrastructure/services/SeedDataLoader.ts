@@ -248,6 +248,75 @@ function assertSeedingAllowed(): void {
   }
 }
 
+/**
+ * Seed-only stock bootstrap via Admin SDK. Mirrors adjustInventory semantics:
+ * catalog row starts at stock 0, then delta + marker ledger entries are written.
+ */
+async function seedCatalogStockAdmin(input: {
+  productId: string;
+  stock: number;
+  idempotencyKey: string;
+}): Promise<void> {
+  if (input.stock <= 0) return;
+
+  const productRef = adminDb.collection('products').doc(input.productId);
+  const snap = await productRef.get();
+  if (!snap.exists) return;
+
+  const data = snap.data() as Record<string, unknown>;
+  if (data.isDigital === true || data.trackQuantity === false) return;
+
+  const adjustPrefix = `adjust:${input.idempotencyKey}`;
+  const markerKey = adjustPrefix;
+  const existingMarker = await adminDb
+    .collection('inventory_ledger')
+    .where('idempotencyKey', '==', markerKey)
+    .limit(1)
+    .get();
+  if (!existingMarker.empty) return;
+
+  const previousStock = typeof data.stock === 'number' ? data.stock : 0;
+  const delta = input.stock - previousStock;
+  if (delta === 0) {
+    const entryId = crypto.randomUUID();
+    await adminDb.collection('inventory_ledger').doc(entryId).set({
+      id: entryId,
+      productId: input.productId,
+      delta: 0,
+      reason: 'admin_adjustment',
+      actor: 'system',
+      idempotencyKey: markerKey,
+      createdAt: new Date().toISOString(),
+    });
+    return;
+  }
+
+  await productRef.update({ stock: input.stock, updatedAt: Timestamp.now() });
+
+  const deltaKey = [adjustPrefix, input.productId, 0].join(':');
+  const now = new Date().toISOString();
+  const deltaEntryId = crypto.randomUUID();
+  await adminDb.collection('inventory_ledger').doc(deltaEntryId).set({
+    id: deltaEntryId,
+    productId: input.productId,
+    delta,
+    reason: 'admin_adjustment',
+    actor: 'system',
+    idempotencyKey: deltaKey,
+    createdAt: now,
+  });
+  const markerEntryId = crypto.randomUUID();
+  await adminDb.collection('inventory_ledger').doc(markerEntryId).set({
+    id: markerEntryId,
+    productId: input.productId,
+    delta: 0,
+    reason: 'admin_adjustment',
+    actor: 'system',
+    idempotencyKey: markerKey,
+    createdAt: now,
+  });
+}
+
 export async function seedTaxonomy(): Promise<void> {
   // Collections
   const collections = [
@@ -347,13 +416,20 @@ export async function seedProducts(): Promise<number> {
 
   for (const product of INITIAL_CATALOG) {
     const id = crypto.randomUUID();
+    const initialStock = product.stock ?? 0;
     const now = Timestamp.now();
     await adminDb.collection('products').doc(id).set({
       ...product,
+      stock: 0,
       id,
       createdAt: now,
       updatedAt: now,
       media: product.media?.map(m => ({ ...m, createdAt: now })) || []
+    });
+    await seedCatalogStockAdmin({
+      productId: id,
+      stock: initialStock,
+      idempotencyKey: `seed:product-create:${id}`,
     });
     created++;
   }
@@ -486,9 +562,15 @@ export async function seedProducts(): Promise<number> {
 
         await adminDb.collection('products').doc(id).set({
           ...productDraft,
+          stock: 0,
           id,
           createdAt: now,
           updatedAt: now,
+        });
+        await seedCatalogStockAdmin({
+          productId: id,
+          stock,
+          idempotencyKey: `seed:product-create:${id}`,
         });
 
         created++;
