@@ -2,10 +2,40 @@
 
 Checkout is a monolith-local workflow. It coordinates cart reservation, order creation, Stripe PaymentIntent creation, payment finalization, rollback, reconciliation, and operator recovery without introducing distributed infrastructure.
 
+## Entry Point
+
+```text
+Routes / UI / webhooks
+  -> getServerServices().checkout   (container top-level)
+       -> createCheckoutStack()
+            -> CheckoutFlowService
+                 -> OrderCheckoutService (reservation, finalization, rollback only)
+                 -> checkoutOrderResolver / checkoutPaymentIntentFlow / checkoutVerifyFlow
+```
+
+`OrderService` receives `CheckoutFlowService` via dependency injection (`createCheckoutStack`) for internal cleanup/reconciliation only. It is not exposed on `OrderService` — all external callers use `services.checkout`.
+
 ## Responsibilities
 
-- `OrderCheckoutService` owns checkout creation, payment finalization, and unpaid rollback.
-- Checkout API routes translate HTTP requests into service calls and update payment-intent wait phases.
+- `CheckoutFlowService` (`services.checkout`) is the **only** public checkout API. Legacy `OrderService.initiateCheckout`, `placeOrder`, `finalizeTrustedCheckout`, and related passthroughs have been removed.
+- `OrderCheckoutService` implements `CheckoutMutationBackend` (`runCheckoutReservation`, `confirmStripePayment`, `rollbackUnpaidCheckout`) — internal only, never imported by routes.
+- `checkoutStripeWebhookFlow.ts` owns `payment_intent.payment_failed` convergence logic.
+- `checkoutOrderResolver.ts` is the single order lookup path (`paymentTransactionId` → `metadata.orderId` fallback).
+- `checkoutPaymentIntentFlow.ts` owns client PaymentIntent create/resume phase transitions and rollback side effects.
+- Checkout API routes are thin HTTP adapters that call `services.checkout.*` — they should not compose primitives or resolution chains directly.
+
+### CheckoutFlowService API
+
+| Method | Used by |
+|--------|---------|
+| `startClientCheckout` | `POST /api/checkout/create-payment-intent` |
+| `reserveCheckout` | Inventory reservation without payment (benchmarks, tests) |
+| `completeWithPaymentMethod` | `POST /api/orders`, UI checkout |
+| `verifyPaymentFromClient` | `GET /api/checkout/verify` |
+| `confirmPaymentFromStripe` | Stripe `payment_intent.succeeded` webhook, cleanup, reconciliation retry |
+| `handleStripePaymentFailed` | Stripe `payment_intent.payment_failed` webhook |
+| `rollbackUnpaidCheckout` | System cleanup, forensic rollback |
+| `resolveOrder` | Order lookup by PaymentIntent (internal/webhook helpers) |
 - `FirestoreOrderRepository.transitionCheckoutAttemptPhase` is the only writer for checkout attempt phase fields.
 - `OrderAdminService` owns reconciliation case summaries, forensic timeline reads, and operator actions.
 - `checkoutForensics.ts` renders timelines and diagnostics for operators.

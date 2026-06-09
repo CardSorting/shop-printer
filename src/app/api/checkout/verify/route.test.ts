@@ -1,15 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { OrderNotFoundError, UnauthorizedError } from '@domain/errors';
 
-const getByPaymentTransactionId = vi.fn();
-const getById = vi.fn();
-const updatePaymentTransactionId = vi.fn();
-const finalizeOrderPayment = vi.fn();
+const verifyPaymentFromClient = vi.fn();
 const getPaymentIntent = vi.fn();
 
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
-    orderRepo: { getByPaymentTransactionId, getById, updatePaymentTransactionId },
-    orderService: { finalizeOrderPayment },
+    checkout: { verifyPaymentFromClient },
   })),
 }));
 
@@ -36,20 +33,21 @@ describe('checkout verify authorization', () => {
   });
 
   it('does not finalize a payment intent owned by another user', async () => {
-    getByPaymentTransactionId.mockResolvedValue({ id: 'o1', userId: 'other-user' });
+    verifyPaymentFromClient.mockRejectedValue(new UnauthorizedError());
     const { GET } = await import('./route');
 
     const response = await GET(new Request('https://example.test/api/checkout/verify?payment_intent=pi_1'));
 
     expect(response.status).toBe(403);
-    expect(finalizeOrderPayment).not.toHaveBeenCalled();
+    expect(verifyPaymentFromClient).toHaveBeenCalledWith('user-1', 'pi_1', {
+      id: 'pi_1',
+      status: 'succeeded',
+      metadata: { orderId: 'o1' },
+    });
   });
 
-  it('falls back to payment intent metadata when the payment map is not visible yet', async () => {
-    getByPaymentTransactionId.mockResolvedValue(null);
-    getById.mockResolvedValue({ id: 'o1', userId: 'user-1', paymentTransactionId: null });
-    updatePaymentTransactionId.mockResolvedValue(undefined);
-    finalizeOrderPayment.mockResolvedValue({ id: 'o1', status: 'processing' });
+  it('delegates verification to the centralized checkout flow', async () => {
+    verifyPaymentFromClient.mockResolvedValue({ success: true, orderId: 'o1', status: 'processing' });
     const { GET } = await import('./route');
 
     const response = await GET(new Request('https://example.test/api/checkout/verify?payment_intent=pi_1'));
@@ -57,7 +55,19 @@ describe('checkout verify authorization', () => {
 
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
-    expect(updatePaymentTransactionId).toHaveBeenCalledWith('o1', 'pi_1');
-    expect(finalizeOrderPayment).toHaveBeenCalledWith('pi_1', { id: 'pi_1', status: 'succeeded', metadata: { orderId: 'o1' } }, 'user');
+    expect(verifyPaymentFromClient).toHaveBeenCalledWith('user-1', 'pi_1', {
+      id: 'pi_1',
+      status: 'succeeded',
+      metadata: { orderId: 'o1' },
+    });
+  });
+
+  it('returns not found when checkout resolution fails', async () => {
+    verifyPaymentFromClient.mockRejectedValue(new OrderNotFoundError('pi_1'));
+    const { GET } = await import('./route');
+
+    const response = await GET(new Request('https://example.test/api/checkout/verify?payment_intent=pi_1'));
+
+    expect(response.status).toBe(404);
   });
 });

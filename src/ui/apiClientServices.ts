@@ -174,6 +174,10 @@ export function createApiClientServices() {
             batchUpdateInventory: (updates: { id: string; variantId?: string; stock: number }[], _actor: { id: string; email: string }) => request<void>('/api/admin/inventory/batch', { method: 'POST', body: JSON.stringify({ updates }) }),
             batchDeleteProducts: (ids: string[], _actor: { id: string; email: string }) => request<void>('/api/admin/products/batch', { method: 'DELETE', body: JSON.stringify({ ids }) }),
         },
+        checkout: {
+            completeWithPaymentMethod: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey: string, discountCode?: string) =>
+                (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
+        },
         cartService: {
             getCart: (userId: string, signal?: AbortSignal) => (sessionScoped(userId), request<Cart | null>('/api/cart', { signal })),
             addToCart: (userId: string, productId: string, quantity: number, variantId?: string) => (sessionScoped(userId), request<Cart>('/api/cart/items', { method: 'POST', body: JSON.stringify({ productId, quantity, variantId }) })),
@@ -190,8 +194,6 @@ export function createApiClientServices() {
             getLogisticsInsights: (signal?: AbortSignal) => request<any>('/api/admin/logistics', { signal }),
         },
         orderService: {
-            finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
-            placeOrder: (userId: string, shippingAddress: Address, paymentMethodId: string | undefined, idempotencyKey: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
             getOrders: (userId: string, options?: {
                 status?: OrderStatus | 'all';
                 query?: string;

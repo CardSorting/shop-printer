@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createCheckoutStack } from '@core/order/createCheckoutStack';
+import { OrderCheckoutService } from '@core/order/OrderCheckoutService';
 
-const initiateCheckout = vi.fn();
+const runCheckoutReservation = vi.fn();
+const startClientCheckout = vi.fn();
 const updatePaymentTransactionId = vi.fn();
 const updateOrderStatus = vi.fn();
 const updateCheckoutAttempt = vi.fn();
@@ -20,11 +23,9 @@ const mockAssertRateLimit = vi.fn();
 const mockRequireStepUpSessionUser = vi.fn();
 const batchUpdateStock = vi.fn();
 const updateMetadata = vi.fn();
-const rollbackUnpaidCheckout = vi.fn();
-
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
-    orderService: { initiateCheckout, updateOrderStatus, rollbackUnpaidCheckout },
+    checkout: { startClientCheckout },
     cartRepo: { getByUserId: getCartByUserId, save: saveCart },
     productRepo: { batchUpdateStock },
     orderRepo: {
@@ -89,83 +90,35 @@ describe('checkout create payment intent retry handling', () => {
     batchUpdateStock.mockResolvedValue(undefined);
     updateMetadata.mockResolvedValue(undefined);
 
-    rollbackUnpaidCheckout.mockImplementation(async (orderId, checkoutAttemptId, paymentIntentId, reason) => {
-      try {
-        await transitionPaymentState(
-          orderId,
-          ['unpaid', 'requires_payment_method', 'processing', 'failed'],
-          paymentIntentId ? 'cancelled' : 'failed',
-          reason
-        );
-        await guardedUpdateStatus(orderId, ['pending'], 'cancelled', reason);
-        
-        let order = await getOrderById(orderId);
-        if (order) {
-          if (!order.items) {
-            const resultObj = initiateCheckout.mock.results.find(r => r.type === 'return');
-            let initResult = resultObj ? resultObj.value : null;
-            if (initResult && typeof initResult.then === 'function') {
-              initResult = await initResult;
-            }
-            if (initResult && initResult.items) {
-              order = { ...order, items: initResult.items, customerNote: initResult.customerNote };
-            }
-          }
+    const orderRepo = {
+      updatePaymentTransactionId,
+      updateCheckoutAttempt,
+      transitionCheckoutAttemptPhase,
+      createOrUpdateReconciliationCase,
+      transitionPaymentState,
+      guardedUpdateStatus,
+      getById: getOrderById,
+      getCheckoutAttempt,
+      getLatestCheckoutAttemptForUser,
+      updateMetadata,
+    };
+    vi.spyOn(OrderCheckoutService.prototype, 'runCheckoutReservation').mockImplementation(runCheckoutReservation);
 
-          const latestAttempt = await getLatestCheckoutAttemptForUser(order.userId || 'user-1');
-          if (latestAttempt && latestAttempt.idempotencyKey !== checkoutAttemptId) {
-            await updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' });
-            return;
-          }
-
-          const existingCart = await getCartByUserId(order.userId || 'user-1');
-          if (!existingCart) {
-            const restoredCart = {
-              id: order.userId || 'user-1',
-              userId: order.userId || 'user-1',
-              items: (order.items || []).map((item: any) => ({
-                productId: item.productId,
-                variantId: item.variantId,
-                variantTitle: item.variantTitle,
-                productHandle: item.productHandle,
-                name: item.name,
-                priceSnapshot: item.unitPrice,
-                quantity: item.quantity,
-                imageUrl: item.imageUrl || '',
-                isDigital: item.isDigital,
-                shippingClassId: item.shippingClassId || 'default',
-              })),
-              note: order.customerNote || null,
-              updatedAt: expect.any(Date),
-            };
-            await saveCart(restoredCart, expect.anything());
-            await updateCheckoutAttempt(checkoutAttemptId, {
-              state: 'cancelled',
-              paymentIntentId,
-            });
-            await transitionCheckoutAttemptPhase({
-              attemptId: checkoutAttemptId,
-              expectedPhases: ['PREPARE_CHECKOUT', 'ACQUIRE_RESERVATION', 'CREATE_OR_RESUME_ATTEMPT', 'INITIALIZE_ORDER', 'CREATE_OR_RESUME_PAYMENT_INTENT', 'AWAIT_PAYMENT_CONFIRMATION', 'RECOVER_OR_RECONCILE'],
-              nextPhase: 'RECOVER_OR_RECONCILE',
-              authoritySource: 'local',
-              waitingFor: 'none',
-              reason: `rollback: ${reason}`,
-              orderId,
-              paymentIntentId,
-              actor: 'system'
-            });
-          } else {
-            await updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' });
-          }
-        }
-      } catch (err) {
-        console.error('Error in mock rollbackUnpaidCheckout implementation:', err);
-      }
+    const checkout = createCheckoutStack({
+      orderRepo: orderRepo as any,
+      productRepo: { batchUpdateStock } as any,
+      cartRepo: { getByUserId: getCartByUserId, save: saveCart } as any,
+      discountRepo: { getByCode: vi.fn() } as any,
+      payment: { processPayment: vi.fn(), refundPayment: vi.fn() } as any,
+      audit: { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
+      locker: { acquireLock: vi.fn(), releaseLock: vi.fn() } as any,
     });
+
+    startClientCheckout.mockImplementation((params: any) => checkout.startClientCheckout(params));
   });
 
   it('returns an existing payment intent for a pending reservation instead of creating another one', async () => {
-    initiateCheckout.mockResolvedValue({
+    runCheckoutReservation.mockResolvedValue({
       id: 'order-1',
       userId: 'user-1',
       status: 'pending',
@@ -205,7 +158,7 @@ describe('checkout create payment intent retry handling', () => {
   });
 
   it('does not create payment intents for non-pending reservations', async () => {
-    initiateCheckout.mockResolvedValue({
+    runCheckoutReservation.mockResolvedValue({
       id: 'order-1',
       userId: 'user-1',
       status: 'reconciling',
@@ -244,12 +197,12 @@ describe('checkout create payment intent retry handling', () => {
 
     expect(response.status).toBe(400);
     expect(body.error).toBe('idempotencyKey is required.');
-    expect(initiateCheckout).not.toHaveBeenCalled();
+    expect(runCheckoutReservation).not.toHaveBeenCalled();
     expect(createPaymentIntent).not.toHaveBeenCalled();
   });
 
   it('cancels the reservation and restores the cart when Stripe creation fails before client secret delivery', async () => {
-    initiateCheckout.mockResolvedValue({
+    runCheckoutReservation.mockResolvedValue({
       id: 'order-rollback',
       userId: 'user-1',
       status: 'pending',
@@ -276,9 +229,23 @@ describe('checkout create payment intent retry handling', () => {
     getOrderById.mockResolvedValue({
       id: 'order-rollback',
       userId: 'user-1',
-      status: 'cancelled',
+      status: 'pending',
       paymentTransactionId: null,
-      metadata: { fencingToken: 2, inventoryReserved: true, inventoryReservationReleased: true },
+      customerNote: 'Leave by the studio',
+      metadata: { fencingToken: 2, inventoryReserved: true },
+      items: [{
+        productId: 'p1',
+        variantId: 'v1',
+        variantTitle: 'Signed',
+        productHandle: 'print-1',
+        name: 'Print 1',
+        unitPrice: 2500,
+        quantity: 1,
+        imageUrl: '/print.png',
+        isDigital: false,
+        shippingClassId: 'default',
+        fulfilledQty: 0,
+      }],
     });
     getCheckoutAttempt.mockResolvedValue({
       idempotencyKey: 'checkout:test-stripe-failure',
@@ -303,8 +270,8 @@ describe('checkout create payment intent retry handling', () => {
     }));
 
     expect(response.status).toBe(500);
-    expect(transitionPaymentState).toHaveBeenCalledWith('order-rollback', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'checkout_payment_intent_creation_rollback');
-    expect(guardedUpdateStatus).toHaveBeenCalledWith('order-rollback', ['pending'], 'cancelled', 'checkout_payment_intent_creation_rollback');
+    expect(transitionPaymentState).toHaveBeenCalledWith('order-rollback', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'checkout_payment_intent_creation_rollback', expect.anything());
+    expect(guardedUpdateStatus).toHaveBeenCalledWith('order-rollback', ['pending'], 'cancelled', 'checkout_payment_intent_creation_rollback', expect.anything());
     expect(updateOrderStatus).not.toHaveBeenCalled();
     expect(saveCart).toHaveBeenCalledWith({
       id: 'user-1',
@@ -327,7 +294,7 @@ describe('checkout create payment intent retry handling', () => {
   });
 
   it('cancels a created payment intent when local order mapping fails', async () => {
-    initiateCheckout.mockResolvedValue({
+    runCheckoutReservation.mockResolvedValue({
       id: 'order-mapping-failed',
       userId: 'user-1',
       status: 'pending',
@@ -351,9 +318,18 @@ describe('checkout create payment intent retry handling', () => {
     getOrderById.mockResolvedValue({
       id: 'order-mapping-failed',
       userId: 'user-1',
-      status: 'cancelled',
+      status: 'pending',
       paymentTransactionId: null,
-      metadata: { fencingToken: 3, inventoryReserved: true, inventoryReservationReleased: true },
+      metadata: { fencingToken: 3, inventoryReserved: true },
+      items: [{
+        productId: 'p1',
+        name: 'Print 1',
+        unitPrice: 2500,
+        quantity: 1,
+        imageUrl: '/print.png',
+        isDigital: false,
+        fulfilledQty: 0,
+      }],
     });
     getCheckoutAttempt.mockResolvedValue({
       idempotencyKey: 'checkout:test-map-failure',
@@ -379,14 +355,14 @@ describe('checkout create payment intent retry handling', () => {
 
     expect(response.status).toBe(500);
     expect(cancelPaymentIntent).toHaveBeenCalledWith('pi_created_unmapped');
-    expect(transitionPaymentState).toHaveBeenCalledWith('order-mapping-failed', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'checkout_payment_intent_creation_rollback');
-    expect(guardedUpdateStatus).toHaveBeenCalledWith('order-mapping-failed', ['pending'], 'cancelled', 'checkout_payment_intent_creation_rollback');
+    expect(transitionPaymentState).toHaveBeenCalledWith('order-mapping-failed', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'cancelled', 'checkout_payment_intent_creation_rollback', expect.anything());
+    expect(guardedUpdateStatus).toHaveBeenCalledWith('order-mapping-failed', ['pending'], 'cancelled', 'checkout_payment_intent_creation_rollback', expect.anything());
     expect(updateOrderStatus).not.toHaveBeenCalled();
     expect(saveCart).toHaveBeenCalled();
   });
 
   it('does not restore the cart when rollback discovers a succeeded PaymentIntent', async () => {
-    initiateCheckout.mockResolvedValue({
+    runCheckoutReservation.mockResolvedValue({
       id: 'order-paid-during-rollback',
       userId: 'user-1',
       status: 'pending',
@@ -430,7 +406,7 @@ describe('checkout create payment intent retry handling', () => {
   });
 
   it('does not restore the cart when a newer checkout attempt owns the user checkout state', async () => {
-    initiateCheckout.mockResolvedValue({
+    runCheckoutReservation.mockResolvedValue({
       id: 'order-newer-attempt-guard',
       userId: 'user-1',
       status: 'pending',
@@ -452,9 +428,19 @@ describe('checkout create payment intent retry handling', () => {
     getOrderById.mockResolvedValue({
       id: 'order-newer-attempt-guard',
       userId: 'user-1',
-      status: 'cancelled',
+      status: 'pending',
       paymentTransactionId: null,
-      metadata: { fencingToken: 9, inventoryReserved: true, inventoryReservationReleased: true },
+      customerNote: 'Keep this note',
+      metadata: { fencingToken: 9, inventoryReserved: true },
+      items: [{
+        productId: 'p1',
+        name: 'Print 1',
+        unitPrice: 2500,
+        quantity: 1,
+        imageUrl: '/print.png',
+        isDigital: false,
+        fulfilledQty: 0,
+      }],
     });
     getCheckoutAttempt.mockResolvedValue({
       idempotencyKey: 'checkout:older-attempt',
@@ -480,11 +466,11 @@ describe('checkout create payment intent retry handling', () => {
 
     expect(response.status).toBe(500);
     expect(saveCart).not.toHaveBeenCalled();
-    expect(updateCheckoutAttempt).toHaveBeenCalledWith('checkout:older-attempt', { state: 'restore_blocked' });
+    expect(updateCheckoutAttempt).toHaveBeenCalledWith('checkout:older-attempt', { state: 'restore_blocked' }, expect.anything());
   });
 
   it('bypasses step-up session verification for standard value checkouts (< $1,000)', async () => {
-    initiateCheckout.mockResolvedValue({
+    runCheckoutReservation.mockResolvedValue({
       id: 'order-normal-value',
       userId: 'user-1',
       status: 'pending',
@@ -523,7 +509,7 @@ describe('checkout create payment intent retry handling', () => {
       metadata: { fencingToken: 11, inventoryReserved: true },
       items: [{ productId: 'p1', variantId: 'v1', name: 'Print 1', unitPrice: 100000, quantity: 1, isDigital: false }],
     };
-    initiateCheckout.mockResolvedValue(mockOrder);
+    runCheckoutReservation.mockResolvedValue(mockOrder);
     
     mockRequireStepUpSessionUser.mockRejectedValue(new UnauthorizedError('Fresh session verification required.'));
     
@@ -531,9 +517,11 @@ describe('checkout create payment intent retry handling', () => {
     getOrderById.mockResolvedValue({
       id: 'order-high-value',
       userId: 'user-1',
-      status: 'cancelled',
+      status: 'pending',
       paymentTransactionId: null,
-      metadata: { fencingToken: 11, inventoryReserved: true, inventoryReservationReleased: true },
+      customerEmail: 'u@example.com',
+      metadata: { fencingToken: 11, inventoryReserved: true },
+      items: [{ productId: 'p1', variantId: 'v1', name: 'Print 1', unitPrice: 100000, quantity: 1, isDigital: false, fulfilledQty: 0 }],
     });
     getCheckoutAttempt.mockResolvedValue({
       idempotencyKey: 'checkout:test-high-value-stale',
@@ -565,18 +553,21 @@ describe('checkout create payment intent retry handling', () => {
     expect(mockRequireStepUpSessionUser).toHaveBeenCalledWith(expect.anything(), 5 * 60 * 1000);
     
     // Verify forensic order transition updates are triggered
-    expect(transitionPaymentState).toHaveBeenCalledWith('order-high-value', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'high_value_step_up_failure');
-    expect(guardedUpdateStatus).toHaveBeenCalledWith('order-high-value', ['pending'], 'cancelled', 'high_value_step_up_failure');
+    expect(transitionPaymentState).toHaveBeenCalledWith('order-high-value', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'high_value_step_up_failure', expect.anything());
+    expect(guardedUpdateStatus).toHaveBeenCalledWith('order-high-value', ['pending'], 'cancelled', 'high_value_step_up_failure', expect.anything());
     expect(updateCheckoutAttempt).toHaveBeenCalledWith('checkout:test-high-value-stale', {
       state: 'cancelled',
       paymentIntentId: null,
-    });
-    expect(transitionCheckoutAttemptPhase).toHaveBeenCalledWith(expect.objectContaining({
-      attemptId: 'checkout:test-high-value-stale',
-      nextPhase: 'RECOVER_OR_RECONCILE',
-      authoritySource: 'local',
-      waitingFor: 'none',
-    }));
+    }, expect.anything());
+    expect(transitionCheckoutAttemptPhase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptId: 'checkout:test-high-value-stale',
+        nextPhase: 'RECOVER_OR_RECONCILE',
+        authoritySource: 'local',
+        waitingFor: 'none',
+      }),
+      expect.anything()
+    );
     
     // Verify cart restoration is triggered
     expect(saveCart).toHaveBeenCalled();
@@ -602,6 +593,6 @@ describe('checkout create payment intent retry handling', () => {
     expect(response.status).toBe(429);
     expect(body.error).toBe('Too many requests. Please wait and try again.');
     expect(response.headers.get('Retry-After')).toBe('45');
-    expect(initiateCheckout).not.toHaveBeenCalled();
+    expect(runCheckoutReservation).not.toHaveBeenCalled();
   });
 });

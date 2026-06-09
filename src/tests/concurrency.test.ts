@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { OrderService } from '../core/OrderService';
+import { createOrderTestStack } from './helpers/orderTestStack';
 import { CheckoutInProgressError, InsufficientStockError } from '@domain/errors';
 
 // Mock the bridge
@@ -19,7 +19,8 @@ vi.mock('@infrastructure/firebase/bridge', () => ({
 }));
 
 describe('OrderService Concurrency', () => {
-  let orderService: OrderService;
+  let orderService: ReturnType<typeof createOrderTestStack>['orderService'];
+  let checkout: ReturnType<typeof createOrderTestStack>['checkout'];
   let mockOrderRepo: any;
   let mockProductRepo: any;
   let mockCartRepo: any;
@@ -85,25 +86,23 @@ describe('OrderService Concurrency', () => {
       }),
     };
 
-    orderService = new OrderService(
-      mockOrderRepo,
-      mockProductRepo,
-      mockCartRepo,
-      mockDiscountRepo,
-      mockPayment,
-      mockAudit,
-      mockLocker,
-      undefined,
-      undefined
-    );
+    ({ orderService, checkout } = createOrderTestStack({
+      orderRepo: mockOrderRepo,
+      productRepo: mockProductRepo,
+      cartRepo: mockCartRepo,
+      discountRepo: mockDiscountRepo,
+      payment: mockPayment,
+      audit: mockAudit,
+      locker: mockLocker,
+    }));
   });
 
   it('should prevent concurrent checkouts for the same user via distributed lock', async () => {
     const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
 
     // Start two checkouts simultaneously
-    const p1 = orderService.initiateCheckout('u1', address as any);
-    const p2 = orderService.initiateCheckout('u1', address as any);
+    const p1 = checkout.reserveCheckout({ userId: 'u1', shippingAddress: address as any });
+    const p2 = checkout.reserveCheckout({ userId: 'u1', shippingAddress: address as any });
 
     const results = await Promise.allSettled([p1, p2]);
 
@@ -120,7 +119,13 @@ describe('OrderService Concurrency', () => {
     const idempotencyKey = 'unique-key-123';
 
     // First checkout succeeds
-    await orderService.initiateCheckout('u1', address as any, 'user@example.com', 'User', undefined, idempotencyKey);
+    await checkout.reserveCheckout({
+      userId: 'u1',
+      shippingAddress: address as any,
+      userEmail: 'user@example.com',
+      userName: 'User',
+      idempotencyKey,
+    });
     
     // Mock repo to return the existing order for the same idempotency key
     mockOrderRepo.getByIdempotencyKey.mockResolvedValueOnce({ id: 'o1', userId: 'u1', status: 'pending' });
@@ -129,7 +134,13 @@ describe('OrderService Concurrency', () => {
     await mockLocker.releaseLock(`checkout_lock:u1`);
 
     // Second checkout with same idempotency key
-    const order2 = await orderService.initiateCheckout('u1', address as any, 'user@example.com', 'User', undefined, idempotencyKey);
+    const order2 = await checkout.reserveCheckout({
+      userId: 'u1',
+      shippingAddress: address as any,
+      userEmail: 'user@example.com',
+      userName: 'User',
+      idempotencyKey,
+    });
     
     expect(order2.id).toBe('o1'); // Should be the same order
     expect(mockOrderRepo.create).toHaveBeenCalledTimes(1); // Should not have called create again if it was truly idempotent at the repo level
@@ -146,14 +157,13 @@ describe('OrderService Concurrency', () => {
       idempotencyKey: 'shared-key'
     });
 
-    await expect(orderService.initiateCheckout(
-      'u1',
-      address as any,
-      'user@example.com',
-      'User',
-      undefined,
-      'shared-key'
-    )).rejects.toThrow('Checkout idempotency key is already associated with another user.');
+    await expect(checkout.reserveCheckout({
+      userId: 'u1',
+      shippingAddress: address as any,
+      userEmail: 'user@example.com',
+      userName: 'User',
+      idempotencyKey: 'shared-key',
+    })).rejects.toThrow('Checkout idempotency key is already associated with another user.');
 
     expect(mockOrderRepo.create).not.toHaveBeenCalled();
     expect(mockCartRepo.clear).not.toHaveBeenCalled();
@@ -173,8 +183,8 @@ describe('OrderService Concurrency', () => {
     });
 
     const results = await Promise.allSettled([
-      orderService.initiateCheckout('buyer-1', address as any),
-      orderService.initiateCheckout('buyer-2', address as any),
+      checkout.reserveCheckout({ userId: 'buyer-1', shippingAddress: address as any }),
+      checkout.reserveCheckout({ userId: 'buyer-2', shippingAddress: address as any }),
     ]);
 
     expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
@@ -221,15 +231,14 @@ describe('OrderService Concurrency', () => {
     mockOrderRepo.updateMetadata = vi.fn();
     mockOrderRepo.addFulfillmentEvent = vi.fn();
 
-    const order = await orderService.initiateCheckout(
-      'u1',
-      address as any,
-      'user@example.com',
-      'User',
-      undefined,
+    const order = await checkout.completeWithPaymentMethod({
+      userId: 'u1',
+      shippingAddress: address as any,
+      userEmail: 'user@example.com',
+      userName: 'User',
       idempotencyKey,
-      'pm_123'
-    );
+      paymentMethodId: 'pm_123',
+    });
 
     // Verify order is returned
     expect(order.id).toBe('o-existing');
@@ -279,7 +288,7 @@ describe('OrderService Concurrency', () => {
     mockOrderRepo.updateMetadata = vi.fn();
     mockOrderRepo.addFulfillmentEvent = vi.fn();
 
-    const result = await orderService.finalizeOrderPayment('pi_race_123', stripePi);
+    const result = await checkout.confirmPaymentFromStripe('pi_race_123', stripePi);
 
     // Assert fallback query succeeded
     expect(result.id).toBe('order_123');
@@ -307,7 +316,7 @@ describe('OrderService Concurrency', () => {
     mockOrderRepo.updateStatus = vi.fn().mockResolvedValue(undefined);
     mockOrderRepo.markForReconciliation = vi.fn().mockResolvedValue(undefined);
 
-    const result = await orderService.finalizeOrderPayment('pi_late_success', {
+    const result = await checkout.confirmPaymentFromStripe('pi_late_success', {
       id: 'pi_late_success',
       status: 'succeeded',
       metadata: { orderId: 'o-cancelled' },
@@ -349,7 +358,7 @@ describe('OrderService Concurrency', () => {
     mockOrderRepo.updateStatus = vi.fn().mockResolvedValue(undefined);
     mockOrderRepo.markForReconciliation = vi.fn().mockResolvedValue(undefined);
 
-    const result = await orderService.finalizeOrderPayment('pi_fence', {
+    const result = await checkout.confirmPaymentFromStripe('pi_fence', {
       id: 'pi_fence',
       status: 'succeeded',
       metadata: { orderId: 'o-fence', fencingToken: '3' },
@@ -399,15 +408,14 @@ describe('OrderService Concurrency', () => {
       items: [{ productId: 'p1', quantity: 1, isDigital: false }]
     });
 
-    await expect(orderService.initiateCheckout(
-      'u1',
-      address as any,
-      'user@example.com',
-      'User',
-      undefined,
-      'bad-payment-key',
-      'pm_declined'
-    )).rejects.toThrow('Stripe card declined');
+    await expect(checkout.completeWithPaymentMethod({
+      userId: 'u1',
+      shippingAddress: address as any,
+      userEmail: 'user@example.com',
+      userName: 'User',
+      idempotencyKey: 'bad-payment-key',
+      paymentMethodId: 'pm_declined',
+    })).rejects.toThrow('Stripe card declined');
 
     // Verify order was cancelled
     expect(mockOrderRepo.transitionPaymentState).toHaveBeenCalledWith('o1', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'payment_processor_failure');
@@ -445,15 +453,14 @@ describe('OrderService Concurrency', () => {
     });
     mockOrderRepo.getByPaymentTransactionIdTransactional.mockRejectedValueOnce(new Error('finalizer write failed'));
 
-    await expect(orderService.initiateCheckout(
-      'u1',
-      address as any,
-      'user@example.com',
-      'User',
-      undefined,
-      'paid-but-finalizer-failed',
-      'pm_123'
-    )).rejects.toThrow('finalizer write failed');
+    await expect(checkout.completeWithPaymentMethod({
+      userId: 'u1',
+      shippingAddress: address as any,
+      userEmail: 'user@example.com',
+      userName: 'User',
+      idempotencyKey: 'paid-but-finalizer-failed',
+      paymentMethodId: 'pm_123',
+    })).rejects.toThrow('finalizer write failed');
 
     expect(mockOrderRepo.updatePaymentTransactionId).toHaveBeenCalledWith('o-paid', 'tx-paid-finalize-failed');
     expect(mockOrderRepo.transitionReconciliationState).toHaveBeenCalledWith('o-paid', ['none', 'needs_review'], 'needs_review', 'finalization_failure');

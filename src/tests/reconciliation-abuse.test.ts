@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { OrderService } from '../core/OrderService';
+import { createOrderTestStack } from './helpers/orderTestStack';
 import { RefundService } from '../core/RefundService';
 import { FulfillmentService } from '../core/FulfillmentService';
 
@@ -80,6 +80,18 @@ const mockAudit = { record: vi.fn(), recordWithTransaction: vi.fn() };
 const mockPayment = { processPayment: vi.fn(), refundPayment: vi.fn() };
 const mockLocker = { acquireLock: vi.fn().mockResolvedValue(1), releaseLock: vi.fn() };
 
+function makeSvc(orderRepo: any, productRepo: any = { getById: vi.fn() }) {
+  return createOrderTestStack({
+    orderRepo,
+    productRepo,
+    cartRepo: { getByUserId: vi.fn() } as any,
+    discountRepo: { getByCode: vi.fn() } as any,
+    payment: mockPayment as any,
+    audit: mockAudit as any,
+    locker: mockLocker as any,
+  }).orderService;
+}
+
 // ─── Test Suite ───────────────────────────────────────────────────────────────
 
 describe('Reconciliation Abuse Case Proofs', () => {
@@ -89,15 +101,7 @@ describe('Reconciliation Abuse Case Proofs', () => {
             const order = makeReconcilingOrder();
             const orderRepo = makeOrderRepo(order);
 
-            const svc = new OrderService(
-                orderRepo as any,
-                { getById: vi.fn() } as any,
-                { getByUserId: vi.fn() } as any,
-                { getByCode: vi.fn() } as any,
-                mockPayment as any,
-                mockAudit as any,
-                mockLocker as any,
-            );
+            const svc = makeSvc(orderRepo);
 
             await expect(
                 svc.updateOrderStatus('order-recon-1', 'confirmed', { id: 'admin1', email: 'a@e.com' })
@@ -108,15 +112,7 @@ describe('Reconciliation Abuse Case Proofs', () => {
             const order = makeReconcilingOrder();
             const orderRepo = makeOrderRepo(order);
 
-            const svc = new OrderService(
-                orderRepo as any,
-                { getById: vi.fn() } as any,
-                { getByUserId: vi.fn() } as any,
-                { getByCode: vi.fn() } as any,
-                mockPayment as any,
-                mockAudit as any,
-                mockLocker as any,
-            );
+            const svc = makeSvc(orderRepo);
 
             await svc.resolveReconciliation(
                 'order-recon-1',
@@ -137,15 +133,7 @@ describe('Reconciliation Abuse Case Proofs', () => {
             const order = makeReconcilingOrder();
             const orderRepo = makeOrderRepo(order);
 
-            const svc = new OrderService(
-                orderRepo as any,
-                {} as any,
-                {} as any,
-                {} as any,
-                mockPayment as any,
-                mockAudit as any,
-                mockLocker as any,
-            );
+            const svc = makeSvc(orderRepo, {} as any);
 
             // This tests the API route layer validation — reason must be non-empty
             await expect(
@@ -163,15 +151,7 @@ describe('Reconciliation Abuse Case Proofs', () => {
             });
             const orderRepo = makeOrderRepo(order);
 
-            const svc = new OrderService(
-                orderRepo as any,
-                { getById: vi.fn(), batchUpdateStock: vi.fn() } as any,
-                { getByUserId: vi.fn() } as any,
-                { getByCode: vi.fn() } as any,
-                mockPayment as any,
-                mockAudit as any,
-                mockLocker as any,
-            );
+            const svc = makeSvc(orderRepo, { getById: vi.fn(), batchUpdateStock: vi.fn() } as any);
 
             await expect(
                 svc.updateOrderStatus('order-recon-1', 'cancelled', { id: 'admin1', email: 'a@e.com' })
@@ -293,13 +273,7 @@ describe('Reconciliation Abuse Case Proofs', () => {
             const order = makeReconcilingOrder({ status: 'delivered', reconciliationRequired: false });
             const orderRepo = makeOrderRepo(order);
 
-            const svc = new OrderService(
-                orderRepo as any,
-                {} as any, {} as any, {} as any,
-                mockPayment as any,
-                mockAudit as any,
-                mockLocker as any,
-            );
+            const svc = makeSvc(orderRepo, {} as any);
 
             await expect(
                 svc.resolveReconciliation('order-recon-1', 'refunded', 'r', 'e', { id: 'a', email: 'a@e' })

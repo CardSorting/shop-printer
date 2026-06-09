@@ -26,7 +26,6 @@ export async function POST(request: Request) {
   let claimToken: string | null = null;
 
   try {
-    // 1. Atomic Event Claim: Prevents duplicate processing while allowing retry of failed events
     const claimResult = await stripeService.tryProcessEvent(event.id, event.type);
     const alreadyProcessed = typeof claimResult === 'boolean' ? claimResult : claimResult.alreadyProcessed;
     claimToken = typeof claimResult === 'boolean' ? null : claimResult.claimToken;
@@ -41,14 +40,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: false, retry: true }, { status: 503 });
     }
 
-    // 2. Event Dispatch
     switch (event.type) {
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object;
         const attemptId = paymentIntent.metadata?.checkoutKey || paymentIntent.id;
         logger.info(`[CHECKOUT-WORKFLOW] [Attempt: ${attemptId}] Processing payment_intent.succeeded: ${paymentIntent.id}. Transitioning AWAIT_PAYMENT_CONFIRMATION -> FINALIZE_PAYMENT.`);
-        
-        await services.orderService.finalizeOrderPayment(paymentIntent.id, paymentIntent, 'stripe-webhook');
+
+        await services.checkout.confirmPaymentFromStripe(paymentIntent.id, paymentIntent, 'stripe-webhook');
         break;
       }
       case 'payment_intent.payment_failed': {
@@ -57,62 +55,20 @@ export async function POST(request: Request) {
         logger.warn(`[CHECKOUT-WORKFLOW] [Attempt: ${attemptId}] Processing payment_intent.payment_failed: ${paymentIntent.id}. Transitioning to RECOVER_OR_RECONCILE.`);
 
         const currentPaymentIntent = await stripeService.getPaymentIntent(paymentIntent.id);
-        if (currentPaymentIntent.status === 'succeeded') {
-          logger.warn(`Ignoring stale payment_intent.payment_failed for succeeded intent ${paymentIntent.id}; finalizing instead.`);
-          await services.orderService.finalizeOrderPayment(paymentIntent.id, currentPaymentIntent, 'stripe-webhook');
-          break;
-        }
-
-        if (!['requires_payment_method', 'canceled'].includes(currentPaymentIntent.status)) {
-          logger.info(`Payment intent ${paymentIntent.id} is not in a terminal failed state. Leaving order unchanged.`, {
-            status: currentPaymentIntent.status,
-          });
-          break;
-        }
-        
-        // Production Hardening: Dual-lookup with metadata fallback.
-        let order = await services.orderRepo.getByPaymentTransactionId(paymentIntent.id);
-        if (!order && paymentIntent.metadata?.orderId) {
-          const fallbackOrder = await services.orderRepo.getById(paymentIntent.metadata.orderId);
-          if (fallbackOrder && (!fallbackOrder.paymentTransactionId || fallbackOrder.paymentTransactionId === paymentIntent.id)) {
-            order = fallbackOrder;
-            logger.info(`Resolved order via metadata fallback for PI ${paymentIntent.id}`, { orderId: fallbackOrder.id });
-          }
-        }
-
-        // Cancel if still pending or confirmed (race: verify endpoint may have promoted status)
-        if (order && (order.status === 'pending' || order.status === 'confirmed')) {
-            if (order.paymentState === 'paid' || order.paymentState === 'partially_refunded' || order.paymentState === 'refunded') {
-              logger.warn('stale_payment_failed_webhook_rejected', {
-                eventId: event.id,
-                paymentIntentId: paymentIntent.id,
-                orderId: order.id,
-                localPaymentState: order.paymentState,
-                stripeStatus: currentPaymentIntent.status,
-              });
-              break;
-            }
-            await services.orderService.rollbackUnpaidCheckout(
-              order.id,
-              attemptId,
-              paymentIntent.id,
-              'stripe_payment_failed'
-            );
-        }
+        await services.checkout.handleStripePaymentFailed({
+          paymentIntent,
+          currentPaymentIntent,
+        });
         break;
       }
       default:
         logger.info(`Unhandled event type: ${event.type}`);
     }
 
-    // 3. Mark event as completed — permanently blocks future retries
     await stripeService.markEventProcessed(event.id, event.type, claimToken);
 
     return Response.json({ received: true });
   } catch (error) {
-    // Mark event as failed instead of deleting — allows Stripe retries while preserving
-    // the record of the failed attempt. This prevents the replay-on-partial-mutation window
-    // that existed when we deleted the event tracking doc.
     logger.error('Error processing Stripe webhook, marking event as failed for retry', error);
     if (event?.id) {
       try {
@@ -124,6 +80,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal server error processing webhook' }, { status: 500 });
   }
 }
-
-// Stripe webhooks need raw body, so we disable the default body parser if necessary
-// In Next.js App Router, request.text() is already raw enough.

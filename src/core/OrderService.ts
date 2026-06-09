@@ -1,7 +1,5 @@
-import * as crypto from 'node:crypto';
 import type {
   ICartRepository,
-  ICheckoutGateway,
   IDiscountRepository,
   ILockProvider,
   IOrderRepository,
@@ -22,12 +20,12 @@ import type {
 import { AuditService } from './AuditService';
 import { StripeService } from '@infrastructure/services/StripeService';
 import { OrderAdminService } from './order/OrderAdminService';
-import { OrderCheckoutService } from './order/OrderCheckoutService';
+import type { CheckoutFlowService } from './order/CheckoutFlowService';
 import { OrderFulfillmentWorkflowService } from './order/OrderFulfillmentWorkflowService';
 import { OrderLogisticsService } from './order/OrderLogisticsService';
 import { OrderReadService } from './order/OrderReadService';
 import { CHECKOUT_RECOVERY_PHASES } from './order/checkoutWorkflow';
-import type { FulfillmentMethod, OrderActor } from './order/types';
+import type { OrderActor } from './order/types';
 import { logger } from '@utils/logger';
 
 /**
@@ -38,7 +36,7 @@ import { logger } from '@utils/logger';
  * and admin mutations can evolve independently.
  */
 export class OrderService {
-  private readonly checkoutService: OrderCheckoutService;
+  private readonly checkoutFlow: CheckoutFlowService;
   private readonly logisticsService: OrderLogisticsService;
   private readonly fulfillmentWorkflowService: OrderFulfillmentWorkflowService;
   private readonly readService: OrderReadService;
@@ -49,22 +47,13 @@ export class OrderService {
     productRepo: IProductRepository,
     cartRepo: ICartRepository,
     discountRepo: IDiscountRepository,
-    payment: IPaymentProcessor,
+    _payment: IPaymentProcessor,
     audit: AuditService,
-    locker: ILockProvider,
-    private checkoutGateway?: ICheckoutGateway,
+    _locker: ILockProvider,
+    checkoutFlow: CheckoutFlowService,
     shippingRepo?: IShippingRepository
   ) {
-    this.checkoutService = new OrderCheckoutService(
-      this.orderRepo,
-      productRepo,
-      cartRepo,
-      discountRepo,
-      payment,
-      audit,
-      locker,
-      shippingRepo
-    );
+    this.checkoutFlow = checkoutFlow;
     this.logisticsService = new OrderLogisticsService(this.orderRepo, productRepo);
     this.fulfillmentWorkflowService = new OrderFulfillmentWorkflowService(this.orderRepo);
     this.readService = new OrderReadService(this.orderRepo);
@@ -99,64 +88,6 @@ export class OrderService {
     return this.logisticsService.getLogisticsPerformanceReport();
   }
 
-  initiateCheckout(
-    userId: string,
-    shippingAddress: Address,
-    userEmail?: string,
-    userName?: string,
-    discountCode?: string,
-    idempotencyKey?: string,
-    paymentMethodId?: string,
-    fulfillmentMethod: FulfillmentMethod = 'shipping',
-    lockTtlMs?: number
-  ): Promise<Order> {
-    return this.checkoutService.initiateCheckout(
-      userId,
-      shippingAddress,
-      userEmail,
-      userName,
-      discountCode,
-      idempotencyKey,
-      paymentMethodId,
-      fulfillmentMethod,
-      lockTtlMs
-    );
-  }
-
-  finalizeOrderPayment(paymentIntentId: string, stripePi?: any, actor?: string): Promise<Order> {
-    return this.checkoutService.finalizeOrderPayment(paymentIntentId, stripePi, actor);
-  }
-
-  rollbackUnpaidCheckout(
-    orderId: string,
-    checkoutAttemptId: string,
-    paymentIntentId: string | null,
-    reason: string
-  ): Promise<void> {
-    return this.checkoutService.rollbackUnpaidCheckout(orderId, checkoutAttemptId, paymentIntentId, reason);
-  }
-
-
-  finalizeTrustedCheckout(
-    userId: string,
-    shippingAddress: Address,
-    paymentMethodId: string,
-    idempotencyKey?: string,
-    discountCode?: string
-  ): Promise<Order> {
-    if (this.checkoutGateway) {
-      return this.checkoutGateway.finalizeCheckout({
-        userId,
-        shippingAddress,
-        paymentMethodId,
-        idempotencyKey: idempotencyKey || crypto.randomUUID(),
-        discountCode
-      });
-    }
-
-    return this.placeOrder(userId, shippingAddress, paymentMethodId, idempotencyKey, discountCode);
-  }
-
   advanceFulfillment(orderId: string, trackingNumber?: string, actor?: OrderActor): Promise<void> {
     return this.fulfillmentWorkflowService.advanceFulfillment(orderId, trackingNumber, actor);
   }
@@ -186,18 +117,6 @@ export class OrderService {
     actor: OrderActor = { id: 'system', email: 'system@woodbine.com' }
   ): Promise<void> {
     return this.adminService.updateOrderStatus(id, status, actor);
-  }
-
-  placeOrder(
-    userId: string,
-    shippingAddress: Address,
-    paymentMethodId: string,
-    idempotencyKey?: string,
-    discountCode?: string,
-    userEmail?: string,
-    userName?: string
-  ): Promise<Order> {
-    return this.initiateCheckout(userId, shippingAddress, userEmail, userName, discountCode, idempotencyKey, paymentMethodId);
   }
 
   getAllOrders(options?: any): Promise<{ orders: Order[]; nextCursor?: string }> {
@@ -240,7 +159,7 @@ export class OrderService {
               paymentIntentId: paymentIntent.id,
               checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
             });
-            await this.finalizeOrderPayment(paymentIntent.id, paymentIntent);
+            await this.checkoutFlow.confirmPaymentFromStripe(paymentIntent.id, paymentIntent, 'system');
             processed++;
             continue;
           }
@@ -491,7 +410,7 @@ export class OrderService {
       const kase = await this.orderRepo.getReconciliationCase(params.caseId);
       if (kase && kase.reason === 'paid_not_finalized') {
         try {
-          await this.finalizeOrderPayment(kase.paymentIntentId, null, params.actor.email);
+          await this.checkoutFlow.confirmPaymentFromStripe(kase.paymentIntentId, null, params.actor.email);
 
           await this.adminService.handleReconciliationOperatorAction({
             caseId: params.caseId,

@@ -32,6 +32,8 @@ import { FirestoreCustomerSegmentRepository } from '@infrastructure/repositories
 import { ProductService } from './ProductService';
 import { CartService } from './CartService';
 import { OrderService } from './OrderService';
+import { createCheckoutStack } from './order/createCheckoutStack';
+import type { CheckoutFlowService } from './order/CheckoutFlowService';
 import { ShippingService } from './ShippingService';
 import { AuthService } from './AuthService';
 import { DiscountService } from './DiscountService';
@@ -114,9 +116,43 @@ let campaignServiceInstance: CampaignService | null = null;
 let campaignRepoInstance: any | null = null;
 let campaignEventRepoInstance: any | null = null;
 let segmentRepoInstance: any | null = null;
+let orderServiceInstance: OrderService | null = null;
+let checkoutInstance: CheckoutFlowService | null = null;
 
 function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
+}
+
+function createOrderService(
+  repos: ReturnType<typeof createRepositories>,
+  payment: IPaymentProcessor,
+  audit: AuditService,
+  locker: ILockProvider,
+  checkoutGateway?: ICheckoutGateway,
+) {
+  const checkout = createCheckoutStack({
+    orderRepo: repos.orderRepo,
+    productRepo: repos.productRepo,
+    cartRepo: repos.cartRepo,
+    discountRepo: repos.discountRepo,
+    payment,
+    audit,
+    locker,
+    shippingRepo: repos.shippingRepo,
+    checkoutGateway,
+  });
+  const orderService = new OrderService(
+    repos.orderRepo,
+    repos.productRepo,
+    repos.cartRepo,
+    repos.discountRepo,
+    payment,
+    audit,
+    locker,
+    checkout,
+    repos.shippingRepo,
+  );
+  return { orderService, checkout };
 }
 
 function createRepositories() {
@@ -151,24 +187,23 @@ export function getServiceContainer() {
   assertMultiStoreNotEnabled();
   const repos = createRepositories();
   const authProvider = new FirebaseAuthAdapter();
-  const authService = new AuthService(authProvider, new AuditService());
+  const auditService = new AuditService();
+  const authService = new AuthService(authProvider, auditService);
+  const { orderService, checkout } = createOrderService(
+    repos,
+    new StripePaymentProcessor(),
+    auditService,
+    new FirestoreLocker(),
+    createCheckoutGateway(),
+  );
 
   return {
     authProvider,
     authService,
-    productService: new ProductService(repos.productRepo, new AuditService()),
+    productService: new ProductService(repos.productRepo, auditService),
     cartService: new CartService(repos.cartRepo, repos.productRepo),
-    orderService: new OrderService(
-      repos.orderRepo,
-      repos.productRepo,
-      repos.cartRepo,
-      repos.discountRepo,
-      new StripePaymentProcessor(),
-      new AuditService(),
-      new FirestoreLocker(),
-      createCheckoutGateway(),
-      repos.shippingRepo
-    ),
+    orderService,
+    checkout,
     fulfillmentService: new FulfillmentService(repos.orderRepo, repos.shippingRepo),
     orderManagementService: new OrderManagementService(repos.orderRepo, new AuditService()),
     orderQueryService: new OrderQueryService(repos.orderRepo, new ProductService(repos.productRepo, new AuditService())),
@@ -275,22 +310,45 @@ export function getInitialServices() {
     return purchaseOrderServiceInstance;
   };
 
+  if (!orderServiceInstance || !checkoutInstance) {
+    const stack = createOrderService(
+      {
+        productRepo: productRepoInstance!,
+        cartRepo: cartRepoInstance!,
+        orderRepo: orderRepoInstance!,
+        discountRepo: discountRepoInstance!,
+        settingsRepo: settingsRepoInstance!,
+        transferRepo: transferRepoInstance!,
+        purchaseOrderRepo: purchaseOrderRepoInstance!,
+        inventoryLocationRepo: inventoryLocationRepoInstance!,
+        inventoryLevelRepo: inventoryLevelRepoInstance!,
+        supplierRepo: new FirestoreSupplierRepository(),
+        collectionRepo: new FirestoreCollectionRepository(),
+        taxonomyRepo: new FirestoreTaxonomyRepository(),
+        wishlistRepo: wishlistRepoInstance!,
+        ticketRepo: ticketRepoInstance!,
+        kbRepo: kbRepoInstance!,
+        shippingRepo: shippingRepoInstance!,
+        campaignRepo: campaignRepoInstance!,
+        campaignEventRepo: campaignEventRepoInstance!,
+        segmentRepo: segmentRepoInstance!,
+      },
+      paymentProcessorInstance!,
+      getAuditService(),
+      lockProviderInstance!,
+      checkoutGatewayInstance ?? undefined,
+    );
+    orderServiceInstance = stack.orderService;
+    checkoutInstance = stack.checkout;
+  }
+
   return {
     authProvider: authProviderInstance!,
     authService: authServiceInstance,
     productService: new ProductService(productRepoInstance!, getAuditService()),
     cartService: new CartService(cartRepoInstance!, productRepoInstance!),
-    orderService: new OrderService(
-      orderRepoInstance!,
-      productRepoInstance!,
-      cartRepoInstance!,
-      discountRepoInstance!,
-      paymentProcessorInstance!,
-      getAuditService(),
-      lockProviderInstance!,
-      checkoutGatewayInstance ?? undefined,
-      shippingRepoInstance!
-    ),
+    orderService: orderServiceInstance,
+    checkout: checkoutInstance,
     fulfillmentService: new FulfillmentService(orderRepoInstance!, shippingRepoInstance!),
     orderManagementService: new OrderManagementService(orderRepoInstance!, getAuditService()),
     orderQueryService: new OrderQueryService(orderRepoInstance!, new ProductService(productRepoInstance!, getAuditService())),

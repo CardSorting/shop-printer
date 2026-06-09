@@ -29,8 +29,13 @@ import {
   CHECKOUT_RECOVERY_PHASES,
   isSafelyFinalizedCheckoutState,
 } from './checkoutWorkflow';
+import { resolveCheckoutOrderByPaymentIntent } from './checkoutOrderResolver';
+import type {
+  CheckoutMutationBackend,
+  RunCheckoutReservationParams,
+} from './checkoutMutationBackend';
 
-export class OrderCheckoutService {
+export class OrderCheckoutService implements CheckoutMutationBackend {
   private readonly RESERVATION_TTL_MS = 15 * 60 * 1000;
 
   constructor(
@@ -85,17 +90,18 @@ export class OrderCheckoutService {
     });
   }
 
-  async initiateCheckout(
-    userId: string,
-    shippingAddress: Address,
-    userEmail?: string,
-    userName?: string,
-    discountCode?: string,
-    idempotencyKey?: string,
-    paymentMethodId?: string,
-    fulfillmentMethod: FulfillmentMethod = 'shipping',
-    lockTtlMs: number = 45000
-  ): Promise<Order> {
+  async runCheckoutReservation(params: RunCheckoutReservationParams): Promise<Order> {
+    const {
+      userId,
+      shippingAddress,
+      userEmail,
+      userName,
+      discountCode,
+      idempotencyKey,
+      paymentMethodId,
+      fulfillmentMethod = 'shipping',
+      lockTtlMs = 45000,
+    } = params;
     const attemptId = idempotencyKey || crypto.randomUUID();
     this.logPhaseTransition(attemptId, null, 'PREPARE_CHECKOUT', 'local', 'none', { userId, discountCode });
     assertValidShippingAddress(shippingAddress);
@@ -435,7 +441,7 @@ export class OrderCheckoutService {
           })).catch(err => {
             logger.error('FATAL: Failed to move checkout attempt into payment confirmation wait', { orderId: order.id, transactionId: paymentResult.transactionId, err });
           });
-          const finalizedOrder = await this.finalizeOrderPayment(paymentResult.transactionId, {
+          const finalizedOrder = await this.confirmStripePayment(paymentResult.transactionId, {
             id: paymentResult.transactionId,
             status: 'succeeded',
             metadata: {
@@ -497,20 +503,17 @@ export class OrderCheckoutService {
     }
   }
 
-  async finalizeOrderPayment(paymentIntentId: string, stripePi?: any, actor?: string): Promise<Order> {
+  async confirmStripePayment(paymentIntentId: string, stripePi?: any, actor?: string): Promise<Order> {
     const db = getUnifiedDb();
     if (stripePi && stripePi.status && stripePi.status !== 'succeeded') {
       throw new PaymentFailedError('Cannot finalize an order for a payment that has not succeeded.');
     }
 
     // 1. Early Non-Transactional Read Check to bypass transaction overhead when order is already finalized
-    let nonTxOrder: any = null;
-    if (typeof this.orderRepo.getByPaymentTransactionId === 'function') {
-      nonTxOrder = await this.orderRepo.getByPaymentTransactionId(paymentIntentId);
-    }
-    if (!nonTxOrder && stripePi?.metadata?.orderId && typeof this.orderRepo.getById === 'function') {
-      nonTxOrder = await this.orderRepo.getById(stripePi.metadata.orderId);
-    }
+    const earlyResolution = await resolveCheckoutOrderByPaymentIntent(this.orderRepo, paymentIntentId, {
+      stripeMetadataOrderId: stripePi?.metadata?.orderId,
+    });
+    const nonTxOrder = earlyResolution.found ? earlyResolution.order : null;
 
     if (nonTxOrder) {
       if (isSafelyFinalizedCheckoutState({
@@ -553,29 +556,33 @@ export class OrderCheckoutService {
         }
         
         if (!order) {
-          // Webhook Synchronous Race Fallback
-          const fallbackOrderId = stripePi?.metadata?.orderId;
-          if (fallbackOrderId) {
-            logger.info('Order not found by paymentTransactionId. Attempting fallback via stripePi.metadata.orderId', { paymentIntentId, fallbackOrderId });
-            const directOrder = await this.orderRepo.getById(fallbackOrderId, transaction);
-            if (directOrder) {
-              if (directOrder.paymentTransactionId === null || directOrder.paymentTransactionId === paymentIntentId) {
-                await this.orderRepo.updatePaymentTransactionId(directOrder.id, paymentIntentId, transaction);
-                order = { ...directOrder, paymentTransactionId: paymentIntentId };
-              } else {
-                mappingMismatch.current = {
-                  orderId: directOrder.id,
-                  existingPaymentIntentId: directOrder.paymentTransactionId,
-                  webhookPaymentIntentId: paymentIntentId,
-                };
-                logger.warn('Direct order found but paymentTransactionId mismatch', {
-                  orderId: directOrder.id,
-                  orderTxId: directOrder.paymentTransactionId,
-                  webhookTxId: paymentIntentId
-                });
-                throw new PaymentFailedError('Payment intent metadata maps to an order that is linked to a different payment intent.');
-              }
+          const resolution = await resolveCheckoutOrderByPaymentIntent(this.orderRepo, paymentIntentId, {
+            stripeMetadataOrderId: stripePi?.metadata?.orderId,
+            transaction,
+            linkMissingPaymentTransaction: true,
+          });
+
+          if (resolution.found) {
+            order = resolution.order;
+            if (resolution.source === 'stripe_metadata') {
+              logger.info('Order resolved via centralized checkout resolver', {
+                paymentIntentId,
+                orderId: order.id,
+                linkedPaymentTransaction: resolution.linkedPaymentTransaction,
+              });
             }
+          } else if (resolution.reason === 'mapping_mismatch') {
+            mappingMismatch.current = {
+              orderId: resolution.orderId!,
+              existingPaymentIntentId: resolution.existingPaymentIntentId!,
+              webhookPaymentIntentId: paymentIntentId,
+            };
+            logger.warn('Direct order found but paymentTransactionId mismatch', {
+              orderId: resolution.orderId,
+              orderTxId: resolution.existingPaymentIntentId,
+              webhookTxId: paymentIntentId,
+            });
+            throw new PaymentFailedError('Payment intent metadata maps to an order that is linked to a different payment intent.');
           }
         }
 

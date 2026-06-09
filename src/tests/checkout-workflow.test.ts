@@ -7,7 +7,7 @@ import {
   assertLegalCheckoutOperationalPhaseTransition,
   mapWorkflowPhaseToCheckoutPhase,
 } from '../core/order/checkoutWorkflow';
-import { OrderService } from '../core/OrderService';
+import { createOrderTestStack } from './helpers/orderTestStack';
 import { FirestoreOrderRepository } from '../infrastructure/repositories/firestore/FirestoreOrderRepository';
 
 vi.mock('@infrastructure/firebase/bridge', () => ({
@@ -52,16 +52,16 @@ function makeOrderRepo(overrides: Record<string, any> = {}) {
   return repo;
 }
 
-function makeOrderService(orderRepo: any) {
-  return new OrderService(
+function makeOrderStack(orderRepo: any) {
+  return createOrderTestStack({
     orderRepo,
-    { getById: vi.fn(), batchUpdateStock: vi.fn() } as any,
-    { getByUserId: vi.fn(), clear: vi.fn(), save: vi.fn() } as any,
-    { getByCode: vi.fn() } as any,
-    { processPayment: vi.fn(), refundPayment: vi.fn() } as any,
-    { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
-    { acquireLock: vi.fn().mockResolvedValue({ success: true, fencingToken: 1 }), releaseLock: vi.fn() } as any,
-  );
+    productRepo: { getById: vi.fn(), batchUpdateStock: vi.fn() } as any,
+    cartRepo: { getByUserId: vi.fn(), clear: vi.fn(), save: vi.fn() } as any,
+    discountRepo: { getByCode: vi.fn() } as any,
+    payment: { processPayment: vi.fn(), refundPayment: vi.fn() } as any,
+    audit: { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
+    locker: { acquireLock: vi.fn().mockResolvedValue({ success: true, fencingToken: 1 }), releaseLock: vi.fn() } as any,
+  });
 }
 
 describe('checkout workflow orchestration contract', () => {
@@ -107,9 +107,9 @@ describe('checkout state machine transitions and invariants integration', () => 
       getByPaymentTransactionIdTransactional: vi.fn().mockResolvedValue(order),
       getCheckoutAttempt: vi.fn().mockResolvedValue({ id: 'attempt-stale-1', state: 'cancelled' }),
     });
-    const service = makeOrderService(orderRepo);
+    const { checkout } = makeOrderStack(orderRepo);
 
-    const result = await service.finalizeOrderPayment('pi_stale_attempt', {
+    const result = await checkout.confirmPaymentFromStripe('pi_stale_attempt', {
       id: 'pi_stale_attempt',
       status: 'succeeded',
       metadata: { orderId: 'order-stale-attempt' },
@@ -146,9 +146,9 @@ describe('checkout state machine transitions and invariants integration', () => 
       getByPaymentTransactionIdTransactional: vi.fn().mockResolvedValue(order),
       getCheckoutAttempt: vi.fn().mockResolvedValue({ id: 'attempt-cancelled-1', state: 'reserved' }),
     });
-    const service = makeOrderService(orderRepo);
+    const { checkout } = makeOrderStack(orderRepo);
 
-    const result = await service.finalizeOrderPayment('pi_cancelled_attempt', {
+    const result = await checkout.confirmPaymentFromStripe('pi_cancelled_attempt', {
       id: 'pi_cancelled_attempt',
       status: 'succeeded',
       metadata: { orderId: 'order-cancelled-attempt' },
@@ -185,9 +185,9 @@ describe('checkout state machine transitions and invariants integration', () => 
     const orderRepo = makeOrderRepo({
       getById: vi.fn().mockResolvedValue(order),
     });
-    const service = makeOrderService(orderRepo);
+    const { checkout } = makeOrderStack(orderRepo);
 
-    await service.rollbackUnpaidCheckout('order-paid', 'attempt-paid', 'pi_paid', 'expired_cleanup');
+    await checkout.rollbackUnpaidCheckout('order-paid', 'attempt-paid', 'pi_paid', 'expired_cleanup');
 
     expect(orderRepo.guardedUpdateStatus).not.toHaveBeenCalled();
     expect(orderRepo.transitionPaymentState).not.toHaveBeenCalled();
@@ -209,9 +209,9 @@ describe('checkout state machine transitions and invariants integration', () => 
       getByPaymentTransactionIdTransactional: vi.fn().mockResolvedValue(order),
       getCheckoutAttempt: vi.fn().mockResolvedValue({ id: 'attempt-1', state: 'reserved' }),
     });
-    const service = makeOrderService(orderRepo);
+    const { checkout } = makeOrderStack(orderRepo);
 
-    const result = await service.finalizeOrderPayment('pi_awaiting', {
+    const result = await checkout.confirmPaymentFromStripe('pi_awaiting', {
       id: 'pi_awaiting',
       status: 'succeeded',
       metadata: { orderId: 'order-awaiting' },
@@ -242,9 +242,9 @@ describe('checkout state machine transitions and invariants integration', () => 
       getByPaymentTransactionIdTransactional: vi.fn().mockResolvedValue(order),
       getCheckoutAttempt: vi.fn().mockResolvedValue({ id: 'attempt-1', state: 'reserved' }),
     });
-    const service = makeOrderService(orderRepo);
+    const { checkout } = makeOrderStack(orderRepo);
 
-    const result = await service.finalizeOrderPayment('pi_awaiting', {
+    const result = await checkout.confirmPaymentFromStripe('pi_awaiting', {
       id: 'pi_awaiting',
       status: 'succeeded',
       metadata: { orderId: 'order-awaiting' },
@@ -288,16 +288,16 @@ describe('checkout state machine transitions and invariants integration', () => 
       }),
       getCheckoutAttempt: vi.fn().mockResolvedValue({ id: 'attempt-racing', state: 'reserved' }),
     });
-    const service = makeOrderService(orderRepo);
+    const { checkout } = makeOrderStack(orderRepo);
 
-    const res1 = await service.finalizeOrderPayment('pi_racing', {
+    const res1 = await checkout.confirmPaymentFromStripe('pi_racing', {
       id: 'pi_racing',
       status: 'succeeded',
       metadata: { orderId: 'order-racing' },
       charges: { data: [] },
     }, 'stripe-webhook');
 
-    const res2 = await service.finalizeOrderPayment('pi_racing', {
+    const res2 = await checkout.confirmPaymentFromStripe('pi_racing', {
       id: 'pi_racing',
       status: 'succeeded',
       metadata: { orderId: 'order-racing' },
@@ -372,9 +372,9 @@ describe('checkout state machine bypass prevention and transition auditing', () 
       getByPaymentTransactionIdTransactional: vi.fn().mockResolvedValue(order),
       getCheckoutAttempt: vi.fn().mockResolvedValue({ id: 'attempt-reconcile', state: 'cancelled' }),
     });
-    const service = makeOrderService(orderRepo);
+    const { checkout } = makeOrderStack(orderRepo);
 
-    await service.finalizeOrderPayment('pi_reconcile', {
+    await checkout.confirmPaymentFromStripe('pi_reconcile', {
       id: 'pi_reconcile',
       status: 'succeeded',
       metadata: { orderId: 'order-reconcile' },
@@ -408,9 +408,9 @@ describe('checkout state machine bypass prevention and transition auditing', () 
       getByPaymentTransactionIdTransactional: vi.fn().mockResolvedValue(order),
       getCheckoutAttempt: vi.fn().mockResolvedValue({ id: 'attempt-finalize', state: 'reserved' }),
     });
-    const service = makeOrderService(orderRepo);
+    const { checkout } = makeOrderStack(orderRepo);
 
-    await service.finalizeOrderPayment('pi_finalize', {
+    await checkout.confirmPaymentFromStripe('pi_finalize', {
       id: 'pi_finalize',
       status: 'succeeded',
       metadata: { orderId: 'order-finalize' },

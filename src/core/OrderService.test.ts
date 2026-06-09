@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { OrderService } from './OrderService';
+import type { OrderService } from './OrderService';
+import { createOrderTestStack } from '../tests/helpers/orderTestStack';
 import { CartEmptyError, OrderNotFoundError } from '@domain/errors';
 
 // Mock the bridge
@@ -15,6 +16,7 @@ vi.mock('@infrastructure/firebase/bridge', () => ({
 
 describe('OrderService', () => {
   let orderService: OrderService;
+  let checkout: ReturnType<typeof createOrderTestStack>['checkout'];
   let mockOrderRepo: any;
   let mockProductRepo: any;
   let mockCartRepo: any;
@@ -71,20 +73,18 @@ describe('OrderService', () => {
       releaseLock: vi.fn(),
     };
 
-    orderService = new OrderService(
-      mockOrderRepo,
-      mockProductRepo,
-      mockCartRepo,
-      mockDiscountRepo,
-      mockPayment,
-      mockAudit,
-      mockLocker,
-      undefined, // checkoutGateway
-      undefined // shippingRepo
-    );
+    ({ orderService, checkout } = createOrderTestStack({
+      orderRepo: mockOrderRepo,
+      productRepo: mockProductRepo,
+      cartRepo: mockCartRepo,
+      discountRepo: mockDiscountRepo,
+      payment: mockPayment,
+      audit: mockAudit,
+      locker: mockLocker,
+    }));
   });
 
-  describe('initiateCheckout', () => {
+  describe('CheckoutFlowService via createCheckoutStack', () => {
     const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
 
     it('should create an order from a cart', async () => {
@@ -100,7 +100,7 @@ describe('OrderService', () => {
         status: 'pending'
       });
 
-      const order = await orderService.initiateCheckout('u1', address as any);
+      const order = await checkout.reserveCheckout({ userId: 'u1', shippingAddress: address as any });
 
       expect(order.userId).toBe('u1');
       expect(order.total).toBeGreaterThan(0);
@@ -119,11 +119,11 @@ describe('OrderService', () => {
 
     it('should throw if cart is empty', async () => {
       mockCartRepo.getByUserId.mockResolvedValue(null);
-      await expect(orderService.initiateCheckout('u1', address as any)).rejects.toThrow(CartEmptyError);
+      await expect(checkout.reserveCheckout({ userId: 'u1', shippingAddress: address as any })).rejects.toThrow(CartEmptyError);
     });
   });
 
-  describe('finalizeOrderPayment', () => {
+  describe('checkout.confirmPaymentFromStripe', () => {
     it('should update status without double-deducting reserved stock', async () => {
       const mockOrder = {
         id: 'o1',
@@ -135,7 +135,7 @@ describe('OrderService', () => {
       };
       mockOrderRepo.getByPaymentTransactionIdTransactional.mockResolvedValue(mockOrder);
 
-      const result = await orderService.finalizeOrderPayment('pi_123', { status: 'succeeded', charges: { data: [{ outcome: { risk_score: 10 } }] } });
+      const result = await checkout.confirmPaymentFromStripe('pi_123', { status: 'succeeded', charges: { data: [{ outcome: { risk_score: 10 } }] } });
 
       expect(result.status).toBe('processing');
       expect(mockProductRepo.batchUpdateStock).not.toHaveBeenCalled();
@@ -150,7 +150,7 @@ describe('OrderService', () => {
       const mockOrder = { id: 'o1', status: 'confirmed' };
       mockOrderRepo.getByPaymentTransactionIdTransactional.mockResolvedValue(mockOrder);
 
-      const result = await orderService.finalizeOrderPayment('pi_123');
+      const result = await checkout.confirmPaymentFromStripe('pi_123');
       expect(result.status).toBe('confirmed');
       expect(mockOrderRepo.updateStatus).not.toHaveBeenCalled();
     });

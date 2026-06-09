@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { OrderCheckoutService } from '../core/order/OrderCheckoutService';
+import { createCheckoutStack } from '../core/order/createCheckoutStack';
+import type { CheckoutFlowService } from '../core/order/CheckoutFlowService';
 import {
   reconstructTimeline,
   renderTransitionStream,
@@ -387,21 +388,21 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
     releaseLock: vi.fn(),
   };
 
-  let service: OrderCheckoutService;
+  let flow: CheckoutFlowService;
 
   beforeEach(() => {
     db.reset();
     vi.clearAllMocks();
 
-    service = new OrderCheckoutService(
-      mockOrderRepo,
-      mockProductRepo,
-      mockCartRepo,
-      mockDiscountRepo,
-      mockPayment,
-      mockAudit,
-      mockLocker
-    );
+    flow = createCheckoutStack({
+      orderRepo: mockOrderRepo,
+      productRepo: mockProductRepo,
+      cartRepo: mockCartRepo,
+      discountRepo: mockDiscountRepo,
+      payment: mockPayment,
+      audit: mockAudit,
+      locker: mockLocker,
+    });
 
     // Default setups
     db.stocks.set('p1', 5);
@@ -419,7 +420,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
     const idempotencyKey = 'attempt-dup-1';
     
     // Initiate without paymentMethodId to keep attempt in INITIALIZE_ORDER state
-    const order = await service.initiateCheckout('u1', address as any, 'u1@ex.com', 'User 1', undefined, idempotencyKey);
+    const order = await flow.reserveCheckout({ userId: 'u1', shippingAddress: address as any, userEmail: 'u1@ex.com', userName: 'User 1', idempotencyKey: idempotencyKey });
 
     // Explicitly transition to AWAIT_PAYMENT_CONFIRMATION to simulate Stripe redirect/webhook expectations
     await mockOrderRepo.transitionCheckoutAttemptPhase({
@@ -453,7 +454,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
       charges: { data: [] },
     };
 
-    const firstResult = await service.finalizeOrderPayment('pi_dup_123', stripePi, 'stripe-webhook');
+    const firstResult = await flow.confirmPaymentFromStripe('pi_dup_123', stripePi, 'stripe-webhook');
     expect(firstResult.status).toBe('processing'); // Physical shipping default
     expect(firstResult.paymentState).toBe('paid');
 
@@ -461,7 +462,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
     expect(firstOrderState.paymentState).toBe('paid');
 
     // Deliver Webhook 2 (Duplicated)
-    const secondResult = await service.finalizeOrderPayment('pi_dup_123', stripePi, 'stripe-webhook');
+    const secondResult = await flow.confirmPaymentFromStripe('pi_dup_123', stripePi, 'stripe-webhook');
     expect(secondResult.status).toBe('processing');
     expect(secondResult.paymentState).toBe('paid');
 
@@ -512,7 +513,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
       charges: { data: [] },
     };
 
-    const result = await service.finalizeOrderPayment('pi_stale_999', stripePi, 'stripe-webhook');
+    const result = await flow.confirmPaymentFromStripe('pi_stale_999', stripePi, 'stripe-webhook');
 
     expect(result.status).toBe('reconciling');
     expect(mockOrderRepo.transitionReconciliationState).toHaveBeenCalledWith(
@@ -532,7 +533,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
   it('3. should safely handle verification endpoint replays convergently', async () => {
     const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
     const key = 'attempt-replay-1';
-    const order = await service.initiateCheckout('u1', address as any, 'u1@ex.com', 'User', undefined, key);
+    const order = await flow.reserveCheckout({ userId: 'u1', shippingAddress: address as any, userEmail: 'u1@ex.com', userName: 'User', idempotencyKey: key });
 
     await mockOrderRepo.transitionCheckoutAttemptPhase({
       attemptId: key,
@@ -561,9 +562,9 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
     };
 
     // Simulate verify endpoint triggers multiple times
-    const r1 = await service.finalizeOrderPayment('pi_replay_345', stripePi, 'user');
-    const r2 = await service.finalizeOrderPayment('pi_replay_345', stripePi, 'user');
-    const r3 = await service.finalizeOrderPayment('pi_replay_345', stripePi, 'user');
+    const r1 = await flow.confirmPaymentFromStripe('pi_replay_345', stripePi, 'user');
+    const r2 = await flow.confirmPaymentFromStripe('pi_replay_345', stripePi, 'user');
+    const r3 = await flow.confirmPaymentFromStripe('pi_replay_345', stripePi, 'user');
 
     expect(r1.status).toBe('processing');
     expect(r2.status).toBe('processing');
@@ -575,7 +576,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
   it('4. should converge cleanly under concurrent verify and webhook finalisation races', async () => {
     const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
     const key = 'attempt-concurrent-1';
-    const order = await service.initiateCheckout('u1', address as any, 'u1@ex.com', 'User', undefined, key);
+    const order = await flow.reserveCheckout({ userId: 'u1', shippingAddress: address as any, userEmail: 'u1@ex.com', userName: 'User', idempotencyKey: key });
 
     await mockOrderRepo.transitionCheckoutAttemptPhase({
       attemptId: key,
@@ -605,8 +606,8 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
 
     // Run both concurrently
     const [p1, p2] = await Promise.all([
-      service.finalizeOrderPayment('pi_concurrent_123', stripePi, 'user'),
-      service.finalizeOrderPayment('pi_concurrent_123', stripePi, 'stripe-webhook'),
+      flow.confirmPaymentFromStripe('pi_concurrent_123', stripePi, 'user'),
+      flow.confirmPaymentFromStripe('pi_concurrent_123', stripePi, 'stripe-webhook'),
     ]);
 
     expect(p1.status).toBe('processing');
@@ -619,7 +620,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
   it('5. should reject cleanup restoration when late Stripe succeeded webhook races with rollback', async () => {
     const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
     const key = 'attempt-cleanup-race';
-    const order = await service.initiateCheckout('u1', address as any, 'u1@ex.com', 'User', undefined, key);
+    const order = await flow.reserveCheckout({ userId: 'u1', shippingAddress: address as any, userEmail: 'u1@ex.com', userName: 'User', idempotencyKey: key });
 
     await mockOrderRepo.transitionCheckoutAttemptPhase({
       attemptId: key,
@@ -647,8 +648,8 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
       charges: { data: [] },
     };
 
-    const pFinalize = service.finalizeOrderPayment('pi_race_cleanup', stripePi, 'stripe-webhook');
-    const pRollback = service.rollbackUnpaidCheckout(order.id, key, 'pi_race_cleanup', 'expired_cleanup');
+    const pFinalize = flow.confirmPaymentFromStripe('pi_race_cleanup', stripePi, 'stripe-webhook');
+    const pRollback = flow.rollbackUnpaidCheckout(order.id, key, 'pi_race_cleanup', 'expired_cleanup');
 
     await Promise.allSettled([pFinalize, pRollback]);
 
@@ -714,7 +715,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
       charges: { data: [] },
     };
 
-    const result = await service.finalizeOrderPayment('pi_recon_retry', stripePi, 'operator');
+    const result = await flow.confirmPaymentFromStripe('pi_recon_retry', stripePi, 'operator');
     expect(result.status).toBe('processing');
     expect(result.paymentState).toBe('paid');
 
@@ -726,7 +727,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
   it('7. should reject executions with a stale fencing token and redirect to reconciliation', async () => {
     const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
     const key = 'attempt-fencing-stale';
-    const order = await service.initiateCheckout('u1', address as any, 'u1@ex.com', 'User', undefined, key);
+    const order = await flow.reserveCheckout({ userId: 'u1', shippingAddress: address as any, userEmail: 'u1@ex.com', userName: 'User', idempotencyKey: key });
 
     await mockOrderRepo.transitionCheckoutAttemptPhase({
       attemptId: key,
@@ -755,7 +756,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
       charges: { data: [] },
     };
 
-    const result = await service.finalizeOrderPayment('pi_stale_fence', stripePi, 'stripe-webhook');
+    const result = await flow.confirmPaymentFromStripe('pi_stale_fence', stripePi, 'stripe-webhook');
     expect(result.status).toBe('reconciling');
 
     const reconCase = db.reconciliationCases.get('pi_stale_fence')!;
@@ -769,10 +770,10 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
     const key = 'attempt-overlap-key';
 
     // First checkout starts and finishes initialization
-    const r1 = await service.initiateCheckout('u1', address as any, 'u1@ex.com', 'User', undefined, key);
+    const r1 = await flow.reserveCheckout({ userId: 'u1', shippingAddress: address as any, userEmail: 'u1@ex.com', userName: 'User', idempotencyKey: key });
     
     // Simulate sequential retry under same key
-    const r2 = await service.initiateCheckout('u1', address as any, 'u1@ex.com', 'User', undefined, key);
+    const r2 = await flow.reserveCheckout({ userId: 'u1', shippingAddress: address as any, userEmail: 'u1@ex.com', userName: 'User', idempotencyKey: key });
 
     expect(r1.id).toBe(r2.id);
     expect(mockOrderRepo.create).toHaveBeenCalledTimes(1); // Ensure idempotency at creation layer
@@ -783,20 +784,20 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
     const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
     const key = 'attempt-fail-rollback';
     // Do NOT pass paymentMethodId to keep it in pending status
-    const order = await service.initiateCheckout('u1', address as any, 'u1@ex.com', 'User', undefined, key);
+    const order = await flow.reserveCheckout({ userId: 'u1', shippingAddress: address as any, userEmail: 'u1@ex.com', userName: 'User', idempotencyKey: key });
 
     // Make database update fail on first try
     mockOrderRepo.guardedUpdateStatus.mockImplementationOnce(async () => {
       throw new Error('Database connection reset');
     });
 
-    await expect(service.rollbackUnpaidCheckout(order.id, key, 'pi_fail_rollback', 'expired_cleanup')).rejects.toThrow();
+    await expect(flow.rollbackUnpaidCheckout(order.id, key, 'pi_fail_rollback', 'expired_cleanup')).rejects.toThrow();
 
     // Verify it remains pending (partial rollback state)
     expect(db.orders.get(order.id)!.status).toBe('pending');
 
     // Retry rollback successfully
-    await service.rollbackUnpaidCheckout(order.id, key, 'pi_fail_rollback', 'expired_cleanup');
+    await flow.rollbackUnpaidCheckout(order.id, key, 'pi_fail_rollback', 'expired_cleanup');
     expect(db.orders.get(order.id)!.status).toBe('cancelled');
     expect(db.checkoutAttempts.get(key)!.state).toBe('restored');
   });
@@ -805,7 +806,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
   it('10. should block cart restoration during rollback if the user has already loaded a new cart', async () => {
     const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
     const key = 'attempt-restore-overlap';
-    const order = await service.initiateCheckout('u1', address as any, 'u1@ex.com', 'User', undefined, key);
+    const order = await flow.reserveCheckout({ userId: 'u1', shippingAddress: address as any, userEmail: 'u1@ex.com', userName: 'User', idempotencyKey: key });
 
     // Prior to rollback executing, user adds a new item to cart
     db.carts.set('u1', {
@@ -815,7 +816,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
       updatedAt: new Date(),
     });
 
-    await service.rollbackUnpaidCheckout(order.id, key, 'pi_restore_overlap', 'expired_cleanup');
+    await flow.rollbackUnpaidCheckout(order.id, key, 'pi_restore_overlap', 'expired_cleanup');
 
     const attempt = db.checkoutAttempts.get(key)!;
     expect(attempt.state).toBe('restore_blocked'); // Correctly fenced!
@@ -850,7 +851,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
       charges: { data: [] },
     };
 
-    const result = await service.finalizeOrderPayment('pi_race_op', stripePi, 'stripe-webhook');
+    const result = await flow.confirmPaymentFromStripe('pi_race_op', stripePi, 'stripe-webhook');
     expect(result.status).toBe('confirmed');
     expect(result.paymentState).toBe('paid');
     expect(mockOrderRepo.transitionPaymentState).not.toHaveBeenCalled();

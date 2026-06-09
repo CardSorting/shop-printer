@@ -35,7 +35,15 @@ export async function POST(request: Request) {
         const user = await requireSessionUser();
         const { shippingAddress, paymentMethodId, idempotencyKey, discountCode } = parseCheckoutRequest(await readJsonObject(request));
         const services = await getServerServices();
-        const order = await services.orderService.placeOrder(user.id, shippingAddress, paymentMethodId, idempotencyKey, discountCode, user.email, user.displayName);
+        const order = await services.checkout.completeWithPaymentMethod({
+            userId: user.id,
+            shippingAddress,
+            paymentMethodId,
+            idempotencyKey,
+            discountCode,
+            userEmail: user.email,
+            userName: user.displayName,
+        });
         return NextResponse.json(order);
     } catch (error) {
         return jsonError(error, 'Failed to place order');

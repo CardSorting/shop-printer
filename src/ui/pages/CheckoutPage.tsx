@@ -285,10 +285,10 @@ export function CheckoutPage() {
     setCheckoutStatus('finalizing');
     try {
       const normalizedAddress = { ...address, country: address.country.trim().toUpperCase() || 'US' };
-      const order = await services.orderService.finalizeTrustedCheckout(
-        user.id, 
-        normalizedAddress, 
-        paymentMethodId, 
+      const order = await services.checkout.completeWithPaymentMethod(
+        user.id,
+        normalizedAddress,
+        paymentMethodId,
         checkoutAttemptKey.current,
         appliedDiscount?.code
       );

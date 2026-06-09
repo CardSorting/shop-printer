@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { OrderService } from '../core/OrderService';
+import { createOrderTestStack } from './helpers/orderTestStack';
 import { RefundService } from '../core/RefundService';
 
 const getPaymentIntent = vi.fn();
@@ -46,16 +46,16 @@ function makeOrderRepo(overrides: Record<string, any> = {}) {
   return repo;
 }
 
-function makeOrderService(orderRepo: any) {
-  return new OrderService(
+function makeOrderStack(orderRepo: any) {
+  return createOrderTestStack({
     orderRepo,
-    { getById: vi.fn(), batchUpdateStock: vi.fn() } as any,
-    { getByUserId: vi.fn(), clear: vi.fn() } as any,
-    { getByCode: vi.fn() } as any,
-    { processPayment: vi.fn(), refundPayment: vi.fn() } as any,
-    { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
-    { acquireLock: vi.fn().mockResolvedValue({ success: true, fencingToken: 1 }), releaseLock: vi.fn() } as any,
-  );
+    productRepo: { getById: vi.fn(), batchUpdateStock: vi.fn() } as any,
+    cartRepo: { getByUserId: vi.fn(), clear: vi.fn(), save: vi.fn() } as any,
+    discountRepo: { getByCode: vi.fn() } as any,
+    payment: { processPayment: vi.fn(), refundPayment: vi.fn() } as any,
+    audit: { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
+    locker: { acquireLock: vi.fn().mockResolvedValue({ success: true, fencingToken: 1 }), releaseLock: vi.fn() } as any,
+  });
 }
 
 describe('financial recovery hardening', () => {
@@ -85,7 +85,7 @@ describe('financial recovery hardening', () => {
       charges: { data: [] },
     });
 
-    const service = makeOrderService(orderRepo);
+    const { orderService: service, checkout } = makeOrderStack(orderRepo);
     const result = await service.cleanupExpiredOrders(60);
 
     expect(result.count).toBe(1);
@@ -110,7 +110,7 @@ describe('financial recovery hardening', () => {
     });
     getPaymentIntent.mockResolvedValue({ id: 'pi_processing_cleanup', status: 'processing' });
 
-    const service = makeOrderService(orderRepo);
+    const { orderService: service, checkout } = makeOrderStack(orderRepo);
     const result = await service.cleanupExpiredOrders(60);
 
     expect(result.count).toBe(0);
@@ -158,9 +158,9 @@ describe('financial recovery hardening', () => {
         items: [],
       }),
     });
-    const service = makeOrderService(orderRepo);
+    const { orderService: service, checkout } = makeOrderStack(orderRepo);
 
-    await expect(service.finalizeOrderPayment('pi_webhook', {
+    await expect(checkout.confirmPaymentFromStripe('pi_webhook', {
       id: 'pi_webhook',
       status: 'succeeded',
       metadata: { orderId: 'order-mismatch', fencingToken: '1' },
@@ -180,9 +180,9 @@ describe('financial recovery hardening', () => {
       getByPaymentTransactionIdTransactional: vi.fn().mockResolvedValue(null),
       getById: vi.fn().mockResolvedValue(null),
     });
-    const service = makeOrderService(orderRepo);
+    const { orderService: service, checkout } = makeOrderStack(orderRepo);
 
-    await expect(service.finalizeOrderPayment('pi_dangling', {
+    await expect(checkout.confirmPaymentFromStripe('pi_dangling', {
       id: 'pi_dangling',
       status: 'succeeded',
       metadata: { orderId: 'order-missing' },
@@ -208,9 +208,9 @@ describe('financial recovery hardening', () => {
         items: [{ productId: 'p1', quantity: 1, isDigital: false }],
       }),
     });
-    const service = makeOrderService(orderRepo);
+    const { orderService: service, checkout } = makeOrderStack(orderRepo);
 
-    const result = await service.finalizeOrderPayment('pi_paid_cancelled', {
+    const result = await checkout.confirmPaymentFromStripe('pi_paid_cancelled', {
       id: 'pi_paid_cancelled',
       status: 'succeeded',
       metadata: { orderId: 'order-paid-cancelled' },
@@ -240,9 +240,9 @@ describe('financial recovery hardening', () => {
         items: [{ productId: 'p1', quantity: 1, isDigital: false }],
       }),
     });
-    const service = makeOrderService(orderRepo);
+    const { orderService: service, checkout } = makeOrderStack(orderRepo);
 
-    await service.finalizeOrderPayment('pi_chaos_success', {
+    await checkout.confirmPaymentFromStripe('pi_chaos_success', {
       id: 'pi_chaos_success',
       status: 'succeeded',
       metadata: { orderId: 'order-chaos-cleanup' },
@@ -260,9 +260,9 @@ describe('financial recovery hardening', () => {
     const orderRepo = makeOrderRepo({
       getByPaymentTransactionIdTransactional: vi.fn().mockRejectedValue(new Error('transaction aborted after Stripe success')),
     });
-    const service = makeOrderService(orderRepo);
+    const { orderService: service, checkout } = makeOrderStack(orderRepo);
 
-    await expect(service.finalizeOrderPayment('pi_finalization_failure', {
+    await expect(checkout.confirmPaymentFromStripe('pi_finalization_failure', {
       id: 'pi_finalization_failure',
       status: 'succeeded',
       metadata: { orderId: 'order-finalization-failure', checkoutKey: 'checkout-finalization-failure' },
@@ -293,9 +293,9 @@ describe('financial recovery hardening', () => {
       getByPaymentTransactionIdTransactional: vi.fn().mockResolvedValue(order),
       getCheckoutAttempt: vi.fn().mockResolvedValue({ id: 'attempt-stale-1', state: 'cancelled' }),
     });
-    const service = makeOrderService(orderRepo);
+    const { orderService: service, checkout } = makeOrderStack(orderRepo);
 
-    const result = await service.finalizeOrderPayment('pi_stale_attempt', {
+    const result = await checkout.confirmPaymentFromStripe('pi_stale_attempt', {
       id: 'pi_stale_attempt',
       status: 'succeeded',
       metadata: { orderId: 'order-stale-attempt' },
@@ -332,16 +332,15 @@ describe('financial recovery hardening', () => {
     const orderRepo = makeOrderRepo({
       getByIdempotencyKey: vi.fn().mockResolvedValue(existingOrder),
     });
-    const service = makeOrderService(orderRepo);
+    const { orderService: service, checkout } = makeOrderStack(orderRepo);
 
-    const order = await service.initiateCheckout(
-      'u1',
-      address as any,
-      'user@example.com',
-      'User',
-      undefined,
-      'dup-key-1'
-    );
+    const order = await checkout.reserveCheckout({
+      userId: 'u1',
+      shippingAddress: address as any,
+      userEmail: 'user@example.com',
+      userName: 'User',
+      idempotencyKey: 'dup-key-1',
+    });
 
     expect(order.id).toBe('o-existing');
     // Ensure getByIdempotencyKey was checked to reuse it

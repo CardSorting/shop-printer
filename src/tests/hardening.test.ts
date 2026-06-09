@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { OrderService } from '../core/OrderService';
+import { createOrderTestStack } from './helpers/orderTestStack';
 import { DiscountService } from '../core/DiscountService';
 import { sanitizeHtml } from '../utils/sanitizer';
 import { Sanitizer } from '../utils/sanitizer';
@@ -33,7 +33,8 @@ vi.mock('next/headers', () => ({
 
 describe('Security Hardening Proofs', () => {
   describe('Discount Lifecycle Integrity', () => {
-    let orderService: OrderService;
+    let orderService: ReturnType<typeof createOrderTestStack>['orderService'];
+    let checkout: ReturnType<typeof createOrderTestStack>['checkout'];
     let mockOrderRepo: any;
     let mockProductRepo: any;
     let mockDiscountRepo: any;
@@ -93,27 +94,31 @@ describe('Security Hardening Proofs', () => {
         decrementUsage: vi.fn(),
       };
 
-      orderService = new OrderService(
-        mockOrderRepo,
-        mockProductRepo,
-        mockCartRepo,
-        mockDiscountRepo,
-        { processPayment: vi.fn().mockResolvedValue({ success: true, transactionId: 'tx1' }) } as any,
-        { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
-        { acquireLock: vi.fn().mockResolvedValue(true), releaseLock: vi.fn() } as any,
-        undefined,
-        undefined
-      );
+      ({ orderService, checkout } = createOrderTestStack({
+        orderRepo: mockOrderRepo,
+        productRepo: mockProductRepo,
+        cartRepo: mockCartRepo,
+        discountRepo: mockDiscountRepo,
+        payment: { processPayment: vi.fn().mockResolvedValue({ success: true, transactionId: 'tx1' }) } as any,
+        audit: { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
+        locker: { acquireLock: vi.fn().mockResolvedValue(true), releaseLock: vi.fn() } as any,
+      }));
     });
 
     it('PROVE: Checkout consumes once-per-customer discount and records usage', async () => {
-      await orderService.initiateCheckout('u1', {
-        street: '123 Test St',
-        city: 'Denver',
-        state: 'CO',
-        zip: '80202',
-        country: 'US',
-      }, 'u@e.com', 'U', 'ONCE');
+      await checkout.reserveCheckout({
+        userId: 'u1',
+        shippingAddress: {
+          street: '123 Test St',
+          city: 'Denver',
+          state: 'CO',
+          zip: '80202',
+          country: 'US',
+        },
+        userEmail: 'u@e.com',
+        userName: 'U',
+        discountCode: 'ONCE',
+      });
       
       expect(mockDiscountRepo.incrementUsage).toHaveBeenCalled();
       expect(mockOrderRepo.recordUserDiscountUsage).toHaveBeenCalledWith('u1', 'ONCE', expect.anything());

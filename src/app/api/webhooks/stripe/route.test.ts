@@ -6,7 +6,8 @@ const getEventStatus = vi.fn();
 const markEventProcessed = vi.fn();
 const markEventFailed = vi.fn();
 const deleteEvent = vi.fn();
-const finalizeOrderPayment = vi.fn();
+const confirmPaymentFromStripe = vi.fn();
+const handleStripePaymentFailed = vi.fn();
 const updateOrderStatus = vi.fn();
 const getByPaymentTransactionId = vi.fn();
 const getById = vi.fn();
@@ -32,7 +33,8 @@ vi.mock('@infrastructure/services/StripeService', () => ({
 
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
-    orderService: { finalizeOrderPayment, updateOrderStatus },
+    checkout: { confirmPaymentFromStripe, handleStripePaymentFailed },
+    orderService: { updateOrderStatus },
     orderRepo: { getByPaymentTransactionId, getById, transitionPaymentState, guardedUpdateStatus },
   })),
 }));
@@ -58,7 +60,7 @@ describe('Stripe webhook replay handling', () => {
     const body = await response.json();
 
     expect(body.duplicate).toBe(true);
-    expect(finalizeOrderPayment).not.toHaveBeenCalled();
+    expect(confirmPaymentFromStripe).not.toHaveBeenCalled();
     expect(markEventProcessed).not.toHaveBeenCalled();
   });
 
@@ -72,13 +74,13 @@ describe('Stripe webhook replay handling', () => {
 
     expect(response.status).toBe(503);
     expect(body.retry).toBe(true);
-    expect(finalizeOrderPayment).not.toHaveBeenCalled();
+    expect(confirmPaymentFromStripe).not.toHaveBeenCalled();
     expect(markEventProcessed).not.toHaveBeenCalled();
   });
 
   it('marks event as completed after successful processing', async () => {
     tryProcessEvent.mockResolvedValue({ alreadyProcessed: false, claimToken: 'claim-token-1' });
-    finalizeOrderPayment.mockResolvedValue({});
+    confirmPaymentFromStripe.mockResolvedValue({});
     markEventProcessed.mockResolvedValue(undefined);
     const { POST } = await import('./route');
 
@@ -86,13 +88,13 @@ describe('Stripe webhook replay handling', () => {
     const body = await response.json();
 
     expect(body.received).toBe(true);
-    expect(finalizeOrderPayment).toHaveBeenCalledWith('pi_1', { id: 'pi_1' }, 'stripe-webhook');
+    expect(confirmPaymentFromStripe).toHaveBeenCalledWith('pi_1', { id: 'pi_1' }, 'stripe-webhook');
     expect(markEventProcessed).toHaveBeenCalledWith('evt_1', 'payment_intent.succeeded', 'claim-token-1');
   });
 
   it('marks event as failed (not deleted) on processing error', async () => {
     tryProcessEvent.mockResolvedValue({ alreadyProcessed: false, claimToken: 'claim-token-failed' });
-    finalizeOrderPayment.mockRejectedValue(new Error('Firestore timeout'));
+    confirmPaymentFromStripe.mockRejectedValue(new Error('Firestore timeout'));
     markEventFailed.mockResolvedValue(undefined);
     const { POST } = await import('./route');
 
@@ -111,14 +113,15 @@ describe('Stripe webhook replay handling', () => {
     });
     tryProcessEvent.mockResolvedValue(false);
     getPaymentIntent.mockResolvedValue({ id: 'pi_1', status: 'succeeded', metadata: { orderId: 'o1' } });
-    finalizeOrderPayment.mockResolvedValue({ id: 'o1', status: 'processing' });
+    handleStripePaymentFailed.mockResolvedValue({ action: 'finalized', orderId: 'o1' });
+    confirmPaymentFromStripe.mockResolvedValue({ id: 'o1', status: 'processing' });
     markEventProcessed.mockResolvedValue(undefined);
     const { POST } = await import('./route');
 
     const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
 
     expect(response.status).toBe(200);
-    expect(finalizeOrderPayment).toHaveBeenCalledWith('pi_1', { id: 'pi_1', status: 'succeeded', metadata: { orderId: 'o1' } }, 'stripe-webhook');
+    expect(handleStripePaymentFailed).toHaveBeenCalled();
     expect(updateOrderStatus).not.toHaveBeenCalled();
     expect(markEventProcessed).toHaveBeenCalledWith('evt_failed_stale', 'payment_intent.payment_failed', null);
   });
@@ -131,14 +134,15 @@ describe('Stripe webhook replay handling', () => {
     });
     tryProcessEvent.mockResolvedValue(false);
     getPaymentIntent.mockResolvedValue({ id: 'pi_1', status: 'processing', metadata: { orderId: 'o1' } });
+    handleStripePaymentFailed.mockResolvedValue({ action: 'ignored', reason: 'non_terminal_stripe_status:processing' });
     markEventProcessed.mockResolvedValue(undefined);
     const { POST } = await import('./route');
 
     const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
 
     expect(response.status).toBe(200);
-    expect(finalizeOrderPayment).not.toHaveBeenCalled();
-    expect(getByPaymentTransactionId).not.toHaveBeenCalled();
+    expect(handleStripePaymentFailed).toHaveBeenCalled();
+    expect(confirmPaymentFromStripe).not.toHaveBeenCalled();
     expect(updateOrderStatus).not.toHaveBeenCalled();
   });
 
@@ -150,12 +154,7 @@ describe('Stripe webhook replay handling', () => {
     });
     tryProcessEvent.mockResolvedValue({ alreadyProcessed: false, claimToken: 'claim-paid-regression' });
     getPaymentIntent.mockResolvedValue({ id: 'pi_paid_then_failed', status: 'canceled', metadata: { orderId: 'o-paid' } });
-    getByPaymentTransactionId.mockResolvedValue({
-      id: 'o-paid',
-      status: 'confirmed',
-      paymentState: 'paid',
-      paymentTransactionId: 'pi_paid_then_failed',
-    });
+    handleStripePaymentFailed.mockResolvedValue({ action: 'ignored', reason: 'local_payment_already_finalized' });
     markEventFailed.mockResolvedValue(undefined);
     const { POST } = await import('./route');
 

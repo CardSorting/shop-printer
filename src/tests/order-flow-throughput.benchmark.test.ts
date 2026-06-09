@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { CartService } from '@core/CartService';
-import { OrderService } from '@core/OrderService';
+import { createOrderTestStack } from './helpers/orderTestStack';
 import type { Address, Cart, CheckoutAttempt, Order, Product } from '@domain/models';
 
 vi.mock('@utils/logger', () => ({
@@ -382,20 +382,23 @@ function createHarness() {
   };
   const locker = new InMemoryLockProvider();
 
+  const { orderService, checkout } = createOrderTestStack({
+    orderRepo: orderRepo as any,
+    productRepo: productRepo as any,
+    cartRepo: cartRepo as any,
+    discountRepo: discountRepo as any,
+    payment: payment as any,
+    audit: audit as any,
+    locker: locker as any,
+  });
+
   return {
     cartRepo,
     productRepo,
     orderRepo,
     cartService: new CartService(cartRepo as any, productRepo as any),
-    orderService: new OrderService(
-      orderRepo as any,
-      productRepo as any,
-      cartRepo as any,
-      discountRepo as any,
-      payment as any,
-      audit as any,
-      locker as any
-    ),
+    orderService,
+    checkout,
   };
 }
 
@@ -415,14 +418,13 @@ describe.runIf(BENCHMARK_ENABLED)('order flow throughput benchmark', () => {
       rows.push(await runMeasuredLoad('checkout_reservation_only', 1_000, concurrency, async index => {
         const userId = `checkout-user-${concurrency}-${index}`;
         harness.cartRepo.seed(userId);
-        await harness.orderService.initiateCheckout(
+        await harness.checkout.reserveCheckout({
           userId,
-          address,
-          `${userId}@example.test`,
-          'Benchmark User',
-          undefined,
-          `checkout:${concurrency}:${index}`
-        );
+          shippingAddress: address,
+          userEmail: `${userId}@example.test`,
+          userName: 'Benchmark User',
+          idempotencyKey: `checkout:${concurrency}:${index}`,
+        });
       }));
     }
 
@@ -431,15 +433,14 @@ describe.runIf(BENCHMARK_ENABLED)('order flow throughput benchmark', () => {
       rows.push(await runMeasuredLoad('full_order_payment_finalize', 500, concurrency, async index => {
         const userId = `order-user-${concurrency}-${index}`;
         harness.cartRepo.seed(userId);
-        await harness.orderService.initiateCheckout(
+        await harness.checkout.completeWithPaymentMethod({
           userId,
-          address,
-          `${userId}@example.test`,
-          'Benchmark User',
-          undefined,
-          `order:${concurrency}:${index}`,
-          `pm_${concurrency}_${index}`
-        );
+          shippingAddress: address,
+          userEmail: `${userId}@example.test`,
+          userName: 'Benchmark User',
+          idempotencyKey: `order:${concurrency}:${index}`,
+          paymentMethodId: `pm_${concurrency}_${index}`,
+        });
       }));
     }
 

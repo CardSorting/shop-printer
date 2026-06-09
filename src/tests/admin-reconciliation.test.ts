@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { OrderService } from '../core/OrderService';
+import type { OrderService } from '../core/OrderService';
+import { createOrderTestStack } from './helpers/orderTestStack';
 import type {
   Order,
   CheckoutAttempt,
@@ -304,20 +305,21 @@ describe('Operator-Facing Reconciliation & Forensics Integration Tests', () => {
   };
 
   let svc: OrderService;
+  let checkout: ReturnType<typeof createOrderTestStack>['checkout'];
 
   beforeEach(() => {
     db.reset();
     vi.clearAllMocks();
 
-    svc = new OrderService(
-      mockOrderRepo as any,
-      { getById: vi.fn() } as any,
-      { getByUserId: vi.fn() } as any,
-      { getByCode: vi.fn() } as any,
-      mockPayment as any,
-      mockAudit as any,
-      mockLocker as any,
-    );
+    ({ orderService: svc, checkout } = createOrderTestStack({
+      orderRepo: mockOrderRepo as any,
+      productRepo: { getById: vi.fn() } as any,
+      cartRepo: { getByUserId: vi.fn() } as any,
+      discountRepo: { getByCode: vi.fn() } as any,
+      payment: mockPayment as any,
+      audit: mockAudit as any,
+      locker: mockLocker as any,
+    }));
   });
 
   // Helper functions to populate test cases
@@ -659,7 +661,7 @@ describe('Operator-Facing Reconciliation & Forensics Integration Tests', () => {
       });
 
       // Invoke finalization again simulating late webhook or replay noise
-      const result = await svc.finalizeOrderPayment('pi_resolved_webhook', {
+      const result = await checkout.confirmPaymentFromStripe('pi_resolved_webhook', {
         status: 'succeeded',
         id: 'pi_resolved_webhook',
         metadata: { orderId: 'order-123' },
@@ -694,7 +696,7 @@ describe('Operator-Facing Reconciliation & Forensics Integration Tests', () => {
       });
 
       // Simulate webhook replay on a resolved case
-      const result = await svc.finalizeOrderPayment('pi_case_resolved', {
+      const result = await checkout.confirmPaymentFromStripe('pi_case_resolved', {
         status: 'succeeded',
         id: 'pi_case_resolved',
         metadata: { orderId: 'order-123' },
