@@ -113,7 +113,7 @@ External services:
 
 ## Checkout Reliability State
 
-The checkout architecture is documented in `docs/checkout-orchestration.md` and benchmarked in `.wiki/architecture/order-flow-throughput.md`.
+The checkout architecture is documented in `docs/checkout.md` and benchmarked in `.wiki/architecture/order-flow-throughput.md`.
 
 Verified design properties:
 

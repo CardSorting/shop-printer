@@ -9,7 +9,7 @@
 
 | Area | Current evidence | Notes |
 | --- | --- | --- |
-| Checkout integrity | `CheckoutApplicationService` (`services.checkout` / `CheckoutFlowService`), event-log idempotency, checkout order states, and focused checkout tests. | Routes depend only on the checkout boundary; Stripe/cancel/operator deps are stack-injected. |
+| Checkout integrity | `CheckoutApplicationService` (`services.checkout`), `CheckoutResult<T>`, event-log idempotency, checkout order states. See [docs/checkout.md](docs/checkout.md). | Routes depend only on the checkout boundary; Stripe/cancel/operator deps are stack-injected. |
 | Core throughput | `npm run benchmark:order-flow` with raw output in `.wiki/architecture/order-flow-throughput-results.json`. | Core orchestration benchmark only, not production Firestore/Stripe capacity. |
 | API surface | 136 `src/app/api/**/route.ts` files. | Public, customer, admin, checkout, webhook, support, concierge, and system routes. |
 | App surface | 59 `src/app/**/page.tsx` files. | Storefront, account, admin, support, blog, and operational pages. |
@@ -78,7 +78,7 @@ Before making a production-scale claim, validate:
 
 - [Project State](.wiki/architecture/project-state.md)
 - [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md)
-- [Checkout Orchestration](docs/checkout-orchestration.md)
+- [Checkout](docs/checkout.md)
 - [CRM Platform Whitepaper](docs/woodbine-crm-whitepaper.md)
 
 ## Conclusion

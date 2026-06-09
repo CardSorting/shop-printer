@@ -4,7 +4,7 @@ This directory contains long-form technical documentation. The `.wiki/` director
 
 ## Primary Documents
 
-- [Checkout Orchestration](./checkout-orchestration.md)
+- [Checkout](./checkout.md) — application protocol, API, flows, verification (canonical)
 - [WoodBine Concierge Overview](./concierge/overview.md)
 - [WoodBine CRM Platform Whitepaper](./woodbine-crm-whitepaper.md)
 

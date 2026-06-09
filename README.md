@@ -40,31 +40,13 @@ The codebase follows a layered TypeScript architecture:
 
 The main design rule is that Domain stays free of I/O and framework imports. Core owns orchestration. Infrastructure and App Router adapt real transport/storage/payment behavior into those contracts.
 
-## Checkout Architecture
+## Checkout
 
-Checkout is intentionally explicit because it is the highest-risk workflow in the system.
+Checkout is an application protocol, not route spaghetti. All checkout HTTP paths call `services.checkout` (`CheckoutApplicationService`), which returns typed `CheckoutResult<T>` outcomes.
 
-Core flow:
+The full guide — architecture, six public methods, state machines, idempotency, routes, HTTP mapping, observability, file map, and verification ladder — lives in **[docs/checkout.md](docs/checkout.md)**.
 
-1. Validate shipping address and acquire `checkout_lock:{userId}`.
-2. Create or resume the idempotent checkout attempt.
-3. Read cart, verify product price/availability, reserve stock, create pending order, record checkout attempt, and clear cart.
-4. Create or resume Stripe PaymentIntent.
-5. Persist the payment mapping and wait for webhook or success-page verification.
-6. Finalize payment into paid/fulfilled state or route unsafe states into reconciliation.
-
-Key implementation files:
-
-- `src/core/order/CheckoutFlowService.ts`
-- `src/core/order/createCheckoutStack.ts`
-- `src/core/order/checkoutWorkflow.ts`
-- `src/core/order/checkoutForensics.ts`
-- `src/infrastructure/repositories/firestore/FirestoreOrderRepository.ts`
-- `src/app/api/checkout/create-payment-intent/route.ts`
-- `src/app/api/checkout/verify/route.ts`
-- `src/app/api/webhooks/stripe/route.ts`
-
-See [Checkout Protocol (frozen)](docs/checkout-protocol-frozen.md), [Checkout Orchestration](docs/checkout-orchestration.md), and [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md).
+See also [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md) for core benchmarks.
 
 ## Benchmark Baseline
 
@@ -122,7 +104,7 @@ Start here:
 - [Schemas](.wiki/architecture/schemas.md)
 - [Risk Map](.wiki/architecture/risk-map.md)
 - [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md)
-- [Checkout Orchestration](docs/checkout-orchestration.md)
+- [Checkout](docs/checkout.md)
 - [Whitepaper](docs/woodbine-crm-whitepaper.md)
 
 ## Tech Stack
