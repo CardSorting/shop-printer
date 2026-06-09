@@ -1,16 +1,15 @@
-import * as crypto from 'node:crypto';
 import type { ICheckoutGateway, IOrderRepository } from '@domain/repositories';
 import type { Address, Order } from '@domain/models';
-import { logger } from '@utils/logger';
 import type { CheckoutMutationBackend } from './checkoutMutationBackend';
 import {
-  createOrResumeClientPaymentIntent,
   type CheckoutStripePort,
   type ClientPaymentIntentResult,
 } from './checkoutPaymentIntentFlow';
 import { resolveCheckoutOrderByPaymentIntent } from './checkoutOrderResolver';
 import { verifyPaymentFromClientFlow } from './checkoutVerifyFlow';
 import { handleStripePaymentFailedFlow } from './checkoutStripeWebhookFlow';
+import { startClientCheckoutFlow } from './checkoutClientStartFlow';
+import { completeCheckoutWithPaymentMethod } from './checkoutPaymentMethodFlow';
 import type { FulfillmentMethod } from './types';
 
 export type StartClientCheckoutParams = {
@@ -76,7 +75,14 @@ export class CheckoutFlowService {
   ) {}
 
   startClientCheckout(params: StartClientCheckoutParams): Promise<ClientPaymentIntentResult> {
-    return this.runStartClientCheckout(params);
+    return startClientCheckoutFlow({
+      mutations: this.mutations,
+      orderRepo: this.orderRepo,
+      input: params,
+      highValueThresholdCents: CheckoutFlowService.HIGH_VALUE_THRESHOLD_CENTS,
+      onRollback: (orderId, checkoutAttemptId, paymentIntentId, reason) =>
+        this.rollbackUnpaidCheckout(orderId, checkoutAttemptId, paymentIntentId, reason),
+    });
   }
 
   reserveCheckout(params: ReserveCheckoutParams): Promise<Order> {
@@ -93,25 +99,10 @@ export class CheckoutFlowService {
   }
 
   completeWithPaymentMethod(params: CompleteWithPaymentMethodParams): Promise<Order> {
-    if (this.checkoutGateway) {
-      return this.checkoutGateway.finalizeCheckout({
-        userId: params.userId,
-        shippingAddress: params.shippingAddress,
-        paymentMethodId: params.paymentMethodId,
-        idempotencyKey: params.idempotencyKey || crypto.randomUUID(),
-        discountCode: params.discountCode,
-      });
-    }
-
-    return this.mutations.runCheckoutReservation({
-      userId: params.userId,
-      shippingAddress: params.shippingAddress,
-      userEmail: params.userEmail,
-      userName: params.userName,
-      discountCode: params.discountCode,
-      idempotencyKey: params.idempotencyKey,
-      paymentMethodId: params.paymentMethodId,
-      fulfillmentMethod: params.fulfillmentMethod,
+    return completeCheckoutWithPaymentMethod({
+      mutations: this.mutations,
+      checkoutGateway: this.checkoutGateway,
+      input: params,
     });
   }
 
@@ -162,52 +153,6 @@ export class CheckoutFlowService {
         rollbackUnpaidCheckout: (orderId, attemptId, pi, reason) =>
           this.rollbackUnpaidCheckout(orderId, attemptId, pi, reason),
       },
-    });
-  }
-
-  private async runStartClientCheckout(params: StartClientCheckoutParams): Promise<ClientPaymentIntentResult> {
-    const order = await this.mutations.runCheckoutReservation({
-      userId: params.userId,
-      shippingAddress: params.shippingAddress,
-      userEmail: params.userEmail,
-      userName: params.userName,
-      discountCode: params.discountCode,
-      idempotencyKey: params.idempotencyKey,
-    });
-
-    if (order.total >= CheckoutFlowService.HIGH_VALUE_THRESHOLD_CENTS) {
-      if (!params.requireHighValueStepUp) {
-        throw new Error('High-value checkout requires step-up verification.');
-      }
-
-      try {
-        await params.requireHighValueStepUp();
-      } catch (stepUpErr) {
-        logger.warn('Step-up verification failed for high-value order checkout. Triggering forensic rollback.', {
-          userId: params.userId,
-          orderId: order.id,
-          total: order.total,
-        });
-
-        await this.mutations.rollbackUnpaidCheckout(
-          order.id,
-          params.idempotencyKey,
-          null,
-          'high_value_step_up_failure'
-        );
-
-        throw stepUpErr;
-      }
-    }
-
-    return createOrResumeClientPaymentIntent({
-      orderRepo: this.orderRepo,
-      order,
-      userId: params.userId,
-      idempotencyKey: params.idempotencyKey,
-      stripe: params.stripe,
-      onRollback: (orderId, checkoutAttemptId, paymentIntentId, reason) =>
-        this.rollbackUnpaidCheckout(orderId, checkoutAttemptId, paymentIntentId, reason),
     });
   }
 }

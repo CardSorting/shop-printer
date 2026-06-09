@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { getServerServices } from '@infrastructure/server/services';
-import { StripeService } from '@infrastructure/services/StripeService';
 import { logger } from '@utils/logger';
 
 export async function POST(request: Request) {
@@ -12,7 +11,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 });
   }
 
-  const stripeService = new StripeService();
+  const services = await getServerServices();
+  const stripeService = services.stripeService;
   let event;
 
   try {
@@ -22,7 +22,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 });
   }
 
-  const services = await getServerServices();
   let claimToken: string | null = null;
 
   try {

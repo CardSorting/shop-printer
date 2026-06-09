@@ -10,7 +10,6 @@ import {
     optionalString,
     requireIdempotencyKey
 } from '@infrastructure/server/apiGuards';
-import { StripeService } from '@infrastructure/services/StripeService';
 import { DomainError } from '@domain/errors';
 
 /**
@@ -30,12 +29,11 @@ export async function POST(request: Request) {
     const discountCode = optionalString(body.discountCode, 'discountCode');
     const idempotencyKey = requireIdempotencyKey(body.idempotencyKey);
 
-    const stripeService = new StripeService();
     const result = await services.checkout.startClientCheckout({
       userId: user.id,
       shippingAddress,
       idempotencyKey,
-      stripe: stripeService,
+      stripe: services.stripeService,
       userEmail: user.email,
       userName: user.displayName,
       discountCode,

@@ -130,7 +130,7 @@ function createOrderService(
   locker: ILockProvider,
   checkoutGateway?: ICheckoutGateway,
 ) {
-  const checkout = createCheckoutStack({
+  const { checkout } = createCheckoutStack({
     orderRepo: repos.orderRepo,
     productRepo: repos.productRepo,
     cartRepo: repos.cartRepo,
@@ -144,11 +144,8 @@ function createOrderService(
   const orderService = new OrderService(
     repos.orderRepo,
     repos.productRepo,
-    repos.cartRepo,
     repos.discountRepo,
-    payment,
     audit,
-    locker,
     checkout,
     repos.shippingRepo,
   );

@@ -1,6 +1,6 @@
 export { CheckoutFlowService } from './CheckoutFlowService';
 export { createCheckoutStack } from './createCheckoutStack';
-export type { CheckoutStackDeps } from './createCheckoutStack';
+export type { CheckoutStack, CheckoutStackDeps } from './createCheckoutStack';
 export type { CheckoutMutationBackend, RunCheckoutReservationParams } from './checkoutMutationBackend';
 export { verifyPaymentFromClientFlow } from './checkoutVerifyFlow';
 export type {

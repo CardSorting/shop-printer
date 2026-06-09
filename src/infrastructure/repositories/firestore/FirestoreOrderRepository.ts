@@ -661,7 +661,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
   async updatePaymentTransactionId(id: string, paymentTransactionId: string, transaction?: any): Promise<void> {
     const db = getUnifiedDb();
     // Production Hardening: Atomically update both the order doc AND the PI→Order lookup map.
-    // Without the map write, finalizeOrderPayment (called by webhook) cannot resolve the order
+    // Without the map write, confirmStripePayment (called by webhook) cannot resolve the order
     // via getByPaymentTransactionIdTransactional.
     const operation = async (t: any) => {
       const orderRef = doc(db, this.collectionName, id);

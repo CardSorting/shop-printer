@@ -86,7 +86,7 @@ export class DiscountService {
     context?: DiscountValidationContext
   ): Promise<DiscountValidationResult> {
     // Production Hardening: Accept an optional transaction parameter so that when
-    // called from within a Firestore transaction (e.g., initiateCheckout), the discount
+    // called from within a Firestore transaction (e.g., runCheckoutReservation), the discount
     // lookup participates in the same transaction and prevents TOCTOU races on usage limits.
     const discount = await this.discountRepo.getByCode(code, transaction);
     if (!discount) return { valid: false, message: 'Invalid discount code' };

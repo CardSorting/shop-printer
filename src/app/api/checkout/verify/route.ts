@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
 import { jsonError, requireSessionUser, requireString } from '@infrastructure/server/apiGuards';
-import { StripeService } from '@infrastructure/services/StripeService';
 import { logger } from '@utils/logger';
 
 /**
@@ -15,8 +14,7 @@ export async function GET(request: Request) {
     const paymentIntentId = requireString(searchParams.get('payment_intent'), 'payment_intent');
 
     const services = await getServerServices();
-    const stripeService = new StripeService();
-    const pi = await stripeService.getPaymentIntent(paymentIntentId);
+    const pi = await services.stripeService.getPaymentIntent(paymentIntentId);
 
     const result = await services.checkout.verifyPaymentFromClient(user.id, paymentIntentId, pi);
     return NextResponse.json(result);

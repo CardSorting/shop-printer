@@ -4,7 +4,8 @@
  */
 import { getInitialServices } from '@core/container';
 
-export async function getServerServices() {
-    // Firestore doesn't require a manual local database initialization like SQLite
+export type ServerServices = ReturnType<typeof getInitialServices>;
+
+export async function getServerServices(): Promise<ServerServices> {
     return getInitialServices();
 }

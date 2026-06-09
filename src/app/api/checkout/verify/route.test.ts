@@ -7,6 +7,7 @@ const getPaymentIntent = vi.fn();
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
     checkout: { verifyPaymentFromClient },
+    stripeService: { getPaymentIntent },
   })),
 }));
 

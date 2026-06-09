@@ -1,9 +1,6 @@
 import type {
-  ICartRepository,
   IDiscountRepository,
-  ILockProvider,
   IOrderRepository,
-  IPaymentProcessor,
   IProductRepository,
   IShippingRepository,
 } from '@domain/repositories';
@@ -45,11 +42,8 @@ export class OrderService {
   constructor(
     private orderRepo: IOrderRepository,
     productRepo: IProductRepository,
-    cartRepo: ICartRepository,
     discountRepo: IDiscountRepository,
-    _payment: IPaymentProcessor,
     audit: AuditService,
-    _locker: ILockProvider,
     checkoutFlow: CheckoutFlowService,
     shippingRepo?: IShippingRepository
   ) {

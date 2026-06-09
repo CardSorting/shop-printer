@@ -20,8 +20,8 @@ Benchmark source:
 Covered flows:
 
 - `cart_add_to_cart`: `CartService.addToCart`, including transactional product lookup, cart read, cart rule evaluation, and cart save.
-- `checkout_reservation_only`: `OrderService.initiateCheckout` without payment, including checkout lock, cart read, product verification, stock reservation, order creation, checkout-attempt recording, cart clear, and audit call.
-- `full_order_payment_finalize`: `OrderService.initiateCheckout` with payment method, including all reservation steps, payment-processor call, PaymentIntent mapping, payment finalization, payment/fulfillment/reconciliation state transitions, checkout-attempt completion, and fulfillment event append.
+- `checkout_reservation_only`: `services.checkout.reserveCheckout`, including checkout lock, cart read, product verification, stock reservation, order creation, checkout-attempt recording, cart clear, and audit call.
+- `full_order_payment_finalize`: `services.checkout.completeWithPaymentMethod`, including all reservation steps, payment-processor call, PaymentIntent mapping, payment finalization, payment/fulfillment/reconciliation state transitions, checkout-attempt completion, and fulfillment event append.
 
 Runner:
 

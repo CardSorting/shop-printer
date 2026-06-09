@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCheckoutStack } from '@core/order/createCheckoutStack';
-import { OrderCheckoutService } from '@core/order/OrderCheckoutService';
 
 const runCheckoutReservation = vi.fn();
 const startClientCheckout = vi.fn();
@@ -26,6 +25,11 @@ const updateMetadata = vi.fn();
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
     checkout: { startClientCheckout },
+    stripeService: {
+      createPaymentIntent,
+      getPaymentIntent,
+      cancelPaymentIntent,
+    },
     cartRepo: { getByUserId: getCartByUserId, save: saveCart },
     productRepo: { batchUpdateStock },
     orderRepo: {
@@ -102,9 +106,7 @@ describe('checkout create payment intent retry handling', () => {
       getLatestCheckoutAttemptForUser,
       updateMetadata,
     };
-    vi.spyOn(OrderCheckoutService.prototype, 'runCheckoutReservation').mockImplementation(runCheckoutReservation);
-
-    const checkout = createCheckoutStack({
+    const { checkout, mutations } = createCheckoutStack({
       orderRepo: orderRepo as any,
       productRepo: { batchUpdateStock } as any,
       cartRepo: { getByUserId: getCartByUserId, save: saveCart } as any,
@@ -113,6 +115,7 @@ describe('checkout create payment intent retry handling', () => {
       audit: { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
       locker: { acquireLock: vi.fn(), releaseLock: vi.fn() } as any,
     });
+    vi.spyOn(mutations, 'runCheckoutReservation').mockImplementation(runCheckoutReservation);
 
     startClientCheckout.mockImplementation((params: any) => checkout.startClientCheckout(params));
   });

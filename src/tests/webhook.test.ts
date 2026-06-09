@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '../app/api/webhooks/stripe/route';
-import { StripeService } from '@infrastructure/services/StripeService';
 import { getServerServices } from '@infrastructure/server/services';
 
-vi.mock('@infrastructure/services/StripeService', () => {
-  const mockStripeService = {
+const { mockStripeService } = vi.hoisted(() => ({
+  mockStripeService: {
     constructEvent: vi.fn(),
     tryProcessEvent: vi.fn(),
     getEventStatus: vi.fn(),
@@ -13,14 +12,11 @@ vi.mock('@infrastructure/services/StripeService', () => {
     isEventProcessed: vi.fn(),
     markEventProcessed: vi.fn(),
     markEventFailed: vi.fn(),
-  };
-  return {
-    StripeService: vi.fn().mockImplementation(() => mockStripeService),
-  };
-});
+  },
+}));
 
-vi.mock('@infrastructure/server/services', () => {
-  const mockServices = {
+vi.mock('@infrastructure/server/services', () => ({
+  getServerServices: vi.fn().mockResolvedValue({
     checkout: {
       confirmPaymentFromStripe: vi.fn(),
       handleStripePaymentFailed: vi.fn(),
@@ -30,11 +26,9 @@ vi.mock('@infrastructure/server/services', () => {
       getByPaymentTransactionId: vi.fn(),
       getById: vi.fn(),
     },
-  };
-  return {
-    getServerServices: vi.fn().mockResolvedValue(mockServices),
-  };
-});
+    stripeService: mockStripeService,
+  }),
+}));
 
 vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue({
@@ -49,11 +43,8 @@ describe('Stripe Webhook Route - Reservation with Rollback', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     
-    // Retrieve references to our mocked instances
-    const stripeService = new StripeService();
-    mockStripe = stripeService;
-    
     const services = await getServerServices();
+    mockStripe = services.stripeService;
     mockOrderService = services.checkout;
     
     // Default constructEvent mockup returns a payment_intent.succeeded event

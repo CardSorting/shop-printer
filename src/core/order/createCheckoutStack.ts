@@ -10,6 +10,7 @@ import type {
 } from '@domain/repositories';
 import type { AuditService } from '../AuditService';
 import { CheckoutFlowService } from './CheckoutFlowService';
+import type { CheckoutMutationBackend } from './checkoutMutationBackend';
 import { OrderCheckoutService } from './OrderCheckoutService';
 
 export type CheckoutStackDeps = {
@@ -24,12 +25,17 @@ export type CheckoutStackDeps = {
   checkoutGateway?: ICheckoutGateway;
 };
 
+export type CheckoutStack = {
+  checkout: CheckoutFlowService;
+  mutations: CheckoutMutationBackend;
+};
+
 /**
  * Single construction path for checkout orchestration.
  * Container and tests should use this instead of wiring OrderCheckoutService directly.
  */
-export function createCheckoutStack(deps: CheckoutStackDeps): CheckoutFlowService {
-  const backend = new OrderCheckoutService(
+export function createCheckoutStack(deps: CheckoutStackDeps): CheckoutStack {
+  const mutations = new OrderCheckoutService(
     deps.orderRepo,
     deps.productRepo,
     deps.cartRepo,
@@ -39,5 +45,6 @@ export function createCheckoutStack(deps: CheckoutStackDeps): CheckoutFlowServic
     deps.locker,
     deps.shippingRepo,
   );
-  return new CheckoutFlowService(backend, deps.orderRepo, deps.checkoutGateway);
+  const checkout = new CheckoutFlowService(mutations, deps.orderRepo, deps.checkoutGateway);
+  return { checkout, mutations };
 }

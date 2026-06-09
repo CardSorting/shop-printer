@@ -36,6 +36,15 @@ vi.mock('@infrastructure/server/services', () => ({
     checkout: { confirmPaymentFromStripe, handleStripePaymentFailed },
     orderService: { updateOrderStatus },
     orderRepo: { getByPaymentTransactionId, getById, transitionPaymentState, guardedUpdateStatus },
+    stripeService: {
+      constructEvent,
+      tryProcessEvent,
+      getEventStatus,
+      markEventProcessed,
+      markEventFailed,
+      deleteEvent,
+      getPaymentIntent,
+    },
   })),
 }));
 

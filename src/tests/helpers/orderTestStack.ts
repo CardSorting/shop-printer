@@ -1,6 +1,7 @@
 import { OrderService } from '../../core/OrderService';
 import { createCheckoutStack } from '../../core/order/createCheckoutStack';
 import type { CheckoutFlowService } from '../../core/order/CheckoutFlowService';
+import type { CheckoutMutationBackend } from '../../core/order/checkoutMutationBackend';
 
 export type OrderTestStackMocks = {
   orderRepo: any;
@@ -17,8 +18,9 @@ export type OrderTestStackMocks = {
 export function createOrderTestStack(mocks: OrderTestStackMocks): {
   orderService: OrderService;
   checkout: CheckoutFlowService;
+  mutations: CheckoutMutationBackend;
 } {
-  const checkout = createCheckoutStack({
+  const { checkout, mutations } = createCheckoutStack({
     orderRepo: mocks.orderRepo,
     productRepo: mocks.productRepo,
     cartRepo: mocks.cartRepo,
@@ -32,13 +34,10 @@ export function createOrderTestStack(mocks: OrderTestStackMocks): {
   const orderService = new OrderService(
     mocks.orderRepo,
     mocks.productRepo,
-    mocks.cartRepo,
     mocks.discountRepo,
-    mocks.payment,
     mocks.audit,
-    mocks.locker,
     checkout,
     mocks.shippingRepo,
   );
-  return { orderService, checkout };
+  return { orderService, checkout, mutations };
 }

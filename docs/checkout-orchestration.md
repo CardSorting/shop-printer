@@ -7,9 +7,10 @@ Checkout is a monolith-local workflow. It coordinates cart reservation, order cr
 ```text
 Routes / UI / webhooks
   -> getServerServices().checkout   (container top-level)
-       -> createCheckoutStack()
+       -> createCheckoutStack() -> { checkout, mutations }
             -> CheckoutFlowService
-                 -> OrderCheckoutService (reservation, finalization, rollback only)
+                 -> checkoutClientStartFlow / checkoutPaymentMethodFlow / checkoutStripeWebhookFlow
+                 -> CheckoutMutationBackend (OrderCheckoutService — internal)
                  -> checkoutOrderResolver / checkoutPaymentIntentFlow / checkoutVerifyFlow
 ```
 

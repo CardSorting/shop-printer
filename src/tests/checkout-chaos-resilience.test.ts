@@ -394,7 +394,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
     db.reset();
     vi.clearAllMocks();
 
-    flow = createCheckoutStack({
+    ({ checkout: flow } = createCheckoutStack({
       orderRepo: mockOrderRepo,
       productRepo: mockProductRepo,
       cartRepo: mockCartRepo,
@@ -402,7 +402,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
       payment: mockPayment,
       audit: mockAudit,
       locker: mockLocker,
-    });
+    }));
 
     // Default setups
     db.stocks.set('p1', 5);
