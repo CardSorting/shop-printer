@@ -51,9 +51,18 @@ See also [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md) fo
 
 ## Inventory
 
-Inventory is an application protocol: cached stock counts, reservations, commits, and an append-only ledger. Routes, checkout, fulfillment, and admin call `services.inventory` only — never `productRepo.batchUpdateStock` directly.
+Inventory is a **movement protocol**, not a stock counter: cached catalog stock, location levels, reservations, commits, and an append-only ledger. Routes, checkout, fulfillment, and admin call `services.inventory` only — never `productRepo.batchUpdateStock` directly.
 
-The full guide — architecture, public methods, state machine, idempotency, routes, HTTP mapping, and audit checklist — lives in **[docs/inventory.md](docs/inventory.md)**.
+The full guide — architecture, public methods, PO receive fan-out (`receiveStockAtLocation`), reservation state machine, idempotency, HTTP mapping, defense-in-depth guards, verification ladders, and audit checklist — lives in **[docs/inventory.md](docs/inventory.md)**.
+
+Proof ladders:
+
+```bash
+npm test -- --run \
+  src/tests/inventory-protocol.test.ts \
+  src/tests/inventory-verification-ladder.test.ts \
+  src/tests/inventory-location-consistency-ladder.test.ts
+```
 
 ## Benchmark Baseline
 
