@@ -2,6 +2,8 @@ import type { IOrderRepository } from '@domain/repositories';
 import { logger } from '@utils/logger';
 import { CHECKOUT_RECOVERY_PHASES } from './checkoutWorkflow';
 import type { CheckoutStripeLookupPort, StripePaymentIntentSnapshot } from './checkoutTypes';
+import { transitionCheckoutOrderState } from './checkoutOrderState';
+import type { CheckoutCleanupError, CleanupExpiredPendingOrdersReport } from './checkoutApplicationService';
 
 type CleanupDeps = {
   orderRepo: IOrderRepository;
@@ -14,14 +16,20 @@ type CleanupDeps = {
   cancelExpiredOrder: (orderId: string) => Promise<void>;
 };
 
+function emptyReport(): CleanupExpiredPendingOrdersReport {
+  return { scanned: 0, expired: 0, cancelled: 0, failed: 0, errors: [] };
+}
+
 export async function cleanupExpiredPendingOrdersFlow(
   expirationMinutes: number,
   deps: CleanupDeps,
-): Promise<{ count: number }> {
+): Promise<CleanupExpiredPendingOrdersReport> {
   const cutoff = new Date();
   cutoff.setMinutes(cutoff.getMinutes() - expirationMinutes);
   const { orders } = await deps.orderRepo.getAll({ status: 'pending', to: cutoff });
-  let processed = 0;
+  const report = emptyReport();
+  report.scanned = orders.length;
+  report.expired = orders.length;
 
   for (const order of orders) {
     if (order.paymentTransactionId) {
@@ -44,8 +52,26 @@ export async function cleanupExpiredPendingOrdersFlow(
             paymentIntentId: paymentIntent.id,
             checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
           });
-          await deps.confirmPayment(paymentIntent.id, paymentIntent, 'system');
-          processed++;
+          try {
+            await deps.confirmPayment(paymentIntent.id, paymentIntent, 'system');
+            await transitionCheckoutOrderState({
+              orderRepo: deps.orderRepo,
+              orderId: order.id,
+              from: ['pending_payment', 'checkout_session_created', 'recovery_pending', 'expired'],
+              to: 'recovered',
+              reason: 'cleanup_observed_stripe_success',
+              source: 'system_cleanup',
+              paymentIntentId: paymentIntent.id,
+            });
+          } catch (error) {
+            report.failed++;
+            report.errors.push({
+              orderId: order.id,
+              code: 'finalize_failed',
+              message: error instanceof Error ? error.message : 'Payment finalization failed during cleanup',
+              retryable: true,
+            });
+          }
           continue;
         }
 
@@ -54,6 +80,12 @@ export async function cleanupExpiredPendingOrdersFlow(
             orderId: order.id,
             paymentIntentId: paymentIntent.id,
             stripeStatus: paymentIntent.status,
+          });
+          report.errors.push({
+            orderId: order.id,
+            code: 'active_payment_intent',
+            message: `Active Stripe PaymentIntent in status ${paymentIntent.status}`,
+            retryable: true,
           });
           await deps.orderRepo.createOrUpdateReconciliationCase({
             paymentIntentId: paymentIntent.id,
@@ -78,6 +110,12 @@ export async function cleanupExpiredPendingOrdersFlow(
           paymentIntentId: order.paymentTransactionId,
           error,
         });
+        report.errors.push({
+          orderId: order.id,
+          code: 'stripe_lookup_failed',
+          message: error instanceof Error ? error.message : 'Stripe lookup failed',
+          retryable: true,
+        });
         await deps.orderRepo.createOrUpdateReconciliationCase({
           paymentIntentId: order.paymentTransactionId,
           orderId: order.id,
@@ -101,9 +139,38 @@ export async function cleanupExpiredPendingOrdersFlow(
       orderId: order.id,
       checkoutAttemptId: order.idempotencyKey || order.metadata?.checkoutAttemptId || null,
     });
-    await deps.cancelExpiredOrder(order.id);
-    processed++;
+    try {
+      await transitionCheckoutOrderState({
+        orderRepo: deps.orderRepo,
+        orderId: order.id,
+        from: ['pending_payment', 'checkout_session_created', 'payment_failed'],
+        to: 'expired',
+        reason: 'cleanup_expired_pending',
+        source: 'system_cleanup',
+        paymentIntentId: order.paymentTransactionId,
+      });
+      await deps.cancelExpiredOrder(order.id);
+      await transitionCheckoutOrderState({
+        orderRepo: deps.orderRepo,
+        orderId: order.id,
+        from: ['expired', 'pending_payment', 'checkout_session_created'],
+        to: 'cancelled',
+        reason: 'cleanup_expired_pending',
+        source: 'system_cleanup',
+        paymentIntentId: order.paymentTransactionId,
+      });
+      report.cancelled++;
+    } catch (error) {
+      report.failed++;
+      report.errors.push({
+        orderId: order.id,
+        code: 'cancel_failed',
+        message: error instanceof Error ? error.message : 'Cancellation failed during cleanup',
+        retryable: false,
+      });
+    }
   }
 
-  return { count: processed };
+  logger.info('checkout_cleanup_report', report);
+  return report;
 }

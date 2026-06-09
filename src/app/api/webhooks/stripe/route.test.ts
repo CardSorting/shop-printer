@@ -1,178 +1,48 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const constructEvent = vi.fn();
-const tryProcessEvent = vi.fn();
-const getEventStatus = vi.fn();
-const markEventProcessed = vi.fn();
-const markEventFailed = vi.fn();
-const deleteEvent = vi.fn();
-const confirmPaymentFromStripe = vi.fn();
-const handleStripePaymentFailed = vi.fn();
-const updateOrderStatus = vi.fn();
-const getByPaymentTransactionId = vi.fn();
-const getById = vi.fn();
-const transitionPaymentState = vi.fn();
-const guardedUpdateStatus = vi.fn();
-const getPaymentIntent = vi.fn();
+const handleCheckoutWebhook = vi.fn();
 
 vi.mock('next/headers', () => ({
   headers: vi.fn(async () => new Headers({ 'stripe-signature': 'sig' })),
 }));
 
-vi.mock('@infrastructure/services/StripeService', () => ({
-  StripeService: vi.fn(() => ({
-    constructEvent,
-    tryProcessEvent,
-    getEventStatus,
-    markEventProcessed,
-    markEventFailed,
-    deleteEvent,
-    getPaymentIntent,
-  })),
-}));
-
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
-    checkout: { confirmPaymentFromStripe, handleStripePaymentFailed },
-    orderService: { updateOrderStatus },
-    orderRepo: { getByPaymentTransactionId, getById, transitionPaymentState, guardedUpdateStatus },
-    stripeService: {
-      constructEvent,
-      tryProcessEvent,
-      getEventStatus,
-      markEventProcessed,
-      markEventFailed,
-      deleteEvent,
-      getPaymentIntent,
-    },
+    checkout: { handleCheckoutWebhook },
   })),
 }));
 
-describe('Stripe webhook replay handling', () => {
+describe('Stripe webhook route boundary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    constructEvent.mockReturnValue({
-      id: 'evt_1',
-      type: 'payment_intent.succeeded',
-      data: { object: { id: 'pi_1' } },
-    });
-    transitionPaymentState.mockResolvedValue(undefined);
-    guardedUpdateStatus.mockResolvedValue(undefined);
   });
 
-  it('does not finalize duplicate webhook events', async () => {
-    tryProcessEvent.mockResolvedValue(true);
-    getEventStatus.mockResolvedValue('completed');
+  it('delegates webhook processing to services.checkout', async () => {
+    handleCheckoutWebhook.mockResolvedValue({
+      ok: true,
+      data: { httpStatus: 200, received: true },
+    });
+    const { POST } = await import('./route');
+
+    const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.received).toBe(true);
+    expect(handleCheckoutWebhook).toHaveBeenCalledWith({ rawBody: '{}', signature: 'sig' });
+  });
+
+  it('returns duplicate acknowledgement from checkout ingress', async () => {
+    handleCheckoutWebhook.mockResolvedValue({
+      ok: true,
+      data: { httpStatus: 200, received: true, duplicate: true },
+      duplicate: true,
+    });
     const { POST } = await import('./route');
 
     const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
     const body = await response.json();
 
     expect(body.duplicate).toBe(true);
-    expect(confirmPaymentFromStripe).not.toHaveBeenCalled();
-    expect(markEventProcessed).not.toHaveBeenCalled();
-  });
-
-  it('does not acknowledge an in-flight duplicate webhook event', async () => {
-    tryProcessEvent.mockResolvedValue(true);
-    getEventStatus.mockResolvedValue('processing');
-    const { POST } = await import('./route');
-
-    const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
-    const body = await response.json();
-
-    expect(response.status).toBe(503);
-    expect(body.retry).toBe(true);
-    expect(confirmPaymentFromStripe).not.toHaveBeenCalled();
-    expect(markEventProcessed).not.toHaveBeenCalled();
-  });
-
-  it('marks event as completed after successful processing', async () => {
-    tryProcessEvent.mockResolvedValue({ alreadyProcessed: false, claimToken: 'claim-token-1' });
-    confirmPaymentFromStripe.mockResolvedValue({});
-    markEventProcessed.mockResolvedValue(undefined);
-    const { POST } = await import('./route');
-
-    const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
-    const body = await response.json();
-
-    expect(body.received).toBe(true);
-    expect(confirmPaymentFromStripe).toHaveBeenCalledWith('pi_1', { id: 'pi_1' }, 'stripe-webhook');
-    expect(markEventProcessed).toHaveBeenCalledWith('evt_1', 'payment_intent.succeeded', 'claim-token-1');
-  });
-
-  it('marks event as failed (not deleted) on processing error', async () => {
-    tryProcessEvent.mockResolvedValue({ alreadyProcessed: false, claimToken: 'claim-token-failed' });
-    confirmPaymentFromStripe.mockRejectedValue(new Error('Firestore timeout'));
-    markEventFailed.mockResolvedValue(undefined);
-    const { POST } = await import('./route');
-
-    const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
-
-    expect(response.status).toBe(500);
-    expect(markEventFailed).toHaveBeenCalledWith('evt_1', 'Firestore timeout', 'claim-token-failed');
-    expect(deleteEvent).not.toHaveBeenCalled();
-  });
-
-  it('finalizes instead of cancelling when a payment_failed event is stale and the intent now succeeded', async () => {
-    constructEvent.mockReturnValue({
-      id: 'evt_failed_stale',
-      type: 'payment_intent.payment_failed',
-      data: { object: { id: 'pi_1', metadata: { orderId: 'o1' } } },
-    });
-    tryProcessEvent.mockResolvedValue(false);
-    getPaymentIntent.mockResolvedValue({ id: 'pi_1', status: 'succeeded', metadata: { orderId: 'o1' } });
-    handleStripePaymentFailed.mockResolvedValue({ action: 'finalized', orderId: 'o1' });
-    confirmPaymentFromStripe.mockResolvedValue({ id: 'o1', status: 'processing' });
-    markEventProcessed.mockResolvedValue(undefined);
-    const { POST } = await import('./route');
-
-    const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
-
-    expect(response.status).toBe(200);
-    expect(handleStripePaymentFailed).toHaveBeenCalled();
-    expect(updateOrderStatus).not.toHaveBeenCalled();
-    expect(markEventProcessed).toHaveBeenCalledWith('evt_failed_stale', 'payment_intent.payment_failed', null);
-  });
-
-  it('leaves order unchanged when payment_failed is not in a terminal failed Stripe state', async () => {
-    constructEvent.mockReturnValue({
-      id: 'evt_failed_processing',
-      type: 'payment_intent.payment_failed',
-      data: { object: { id: 'pi_1', metadata: { orderId: 'o1' } } },
-    });
-    tryProcessEvent.mockResolvedValue(false);
-    getPaymentIntent.mockResolvedValue({ id: 'pi_1', status: 'processing', metadata: { orderId: 'o1' } });
-    handleStripePaymentFailed.mockResolvedValue({ action: 'ignored', reason: 'non_terminal_stripe_status:processing' });
-    markEventProcessed.mockResolvedValue(undefined);
-    const { POST } = await import('./route');
-
-    const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
-
-    expect(response.status).toBe(200);
-    expect(handleStripePaymentFailed).toHaveBeenCalled();
-    expect(confirmPaymentFromStripe).not.toHaveBeenCalled();
-    expect(updateOrderStatus).not.toHaveBeenCalled();
-  });
-
-  it('acknowledges a stale failed event without regressing locally paid payment truth', async () => {
-    constructEvent.mockReturnValue({
-      id: 'evt_failed_after_paid',
-      type: 'payment_intent.payment_failed',
-      data: { object: { id: 'pi_paid_then_failed', metadata: { orderId: 'o-paid' } } },
-    });
-    tryProcessEvent.mockResolvedValue({ alreadyProcessed: false, claimToken: 'claim-paid-regression' });
-    getPaymentIntent.mockResolvedValue({ id: 'pi_paid_then_failed', status: 'canceled', metadata: { orderId: 'o-paid' } });
-    handleStripePaymentFailed.mockResolvedValue({ action: 'ignored', reason: 'local_payment_already_finalized' });
-    markEventFailed.mockResolvedValue(undefined);
-    const { POST } = await import('./route');
-
-    const response = await POST(new Request('https://example.test/api/webhooks/stripe', { method: 'POST', body: '{}' }));
-
-    expect(response.status).toBe(200);
-    expect(transitionPaymentState).not.toHaveBeenCalled();
-    expect(guardedUpdateStatus).not.toHaveBeenCalled();
-    expect(markEventProcessed).toHaveBeenCalledWith('evt_failed_after_paid', 'payment_intent.payment_failed', 'claim-paid-regression');
-    expect(markEventFailed).not.toHaveBeenCalled();
   });
 });

@@ -19,7 +19,7 @@ vi.mock('@infrastructure/firebase/bridge', () => ({
 function makeOrderRepo(overrides: Record<string, any> = {}) {
   const repo: any = {
     getAll: vi.fn().mockResolvedValue({ orders: [] }),
-    getById: vi.fn(),
+    getById: vi.fn().mockImplementation(async (id: string) => ({ id, metadata: {}, paymentTransactionId: null })),
     getByIdempotencyKey: vi.fn().mockResolvedValue(null),
     getByPaymentTransactionIdTransactional: vi.fn(),
     guardedUpdateStatus: vi.fn(),
@@ -55,6 +55,7 @@ function makeOrderStack(orderRepo: any) {
     payment: { processPayment: vi.fn(), refundPayment: vi.fn() } as any,
     audit: { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
     locker: { acquireLock: vi.fn().mockResolvedValue({ success: true, fencingToken: 1 }), releaseLock: vi.fn() } as any,
+    stripe: { getPaymentIntent },
   });
 }
 
@@ -76,6 +77,7 @@ describe('financial recovery hardening', () => {
     };
     const orderRepo = makeOrderRepo({
       getAll: vi.fn().mockResolvedValue({ orders: [order] }),
+      getById: vi.fn().mockResolvedValue(order),
       getByPaymentTransactionIdTransactional: vi.fn().mockResolvedValue(order),
     });
     getPaymentIntent.mockResolvedValue({
@@ -86,9 +88,12 @@ describe('financial recovery hardening', () => {
     });
 
     const { checkout } = makeOrderStack(orderRepo);
-    const result = await checkout.cleanupExpiredPendingOrders(60, { getPaymentIntent });
+    const result = await checkout.cleanupExpiredPendingOrders({ maxAgeMinutes: 60 });
 
-    expect(result.count).toBe(1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.scanned).toBe(1);
+    expect(result.data.failed).toBe(0);
     expect(orderRepo.transitionPaymentState).toHaveBeenCalledWith('order-paid-cleanup', ['unpaid', 'requires_payment_method', 'processing'], 'paid', 'payment_finalized', expect.anything());
     expect(orderRepo.guardedUpdateStatus).toHaveBeenCalledWith('order-paid-cleanup', ['pending'], 'processing', 'payment_finalized', expect.anything());
     expect(orderRepo.guardedUpdateStatus).not.toHaveBeenCalledWith('order-paid-cleanup', expect.anything(), 'cancelled', expect.anything(), expect.anything());
@@ -107,13 +112,17 @@ describe('financial recovery hardening', () => {
     };
     const orderRepo = makeOrderRepo({
       getAll: vi.fn().mockResolvedValue({ orders: [order] }),
+      getById: vi.fn().mockResolvedValue(order),
     });
     getPaymentIntent.mockResolvedValue({ id: 'pi_processing_cleanup', status: 'processing' });
 
     const { checkout } = makeOrderStack(orderRepo);
-    const result = await checkout.cleanupExpiredPendingOrders(60, { getPaymentIntent });
+    const result = await checkout.cleanupExpiredPendingOrders({ maxAgeMinutes: 60 });
 
-    expect(result.count).toBe(0);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.cancelled).toBe(0);
+    expect(result.data.errors).toHaveLength(1);
     expect(orderRepo.guardedUpdateStatus).not.toHaveBeenCalled();
     expect(orderRepo.createOrUpdateReconciliationCase).toHaveBeenCalledWith(expect.objectContaining({
       paymentIntentId: 'pi_processing_cleanup',

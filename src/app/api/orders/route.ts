@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { checkoutRouteResponse } from '@infrastructure/server/checkoutRouteAdapter';
 import { assertRateLimit, jsonError, parseCheckoutRequest, parseOrderStatus, readJsonObject, requireSessionUser } from '@infrastructure/server/apiGuards';
 
 export async function GET(request: Request) {
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
         const user = await requireSessionUser();
         const { shippingAddress, paymentMethodId, idempotencyKey, discountCode } = parseCheckoutRequest(await readJsonObject(request));
         const services = await getServerServices();
-        const order = await services.checkout.completeWithPaymentMethod({
+        const result = await services.checkout.completeCheckoutWithPaymentMethod({
             userId: user.id,
             shippingAddress,
             paymentMethodId,
@@ -44,7 +45,10 @@ export async function POST(request: Request) {
             userEmail: user.email,
             userName: user.displayName,
         });
-        return NextResponse.json(order);
+        if (!result.ok) {
+            return checkoutRouteResponse(result);
+        }
+        return NextResponse.json(result.data);
     } catch (error) {
         return jsonError(error, 'Failed to place order');
     }

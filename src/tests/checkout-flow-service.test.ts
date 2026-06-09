@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CheckoutFlowService } from '../core/order/CheckoutFlowService';
 import * as paymentIntentFlow from '../core/order/checkoutPaymentIntentFlow';
+import { InMemoryCheckoutEventLog } from './helpers/inMemoryCheckoutEventLog';
 
 function makeOrderRepo(overrides: Record<string, any> = {}) {
   return {
     getAll: vi.fn().mockResolvedValue({ orders: [] }),
+    getById: vi.fn().mockResolvedValue({ id: 'order-1', metadata: {} }),
     getReconciliationCase: vi.fn(),
     updatePaymentTransactionId: vi.fn().mockResolvedValue(undefined),
     updateCheckoutAttempt: vi.fn().mockResolvedValue(undefined),
@@ -34,10 +36,18 @@ function makeMutations(overrides: Record<string, any> = {}) {
 function makeFlow(
   mutations = makeMutations(),
   orderRepo = makeOrderRepo(),
-  options: { cancelExpiredPendingOrder?: (orderId: string) => Promise<void> } = {},
+  options: {
+    cancelExpiredPendingOrder?: (orderId: string) => Promise<void>;
+    stripe?: any;
+    eventLog?: InMemoryCheckoutEventLog;
+    recordOperatorAction?: ReturnType<typeof vi.fn>;
+  } = {},
 ) {
   return new CheckoutFlowService(mutations as any, orderRepo as any, {
     cancelExpiredPendingOrder: options.cancelExpiredPendingOrder ?? vi.fn().mockResolvedValue(undefined),
+    stripe: options.stripe,
+    eventLog: options.eventLog ?? new InMemoryCheckoutEventLog(),
+    recordOperatorAction: options.recordOperatorAction ?? vi.fn().mockResolvedValue(undefined),
   });
 }
 
@@ -139,19 +149,21 @@ describe('CheckoutFlowService', () => {
     };
     const orderRepo = makeOrderRepo({
       getAll: vi.fn().mockResolvedValue({ orders: [order] }),
+      getById: vi.fn().mockResolvedValue(order),
     });
     const mutations = makeMutations({
       confirmStripePayment: vi.fn().mockResolvedValue({ id: 'order-cleanup', status: 'processing' }),
     });
     const cancelExpiredOrder = vi.fn();
-    const flow = makeFlow(mutations, orderRepo, { cancelExpiredPendingOrder: cancelExpiredOrder });
+    const stripe = { getPaymentIntent: vi.fn().mockResolvedValue({ id: 'pi_cleanup', status: 'succeeded' }) };
+    const flow = makeFlow(mutations, orderRepo, { cancelExpiredPendingOrder: cancelExpiredOrder, stripe });
 
-    const result = await flow.cleanupExpiredPendingOrders(
-      60,
-      { getPaymentIntent: vi.fn().mockResolvedValue({ id: 'pi_cleanup', status: 'succeeded' }) },
-    );
+    const result = await flow.cleanupExpiredPendingOrders({ maxAgeMinutes: 60 });
 
-    expect(result.count).toBe(1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.scanned).toBe(1);
+    expect(result.data.cancelled).toBe(0);
     expect(mutations.confirmStripePayment).toHaveBeenCalledWith('pi_cleanup', expect.anything(), 'system');
     expect(cancelExpiredOrder).not.toHaveBeenCalled();
   });
@@ -200,17 +212,17 @@ describe('CheckoutFlowService', () => {
     const mutations = makeMutations({
       confirmStripePayment: vi.fn().mockResolvedValue({ id: 'order-route', status: 'processing' }),
     });
-    const flow = makeFlow(mutations, orderRepo);
     const recordOperatorAction = vi.fn().mockResolvedValue(undefined);
+    const flow = makeFlow(mutations, orderRepo, { recordOperatorAction });
 
-    await flow.handleReconciliationOperatorAction({
+    const actionResult = await flow.handleReconciliationOperatorAction({
       caseId: 'pi_route_paid_not_finalized',
       action: 'retry_recovery',
       reason: 'operator retry',
       actor: { id: 'admin-1', email: 'admin@test.com' },
-      recordOperatorAction,
     });
 
+    expect(actionResult.ok).toBe(true);
     expect(recordOperatorAction).toHaveBeenNthCalledWith(1, {
       caseId: 'pi_route_paid_not_finalized',
       action: 'retry_recovery',
@@ -224,5 +236,62 @@ describe('CheckoutFlowService', () => {
       reason: 'Automated recovery retry completed successfully: operator retry',
       actor: { id: 'admin-1', email: 'admin@test.com' },
     });
+  });
+
+  it('handleReconciliationOperatorAction is idempotent for duplicate retry_recovery', async () => {
+    const orderRepo = makeOrderRepo({
+      getReconciliationCase: vi.fn().mockResolvedValue({
+        paymentIntentId: 'pi_dup',
+        reason: 'paid_not_finalized',
+        severity: 'high',
+        operatorVisibleMessage: 'needs recovery',
+        evidence: [],
+      }),
+    });
+    const mutations = makeMutations({
+      confirmStripePayment: vi.fn().mockResolvedValue({ id: 'order-dup', status: 'processing' }),
+    });
+    const eventLog = new InMemoryCheckoutEventLog();
+    const recordOperatorAction = vi.fn().mockResolvedValue(undefined);
+    const flow = makeFlow(mutations, orderRepo, { eventLog, recordOperatorAction });
+    const input = {
+      caseId: 'pi_dup_paid_not_finalized',
+      action: 'retry_recovery' as const,
+      reason: 'operator retry',
+      actor: { id: 'admin-1', email: 'admin@test.com' },
+    };
+
+    const first = await flow.handleReconciliationOperatorAction(input);
+    const second = await flow.handleReconciliationOperatorAction(input);
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(first.duplicate).toBeFalsy();
+    expect(second.duplicate).toBe(true);
+    expect(mutations.confirmStripePayment).toHaveBeenCalledTimes(1);
+  });
+
+  it('handleCheckoutWebhook dedupes completed Stripe events', async () => {
+    const mutations = makeMutations();
+    const stripe = {
+      constructEvent: vi.fn().mockReturnValue({
+        id: 'evt_dup',
+        type: 'payment_intent.succeeded',
+        data: { object: { id: 'pi_dup', metadata: {} } },
+      }),
+      tryProcessEvent: vi.fn().mockResolvedValue({ alreadyProcessed: true, claimToken: null }),
+      getEventStatus: vi.fn().mockResolvedValue('completed'),
+      markEventProcessed: vi.fn(),
+      markEventFailed: vi.fn(),
+    };
+    const flow = makeFlow(mutations, makeOrderRepo(), { stripe });
+
+    const result = await flow.handleCheckoutWebhook({ rawBody: 'payload', signature: 'sig' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).toMatchObject({ httpStatus: 200, received: true, duplicate: true });
+    expect(mutations.confirmStripePayment).not.toHaveBeenCalled();
   });
 });

@@ -315,12 +315,21 @@ export interface CartItem {
   weightGrams?: number;
 }
 
+export interface OrderStripeIdentity {
+  orderId: string;
+  checkoutSessionId?: string | null;
+  paymentIntentId?: string | null;
+  lastStripeEventId?: string | null;
+  reconciliationCaseId?: string | null;
+}
+
 export interface Order {
   id: string;
   userId: string;
   items: OrderItem[];
   total: number; // cents
   status: OrderStatus;
+  stripeIdentity?: OrderStripeIdentity;
   paymentState?: PaymentState;
   fulfillmentState?: FulfillmentState;
   reconciliationState?: ReconciliationState;

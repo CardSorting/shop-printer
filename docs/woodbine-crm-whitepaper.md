@@ -61,7 +61,7 @@ The checkout flow is the highest-risk workflow. WoodBine treats it as a recovera
 
 The implementation centers on:
 
-- `src/core/order/OrderCheckoutService.ts`
+- `src/core/order/CheckoutFlowService.ts`
 - `src/core/order/checkoutWorkflow.ts`
 - `src/core/order/checkoutForensics.ts`
 - `src/infrastructure/repositories/firestore/FirestoreOrderRepository.ts`

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { checkoutRouteResponse } from '@infrastructure/server/checkoutRouteAdapter';
 import { jsonError, parseBoundedLimit, requireAdminSession, readJsonObject } from '@infrastructure/server/apiGuards';
 
 export async function GET(request: Request) {
@@ -33,15 +34,23 @@ export async function POST(request: Request) {
     const services = await getServerServices();
     const actor = { id: adminUser.id, email: adminUser.email };
 
-    await services.checkout.handleReconciliationOperatorAction({
+    const result = await services.checkout.handleReconciliationOperatorAction({
       caseId,
       action,
       reason,
       actor,
-      recordOperatorAction: (input) => services.orderService.handleReconciliationOperatorAction(input),
     });
 
-    return NextResponse.json({ success: true, message: 'Operator action applied successfully' });
+    if (!result.ok) {
+      return checkoutRouteResponse(result);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Operator action applied successfully',
+      duplicate: result.duplicate ?? false,
+      applied: result.data.applied,
+    });
   } catch (error) {
     return jsonError(error, 'Failed to apply reconciliation operator action', request);
   }

@@ -8,10 +8,13 @@ import type {
   IProductRepository,
   IShippingRepository,
 } from '@domain/repositories';
+import type { StripeService } from '@infrastructure/services/StripeService';
 import type { AuditService } from '../AuditService';
 import { CheckoutFlowService } from './CheckoutFlowService';
 import type { CheckoutMutationBackend } from './checkoutMutationBackend';
 import { CheckoutMutationService } from './checkoutMutationService';
+import type { ICheckoutEventLog } from './checkoutEventLog';
+import type { ReconciliationOperatorAction } from './checkoutTypes';
 
 export type CheckoutStackDeps = {
   orderRepo: IOrderRepository;
@@ -23,7 +26,15 @@ export type CheckoutStackDeps = {
   locker: ILockProvider;
   shippingRepo?: IShippingRepository;
   checkoutGateway?: ICheckoutGateway;
+  stripe?: StripeService;
+  eventLog?: ICheckoutEventLog;
   cancelExpiredPendingOrder?: (orderId: string) => Promise<void>;
+  recordOperatorAction?: (input: {
+    caseId: string;
+    action: ReconciliationOperatorAction;
+    reason: string;
+    actor: { id: string; email: string };
+  }) => Promise<void>;
 };
 
 export type CheckoutStack = {
@@ -48,7 +59,10 @@ export function createCheckoutStack(deps: CheckoutStackDeps): CheckoutStack {
   );
   const checkout = new CheckoutFlowService(mutations, deps.orderRepo, {
     checkoutGateway: deps.checkoutGateway,
+    stripe: deps.stripe,
+    eventLog: deps.eventLog,
     cancelExpiredPendingOrder: deps.cancelExpiredPendingOrder,
+    recordOperatorAction: deps.recordOperatorAction,
   });
   return { checkout, mutations };
 }

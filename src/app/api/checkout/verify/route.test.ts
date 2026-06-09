@@ -1,18 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { OrderNotFoundError, UnauthorizedError } from '@domain/errors';
 
-const verifyPaymentFromClient = vi.fn();
-const getPaymentIntent = vi.fn();
+const recoverPendingOrder = vi.fn();
 
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
-    checkout: { verifyPaymentFromClient },
-    stripeService: { getPaymentIntent },
+    checkout: { recoverPendingOrder },
   })),
-}));
-
-vi.mock('@infrastructure/services/StripeService', () => ({
-  StripeService: vi.fn(() => ({ getPaymentIntent })),
 }));
 
 vi.mock('@infrastructure/server/apiGuards', () => ({
@@ -30,25 +23,31 @@ vi.mock('@infrastructure/server/apiGuards', () => ({
 describe('checkout verify authorization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getPaymentIntent.mockResolvedValue({ id: 'pi_1', status: 'succeeded', metadata: { orderId: 'o1' } });
   });
 
   it('does not finalize a payment intent owned by another user', async () => {
-    verifyPaymentFromClient.mockRejectedValue(new UnauthorizedError());
+    recoverPendingOrder.mockResolvedValue({
+      ok: false,
+      code: 'VERIFICATION_FAILED',
+      message: 'Unauthorized',
+      retryable: false,
+    });
     const { GET } = await import('./route');
 
     const response = await GET(new Request('https://example.test/api/checkout/verify?payment_intent=pi_1'));
 
-    expect(response.status).toBe(403);
-    expect(verifyPaymentFromClient).toHaveBeenCalledWith('user-1', 'pi_1', {
-      id: 'pi_1',
-      status: 'succeeded',
-      metadata: { orderId: 'o1' },
+    expect(response.status).toBe(400);
+    expect(recoverPendingOrder).toHaveBeenCalledWith({
+      userId: 'user-1',
+      paymentIntentId: 'pi_1',
     });
   });
 
   it('delegates verification to the centralized checkout flow', async () => {
-    verifyPaymentFromClient.mockResolvedValue({ success: true, orderId: 'o1', status: 'processing' });
+    recoverPendingOrder.mockResolvedValue({
+      ok: true,
+      data: { success: true, orderId: 'o1', status: 'processing' },
+    });
     const { GET } = await import('./route');
 
     const response = await GET(new Request('https://example.test/api/checkout/verify?payment_intent=pi_1'));
@@ -56,19 +55,23 @@ describe('checkout verify authorization', () => {
 
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
-    expect(verifyPaymentFromClient).toHaveBeenCalledWith('user-1', 'pi_1', {
-      id: 'pi_1',
-      status: 'succeeded',
-      metadata: { orderId: 'o1' },
+    expect(recoverPendingOrder).toHaveBeenCalledWith({
+      userId: 'user-1',
+      paymentIntentId: 'pi_1',
     });
   });
 
-  it('returns not found when checkout resolution fails', async () => {
-    verifyPaymentFromClient.mockRejectedValue(new OrderNotFoundError('pi_1'));
+  it('returns verification failure when checkout resolution fails', async () => {
+    recoverPendingOrder.mockResolvedValue({
+      ok: false,
+      code: 'RECOVERY_FAILED',
+      message: 'Order not found',
+      retryable: false,
+    });
     const { GET } = await import('./route');
 
     const response = await GET(new Request('https://example.test/api/checkout/verify?payment_intent=pi_1'));
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(400);
   });
 });

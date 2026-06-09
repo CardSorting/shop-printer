@@ -19,8 +19,9 @@ export async function startClientCheckoutFlow(params: {
     paymentIntentId: string | null,
     reason: string,
   ) => Promise<void>;
+  onSessionCreated?: (orderId: string, paymentIntentId: string) => Promise<void>;
 }): Promise<ClientPaymentIntentResult> {
-  const { mutations, orderRepo, input, highValueThresholdCents, onRollback } = params;
+  const { mutations, orderRepo, input, highValueThresholdCents, onRollback, onSessionCreated } = params;
 
   const order = await mutations.runCheckoutReservation({
     userId: input.userId,
@@ -56,7 +57,7 @@ export async function startClientCheckoutFlow(params: {
     }
   }
 
-  return createOrResumeClientPaymentIntent({
+  const result = await createOrResumeClientPaymentIntent({
     orderRepo,
     order,
     userId: input.userId,
@@ -64,4 +65,10 @@ export async function startClientCheckoutFlow(params: {
     stripe: input.stripe as CheckoutStripePort,
     onRollback,
   });
+
+  if (onSessionCreated) {
+    await onSessionCreated(result.orderId, result.paymentIntentId);
+  }
+
+  return result;
 }

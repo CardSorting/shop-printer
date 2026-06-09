@@ -11,7 +11,7 @@ Come for the food, stay for the people—and the space. No membership, no dress 
 | Area | Current implementation |
 | --- | --- |
 | Storefront | Home, product listing/detail, collections, search, cart, checkout, account, orders, wishlist, support, blog, and digital vault pages. |
-| Checkout and orders | `CheckoutFlowService` (`services.checkout`) coordinates cart reservation, order creation, Stripe PaymentIntent creation, payment finalization, rollback, reconciliation, and operator recovery. `OrderService` handles fulfillment, reads, and admin mutations only. |
+| Checkout and orders | `CheckoutApplicationService` (`services.checkout` / `CheckoutFlowService`) is the only checkout boundary for routes. It coordinates sessions, webhooks, recovery, cleanup, and operator actions. `OrderService` handles fulfillment, reads, and admin mutations only. |
 | Admin console | Dashboard, orders, products, bulk editor, inventory, receiving/purchase orders, suppliers, collections, taxonomy, discounts, analytics, support tickets, settings, files, blog, audit, and operations planning routes. |
 | Persistence | Firestore repositories implement Domain repository contracts for products, carts, orders, discounts, settings, suppliers, inventory, support, marketing, wishlists, and digital access. |
 | Security | Signed HTTP-only sessions, admin route guards, same-origin mutation policy, rate-limit guards, idempotency keys, and checkout locks. |

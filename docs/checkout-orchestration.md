@@ -6,43 +6,66 @@ Checkout is a monolith-local workflow. It coordinates cart reservation, order cr
 
 ```text
 Routes / UI / webhooks
-  -> getServerServices().checkout   (container top-level)
-       -> createCheckoutStack() -> { checkout, mutations }
-            -> CheckoutFlowService
-                 -> checkoutClientStartFlow / checkoutPaymentMethodFlow / checkoutStripeWebhookFlow
-                 -> CheckoutMutationService (CheckoutMutationBackend — internal)
-                 -> checkoutOrderResolver / checkoutPaymentIntentFlow / checkoutVerifyFlow
+  -> getServerServices().checkout   (CheckoutApplicationService)
+       -> createCheckoutStack() -> CheckoutFlowService
+            -> checkoutClientStartFlow / checkoutPaymentMethodFlow / checkoutWebhookIngressFlow
+            -> CheckoutMutationService (CheckoutMutationBackend — internal)
+            -> checkoutOrderResolver / checkoutPaymentIntentFlow / checkoutVerifyFlow
+            -> checkoutOrderState / checkoutEventLog
 ```
 
-`OrderService` has no checkout dependency. System cleanup, operator recovery retries, and all payment flows go through `services.checkout`.
+`OrderService` has no checkout dependency. Routes never pass `stripeService`, cancellation callbacks, or operator-action recorders — those are injected when the stack is built.
+
+## Public API (`CheckoutApplicationService`)
+
+Every public method returns `CheckoutResult<T>`:
+
+```ts
+type CheckoutResult<T> =
+  | { ok: true; data: T; duplicate?: boolean }
+  | { ok: false; code: CheckoutErrorCode; message: string; retryable: boolean };
+```
+
+| Method | Used by | Success data |
+|--------|---------|--------------|
+| `createCheckoutSession` | `POST /api/checkout/create-payment-intent` | `CreateCheckoutSessionData` |
+| `completeCheckoutWithPaymentMethod` | `POST /api/orders` | `Order` |
+| `recoverPendingOrder` | `GET /api/checkout/verify` | `RecoverPendingOrderData` |
+| `handleCheckoutWebhook` | `POST /api/webhooks/stripe` | `HandleCheckoutWebhookData` |
+| `handleReconciliationOperatorAction` | `POST /api/admin/reconciliation/cases` | `HandleOperatorActionData` |
+| `cleanupExpiredPendingOrders` | `POST /api/system/cleanup-orders` | `CleanupExpiredPendingOrdersReport` |
+
+Routes map failures via `checkoutRouteAdapter.ts`. Internal-only (tests/benchmarks): `reserveCheckout`, `confirmPaymentFromStripe`, `resolveOrder`, etc.
+
+### Cleanup report shape
+
+```ts
+{
+  scanned: number;
+  expired: number;
+  cancelled: number;
+  failed: number;
+  errors: CheckoutCleanupError[];
+}
+```
+
+## Stack Dependencies (injected at construction)
+
+- `stripe` — PaymentIntent create/lookup + webhook ingress (single instance from container)
+- `eventLog` — `checkout_recovery_attempts`, `operator_action_events` idempotency
+- `cancelExpiredPendingOrder` — wired from `OrderService` admin path
+- `recordOperatorAction` — wired from `OrderService` reconciliation admin path
+- `checkoutGateway` — optional `TrustedCheckoutGateway` when `CHECKOUT_ENDPOINT` is set
 
 ## Responsibilities
 
-- `CheckoutFlowService` (`services.checkout`) is the **only** public checkout API. Legacy `OrderService.initiateCheckout`, `placeOrder`, `finalizeTrustedCheckout`, and related passthroughs have been removed.
-- `CheckoutMutationService` implements `CheckoutMutationBackend` (`runCheckoutReservation`, `confirmStripePayment`, `rollbackUnpaidCheckout`) — internal only, constructed via `createCheckoutStack()`.
-- `checkoutStripeWebhookFlow.ts` owns `payment_intent.payment_failed` convergence logic.
-- `checkoutOrderResolver.ts` is the single order lookup path (`paymentTransactionId` → `metadata.orderId` fallback).
-- `checkoutPaymentIntentFlow.ts` owns client PaymentIntent create/resume phase transitions and rollback side effects.
-- Checkout API routes are thin HTTP adapters that call `services.checkout.*` — they should not compose primitives or resolution chains directly.
-
-### CheckoutFlowService API
-
-| Method | Used by |
-|--------|---------|
-| `startClientCheckout` | `POST /api/checkout/create-payment-intent` |
-| `reserveCheckout` | Inventory reservation without payment (benchmarks, tests) |
-| `completeWithPaymentMethod` | `POST /api/orders`, UI checkout |
-| `verifyPaymentFromClient` | `GET /api/checkout/verify` |
-| `confirmPaymentFromStripe` | Stripe `payment_intent.succeeded` webhook, cleanup, reconciliation retry |
-| `handleStripePaymentFailed` | Stripe `payment_intent.payment_failed` webhook |
-| `rollbackUnpaidCheckout` | System cleanup, forensic rollback |
-| `cleanupExpiredPendingOrders` | `POST /api/system/cleanup-orders` (cancel wired at stack construction) |
-| `handleReconciliationOperatorAction` | Admin reconciliation operator actions (`retry_recovery` runs recovery + resolve) |
-| `completeOperatorRetryRecovery` | Internal recovery step used by `handleReconciliationOperatorAction` |
-| `resolveOrder` | Order lookup by PaymentIntent (internal/webhook helpers) |
-- `FirestoreOrderRepository.transitionCheckoutAttemptPhase` is the only writer for checkout attempt phase fields.
-- `OrderAdminService` owns reconciliation case summaries, forensic timeline reads, and operator actions.
-- `checkoutForensics.ts` renders timelines and diagnostics for operators.
+- `CheckoutFlowService` implements `CheckoutApplicationService` — the **only** checkout boundary for routes.
+- `CheckoutMutationService` implements `CheckoutMutationBackend` (`runCheckoutReservation`, `confirmStripePayment`, `rollbackUnpaidCheckout`) — internal only.
+- `checkoutWebhookIngressFlow.ts` — verify signature, dedupe Stripe event id, process, ack.
+- `checkoutEventLog.ts` — recovery and operator-action idempotency stores.
+- `checkoutOrderState.ts` — explicit checkout order states (`pending_payment` → `checkout_session_created` → `paid` → `recovered` / `cancelled` / `reconciliation_required`).
+- `OrderStripeIdentity` on `Order` — tracks `orderId`, `paymentIntentId`, `lastStripeEventId`, `reconciliationCaseId`.
+- `OrderAdminService` owns reconciliation case summaries, forensic timeline reads (read-only from routes).
 
 ## State Diagram
 
@@ -64,92 +87,45 @@ RECOVER_OR_RECONCILE
   -> operator reconciliation when payment ownership, mapping, or persistence is unsafe
 ```
 
-The persisted workflow phase is intentionally explicit. The operational phase is a smaller read model used for diagnostics:
+Checkout order state (metadata `checkoutOrderState`):
 
 ```text
-preparing -> reservation_acquired -> attempt_active -> order_initialized
-  -> payment_intent_ready -> awaiting_payment -> payment_confirmed -> finalized
-
-recovery_required and reconciliation_required are exception views.
-terminal covers cancelled/restored rollback outcomes.
+pending_payment -> checkout_session_created -> paid -> recovered -> resolved
+                              |-> payment_failed -> recovery_pending
+                              |-> expired -> cancelled
+                              |-> reconciliation_required -> resolved
 ```
 
-## Creation Flow
-
-1. Validate the shipping address and acquire the user checkout lock.
-2. Create or resume the checkout attempt.
-3. Create a pending order, reserve inventory, persist reservation metadata, clear the cart.
-4. Create or resume the Stripe PaymentIntent.
-5. Persist the PaymentIntent ID and move the attempt to `AWAIT_PAYMENT_CONFIRMATION`.
-6. Return the client secret. Stripe webhook or success-page verification performs finalization.
-
-## Payment Confirmation
-
-Stripe is treated as the payment authority, but local fulfillment only proceeds after local state is updated in a transaction.
-
-Finalization does four things:
-
-1. Find the order by PaymentIntent, falling back to Stripe metadata when safe.
-2. Reject unsafe ownership, stale attempt, terminal-order, and fencing-token conflicts into reconciliation.
-3. Mark payment paid, advance fulfillment state, clear reconciliation state, and finalize reservation metadata.
-4. Mark the checkout attempt complete after the order transaction commits.
-
-Webhook and verification may race. Both call the same idempotent finalizer, so the first successful transaction wins and later calls early-exit from paid/fulfilled local state.
-
-## Rollback Lifecycle
-
-Rollback is only for unpaid, unfinished checkout work.
+## Webhook Ingress
 
 ```text
-pending unpaid order
-  -> RECOVER_OR_RECONCILE
-  -> paymentState failed/cancelled
-  -> order cancelled
-  -> inventory reservation released
-  -> discount usage reverted
-  -> cart restored when no newer checkout/cart exists
+verify signature
+  -> claim Stripe event id (stripe_webhook_events)
+  -> if duplicate completed: ack fast
+  -> if in-flight: 503 retry
+  -> CheckoutFlowService confirms or reconciles
+  -> mark event completed
 ```
 
-Rollback exits without mutation when the order is already paid, finalized, or cancelled.
+## Idempotency
 
-## Reconciliation Flow
+- Stripe webhook events: `stripe_webhook_events` collection (via `StripeService`)
+- Recovery retries: `checkout_recovery_attempts` (via `FirestoreCheckoutEventLog`)
+- Operator actions: `operator_action_events` (via `FirestoreCheckoutEventLog`)
 
-Reconciliation is for cases where automation cannot safely infer business intent.
+## Audit Checklist
 
-Common cases:
-
-- `paid_not_finalized`: Stripe succeeded, local finalization did not complete.
-- `paid_cancelled`: Stripe succeeded after the order or attempt was cancelled.
-- `mapping_mismatch`: Stripe metadata points at an order linked to a different PaymentIntent.
-- `dangling_payment_intent`: Stripe payment exists but no local order mapping can be found.
-- `fencing_token_mismatch`: Checkout ownership token does not match.
-- `finalization_failure`: local finalization raised after payment success.
-
-Operator action paths:
-
-- Resolve or acknowledge when evidence proves the desired final state.
-- Retry recovery only for paid-but-not-finalized cases.
-- Start refund review when fulfillment is not intended.
-- Escalate when raw Stripe/local documents disagree or evidence is incomplete.
-
-## How Retries Converge
-
-- Idempotency keys deduplicate checkout creation and PaymentIntent creation.
-- Checkout attempts reject stale phase writes through expected-phase checks.
-- Payment finalization early-exits from already paid and safely fulfilled orders.
-- Fencing tokens prevent an older checkout attempt from winning after a newer one.
-- Rollback skips cart restore when a newer attempt or non-empty cart exists.
-- Reconciliation cases are keyed by PaymentIntent and reason, so repeated observations update one case instead of creating noise.
-
-## Operating Notes
-
-- Normal checkout completion should end with `paymentState=paid`, a non-cancelled fulfillment state, and `reconciliationState=none`.
-- `status=reconciling` means fulfillment, cancellation, and refund workflows should stop until an operator resolves the case.
-- Forensic timelines should be read from oldest to newest; the final row usually explains the current operator action.
-- Prefer resolving from Stripe evidence plus local transition history. Avoid direct writes to checkout phase fields.
-
-## Remaining Complexity To Watch
-
-- The system still stores both workflow phases and operational phases. This is useful for diagnostics, but it should not grow additional parallel state vocabularies.
-- Reconciliation classifications should remain few and operator-oriented. Add a new classification only when it changes routing or ownership.
-- Chaos tests should prove convergence properties, not mirror every implementation branch.
+```text
+[x] No route imports OrderCheckoutService
+[x] No route calls orderService cancellation for checkout
+[x] No route branches on retry_recovery
+[x] No route passes stripeService into checkout methods
+[x] One StripeService instance in container
+[x] CheckoutFlowService owns recovery
+[x] CheckoutFlowService owns cleanup
+[x] Webhooks dedupe by Stripe event id
+[x] Recovery dedupes by case/action
+[x] Stripe identity tracked on order metadata
+[x] Docs say CheckoutApplicationService is the only checkout public API
+[x] Tests cover duplicate webhook, duplicate retry_recovery, expired cleanup
+```

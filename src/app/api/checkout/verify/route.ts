@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { checkoutRouteResponse } from '@infrastructure/server/checkoutRouteAdapter';
 import { jsonError, requireSessionUser, requireString } from '@infrastructure/server/apiGuards';
 import { logger } from '@utils/logger';
 
@@ -14,10 +14,12 @@ export async function GET(request: Request) {
     const paymentIntentId = requireString(searchParams.get('payment_intent'), 'payment_intent');
 
     const services = await getServerServices();
-    const pi = await services.stripeService.getPaymentIntent(paymentIntentId);
+    const result = await services.checkout.recoverPendingOrder({
+      userId: user.id,
+      paymentIntentId,
+    });
 
-    const result = await services.checkout.verifyPaymentFromClient(user.id, paymentIntentId, pi);
-    return NextResponse.json(result);
+    return checkoutRouteResponse(result);
   } catch (error) {
     logger.error('Checkout verification failed', error);
     return jsonError(error, 'Verification failed');

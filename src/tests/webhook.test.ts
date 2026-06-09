@@ -2,31 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '../app/api/webhooks/stripe/route';
 import { getServerServices } from '@infrastructure/server/services';
 
-const { mockStripeService } = vi.hoisted(() => ({
-  mockStripeService: {
-    constructEvent: vi.fn(),
-    tryProcessEvent: vi.fn(),
-    getEventStatus: vi.fn(),
-    getPaymentIntent: vi.fn(),
-    deleteEvent: vi.fn(),
-    isEventProcessed: vi.fn(),
-    markEventProcessed: vi.fn(),
-    markEventFailed: vi.fn(),
-  },
+const { handleCheckoutWebhook } = vi.hoisted(() => ({
+  handleCheckoutWebhook: vi.fn(),
 }));
 
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn().mockResolvedValue({
-    checkout: {
-      confirmPaymentFromStripe: vi.fn(),
-      handleStripePaymentFailed: vi.fn(),
-    },
-    orderService: { updateOrderStatus: vi.fn() },
-    orderRepo: {
-      getByPaymentTransactionId: vi.fn(),
-      getById: vi.fn(),
-    },
-    stripeService: mockStripeService,
+    checkout: { handleCheckoutWebhook },
   }),
 }));
 
@@ -37,29 +19,15 @@ vi.mock('next/headers', () => ({
 }));
 
 describe('Stripe Webhook Route - Reservation with Rollback', () => {
-  let mockStripe: any;
-  let mockOrderService: any;
-
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
-    
-    const services = await getServerServices();
-    mockStripe = services.stripeService;
-    mockOrderService = services.checkout;
-    
-    // Default constructEvent mockup returns a payment_intent.succeeded event
-    mockStripe.constructEvent.mockReturnValue({
-      id: 'evt_123',
-      type: 'payment_intent.succeeded',
-      data: {
-        object: { id: 'pi_123' },
-      },
-    });
   });
 
   it('should process webhook event successfully if not already processed', async () => {
-    mockStripe.tryProcessEvent.mockResolvedValueOnce(false); // not yet processed, lock acquired
-    mockOrderService.confirmPaymentFromStripe.mockResolvedValueOnce({});
+    handleCheckoutWebhook.mockResolvedValueOnce({
+      ok: true,
+      data: { httpStatus: 200, received: true },
+    });
 
     const request = new Request('http://localhost/api/webhooks/stripe', {
       method: 'POST',
@@ -71,14 +39,18 @@ describe('Stripe Webhook Route - Reservation with Rollback', () => {
 
     expect(response.status).toBe(200);
     expect(data.received).toBe(true);
-    expect(mockStripe.tryProcessEvent).toHaveBeenCalledWith('evt_123', 'payment_intent.succeeded');
-    expect(mockOrderService.confirmPaymentFromStripe).toHaveBeenCalledWith('pi_123', expect.anything(), 'stripe-webhook');
-    expect(mockStripe.deleteEvent).not.toHaveBeenCalled();
+    expect(handleCheckoutWebhook).toHaveBeenCalledWith({
+      rawBody: 'payload',
+      signature: 'mock_sig',
+    });
   });
 
   it('should skip processing and return received: true if event is already completed', async () => {
-    mockStripe.tryProcessEvent.mockResolvedValueOnce(true); // already locked / processed
-    mockStripe.getEventStatus.mockResolvedValueOnce('completed');
+    handleCheckoutWebhook.mockResolvedValueOnce({
+      ok: true,
+      data: { httpStatus: 200, received: true, duplicate: true },
+      duplicate: true,
+    });
 
     const request = new Request('http://localhost/api/webhooks/stripe', {
       method: 'POST',
@@ -90,14 +62,15 @@ describe('Stripe Webhook Route - Reservation with Rollback', () => {
 
     expect(response.status).toBe(200);
     expect(data.duplicate).toBe(true);
-    expect(mockStripe.tryProcessEvent).toHaveBeenCalledWith('evt_123', 'payment_intent.succeeded');
-    expect(mockOrderService.confirmPaymentFromStripe).not.toHaveBeenCalled();
-    expect(mockStripe.deleteEvent).not.toHaveBeenCalled();
   });
 
-  it('should return 503 for duplicate delivery while original event is still processing', async () => {
-    mockStripe.tryProcessEvent.mockResolvedValueOnce(true);
-    mockStripe.getEventStatus.mockResolvedValueOnce('processing');
+  it('should return 503 when event is already being processed', async () => {
+    handleCheckoutWebhook.mockResolvedValueOnce({
+      ok: false,
+      code: 'WEBHOOK_IN_PROGRESS',
+      message: 'Webhook event is already being processed',
+      retryable: true,
+    });
 
     const request = new Request('http://localhost/api/webhooks/stripe', {
       method: 'POST',
@@ -105,18 +78,17 @@ describe('Stripe Webhook Route - Reservation with Rollback', () => {
     });
 
     const response = await POST(request);
-    const data = await response.json();
 
     expect(response.status).toBe(503);
-    expect(data.retry).toBe(true);
-    expect(mockOrderService.confirmPaymentFromStripe).not.toHaveBeenCalled();
-    expect(mockStripe.deleteEvent).not.toHaveBeenCalled();
   });
 
-  it('should mark event failed and return 500 if processing throws an error', async () => {
-    mockStripe.tryProcessEvent.mockResolvedValueOnce(false); // reserve succeeds
-    mockOrderService.confirmPaymentFromStripe.mockRejectedValueOnce(new Error('Database error during finalization'));
-    mockStripe.markEventFailed.mockResolvedValueOnce(undefined);
+  it('should return 500 when checkout webhook processing fails', async () => {
+    handleCheckoutWebhook.mockResolvedValueOnce({
+      ok: false,
+      code: 'WEBHOOK_PROCESSING_FAILED',
+      message: 'Internal server error processing webhook',
+      retryable: true,
+    });
 
     const request = new Request('http://localhost/api/webhooks/stripe', {
       method: 'POST',
@@ -124,13 +96,6 @@ describe('Stripe Webhook Route - Reservation with Rollback', () => {
     });
 
     const response = await POST(request);
-    const data = await response.json();
-
     expect(response.status).toBe(500);
-    expect(data.error).toBe('Internal server error processing webhook');
-    
-    // Assert retryable failure state was recorded
-    expect(mockStripe.markEventFailed).toHaveBeenCalledWith('evt_123', 'Database error during finalization', null);
-    expect(mockStripe.deleteEvent).not.toHaveBeenCalled();
   });
 });

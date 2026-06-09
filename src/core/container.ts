@@ -33,7 +33,8 @@ import { ProductService } from './ProductService';
 import { CartService } from './CartService';
 import { OrderService } from './OrderService';
 import { createCheckoutStack } from './order/createCheckoutStack';
-import type { CheckoutFlowService } from './order/CheckoutFlowService';
+import type { CheckoutApplicationService } from './order/checkoutApplicationService';
+import { FirestoreCheckoutEventLog } from '@infrastructure/checkout/FirestoreCheckoutEventLog';
 import { ShippingService } from './ShippingService';
 import { AuthService } from './AuthService';
 import { DiscountService } from './DiscountService';
@@ -117,7 +118,8 @@ let campaignRepoInstance: any | null = null;
 let campaignEventRepoInstance: any | null = null;
 let segmentRepoInstance: any | null = null;
 let orderServiceInstance: OrderService | null = null;
-let checkoutInstance: CheckoutFlowService | null = null;
+let checkoutInstance: CheckoutApplicationService | null = null;
+let checkoutEventLogInstance: FirestoreCheckoutEventLog | null = null;
 
 function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
@@ -139,6 +141,8 @@ function wireOrderCheckoutStack(
     repos.shippingRepo,
     stripeService,
   );
+  const eventLog = checkoutEventLogInstance ?? new FirestoreCheckoutEventLog();
+  checkoutEventLogInstance = eventLog;
   const { checkout } = createCheckoutStack({
     orderRepo: repos.orderRepo,
     productRepo: repos.productRepo,
@@ -149,7 +153,10 @@ function wireOrderCheckoutStack(
     locker,
     shippingRepo: repos.shippingRepo,
     checkoutGateway,
+    stripe: stripeService,
+    eventLog,
     cancelExpiredPendingOrder: (orderId) => orderService.cancelExpiredPendingOrder(orderId),
+    recordOperatorAction: (input) => orderService.handleReconciliationOperatorAction(input),
   });
   return { orderService, checkout };
 }

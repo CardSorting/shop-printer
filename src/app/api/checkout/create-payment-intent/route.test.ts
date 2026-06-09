@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCheckoutStack } from '@core/order/createCheckoutStack';
 
 const runCheckoutReservation = vi.fn();
-const startClientCheckout = vi.fn();
+const createCheckoutSession = vi.fn();
 const updatePaymentTransactionId = vi.fn();
 const updateOrderStatus = vi.fn();
 const updateCheckoutAttempt = vi.fn();
@@ -24,12 +24,7 @@ const batchUpdateStock = vi.fn();
 const updateMetadata = vi.fn();
 vi.mock('@infrastructure/server/services', () => ({
   getServerServices: vi.fn(async () => ({
-    checkout: { startClientCheckout },
-    stripeService: {
-      createPaymentIntent,
-      getPaymentIntent,
-      cancelPaymentIntent,
-    },
+    checkout: { createCheckoutSession },
     cartRepo: { getByUserId: getCartByUserId, save: saveCart },
     productRepo: { batchUpdateStock },
     orderRepo: {
@@ -114,10 +109,11 @@ describe('checkout create payment intent retry handling', () => {
       payment: { processPayment: vi.fn(), refundPayment: vi.fn() } as any,
       audit: { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
       locker: { acquireLock: vi.fn(), releaseLock: vi.fn() } as any,
+      stripe: { createPaymentIntent, getPaymentIntent, cancelPaymentIntent } as any,
     });
     vi.spyOn(mutations, 'runCheckoutReservation').mockImplementation(runCheckoutReservation);
 
-    startClientCheckout.mockImplementation((params: any) => checkout.startClientCheckout(params));
+    createCheckoutSession.mockImplementation((params: any) => checkout.createCheckoutSession(params));
   });
 
   it('returns an existing payment intent for a pending reservation instead of creating another one', async () => {
@@ -272,7 +268,7 @@ describe('checkout create payment intent retry handling', () => {
       }),
     }));
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(503);
     expect(transitionPaymentState).toHaveBeenCalledWith('order-rollback', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'checkout_payment_intent_creation_rollback', expect.anything());
     expect(guardedUpdateStatus).toHaveBeenCalledWith('order-rollback', ['pending'], 'cancelled', 'checkout_payment_intent_creation_rollback', expect.anything());
     expect(updateOrderStatus).not.toHaveBeenCalled();
@@ -467,7 +463,7 @@ describe('checkout create payment intent retry handling', () => {
       }),
     }));
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(503);
     expect(saveCart).not.toHaveBeenCalled();
     expect(updateCheckoutAttempt).toHaveBeenCalledWith('checkout:older-attempt', { state: 'restore_blocked' }, expect.anything());
   });

@@ -472,25 +472,26 @@ describe('Operator-Facing Reconciliation & Forensics Integration Tests', () => {
       });
 
       // Stale recovery attempt on a resolved case must be rejected
-      await expect(
-        svc.handleReconciliationOperatorAction({
-          caseId: kase.id,
-          action: 'retry_recovery',
-          reason: 'Try recovering',
-          actor: { id: 'admin-1', email: 'admin@test.com' },
-        })
-      ).rejects.toThrow(/already resolved and cannot be modified/i);
+      const staleRecovery = await checkout.handleReconciliationOperatorAction({
+        caseId: kase.id,
+        action: 'retry_recovery',
+        reason: 'Try recovering',
+        actor: { id: 'admin-1', email: 'admin@test.com' },
+      });
+      expect(staleRecovery.ok).toBe(false);
+      if (!staleRecovery.ok) {
+        expect(staleRecovery.message).toMatch(/already resolved and cannot be modified/i);
+      }
 
       // Idempotent mark_resolved on a resolved case must succeed with no-op
       const beforeEvidenceLen = kase.evidence?.length || 0;
-      await expect(
-        svc.handleReconciliationOperatorAction({
-          caseId: kase.id,
-          action: 'mark_resolved',
-          reason: 'Mark resolved',
-          actor: { id: 'admin-1', email: 'admin@test.com' },
-        })
-      ).resolves.not.toThrow();
+      const markResolved = await checkout.handleReconciliationOperatorAction({
+        caseId: kase.id,
+        action: 'mark_resolved',
+        reason: 'Mark resolved',
+        actor: { id: 'admin-1', email: 'admin@test.com' },
+      });
+      expect(markResolved.ok).toBe(true);
 
       const updatedCase = db.reconciliationCases.get(kase.id);
       expect(updatedCase?.evidence?.length).toBe(beforeEvidenceLen);
@@ -510,7 +511,7 @@ describe('Operator-Facing Reconciliation & Forensics Integration Tests', () => {
       const actor = { id: 'admin-1', email: 'admin@test.com' };
 
       // First run: transitions from open to resolved
-      await svc.handleReconciliationOperatorAction({
+      await checkout.handleReconciliationOperatorAction({
         caseId: kase.id,
         action: 'mark_resolved',
         reason: 'Resolved manually after inspection',
@@ -527,7 +528,7 @@ describe('Operator-Facing Reconciliation & Forensics Integration Tests', () => {
       expect(order?.reconciliationRequired).toBe(false);
 
       // Second run (Duplicate): should exit idempotently without adding new evidence or erroring
-      await svc.handleReconciliationOperatorAction({
+      await checkout.handleReconciliationOperatorAction({
         caseId: kase.id,
         action: 'mark_resolved',
         reason: 'Resolved manually after inspection',
@@ -549,7 +550,7 @@ describe('Operator-Facing Reconciliation & Forensics Integration Tests', () => {
         lifecycleState: 'open',
       });
 
-      await svc.handleReconciliationOperatorAction({
+      await checkout.handleReconciliationOperatorAction({
         caseId: kase.id,
         action: 'initiate_refund_review',
         reason: 'Operator triggered manual audit before refunding',

@@ -78,7 +78,7 @@ Shared admin navigation is centralized in `src/ui/navigation/adminNavigation.ts`
 | Capability | Core files |
 | --- | --- |
 | Cart | `src/core/CartService.ts` |
-| Checkout/order orchestration | `src/core/OrderService.ts`, `src/core/order/OrderCheckoutService.ts`, `src/core/order/checkoutWorkflow.ts` |
+| Checkout/order orchestration | `src/core/order/CheckoutFlowService.ts`, `src/core/order/checkoutApplicationService.ts`, `src/core/order/checkoutWorkflow.ts` |
 | Order reads/admin/logistics | `src/core/order/OrderReadService.ts`, `OrderAdminService.ts`, `OrderLogisticsService.ts` |
 | Refunds | `src/core/RefundService.ts` |
 | Fulfillment | `src/core/FulfillmentService.ts`, `src/core/order/OrderFulfillmentWorkflowService.ts` |

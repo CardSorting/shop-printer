@@ -2,6 +2,7 @@ import { OrderService } from '../../core/OrderService';
 import { createCheckoutStack } from '../../core/order/createCheckoutStack';
 import type { CheckoutFlowService } from '../../core/order/CheckoutFlowService';
 import type { CheckoutMutationBackend } from '../../core/order/checkoutMutationBackend';
+import { InMemoryCheckoutEventLog } from './inMemoryCheckoutEventLog';
 
 export type OrderTestStackMocks = {
   orderRepo: any;
@@ -13,6 +14,8 @@ export type OrderTestStackMocks = {
   locker: any;
   shippingRepo?: any;
   checkoutGateway?: any;
+  stripe?: any;
+  eventLog?: InMemoryCheckoutEventLog;
 };
 
 export function createOrderTestStack(mocks: OrderTestStackMocks): {
@@ -37,7 +40,10 @@ export function createOrderTestStack(mocks: OrderTestStackMocks): {
     locker: mocks.locker,
     shippingRepo: mocks.shippingRepo,
     checkoutGateway: mocks.checkoutGateway,
+    stripe: mocks.stripe,
+    eventLog: mocks.eventLog ?? new InMemoryCheckoutEventLog(),
     cancelExpiredPendingOrder: (orderId) => orderService.cancelExpiredPendingOrder(orderId),
+    recordOperatorAction: (input) => orderService.handleReconciliationOperatorAction(input),
   });
   return { orderService, checkout, mutations };
 }

@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { checkoutRouteResponse } from '@infrastructure/server/checkoutRouteAdapter';
 import {
     assertRateLimit,
     jsonError,
@@ -10,7 +10,6 @@ import {
     optionalString,
     requireIdempotencyKey
 } from '@infrastructure/server/apiGuards';
-import { DomainError } from '@domain/errors';
 
 /**
  * [LAYER: INTERFACE]
@@ -29,22 +28,18 @@ export async function POST(request: Request) {
     const discountCode = optionalString(body.discountCode, 'discountCode');
     const idempotencyKey = requireIdempotencyKey(body.idempotencyKey);
 
-    const result = await services.checkout.startClientCheckout({
+    const result = await services.checkout.createCheckoutSession({
       userId: user.id,
       shippingAddress,
       idempotencyKey,
-      stripe: services.stripeService,
       userEmail: user.email,
       userName: user.displayName,
       discountCode,
       requireHighValueStepUp: () => requireStepUpSessionUser(request, 5 * 60 * 1000),
     });
 
-    return NextResponse.json(result);
+    return checkoutRouteResponse(result);
   } catch (error) {
-    if (error instanceof DomainError) {
-      return jsonError(error, 'Checkout initiation failed');
-    }
     return jsonError(error, 'Checkout initiation failed');
   }
 }

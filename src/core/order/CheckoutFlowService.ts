@@ -1,5 +1,6 @@
 import type { ICheckoutGateway, IOrderRepository } from '@domain/repositories';
 import type { Order } from '@domain/models';
+import type { StripeService } from '@infrastructure/services/StripeService';
 import type { CheckoutMutationBackend } from './checkoutMutationBackend';
 import {
   type CheckoutStripePort,
@@ -15,8 +16,31 @@ import {
   completeOperatorRetryRecoveryFlow,
   handleReconciliationOperatorActionFlow,
 } from './checkoutOperatorFlow';
+import { handleCheckoutWebhookFlow } from './checkoutWebhookIngressFlow';
+import type { ICheckoutEventLog } from './checkoutEventLog';
+import { transitionCheckoutOrderState } from './checkoutOrderState';
+import {
+  checkoutErr,
+  checkoutFromError,
+  checkoutOk,
+  checkoutTry,
+  type CheckoutResult,
+} from './checkoutResult';
 import type {
-  CheckoutStripeLookupPort,
+  CheckoutApplicationService,
+  CleanupExpiredPendingOrdersInput,
+  CleanupExpiredPendingOrdersReport,
+  CompleteCheckoutWithPaymentMethodInput,
+  CreateCheckoutSessionData,
+  CreateCheckoutSessionInput,
+  HandleCheckoutWebhookData,
+  HandleCheckoutWebhookInput,
+  HandleOperatorActionData,
+  HandleOperatorActionInput,
+  RecoverPendingOrderData,
+  RecoverPendingOrderInput,
+} from './checkoutApplicationService';
+import type {
   CompleteWithPaymentMethodParams,
   ReconciliationOperatorAction,
   ReserveCheckoutParams,
@@ -28,7 +52,15 @@ import type {
 
 export type CheckoutFlowServiceOptions = {
   checkoutGateway?: ICheckoutGateway;
+  stripe?: CheckoutStripePort & Pick<StripeService, 'constructEvent' | 'tryProcessEvent' | 'getEventStatus' | 'markEventProcessed' | 'markEventFailed'>;
+  eventLog?: ICheckoutEventLog;
   cancelExpiredPendingOrder?: (orderId: string) => Promise<void>;
+  recordOperatorAction?: (input: {
+    caseId: string;
+    action: ReconciliationOperatorAction;
+    reason: string;
+    actor: { id: string; email: string };
+  }) => Promise<void>;
 };
 
 export type {
@@ -41,10 +73,10 @@ export type {
 } from './checkoutTypes';
 
 /**
- * Single checkout orchestration surface. Routes and webhooks should call this
- * instead of composing checkout mutation primitives directly.
+ * Checkout orchestration service. Implements CheckoutApplicationService for routes;
+ * internal flows and tests may call lower-level helpers on this class.
  */
-export class CheckoutFlowService {
+export class CheckoutFlowService implements CheckoutApplicationService {
   static readonly HIGH_VALUE_THRESHOLD_CENTS = 100_000;
 
   constructor(
@@ -57,14 +89,179 @@ export class CheckoutFlowService {
     return this.options.checkoutGateway;
   }
 
+  private get stripe() {
+    return this.options.stripe;
+  }
+
+  private get eventLog() {
+    return this.options.eventLog;
+  }
+
+  async createCheckoutSession(
+    input: CreateCheckoutSessionInput,
+  ): Promise<CheckoutResult<CreateCheckoutSessionData>> {
+    if (!this.stripe) {
+      return checkoutErr('STRIPE_NOT_CONFIGURED', 'Stripe is not configured on the checkout stack', true);
+    }
+    return checkoutTry(() => this.startClientCheckout({
+      userId: input.userId,
+      shippingAddress: input.shippingAddress,
+      idempotencyKey: input.idempotencyKey,
+      userEmail: input.userEmail,
+      userName: input.userName,
+      discountCode: input.discountCode,
+      requireHighValueStepUp: input.requireHighValueStepUp,
+    }));
+  }
+
+  async completeCheckoutWithPaymentMethod(
+    input: CompleteCheckoutWithPaymentMethodInput,
+  ): Promise<CheckoutResult<Order>> {
+    return checkoutTry(() => this.completeWithPaymentMethod(input));
+  }
+
+  async handleCheckoutWebhook(
+    input: HandleCheckoutWebhookInput,
+  ): Promise<CheckoutResult<HandleCheckoutWebhookData>> {
+    if (!this.stripe) {
+      return checkoutErr('STRIPE_NOT_CONFIGURED', 'Stripe is not configured on the checkout stack', true);
+    }
+    try {
+      const ingress = await handleCheckoutWebhookFlow(input, {
+        stripe: this.stripe,
+        confirmPaymentFromStripe: (pi, snapshot, actor, stripeEventId) =>
+          this.confirmPaymentFromStripe(pi, snapshot, actor, stripeEventId),
+        handleStripePaymentFailed: (params) => this.handleStripePaymentFailed(params),
+      });
+
+      if (ingress.status === 400) {
+        return checkoutErr('WEBHOOK_INVALID_SIGNATURE', String(ingress.body.error ?? 'Invalid webhook'), false);
+      }
+      if (ingress.status === 503) {
+        return checkoutErr('WEBHOOK_IN_PROGRESS', 'Webhook event is already being processed', true);
+      }
+      if (ingress.status >= 500) {
+        return checkoutErr('WEBHOOK_PROCESSING_FAILED', String(ingress.body.error ?? 'Webhook processing failed'), true);
+      }
+
+      return checkoutOk(
+        {
+          httpStatus: ingress.status,
+          received: Boolean(ingress.body.received),
+          duplicate: ingress.body.duplicate === true,
+          retry: ingress.body.retry === true,
+        },
+        ingress.body.duplicate === true,
+      );
+    } catch (error) {
+      return checkoutFromError(error);
+    }
+  }
+
+  async handleReconciliationOperatorAction(
+    input: HandleOperatorActionInput,
+  ): Promise<CheckoutResult<HandleOperatorActionData>> {
+    const recordOperatorAction = this.options.recordOperatorAction;
+    const eventLog = this.eventLog;
+    if (!recordOperatorAction || !eventLog) {
+      return checkoutErr('OPERATOR_NOT_CONFIGURED', 'Operator reconciliation is not configured on the checkout stack', true);
+    }
+
+    try {
+      const result = await handleReconciliationOperatorActionFlow({
+        caseId: input.caseId,
+        action: input.action,
+        reason: input.reason,
+        actor: input.actor,
+        eventLog,
+        recordOperatorAction,
+        runRetryRecovery: (recoveryInput) => this.completeOperatorRetryRecovery(recoveryInput),
+      });
+      return checkoutOk({ applied: true }, result.duplicate);
+    } catch (error) {
+      return checkoutErr(
+        'OPERATOR_ACTION_FAILED',
+        error instanceof Error ? error.message : 'Operator action failed',
+        false,
+      );
+    }
+  }
+
+  async cleanupExpiredPendingOrders(
+    input: CleanupExpiredPendingOrdersInput,
+  ): Promise<CheckoutResult<CleanupExpiredPendingOrdersReport>> {
+    if (!this.stripe) {
+      return checkoutErr('STRIPE_NOT_CONFIGURED', 'Stripe is not configured on the checkout stack', true);
+    }
+    const cancelExpiredOrder = this.options.cancelExpiredPendingOrder;
+    if (!cancelExpiredOrder) {
+      return checkoutErr('CLEANUP_NOT_CONFIGURED', 'Order cancellation is not configured on the checkout stack', true);
+    }
+
+    return checkoutTry(() => cleanupExpiredPendingOrdersFlow(input.maxAgeMinutes, {
+      orderRepo: this.orderRepo,
+      stripe: this.stripe,
+      confirmPayment: (pi, piSnapshot, actor) => this.confirmPaymentFromStripe(pi, piSnapshot, actor),
+      cancelExpiredOrder,
+    }));
+  }
+
+  async recoverPendingOrder(
+    input: RecoverPendingOrderInput,
+  ): Promise<CheckoutResult<RecoverPendingOrderData>> {
+    if (!this.stripe) {
+      return checkoutErr('STRIPE_NOT_CONFIGURED', 'Stripe is not configured on the checkout stack', true);
+    }
+    try {
+      const pi = await this.stripe.getPaymentIntent(input.paymentIntentId);
+      const verification = await this.verifyPaymentFromClient(
+        input.userId,
+        input.paymentIntentId,
+        pi as StripePaymentIntentSnapshot,
+      );
+      if (!verification.success) {
+        return checkoutErr(
+          'VERIFICATION_FAILED',
+          verification.message ?? 'Payment verification failed',
+          false,
+        );
+      }
+      return checkoutOk({
+        success: true,
+        orderId: verification.orderId,
+        status: verification.status,
+        message: verification.message,
+      });
+    } catch (error) {
+      return checkoutErr(
+        'RECOVERY_FAILED',
+        error instanceof Error ? error.message : 'Payment recovery failed',
+        false,
+      );
+    }
+  }
+
   startClientCheckout(params: StartClientCheckoutParams): Promise<ClientPaymentIntentResult> {
+    if (!params.stripe && !this.stripe) {
+      throw new Error('Stripe is not configured on the checkout stack');
+    }
     return startClientCheckoutFlow({
       mutations: this.mutations,
       orderRepo: this.orderRepo,
-      input: params,
+      input: { ...params, stripe: params.stripe ?? this.stripe! },
       highValueThresholdCents: CheckoutFlowService.HIGH_VALUE_THRESHOLD_CENTS,
       onRollback: (orderId, checkoutAttemptId, paymentIntentId, reason) =>
         this.rollbackUnpaidCheckout(orderId, checkoutAttemptId, paymentIntentId, reason),
+      onSessionCreated: (orderId, paymentIntentId) =>
+        transitionCheckoutOrderState({
+          orderRepo: this.orderRepo,
+          orderId,
+          from: null,
+          to: 'checkout_session_created',
+          reason: 'payment_intent_ready',
+          source: 'create_checkout_session',
+          paymentIntentId,
+        }),
     });
   }
 
@@ -92,16 +289,32 @@ export class CheckoutFlowService {
   confirmPaymentFromStripe(
     paymentIntentId: string,
     stripePi?: StripePaymentIntentSnapshot,
-    actor?: string
+    actor?: string,
+    stripeEventId?: string,
   ): Promise<Order> {
-    return this.mutations.confirmStripePayment(paymentIntentId, stripePi, actor);
+    const orderPromise = this.mutations.confirmStripePayment(paymentIntentId, stripePi, actor);
+    if (!stripeEventId) return orderPromise;
+
+    return orderPromise.then(async (order) => {
+      await transitionCheckoutOrderState({
+        orderRepo: this.orderRepo,
+        orderId: order.id,
+        from: ['checkout_session_created', 'recovery_pending', 'pending_payment', 'reconciliation_required'],
+        to: 'paid',
+        reason: 'stripe_payment_confirmed',
+        source: actor || 'stripe',
+        stripeEventId,
+        paymentIntentId,
+      });
+      return order;
+    });
   }
 
   verifyPaymentFromClient(
     userId: string,
     paymentIntentId: string,
     stripePi: StripePaymentIntentSnapshot
-  ): Promise<{ success: boolean; orderId?: string; status?: string; message?: string }> {
+  ): Promise<RecoverPendingOrderData> {
     return verifyPaymentFromClientFlow({
       orderRepo: this.orderRepo,
       userId,
@@ -127,49 +340,18 @@ export class CheckoutFlowService {
   handleStripePaymentFailed(params: {
     paymentIntent: StripePaymentIntentSnapshot;
     currentPaymentIntent: StripePaymentIntentSnapshot;
+    stripeEventId?: string;
   }): Promise<StripePaymentFailedResult> {
     return handleStripePaymentFailedFlow({
-      ...params,
+      paymentIntent: params.paymentIntent,
+      currentPaymentIntent: params.currentPaymentIntent,
       deps: {
         orderRepo: this.orderRepo,
-        confirmPayment: (pi, piSnapshot, confirmActor) => this.confirmPaymentFromStripe(pi, piSnapshot, confirmActor),
+        confirmPayment: (pi, piSnapshot, confirmActor) =>
+          this.confirmPaymentFromStripe(pi, piSnapshot, confirmActor, params.stripeEventId),
         rollbackUnpaidCheckout: (orderId, attemptId, pi, reason) =>
           this.rollbackUnpaidCheckout(orderId, attemptId, pi, reason),
       },
-    });
-  }
-
-  cleanupExpiredPendingOrders(
-    expirationMinutes: number,
-    stripe: CheckoutStripeLookupPort,
-  ): Promise<{ count: number }> {
-    const cancelExpiredOrder = this.options.cancelExpiredPendingOrder;
-    if (!cancelExpiredOrder) {
-      throw new Error('cancelExpiredPendingOrder is not configured on the checkout stack');
-    }
-    return cleanupExpiredPendingOrdersFlow(expirationMinutes, {
-      orderRepo: this.orderRepo,
-      stripe,
-      confirmPayment: (pi, piSnapshot, actor) => this.confirmPaymentFromStripe(pi, piSnapshot, actor),
-      cancelExpiredOrder,
-    });
-  }
-
-  handleReconciliationOperatorAction(params: {
-    caseId: string;
-    action: ReconciliationOperatorAction;
-    reason: string;
-    actor: { id: string; email: string };
-    recordOperatorAction: (input: {
-      caseId: string;
-      action: ReconciliationOperatorAction;
-      reason: string;
-      actor: { id: string; email: string };
-    }) => Promise<void>;
-  }): Promise<void> {
-    return handleReconciliationOperatorActionFlow({
-      ...params,
-      runRetryRecovery: (input) => this.completeOperatorRetryRecovery(input),
     });
   }
 
@@ -182,9 +364,14 @@ export class CheckoutFlowService {
       reason: string;
       actor: { id: string; email: string };
     }) => Promise<void>;
-  }): Promise<void> {
+  }): Promise<{ duplicate?: boolean }> {
+    const eventLog = this.eventLog;
+    if (!eventLog) {
+      throw new Error('Checkout event log is not configured on the checkout stack');
+    }
     return completeOperatorRetryRecoveryFlow({
       orderRepo: this.orderRepo,
+      eventLog,
       caseId: params.caseId,
       reason: params.reason,
       actor: params.actor,

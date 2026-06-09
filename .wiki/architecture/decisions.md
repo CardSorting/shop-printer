@@ -30,4 +30,4 @@ This document tracks the critical architectural decisions that define the WoodBi
 ## ADR 6: Explicit Checkout Reconciliation
 - **Decision**: Unsafe payment/order states become reconciliation cases instead of being hidden behind generic retries.
 - **Rationale**: Financial correctness requires operator-visible evidence when Stripe and local state disagree.
-- **Implementation**: `OrderCheckoutService`, `FirestoreOrderRepository`, and checkout forensic timeline helpers.
+- **Implementation**: `CheckoutFlowService` (`CheckoutApplicationService`), `FirestoreOrderRepository`, and checkout forensic timeline helpers.
