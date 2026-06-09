@@ -1,5 +1,7 @@
 # Checkout Orchestration
 
+> **FROZEN.** See [checkout-protocol-frozen.md](./checkout-protocol-frozen.md) for the sealed application protocol and verification ladder.
+
 Checkout is a monolith-local workflow. It coordinates cart reservation, order creation, Stripe PaymentIntent creation, payment finalization, rollback, reconciliation, and operator recovery without introducing distributed infrastructure.
 
 ## Entry Point

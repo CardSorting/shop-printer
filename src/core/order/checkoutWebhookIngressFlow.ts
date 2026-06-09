@@ -64,14 +64,24 @@ export async function handleCheckoutWebhookFlow(
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object;
         const attemptId = paymentIntent.metadata?.checkoutKey || paymentIntent.id;
-        logger.info(`[CHECKOUT-WORKFLOW] [Attempt: ${attemptId}] payment_intent.succeeded: ${paymentIntent.id}`);
+        logger.info('checkout_webhook_payment_succeeded', {
+          stripeEventId: event.id,
+          paymentIntentId: paymentIntent.id,
+          orderId: paymentIntent.metadata?.orderId ?? null,
+          checkoutAttemptId: attemptId,
+        });
         await deps.confirmPaymentFromStripe(paymentIntent.id, paymentIntent, 'stripe-webhook', event.id);
         break;
       }
       case 'payment_intent.payment_failed': {
         const paymentIntent = event.data.object;
         const attemptId = paymentIntent.metadata?.checkoutKey || paymentIntent.id;
-        logger.warn(`[CHECKOUT-WORKFLOW] [Attempt: ${attemptId}] payment_intent.payment_failed: ${paymentIntent.id}`);
+        logger.warn('checkout_webhook_payment_failed', {
+          stripeEventId: event.id,
+          paymentIntentId: paymentIntent.id,
+          orderId: paymentIntent.metadata?.orderId ?? null,
+          checkoutAttemptId: attemptId,
+        });
         const currentPaymentIntent = await deps.stripe.getPaymentIntent(paymentIntent.id);
         await deps.handleStripePaymentFailed({
           paymentIntent,

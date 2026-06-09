@@ -43,3 +43,12 @@ export function checkoutErrorResponse(result: Extract<CheckoutResult<unknown>, {
 export function checkoutRouteResponse<T>(result: CheckoutResult<T>) {
   return result.ok ? checkoutSuccessResponse(result) : checkoutErrorResponse(result);
 }
+
+/** 207 Multi-Status when cleanup (or similar) completed with per-item failures in the report. */
+export function checkoutPartialReportResponse<T extends { report?: { failed?: number; errors?: unknown[] } }>(
+  result: Extract<CheckoutResult<T>, { ok: true }>,
+) {
+  const report = result.data.report;
+  const partial = Boolean(report && ((report.failed ?? 0) > 0 || (report.errors?.length ?? 0) > 0));
+  return NextResponse.json(result.data, { status: partial ? 207 : 200 });
+}

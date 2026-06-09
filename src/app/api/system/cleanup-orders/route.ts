@@ -1,5 +1,5 @@
 import { getServerServices } from '@infrastructure/server/services';
-import { checkoutRouteResponse } from '@infrastructure/server/checkoutRouteAdapter';
+import { checkoutPartialReportResponse, checkoutRouteResponse } from '@infrastructure/server/checkoutRouteAdapter';
 import { logger } from '@utils/logger';
 import { jsonError, requireConfiguredBearerToken } from '@infrastructure/server/apiGuards';
 
@@ -15,14 +15,21 @@ export async function POST(request: Request) {
     const result = await services.checkout.cleanupExpiredPendingOrders({ maxAgeMinutes: 60 });
 
     if (result.ok) {
-      logger.info('checkout_cleanup_completed', result.data);
-      return checkoutRouteResponse({
+      const payload = {
+        success: true,
+        report: result.data,
+        timestamp: new Date().toISOString(),
+      };
+      logger.info('checkout_cleanup_completed', {
+        scanned: result.data.scanned,
+        cancelled: result.data.cancelled,
+        failed: result.data.failed,
+        errorCount: result.data.errors.length,
+        orderIds: result.data.errors.map((e) => e.orderId),
+      });
+      return checkoutPartialReportResponse({
         ok: true,
-        data: {
-          success: true,
-          report: result.data,
-          timestamp: new Date().toISOString(),
-        },
+        data: payload,
       });
     }
 

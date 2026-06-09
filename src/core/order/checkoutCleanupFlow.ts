@@ -171,6 +171,16 @@ export async function cleanupExpiredPendingOrdersFlow(
     }
   }
 
-  logger.info('checkout_cleanup_report', report);
+  logger.info('checkout_cleanup_report', {
+    scanned: report.scanned,
+    expired: report.expired,
+    cancelled: report.cancelled,
+    failed: report.failed,
+    errors: report.errors.map((e) => ({
+      orderId: e.orderId,
+      code: e.code,
+      retryable: e.retryable,
+    })),
+  });
   return report;
 }

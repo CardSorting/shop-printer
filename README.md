@@ -64,7 +64,7 @@ Key implementation files:
 - `src/app/api/checkout/verify/route.ts`
 - `src/app/api/webhooks/stripe/route.ts`
 
-See [Checkout Orchestration](docs/checkout-orchestration.md) and [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md).
+See [Checkout Protocol (frozen)](docs/checkout-protocol-frozen.md), [Checkout Orchestration](docs/checkout-orchestration.md), and [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md).
 
 ## Benchmark Baseline
 
