@@ -69,14 +69,16 @@ Do not introduce parallel result shapes at the route layer.
 Per-protocol verification is mandatory when changing behavior:
 
 ```bash
+npm run test:storefront-release   # storefront + checkout + inventory reservation + payment
 npm test -- --run \
   src/tests/checkout-verification-ladder.test.ts \
   src/tests/refund-verification-ladder.test.ts \
   src/tests/inventory-verification-ladder.test.ts \
-  src/tests/admin-verification-ladder.test.ts
+  src/tests/admin-verification-ladder.test.ts \
+  src/tests/protocol-guard.test.ts
 ```
 
-Seal tests in those files assert route-layer imports and protocol usage.
+Seal tests assert route-layer imports and protocol usage. Storefront lane map: [storefront-release.md](./storefront-release.md).
 
 ---
 

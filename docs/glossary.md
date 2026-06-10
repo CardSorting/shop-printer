@@ -110,8 +110,12 @@ Commerce and platform terms used across DreamBees Art docs. Shopify merchants wi
 
 | Term | Meaning |
 | --- | --- |
+| **Storefront release gate** | `npm run test:storefront-release` — 125 Vitest proofs across catalog, PDP, cart, checkout, inventory holds, and payment capture. |
+| **Checkout smoke** | `npm run test:e2e:checkout-smoke` — 3 Playwright tests with mocked APIs and `NEXT_PUBLIC_E2E_MOCK_CHECKOUT=1`. |
+| **Frozen lane** | Single construction path for a storefront concern (e.g. cart = intent buffer only; checkout = commitment gate). |
 | **Verification ladder** | Vitest file proving protocol invariants (`*-verification-ladder.test.ts`). |
-| **Seal test** | Static check that routes do not import forbidden services. |
+| **Production proof** | Behavioral test locking lane invariants (`*-production-proof.test.ts`, `*-reservation-proof.test.ts`). |
+| **Seal test** | Static check that routes do not import forbidden services (`protocol-guard`, `*-protocol-guard`). |
 | **Order-flow benchmark** | Core throughput test with in-memory adapters — not production SLA. |
 
 ---

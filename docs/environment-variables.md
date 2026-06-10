@@ -127,6 +127,7 @@ Commerce works without AI keys; Concierge degrades gracefully.
 | Variable | Purpose |
 | --- | --- |
 | `CHECKOUT_ENDPOINT` | Trusted external checkout gateway URL (advanced) |
+| `NEXT_PUBLIC_E2E_MOCK_CHECKOUT` | Set to `1` for E2E only — shows **Mock Pay (E2E)** in `StripeCheckoutForm`. Set by `npm run dev:e2e` and `scripts/run-checkout-smoke.sh`. **Never enable in production.** |
 
 ### Build / deploy
 

@@ -62,10 +62,12 @@ Run these from the repository root:
 npm run lint
 npm run build
 npm run test
-npm run test:e2e
+npm run test:storefront-release   # frozen storefront chain (125 Vitest proofs)
+npm run test:e2e:checkout-smoke   # mocked checkout browser smoke (3 tests)
+npm run test:e2e                  # full Playwright suite
 ```
 
-Latest verification for the Transactional Hardening pass: `npm run test:e2e` completed successfully, validating atomic order management pathways and discount limit enforcement.
+Storefront release gate: [docs/storefront-release.md](../docs/storefront-release.md). Latest checkout smoke validates mocked cart → shipping → mock pay → order confirmation without live Stripe.
 
 ## Mermaid: Architectural Bridge
 

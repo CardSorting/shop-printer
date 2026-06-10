@@ -112,4 +112,4 @@ Operational truth is **consistent, queryable, and append-only** — not theatric
 
 ## Protocol guard
 
-`src/tests/protocol-guard.test.ts` fails CI if API routes import legacy mutation services, commerce Firestore repositories, or call forbidden mutation paths. Operator docs: [operator-commerce-runtime.md](./operator-commerce-runtime.md), [commerce-incident-runbook.md](./commerce-incident-runbook.md).
+`src/tests/protocol-guard.test.ts` fails CI if API routes import legacy mutation services, commerce Firestore repositories, or call forbidden mutation paths. Storefront lane proofs: `npm run test:storefront-release` ([storefront-release.md](./storefront-release.md)). Operator docs: [operator-commerce-runtime.md](./operator-commerce-runtime.md), [commerce-incident-runbook.md](./commerce-incident-runbook.md).

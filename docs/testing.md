@@ -2,7 +2,7 @@
 
 How DreamBees Art verifies commerce correctness — from protocol seals to browser e2e.
 
-**Quick run:** `npm test` · **Protocol only:** see [quick-reference.md § Verification](./quick-reference.md#verification-fast)
+**Quick run:** `npm test` · **Storefront gate:** `npm run test:storefront-release` · **Cheat sheet:** [quick-reference.md § Verification](./quick-reference.md#verification-fast)
 
 ---
 
@@ -10,7 +10,7 @@ How DreamBees Art verifies commerce correctness — from protocol seals to brows
 
 ```text
                     ┌─────────────┐
-                    │  Playwright │  e2e/ — full browser journeys
+                    │  Playwright │  e2e/ — browser journeys
                     └──────┬──────┘
                ┌───────────┴───────────┐
                │  Route + integration   │  src/app/api/**/*.test.ts
@@ -19,13 +19,55 @@ How DreamBees Art verifies commerce correctness — from protocol seals to brows
           │   Flow + protocol unit tests     │  src/tests/*.test.ts
           └────────────────┬────────────────┘
      ┌─────────────────────┴─────────────────────┐
-     │  Verification ladders (architecture seal)  │
+     │  Verification ladders + production proofs  │
      └───────────────────────────────────────────┘
 ```
 
 ---
 
-## Verification ladders (run on every commerce PR)
+## Storefront release gate (frozen chain)
+
+**Run before merging storefront, cart, or checkout UI work:**
+
+```bash
+npm run test:storefront-release
+```
+
+**17 files · 125 tests** — catalog, PDP, cart, checkout commitment, inventory reservation, payment capture.
+
+| Category | Files |
+| --- | --- |
+| Umbrella | `storefront-release-guard.test.ts`, `protocol-guard.test.ts` |
+| Catalog / PDP | `catalog-protocol-guard`, `product-detail-protocol-guard`, `viewState` unit tests |
+| Cart | `cart-protocol-guard`, `cart-production-proof` |
+| Checkout | `checkout-protocol-guard`, `checkout-production-proof`, `checkout-verification-ladder`, `checkout-webhook-ingress`, `validateBeforeCommit` |
+| Inventory | `inventory-protocol`, `inventory-verification-ladder`, `inventory-reservation-proof` |
+| Payment | `payment-capture-proof` |
+
+Full lane map: **[storefront-release.md](./storefront-release.md)**
+
+### Production proof tests (static + behavioral)
+
+| File | Lane | Key invariants |
+| --- | --- | --- |
+| `cart-production-proof.test.ts` | Cart | `services.cart` only; snapshots; no payment/inventory |
+| `checkout-production-proof.test.ts` | Checkout gate | `validateCart` before reserve; pricing/discount revalidation; webhook delegation |
+| `inventory-reservation-proof.test.ts` | Inventory | Cart `checkAvailability` only; checkout owns reserve/confirm/release; expiry cleanup |
+| `payment-capture-proof.test.ts` | Payment | UI tokenizes only; routes → `services.checkout`; webhook dedup; cart never touches Stripe |
+
+### Protocol guard tests (route/static seals)
+
+| File | Proves |
+| --- | --- |
+| `catalog-protocol-guard.test.ts` | Catalog routes use `@infrastructure/server/catalog` + `@ui/pages/catalog` |
+| `product-detail-protocol-guard.test.ts` | PDP routes use product-detail protocol |
+| `cart-protocol-guard.test.ts` | Cart routes use `services.cart`; no `reserveInventory` or payment |
+| `checkout-protocol-guard.test.ts` | Checkout routes use `services.checkout`; UI gates on cart validation |
+| `protocol-guard.test.ts` | No route imports raw mutation services or commerce Firestore repos |
+
+---
+
+## Verification ladders (commerce PRs)
 
 These tests **enforce frozen protocol boundaries**. Failures mean a seal broke.
 
@@ -46,6 +88,8 @@ npm test -- --run \
   src/tests/admin-verification-ladder.test.ts
 ```
 
+Included in `npm run test:storefront-release` for checkout and inventory ladders.
+
 ---
 
 ## Checkout test suite
@@ -57,6 +101,8 @@ npm test -- --run \
 | `checkout-workflow.test.ts` | Phase transitions |
 | `checkout-order-resolver.test.ts` | PI → order lookup |
 | `checkout-chaos-resilience.test.ts` | Failure injection |
+| `checkout-production-proof.test.ts` | Commitment gate static seals |
+| `payment-capture-proof.test.ts` | Money capture boundary |
 | `financial-recovery-hardening.test.ts` | Reconciliation, recovery, refunds |
 | `admin-reconciliation.test.ts` | Operator actions |
 | `webhook.test.ts` | Webhook integration |
@@ -69,7 +115,8 @@ npm test -- --run \
   src/tests/checkout-verification-ladder.test.ts \
   src/tests/checkout-flow-service.test.ts \
   src/tests/checkout-webhook-ingress.test.ts \
-  src/tests/financial-recovery-hardening.test.ts
+  src/tests/checkout-production-proof.test.ts \
+  src/tests/payment-capture-proof.test.ts
 ```
 
 Also documented in [checkout.md §11 Verification](./checkout.md#11-verification).
@@ -82,6 +129,7 @@ Also documented in [checkout.md §11 Verification](./checkout.md#11-verification
 | --- | --- |
 | `inventory-protocol.test.ts` | Core movement invariants |
 | `inventory-verification-ladder.test.ts` | Protocol seal |
+| `inventory-reservation-proof.test.ts` | Checkout-only reservation lifecycle |
 | `inventory-location-consistency-ladder.test.ts` | PO receive |
 | `src/core/PurchaseOrderService.test.ts` | PO → receiveStockAtLocation |
 | `src/core/CartService.test.ts` | Availability checks |
@@ -90,7 +138,7 @@ Also documented in [checkout.md §11 Verification](./checkout.md#11-verification
 npm test -- --run \
   src/tests/inventory-protocol.test.ts \
   src/tests/inventory-verification-ladder.test.ts \
-  src/tests/inventory-location-consistency-ladder.test.ts
+  src/tests/inventory-reservation-proof.test.ts
 ```
 
 ---
@@ -122,13 +170,32 @@ See [.wiki/architecture/order-flow-throughput.md](../.wiki/architecture/order-fl
 
 ## End-to-end (Playwright)
 
+### Checkout smoke (recommended for checkout releases)
+
+```bash
+npm run test:e2e:checkout-smoke
+```
+
+Three mocked tests (~20s): happy path, cart validation block, payment error. See [storefront-release.md § E2E](./storefront-release.md#teste2echeckout-smoke-3-tests-20s).
+
+First-time setup:
+
+```bash
+npx playwright install chromium
+```
+
+### Full suite
+
 ```bash
 npm run test:e2e
 ```
 
-Browser tests under `e2e/` — industrialized commerce flows, checkout, admin inventory, etc. Requires dev server or Playwright `webServer` config.
+All specs under `e2e/` — cart, checkout comprehensive, admin inventory, security regressions, etc.
 
-Run before major releases or UI changes to checkout/admin.
+Helpers:
+
+- `e2e/helpers/cartProtocol.ts` — `CartResult` mocks for guest/authed cart
+- `e2e/helpers/checkoutSmoke.ts` — checkout smoke mocks and flow helpers
 
 ---
 
@@ -138,7 +205,7 @@ Run before major releases or UI changes to checkout/admin.
 npm run test:coverage
 ```
 
-Vitest coverage report — useful for finding untested routes; protocol ladders are the **architecture** bar, not line coverage alone.
+Vitest coverage report — useful for finding untested routes; protocol ladders and production proofs are the **architecture** bar, not line coverage alone.
 
 ---
 
@@ -147,9 +214,10 @@ Vitest coverage report — useful for finding untested routes; protocol ladders 
 | Adding… | Test type | Location |
 | --- | --- | --- |
 | New protocol method | Ladder + flow unit | `src/tests/*-verification-ladder.test.ts` |
-| New checkout behavior | Flow + webhook tests | `src/tests/checkout-*.test.ts` |
+| New checkout behavior | Flow + webhook + proof | `src/tests/checkout-*.test.ts` |
+| New storefront lane invariant | Guard + proof | `*-protocol-guard.test.ts`, `*-production-proof.test.ts` |
 | New admin mutation | Admin ladder + route seal | `admin-verification-ladder.test.ts` |
-| New storefront UI | Playwright | `e2e/` |
+| New checkout UI journey | Playwright smoke | `e2e/checkout-smoke.spec.ts` |
 
 Use in-memory helpers: `src/tests/helpers/inMemory*.ts`
 
@@ -165,15 +233,23 @@ Minimum gate before merge:
 npm run typecheck
 npm run lint
 npm test
+npm run test:storefront-release   # if storefront/cart/checkout touched
 npm run build
 ```
 
-Optional nightly: `npm run test:e2e`, `npm run benchmark:order-flow`
+Optional before release:
+
+```bash
+npm run test:e2e:checkout-smoke
+npm run test:e2e
+npm run benchmark:order-flow
+```
 
 ---
 
 ## Related
 
+- [storefront-release.md](./storefront-release.md)
 - [contributing-commerce.md](./contributing-commerce.md)
 - [troubleshooting.md § Verification](./troubleshooting.md#verification)
 - [commerce-protocol-frozen.md](./commerce-protocol-frozen.md)

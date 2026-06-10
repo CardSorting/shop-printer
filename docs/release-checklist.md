@@ -13,6 +13,18 @@ Pre-release gate for DreamBees Art — use before merging to main or deploying p
 
 ---
 
+## Storefront release gate (if cart, checkout, catalog, or PDP touched)
+
+- [ ] `npm run test:storefront-release` passes (125 tests — guards + production proofs)
+
+```bash
+npm run test:storefront-release
+```
+
+Detail: [storefront-release.md](./storefront-release.md)
+
+---
+
 ## Commerce protocol seals
 
 - [ ] `checkout-verification-ladder.test.ts` passes
@@ -51,7 +63,8 @@ Webhook forwarding or staging webhook endpoint verified.
 
 ## E2E (recommended for UI/checkout releases)
 
-- [ ] `npm run test:e2e` passes on CI or locally
+- [ ] `npm run test:e2e:checkout-smoke` passes (mocked checkout — fast)
+- [ ] `npm run test:e2e` passes on CI or locally (full suite, optional)
 
 ---
 

@@ -95,6 +95,7 @@ Before opening a PR that touches `src/core/order/`, `src/core/inventory/`, `src/
 Run:
 
 ```bash
+npm run test:storefront-release   # if storefront/cart/checkout touched
 npm test -- --run src/tests/*-verification-ladder.test.ts
 npm run typecheck
 npm run lint
@@ -108,7 +109,8 @@ npm run lint
 | --- | --- | --- |
 | Storefront | `src/ui/pages/`, `src/ui/components/` | Use `apiClientServices.ts` |
 | Admin | `src/ui/pages/admin/` | Same — no Firestore SDK |
-| Checkout UI | `src/ui/components/checkout/` | Calls checkout APIs only |
+| Checkout UI | `src/ui/checkout/`, `CheckoutPage` | `gateCheckoutCommit` + `services.checkout` only |
+| Cart UI | `src/ui/hooks/useCart.tsx` | Import `@core/cart/cartMutations` — not `@core/cart` barrel |
 
 Admin inventory UI already sends idempotency keys — follow that pattern for new batch mutations.
 
@@ -118,10 +120,13 @@ Admin inventory UI already sends idempotency keys — follow that pattern for ne
 
 | Layer | When | Command |
 | --- | --- | --- |
+| Storefront release | Cart, checkout, catalog, PDP | `npm run test:storefront-release` |
 | Protocol unit | Every protocol change | `npm test -- --run src/tests/checkout-verification-ladder.test.ts` |
+| Production proof | Lane invariant | `*-production-proof.test.ts`, `*-reservation-proof.test.ts` |
 | Flow integration | Complex workflow | `npm test -- --run src/tests/checkout-flow-service.test.ts` |
 | Financial recovery | Payment edge cases | `npm test -- --run src/tests/financial-recovery-hardening.test.ts` |
-| E2E | UI regression | `npm run test:e2e` |
+| E2E checkout smoke | Checkout UI | `npm run test:e2e:checkout-smoke` |
+| E2E full | Broader UI regression | `npm run test:e2e` |
 | Benchmark | Performance | `npm run benchmark:order-flow` |
 
 In-memory helpers: `src/tests/helpers/inMemory*.ts` — use in protocol tests, not production wiring.

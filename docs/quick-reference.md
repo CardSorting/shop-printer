@@ -101,16 +101,36 @@ Shape: `{ ok: true, data }` or `{ ok: false, code, message, retryable }`
 | `STRIPE_WEBHOOK_SECRET` | Webhook verify |
 | `SYSTEM_JOB_TOKEN` | Cleanup cron routes |
 | `GEMINI_API_KEY` | Concierge (optional) |
+| `NEXT_PUBLIC_E2E_MOCK_CHECKOUT` | `1` — shows Mock Pay button in checkout (E2E only) |
+
+---
+
+## Storefront runtime (frozen)
+
+```txt
+catalog/PDP  = read intent
+cart         = purchase intent buffer   services.cart
+checkout     = commitment gate          services.checkout
+inventory    = scarcity (reserve)       services.inventory @ checkout only
+payment      = money capture            services.checkout + Stripe webhook
+```
+
+**Storefront gate:** `npm run test:storefront-release` (125 tests)  
+**Checkout smoke:** `npm run test:e2e:checkout-smoke` (3 tests)  
+Detail: [storefront-release.md](./storefront-release.md)
 
 ---
 
 ## Verification (fast)
 
 ```bash
+npm run test:storefront-release
+npm test -- --run src/tests/protocol-guard.test.ts
 npm test -- --run src/tests/checkout-verification-ladder.test.ts
 npm test -- --run src/tests/inventory-verification-ladder.test.ts
 npm test -- --run src/tests/refund-verification-ladder.test.ts
 npm test -- --run src/tests/admin-verification-ladder.test.ts
+npm run test:e2e:checkout-smoke
 ```
 
 ---
@@ -121,6 +141,10 @@ npm test -- --run src/tests/admin-verification-ladder.test.ts
 | --- | --- |
 | Setup | `npm run setup` |
 | Dev server | `npm run dev` |
+| Dev + E2E mock pay button | `npm run dev:e2e` |
+| Storefront proof suite | `npm run test:storefront-release` |
+| Checkout E2E smoke | `npm run test:e2e:checkout-smoke` |
+| Clear stuck port 3000 | `npm run cleanup` |
 | Stripe webhooks local | `stripe listen --forward-to localhost:3000/api/webhooks/stripe` |
 | Admin login | `admin@woodbine.com` / `admin-password-123` (local only) |
 | Test card | `4242 4242 4242 4242` |

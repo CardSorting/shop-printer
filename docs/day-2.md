@@ -28,6 +28,9 @@ src/core/order/CheckoutFlowService.ts                 # protocol implementation
 ### 2. Run targeted tests (15 min)
 
 ```bash
+# Storefront frozen chain (if cart/checkout/catalog touched)
+npm run test:storefront-release
+
 # Protocol seals only (~seconds)
 npm test -- --run src/tests/checkout-verification-ladder.test.ts
 

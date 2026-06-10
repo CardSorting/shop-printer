@@ -65,6 +65,12 @@ npm run build
 # Execute unit/integration tests
 npm run test
 
+# Storefront frozen chain (cart, checkout, catalog, PDP, payment proofs)
+npm run test:storefront-release
+
+# Mocked checkout browser smoke
+npm run test:e2e:checkout-smoke
+
 # Reproduce the Core order-flow benchmark
 npm run benchmark:order-flow
 ```

@@ -4,6 +4,8 @@ End-to-end stories that cross storefront, admin, and the four frozen protocols. 
 
 Policy anchor: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md)
 
+**Storefront frozen chain:** catalog/PDP (read) → cart (intent buffer) → checkout (commitment gate) → inventory (reservation at checkout) → payment (capture). Proof gate: `npm run test:storefront-release` · browser smoke: `npm run test:e2e:checkout-smoke`. Detail: [storefront-release.md](./storefront-release.md).
+
 ---
 
 ## Protocol map (one screen)
@@ -81,7 +83,7 @@ Details: [checkout.md § Business flows](./checkout.md#6-business-flows)
 | 4 | Customer | Navigate to `/checkout` | Checkout page loads Stripe |
 | 5 | Customer | Purchase flow below | Cart consumed during session create |
 
-Cart is not locked until checkout session starts — availability is re-validated at checkout.
+Cart is not locked until checkout session starts — availability is re-validated at checkout. Cart routes call `checkAvailability` only; `reserveInventory` runs exclusively in checkout (`services.checkout`).
 
 ---
 
@@ -247,8 +249,9 @@ Both return **partial success reports** (HTTP 207 when per-item failures) — jo
 
 | Story | Primary doc | Verification tests |
 | --- | --- | --- |
-| Purchase | [checkout.md](./checkout.md) | `checkout-verification-ladder.test.ts` |
-| Stock hold / commit | [inventory.md](./inventory.md) | `inventory-verification-ladder.test.ts` |
+| Storefront lanes (catalog → payment) | [storefront-release.md](./storefront-release.md) | `npm run test:storefront-release` |
+| Purchase | [checkout.md](./checkout.md) | `checkout-verification-ladder.test.ts`, `payment-capture-proof.test.ts` |
+| Stock hold / commit | [inventory.md](./inventory.md) | `inventory-verification-ladder.test.ts`, `inventory-reservation-proof.test.ts` |
 | PO receive | [inventory.md](./inventory.md) | `inventory-location-consistency-ladder.test.ts` |
 | Refund | [refunds.md](./refunds.md) | `refund-verification-ladder.test.ts` |
 | Admin mutation | [admin.md](./admin.md) | `admin-verification-ladder.test.ts` |

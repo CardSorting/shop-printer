@@ -578,13 +578,27 @@ Tests use `createInventoryStack()` with in-memory repos (`src/tests/helpers/inMe
 Frozen invariants are proven by the inventory test suite:
 
 ```bash
+npm run test:storefront-release   # includes reservation proof + protocol ladders
 npm test -- --run \
   src/tests/inventory-protocol.test.ts \
   src/tests/inventory-verification-ladder.test.ts \
+  src/tests/inventory-reservation-proof.test.ts \
   src/tests/inventory-location-consistency-ladder.test.ts \
   src/core/PurchaseOrderService.test.ts \
   src/core/CartService.test.ts
 ```
+
+### Reservation proof (`inventory-reservation-proof.test.ts`)
+
+| Invariant | Proof |
+|-----------|-------|
+| Cart uses `checkAvailability` only | Static — no `reserveInventory` in cart stack |
+| Checkout owns reserve/confirm/release | `checkoutMutationService` in transaction |
+| System cleanup uses `services.inventory.cleanupExpiredReservations` | Route static seal |
+| Cannot confirm after release / release committed hold | Behavioral lifecycle |
+| Competing reserves fail with `INSUFFICIENT_STOCK` | Behavioral |
+| Expired cleanup restores catalog stock | Behavioral |
+| Cart UX events ≠ commerce timeline | Static event boundary |
 
 ### Protocol ladder (`inventory-protocol.test.ts`)
 
@@ -683,6 +697,7 @@ src/core/
 src/tests/
   inventory-protocol.test.ts
   inventory-verification-ladder.test.ts
+  inventory-reservation-proof.test.ts
   inventory-location-consistency-ladder.test.ts
   helpers/inMemoryInventoryStores.ts
 ```

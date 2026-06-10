@@ -12,6 +12,7 @@ Open-source, self-hosted ecommerce with Shopify-class storefront and admin.
 | Operate live store | [runbook.md](./runbook.md) |
 | Debug something | [troubleshooting.md](./troubleshooting.md) · [faq.md](./faq.md) |
 | One-screen lookup | [quick-reference.md](./quick-reference.md) |
+| Storefront release gate | [storefront-release.md](./storefront-release.md) |
 | All four protocols | [protocols.md](./protocols.md) |
 
 ---
@@ -32,7 +33,7 @@ REFERENCE                     SURFACES                      POLICY
 glossary.md                   storefront.md                 commerce-protocol-frozen.md
 faq.md                        admin.md                      checkout.md
 quick-reference.md            concierge/overview.md         inventory.md
-platform-overview.md                                        refunds.md
+platform-overview.md          storefront-release.md         refunds.md
 customization.md                                            contributing-commerce.md
 migration-from-shopify.md
 troubleshooting.md
@@ -106,6 +107,7 @@ troubleshooting.md
 | [runbook.md](./runbook.md) | Production ops |
 | [security.md](./security.md) | Auth, secrets, rules |
 | [storefront.md](./storefront.md) | Customer shop |
+| [storefront-release.md](./storefront-release.md) | Frozen storefront proof ladder |
 | [testing.md](./testing.md) | Test suites |
 | [troubleshooting.md](./troubleshooting.md) | Symptom fixes |
 
@@ -115,14 +117,15 @@ troubleshooting.md
 
 ```bash
 npm test
+npm run test:storefront-release          # catalog → payment proofs (125 tests)
+npm run test:e2e:checkout-smoke          # mocked checkout browser smoke
 npm test -- --run src/tests/*-verification-ladder.test.ts
 npm test -- --run src/tests/protocol-guard.test.ts
-npm test -- --run src/tests/ui-protocol-alignment.test.ts
 npm test -- --run src/tests/production-readiness.test.ts
 npm run test:e2e
 ```
 
-[testing.md](./testing.md) · [release-checklist.md](./release-checklist.md)
+[testing.md](./testing.md) · [storefront-release.md](./storefront-release.md) · [release-checklist.md](./release-checklist.md)
 
 ---
 

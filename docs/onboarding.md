@@ -83,19 +83,18 @@ Open `http://localhost:3000`.
 2. Open `/admin/orders` — confirm the test order exists
 3. Open `/admin/inventory` — stock moved through reservation/commit (not raw PATCH)
 
-**Automated smoke test**
+**Automated smoke tests**
 
 ```bash
-npm test -- --run \
-  src/tests/checkout-verification-ladder.test.ts \
-  src/tests/inventory-verification-ladder.test.ts
+npm run test:storefront-release
+npm run test:e2e:checkout-smoke
 ```
 
 ### 6. You are ready when
 
 - [ ] `npm run dev` serves storefront and admin without Firebase/Stripe console errors
 - [ ] Test checkout creates a **paid** order (not stuck pending)
-- [ ] `npm test` passes locally
+- [ ] `npm test` and `npm run test:storefront-release` pass locally
 - [ ] You know which doc to open for checkout vs inventory vs refunds ([flows.md](./flows.md))
 
 **Next:** [day-2.md](./day-2.md) — rebrand, first product, trace a request, production prep.

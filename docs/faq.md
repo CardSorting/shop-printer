@@ -80,13 +80,20 @@ No — same `idempotencyKey` returns `{ duplicate: true }` without a second Stri
 
 ### Which tests must pass before a commerce PR?
 
-Verification ladders:
+Storefront or checkout UI changes:
+
+```bash
+npm run test:storefront-release
+npm run test:e2e:checkout-smoke   # recommended for checkout UI
+```
+
+All protocol changes also need verification ladders:
 
 ```bash
 npm test -- --run src/tests/*-verification-ladder.test.ts
 ```
 
-[testing.md](./testing.md)
+[testing.md](./testing.md) · [storefront-release.md](./storefront-release.md)
 
 ### What's the benchmark?
 

@@ -74,7 +74,7 @@ Payment description uses merchant context in `StripePaymentProcessor` — update
 | --- | --- |
 | Home page sections | `src/ui/pages/home/` |
 | Product card | `src/ui/pages/product-detail/`, listing components |
-| Cart & checkout UI | `src/ui/components/checkout/`, `src/app/checkout/` |
+| Cart & checkout UI | `src/ui/cart/`, `src/ui/checkout/`, `src/app/checkout/` |
 | Global layout | `src/ui/layouts/` (header, footer) |
 | Tailwind theme | `tailwind` config / CSS variables in project styles |
 | Collection pages | `src/app/collections/` + UI components |
@@ -149,7 +149,7 @@ You own migration scripts — no official Shopify importer ships with the repo.
 | Direct Firestore stock writes | Breaks ledger reconciliation |
 | Stripe calls in routes | Breaks idempotency and seals |
 | Skip webhook handling | Orders stay pending |
-| Remove verification ladder tests | Architecture enforcement lost |
+| Remove verification ladder or storefront-release tests | Architecture enforcement lost |
 | Client-side refund logic | Security + double-refund risk |
 
 ---

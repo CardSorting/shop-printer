@@ -28,6 +28,9 @@ What broke?
 | `.env` missing vars | Incomplete copy from example | `cp .env.example .env`; fill Firebase + Stripe |
 | Changes to `.env` ignored | Server not restarted | Stop and re-run `npm run dev` |
 | Port already in use | Previous dev server | `npm run cleanup` or kill process on 3000 |
+| Port 3000 accepts connections but HTTP hangs | Zombie `node` on 3000 | `npm run cleanup`; smoke script clears this automatically |
+| `test:e2e:checkout-smoke` stalls forever | Playwright `webServer` or hung port | Use `npm run test:e2e:checkout-smoke` (script manages dev); run `npm run cleanup` first |
+| Playwright "Executable doesn't exist" | Browsers not installed | `npx playwright install chromium` |
 
 ---
 
@@ -159,7 +162,13 @@ Protocol: [refunds.md](./refunds.md)
 When unsure what regressed:
 
 ```bash
-# Fast protocol confidence
+# Storefront frozen chain (catalog → payment)
+npm run test:storefront-release
+
+# Checkout browser smoke (mocked APIs)
+npm run test:e2e:checkout-smoke
+
+# Commerce protocol ladders
 npm test -- --run \
   src/tests/checkout-verification-ladder.test.ts \
   src/tests/refund-verification-ladder.test.ts \
@@ -168,17 +177,19 @@ npm test -- --run \
 
 # Full suite
 npm test
-
-# Single failing area
-npm test -- --run src/tests/checkout-webhook-ingress.test.ts
 ```
 
 | Failure location | Likely layer |
 | --- | --- |
+| `storefront-release-guard` / `*-protocol-guard` | Route or import boundary broken |
+| `*-production-proof` / `*-reservation-proof` | Lane invariant regression |
 | `*-verification-ladder` | Protocol boundary regression |
 | `webhook*.test` | Stripe ingress / dedup |
+| `checkout-smoke.spec` | Checkout UI, mocks, or dev server / port 3000 |
 | `firestore-security` | Rules mismatch |
-| `e2e/*` | Full stack / UI regression |
+| `e2e/*` (other) | Full stack / UI regression |
+
+[storefront-release.md](./storefront-release.md)
 
 ---
 

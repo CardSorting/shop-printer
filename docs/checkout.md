@@ -531,8 +531,12 @@ Forensic timelines for operators: `OrderAdminService.getForensicTimeline` (admin
 Frozen invariants are proven by the checkout test suite:
 
 ```bash
+npm run test:storefront-release   # includes checkout guards + proofs below
 npm test -- --run \
   src/tests/checkout-verification-ladder.test.ts \
+  src/tests/checkout-protocol-guard.test.ts \
+  src/tests/checkout-production-proof.test.ts \
+  src/tests/payment-capture-proof.test.ts \
   src/tests/checkout-flow-service.test.ts \
   src/tests/checkout-webhook-ingress.test.ts \
   src/tests/financial-recovery-hardening.test.ts \
@@ -546,14 +550,20 @@ npm test -- --run \
 
 | Invariant | Proof |
 |-----------|-------|
-| Webhook duplicate does not double-mark paid | `confirmStripePayment` called once across duplicate events |
+| Cart validated before reservation | `checkout-production-proof` — `cartIntent.validateCart` |
+| Pricing/discount revalidated at commit | `checkout-production-proof` — mutation service |
+| Webhook duplicate does not double-mark paid | `checkout-verification-ladder`, `payment-capture-proof` |
+| UI tokenizes only; routes delegate to `services.checkout` | `payment-capture-proof` |
+| PaymentIntent amount from server order total | `payment-capture-proof` — `checkoutPaymentIntentFlow` |
 | `retry_recovery` duplicate does not double-run recovery | Operator + recovery event log idempotency |
 | Cleanup partial failure returns 207 report, not crash | Per-order errors collected; route returns 207 |
 | Expected failures → `CheckoutResult` error | No throw on public API for configured-missing / validation paths |
 | Transient crash → `UNKNOWN` retryable → HTTP 503 | `checkoutFromError` + route adapter |
 | Logs include `orderId` / `caseId` / `stripeEventId` | Structured fields on ingress, cleanup, recovery |
-| Checkout routes do not import `StripeService` or `OrderService` | Route layer audit |
+| Checkout routes do not import `StripeService` or `OrderService` | `checkout-protocol-guard`, route layer audit |
 | Public methods do not throw for expected failure | `checkoutOk` / `checkoutErr` / `checkoutTry` throughout |
+
+Browser smoke: `npm run test:e2e:checkout-smoke` — [storefront-release.md](./storefront-release.md)
 
 Benchmark (core throughput, not production capacity):
 

@@ -81,8 +81,10 @@ Schedule this endpoint from your monitor (every 1–5 min). Alert on `ok: false`
 ## Deploy checklist
 
 - [ ] `npm run typecheck && npm run lint && npm test` pass
+- [ ] `npm run test:storefront-release` passes
 - [ ] `npm test -- --run src/tests/protocol-guard.test.ts`
 - [ ] `npm test -- --run src/tests/production-readiness.test.ts`
+- [ ] `npm run test:e2e:checkout-smoke` passes (checkout UI releases)
 - [ ] Production env vars set ([environment-variables.md](./environment-variables.md))
 - [ ] `ALLOW_PRODUCTION_SEEDING=false`
 - [ ] Live Stripe webhook → `https://YOUR_DOMAIN/api/webhooks/stripe`

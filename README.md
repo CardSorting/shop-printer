@@ -69,7 +69,9 @@ npm run dev
 npm run lint
 npm run build
 npm run test
-npm run test:e2e
+npm run test:storefront-release   # frozen storefront + checkout proof (125 tests)
+npm run test:e2e:checkout-smoke   # mocked checkout browser smoke (3 tests)
+npm run test:e2e                  # full Playwright suite
 npm run benchmark:order-flow
 ```
 
@@ -86,6 +88,7 @@ Full setup: **[docs/onboarding.md](docs/onboarding.md)** (guided) · **[docs/get
 | Customize | [customization](docs/customization.md), [migration-from-shopify](docs/migration-from-shopify.md) |
 | Protocols | [checkout](docs/checkout.md), [inventory](docs/inventory.md), [refunds](docs/refunds.md), [commerce-protocol-frozen](docs/commerce-protocol-frozen.md) |
 | Ship | [production-readiness](docs/production-readiness.md), [deployment](docs/deployment.md), [release-checklist](docs/release-checklist.md), [runbook](docs/runbook.md), [commerce-incident-runbook](docs/commerce-incident-runbook.md), [security](docs/security.md) |
+| Storefront release | [storefront-release](docs/storefront-release.md), [storefront](docs/storefront.md) |
 | Debug | [troubleshooting](docs/troubleshooting.md), [faq](docs/faq.md), [testing](docs/testing.md) |
 | Extend | [contributing-commerce](docs/contributing-commerce.md) |
 | Cheat sheet | [quick-reference](docs/quick-reference.md) · **Hub:** [index](docs/index.md) |

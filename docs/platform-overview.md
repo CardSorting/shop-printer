@@ -25,7 +25,7 @@ The table below maps common Shopify merchant features to DreamBees Art implement
 | Shopify area | DreamBees Art | Notes |
 | --- | --- | --- |
 | Online store | ✅ Storefront pages + collections + SEO | Handle-based URLs, JSON-LD, sitemap hooks |
-| Cart & checkout | ✅ Protocol | `CheckoutApplicationService`, Stripe PaymentIntents |
+| Cart & checkout | ✅ Frozen lanes | `services.cart` (intent buffer) + `services.checkout` (commitment + payment); proof: `test:storefront-release` |
 | Orders & fulfillment | ✅ Admin + customer account | Fulfillment, notes, tracking import, Pirate Ship CSV export |
 | Products & variants | ✅ Admin + bulk editor | Metafields, digital and physical types |
 | Inventory | ✅ Protocol | Multi-location levels, reservations, ledger, PO receive |
@@ -106,8 +106,9 @@ Approximate scale (useful for onboarding, not a SLA):
 | --- | ---: |
 | API routes | ~142 |
 | App pages | ~67 |
-| Test/spec files | ~58 |
+| Test/spec files | ~70 |
 | Vitest tests | 320+ |
+| Storefront release gate | 125 tests (`npm run test:storefront-release`) |
 
 Persistence is **Firestore-only** for runtime commerce (SQLite references in env are legacy/seed tooling).
 
@@ -157,6 +158,7 @@ Track strategic direction in [SHOPMORE_ROADMAP.md](../SHOPMORE_ROADMAP.md) at re
 | Extend code | [contributing-commerce.md](./contributing-commerce.md) |
 | Terms | [glossary.md](./glossary.md) |
 | Storefront features | [storefront.md](./storefront.md) |
+| Storefront release proofs | [storefront-release.md](./storefront-release.md) |
 | Merchant admin | [admin.md](./admin.md) |
 | Checkout internals | [checkout.md](./checkout.md) |
 | Stock internals | [inventory.md](./inventory.md) |

@@ -39,12 +39,18 @@ No admin role. Session optional unless noted.
 
 ### Cart
 
+Cart is a **purchase intent buffer** (`services.cart`). Physical SKUs use `inventory.checkAvailability` only — stock holds happen at checkout. Proof: [storefront-release.md](./storefront-release.md).
+
 | Method | Route | Purpose |
 | --- | --- | --- |
-| GET | `/api/cart` | Load cart |
-| POST | `/api/cart` | Create/update cart |
+| GET | `/api/cart` | Load cart (`CartResult<CartView>`) |
+| DELETE | `/api/cart` | Clear cart |
 | POST/PATCH/DELETE | `/api/cart/items` | Line items |
+| POST | `/api/cart/validate` | Pre-checkout validation (used by `gateCheckoutCommit`) |
+| POST | `/api/cart/preview-line` | Guest line snapshot preview |
+| POST | `/api/cart/merge-guest` | Merge guest cart on login |
 | POST | `/api/cart/note` | Cart note |
+| POST | `/api/cart/discount` | Apply promo (authed) |
 
 ### Checkout & orders
 

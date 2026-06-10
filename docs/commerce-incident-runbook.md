@@ -138,6 +138,7 @@ Readiness detail: [production-readiness.md](./production-readiness.md)
 
 ```bash
 curl -sS https://YOUR_DOMAIN/api/system/health/protocols
+npm run test:storefront-release
 npm test -- --run src/tests/protocol-guard.test.ts
 npm test -- --run src/tests/production-readiness.test.ts
 npm test -- --run src/tests/*-verification-ladder.test.ts

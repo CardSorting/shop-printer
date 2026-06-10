@@ -152,6 +152,9 @@ npm run lint
 # Full test suite
 npm test
 
+# Storefront frozen chain (cart, checkout, catalog, PDP, inventory holds, payment)
+npm run test:storefront-release
+
 # Commerce protocol seals (fast confidence check)
 npm test -- --run \
   src/tests/checkout-verification-ladder.test.ts \
@@ -163,7 +166,8 @@ npm test -- --run \
 npm run build
 
 # Browser e2e
-npm run test:e2e
+npm run test:e2e:checkout-smoke   # fast mocked checkout smoke
+npm run test:e2e                  # full Playwright suite
 
 # Core throughput baseline
 npm run benchmark:order-flow

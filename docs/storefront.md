@@ -2,7 +2,34 @@
 
 The DreamBees Art **customer-facing shop** covers discovery, cart, checkout, account, support, and content — the same jobs Shopify’s Online Store channel handles. All pages live under `src/app/` with UI in `src/ui/`.
 
-**First test purchase:** [onboarding.md § First purchase walkthrough](./onboarding.md#first-purchase-walkthrough-what-actually-happens) · **Checkout internals:** [checkout.md](./checkout.md) · **Full flow:** [flows.md § Purchase](./flows.md#purchase-flow-storefront-checkout)
+**Release gate:** [storefront-release.md](./storefront-release.md) · **First test purchase:** [onboarding.md § First purchase walkthrough](./onboarding.md#first-purchase-walkthrough-what-actually-happens) · **Checkout internals:** [checkout.md](./checkout.md) · **Full flow:** [flows.md § Purchase](./flows.md#purchase-flow-storefront-checkout)
+
+---
+
+## Frozen lanes (storefront release)
+
+The storefront customer journey is sealed in lanes. Each lane has one construction path and proof tests.
+
+```txt
+catalog / PDP  → read intent (server prepare* + @ui/pages/catalog|product-detail)
+cart           → purchase intent buffer (services.cart — no stock holds, no payment)
+checkout       → commitment gate (services.checkout — validates cart, reserves inventory)
+payment        → money capture (Stripe tokenize in UI; capture via services.checkout)
+```
+
+```bash
+npm run test:storefront-release    # Vitest — 125 tests
+npm run test:e2e:checkout-smoke    # Playwright — 3 mocked checkout tests
+```
+
+| Lane | Route example | Entry |
+| --- | --- | --- |
+| Catalog | `/collections/[slug]`, `/search` | `prepareCatalogPage` → `useCatalog()` |
+| Product detail | `/products/[handle]` | `prepareProductDetailPage` → `useProductDetail()` |
+| Cart | `/api/cart/*` | `services.cart` |
+| Checkout | `/checkout`, `/api/checkout/*` | `services.checkout` + `gateCheckoutCommit()` |
+
+Do not reintroduce legacy aliases (`ProductsPage`, `cartService` shim, direct `reserveInventory` from cart routes).
 
 ---
 
@@ -23,8 +50,8 @@ flowchart LR
 | --- | --- | --- |
 | Discover | `/`, `/products`, `/collections/*`, `/search` | Product/collection APIs |
 | Evaluate | `/products/[handle]` | Reviews, metafields, availability read |
-| Cart | `/cart` | `CartService` + inventory availability check |
-| Checkout | `/checkout` | `services.checkout` only for payment |
+| Cart | `/cart` | `services.cart` (availability via `checkAvailability` only) |
+| Checkout | `/checkout` | `services.checkout` — commitment gate before payment |
 | Post-purchase | `/orders`, `/account/vault` | Order query, digital vault |
 | Help | `/support`, Concierge bubble | Tickets, KB, AI tools |
 
@@ -58,15 +85,21 @@ flowchart LR
 Browse → Add to cart → Checkout → Pay (Stripe) → Verify / webhook → Order confirmation
 ```
 
-### Cart API
+### Cart API (`services.cart`)
 
 | Endpoint | Method | Role |
 | --- | --- | --- |
-| `/api/cart` | GET, POST | Load or create cart |
+| `/api/cart` | GET, DELETE | Load or clear cart (`CartResult<CartView>`) |
 | `/api/cart/items` | POST, PATCH, DELETE | Line items |
+| `/api/cart/validate` | POST | Pre-checkout validation |
+| `/api/cart/preview-line` | POST | Guest line snapshot preview |
+| `/api/cart/merge-guest` | POST | Merge guest cart on login |
 | `/api/cart/note` | POST | Order note |
+| `/api/cart/discount` | POST | Apply promo (authed) |
 
-`CartService` checks inventory availability via `services.inventory.checkAvailability` before adding physical SKUs.
+Cart is a **purchase intent buffer** — not financial truth. Physical SKUs use `checkAvailability` only; stock holds happen at checkout via `reserveInventory`.
+
+Client: `useCart` → `services.cart` in `apiClientServices.ts` (no `cartService` shim).
 
 ### Checkout API
 
@@ -133,16 +166,22 @@ Some checkout paths require recent re-auth (`requireStepUpSessionUser`) — mirr
 
 ## Checkout client behavior
 
-The checkout page (`/checkout`) typically:
+The checkout page (`/checkout`) uses the commitment gate pattern:
 
-1. Loads cart from `/api/cart`
-2. Validates discount via `/api/discounts/validate` if code applied
-3. Calls `POST /api/checkout/create-payment-intent` with **idempotency key** (stable per checkout attempt)
-4. Initializes Stripe.js with `clientSecret`
-5. On payment success → redirect to success URL
-6. Success page calls `GET /api/checkout/verify?payment_intent=…` in parallel with webhook finalization
+1. `refreshCart()` on load (authed)
+2. `gateCheckoutCommit(await services.cart.validateCart())` before payment
+3. Information → shipping → payment steps
+4. **PaymentIntent path:** `POST /api/checkout/create-payment-intent` with idempotency key → Stripe.js `clientSecret`
+5. **Payment-method path:** `services.checkout.completeWithPaymentMethod` → `POST /api/orders`
+6. Success: `OrderConfirmation` or verify via `GET /api/checkout/verify?payment_intent=…` (webhook may finalize in parallel)
 
-**Client must not** finalize orders locally — always wait for verify response or poll `/api/orders`.
+**Client must not** capture money directly — Stripe UI only creates a `PaymentMethod`; server routes call `services.checkout`.
+
+UI modules: `src/ui/checkout/` (`validateBeforeCommit`, `StripeCheckoutForm`, `stripeClient`).
+
+### E2E mock checkout
+
+When `NEXT_PUBLIC_E2E_MOCK_CHECKOUT=1`, `StripeCheckoutForm` shows a **Mock Pay (E2E)** button (no card entry). Used by `npm run test:e2e:checkout-smoke`.
 
 Stripe test cards: [local-development.md](./local-development.md)
 
@@ -213,13 +252,15 @@ Details: [concierge/overview.md](./concierge/overview.md)
 ## UI architecture
 
 ```
-src/ui/pages/          # Page-level compositions
-src/ui/components/     # Reusable storefront components
-src/ui/hooks/          # Cart, wishlist, session hooks
-src/ui/apiClientServices.ts   # Typed fetch facade
+src/ui/pages/catalog/       # Catalog lane (useCatalog, viewState)
+src/ui/pages/product-detail/  # PDP lane (useProductDetail, viewState)
+src/ui/cart/                # Cart view state, issues, mutations
+src/ui/checkout/            # Commitment gate + Stripe presentation
+src/ui/hooks/useCart.tsx    # Cart protocol client (import cartMutations directly)
+src/ui/apiClientServices.ts # Typed fetch facade
 ```
 
-Storefront components do **not** import Firestore or Stripe SDKs directly — all server state flows through API routes.
+Storefront components do **not** import Firestore, `firebase-admin`, or server core stacks directly. Do not import runtime code from the `@core/cart` barrel in client components (use `@core/cart/cartMutations` etc.).
 
 ---
 
@@ -230,7 +271,7 @@ Unlike Shopify themes, customization is **source-level**:
 1. **Branding** — `src/domain/seo/brand.ts`, `public/images/`, admin Settings
 2. **Layout** — `src/ui/layouts/`, home page sections in `src/ui/pages/home/`
 3. **Product card / detail** — `src/ui/pages/product-detail/`
-4. **Checkout UI** — `src/ui/components/checkout/`
+4. **Checkout UI** — `src/ui/checkout/`, `src/ui/pages/CheckoutPage.tsx`
 
 There is no Liquid layer; merchants fork the repo or maintain a private branch for visual changes.
 
@@ -238,6 +279,8 @@ There is no Liquid layer; merchants fork the repo or maintain a private branch f
 
 ## Related docs
 
+- [storefront-release.md](./storefront-release.md) — proof ladder and E2E smoke
 - [checkout.md](./checkout.md) — payment protocol
 - [inventory.md](./inventory.md) — stock reservations at checkout
+- [testing.md](./testing.md) — full test guide
 - [platform-overview.md](./platform-overview.md) — full feature comparison

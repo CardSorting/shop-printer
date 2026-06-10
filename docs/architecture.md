@@ -294,15 +294,19 @@ Read-only? → query services / repos
 
 | Layer | Tooling | When to run |
 | --- | --- | --- |
+| Storefront frozen chain | `npm run test:storefront-release` | Cart, checkout, catalog, PDP changes |
 | Protocol seals | `*-verification-ladder.test.ts` | After any protocol change |
 | Flow modules | Unit tests + in-memory repos | During development |
 | API routes | Route tests on critical paths | Webhook, checkout verify |
-| Storefront journeys | Playwright `e2e/` | Before release |
+| Checkout browser smoke | `npm run test:e2e:checkout-smoke` | Checkout UI releases |
+| Storefront journeys | Playwright `e2e/` | Broader UI regression |
 | Throughput | `npm run benchmark:order-flow` | Performance regression |
 
 Protocol changes **require** ladder test updates — that is the architecture enforcement mechanism.
 
 ```bash
+npm run test:storefront-release
+
 npm test -- --run \
   src/tests/checkout-verification-ladder.test.ts \
   src/tests/refund-verification-ladder.test.ts \
@@ -322,4 +326,5 @@ npm test -- --run \
 | Money reversal | [refunds.md](./refunds.md) |
 | Merchant console | [admin.md](./admin.md) |
 | Frozen rules | [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) |
+| Storefront release proofs | [storefront-release.md](./storefront-release.md) |
 | Local setup | [onboarding.md](./onboarding.md) |

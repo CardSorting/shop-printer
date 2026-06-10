@@ -135,6 +135,9 @@ Route adapters map `code` → HTTP status. Callers must branch on `ok`, not try/
 ## Verification commands
 
 ```bash
+npm run test:storefront-release   # storefront frozen chain (125 tests)
+npm run test:e2e:checkout-smoke   # mocked checkout browser smoke (3 tests)
+
 npm test -- --run \
   src/tests/checkout-verification-ladder.test.ts \
   src/tests/inventory-verification-ladder.test.ts \
@@ -143,7 +146,7 @@ npm test -- --run \
   src/tests/admin-verification-ladder.test.ts
 ```
 
-Detail: [testing.md](./testing.md)
+Detail: [testing.md](./testing.md) · [storefront-release.md](./storefront-release.md)
 
 ---
 

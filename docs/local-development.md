@@ -18,6 +18,21 @@ Copy `whsec_…` from Terminal 2 into `.env` → `STRIPE_WEBHOOK_SECRET` → res
 
 App: `http://localhost:3000` · Admin: `http://localhost:3000/admin`
 
+If port 3000 hangs (curl times out): `npm run cleanup` then restart.
+
+---
+
+## Storefront verification
+
+```bash
+npm run test:storefront-release
+npm run test:e2e:checkout-smoke
+```
+
+First Playwright run: `npx playwright install chromium`
+
+See [storefront-release.md](./storefront-release.md).
+
 ---
 
 ## npm scripts
@@ -29,7 +44,10 @@ App: `http://localhost:3000` · Admin: `http://localhost:3000/admin`
 | `npm run cleanup` | Free stuck ports |
 | `npm test` | Vitest watch mode |
 | `npm test -- --run <file>` | Single run |
-| `npm run test:e2e` | Playwright |
+| `npm run test:storefront-release` | Frozen storefront proof suite (125 tests) |
+| `npm run test:e2e:checkout-smoke` | Mocked checkout Playwright smoke (3 tests) |
+| `npm run dev:e2e` | Dev server with E2E mock pay button |
+| `npm run test:e2e` | Full Playwright suite |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm run build` | Production build locally |
