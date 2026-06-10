@@ -1,15 +1,21 @@
 "use client";
 
-'use client';
-
 /**
  * [LAYER: UI]
  * Admin order detail page — Full-width fulfillment console.
  */
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useServices } from '../../hooks/useServices';
-import type { Order, OrderStatus, OrderNote, OrderItem, Address } from '@domain/models';
+import type { Order, OrderStatus, OrderNote, OrderItem } from '@domain/models';
+import type { OrderTimelineEntry } from '@core/commerce/commerceEventTypes';
+import { adminOrdersApi } from '../../api/adminOrdersApi';
+import { formatAdminApiError } from '../../api/adminApiClient';
+import {
+  canonicalOrderStatusLabel,
+  commerceTimelineProtocolColor,
+  formatCommerceTimelineEvent,
+  formatCommerceTimelineSubtitle,
+} from '../../commerce/commerceUiHelpers';
 import {
   ChevronDown,
   Printer,
@@ -27,7 +33,7 @@ import {
   Truck,
   Download
 } from 'lucide-react';
-import { formatCurrency, formatShortDate, humanizeOrderStatus, formatRelativeTime } from '@utils/formatters';
+import { formatCurrency, formatShortDate, formatRelativeTime } from '@utils/formatters';
 import { nextOrderActionLabel } from '@domain/rules';
 import Image from 'next/image';
 import { sanitizeImageUrl } from '@utils/sanitizer';
@@ -60,10 +66,10 @@ interface AdminOrderDetailProps {
 
 export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
   useAdminPageTitle(`Order #${id.slice(0, 8).toUpperCase()}`);
-  const services = useServices();
   const { toast } = useToast();
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
+  const [timeline, setTimeline] = useState<OrderTimelineEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [noteInput, setNoteInput] = useState('');
@@ -82,25 +88,25 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
 
     if (isMounted.current) setLoading(true);
     try {
-      const found = await services.orderService.getAdminOrder(id);
+      const [found, timelineResult] = await Promise.all([
+        adminOrdersApi.getOrder(id, controller.signal),
+        adminOrdersApi.getTimeline(id, controller.signal),
+      ]);
       if (!controller.signal.aborted && isMounted.current) {
-        if (found) {
-          setOrder(found);
-        } else {
-          toast('error', 'Order not found');
-          router.push('/admin/orders');
-        }
+        setOrder(found);
+        setTimeline(timelineResult.entries);
       }
     } catch (err) {
       if (!controller.signal.aborted && isMounted.current) {
-        toast('error', 'Failed to load order details');
+        toast('error', formatAdminApiError(err));
+        router.push('/admin/orders');
       }
     } finally {
       if (!controller.signal.aborted && isMounted.current) {
         setLoading(false);
       }
     }
-  }, [id, services.orderService, router, toast]);
+  }, [id, router, toast]);
 
   useEffect(() => {
     void loadOrder();
@@ -111,16 +117,20 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
     if (!order) return;
     setUpdating(true);
     try {
-      const user = await services.authService.getCurrentUser();
-      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
-      await services.orderService.updateOrderStatus(order.id, status, actor);
+      await adminOrdersApi.updateStatus(order.id, {
+        status,
+        reason: status === 'cancelled' ? 'Operator cancelled order from order detail' : undefined,
+        idempotencyKey: `admin-order-detail-status:${order.id}:${status}`,
+      });
       if (isMounted.current) {
-        toast('success', `Order updated to ${humanizeOrderStatus(status)}`);
+        toast('success', `Order updated to ${canonicalOrderStatusLabel(status)}`);
         setOrder((prev: Order | null) => prev ? { ...prev, status } : null);
+        const timelineResult = await adminOrdersApi.getTimeline(order.id);
+        setTimeline(timelineResult.entries);
       }
     } catch (err) {
       if (isMounted.current) {
-        toast('error', err instanceof Error ? err.message : 'Failed to update order status');
+        toast('error', formatAdminApiError(err));
       }
     } finally {
       if (isMounted.current) {
@@ -132,17 +142,20 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
   async function handlePostNote() {
     if (!noteInput.trim() || !order) return;
     try {
-      const user = await services.authService.getCurrentUser();
-      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
-      const newNote = await services.orderService.addOrderNote(order.id, noteInput, actor);
+      const newNote = await adminOrdersApi.addNote(order.id, {
+        note: noteInput,
+        idempotencyKey: `admin-order-note:${order.id}:${noteInput.slice(0, 32)}`,
+      });
       if (isMounted.current) {
         setOrder((prev: Order | null) => prev ? { ...prev, notes: [...prev.notes, newNote] } : null);
         setNoteInput('');
         toast('success', 'Note added to timeline');
+        const timelineResult = await adminOrdersApi.getTimeline(order.id);
+        setTimeline(timelineResult.entries);
       }
     } catch (err) {
       if (isMounted.current) {
-        toast('error', 'Failed to save note');
+        toast('error', formatAdminApiError(err));
       }
     }
   }
@@ -156,16 +169,20 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
       shippingCarrier: formData.get('shippingCarrier') as string,
     };
     try {
-      const user = await services.authService.getCurrentUser();
-      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
-      await services.orderService.updateOrderFulfillment(order.id, data, actor);
+      await adminOrdersApi.updateFulfillment(order.id, {
+        trackingNumber: data.trackingNumber,
+        shippingCarrier: data.shippingCarrier,
+        idempotencyKey: `admin-order-fulfill:${order.id}:${data.trackingNumber || data.shippingCarrier}`,
+      });
       if (isMounted.current) {
         setOrder((prev: Order | null) => prev ? { ...prev, ...data } : null);
         toast('success', 'Fulfillment updated');
+        const timelineResult = await adminOrdersApi.getTimeline(order.id);
+        setTimeline(timelineResult.entries);
       }
     } catch (err) {
       if (isMounted.current) {
-        toast('error', 'Failed to update fulfillment');
+        toast('error', formatAdminApiError(err));
       }
     }
   }
@@ -197,7 +214,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
               <button 
                 onClick={async () => {
                   try {
-                    const csv = await services.orderService.exportOrdersToPirateShipCsv([order.id]);
+                    const csv = await adminOrdersApi.exportPirateShipCsv({ ids: [order.id] });
                     const blob = new Blob([csv], { type: 'text/csv' });
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -209,7 +226,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
                     document.body.removeChild(a);
                     toast('success', 'Ready to upload to Pirate Ship');
                   } catch (err) {
-                    toast('error', 'Export failed');
+                    toast('error', formatAdminApiError(err));
                   }
                 }}
                 className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white shadow-md transition hover:bg-indigo-700 active:scale-95"
@@ -313,23 +330,35 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
             </div>
           </div>
 
-          {/* Timeline / Notes */}
+          {/* Commerce timeline + operator notes */}
           <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
             <div className="border-b px-6 py-4 bg-gray-50/50">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">Activity Timeline</h3>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">Commerce Timeline</h3>
             </div>
             <div className="p-8">
               <div className="relative space-y-8 pl-8">
                 <div className="absolute left-[1.05rem] top-2 bottom-2 w-px bg-gray-100" />
 
-                <div className="relative">
-                  <div className="absolute left-[-2.15rem] mt-1.5 h-4 w-4 rounded-full border-2 border-white bg-green-500 shadow-sm" />
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold text-gray-900">Payment captured</p>
-                    <span className="text-xs font-medium text-gray-400 uppercase">{formatShortDate(order.createdAt)}</span>
+                {timeline.length === 0 && (
+                  <div className="relative">
+                    <div className="absolute left-[-2.15rem] mt-1.5 h-4 w-4 rounded-full border-2 border-white bg-gray-300 shadow-sm" />
+                    <p className="text-sm text-gray-500">No committed commerce events yet for this order.</p>
                   </div>
-                  <p className="text-xs text-gray-500 font-medium mt-1">Transaction ID: {order.paymentTransactionId || 'N/A'}</p>
-                </div>
+                )}
+
+                {timeline.map((entry) => (
+                  <div key={entry.id} className="relative animate-in slide-in-from-left-2 duration-300">
+                    <div className={`absolute left-[-2.15rem] mt-1.5 h-4 w-4 rounded-full border-2 border-white shadow-sm ${commerceTimelineProtocolColor(entry.protocol)}`} />
+                    <div className="flex items-center justify-between gap-4">
+                      <p className="text-sm font-bold text-gray-900">{entry.label}</p>
+                      <span className="text-xs font-medium text-gray-400 uppercase whitespace-nowrap">
+                        {formatShortDate(entry.occurredAt)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 font-medium mt-1">{formatCommerceTimelineEvent(entry)}</p>
+                    <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest">{formatCommerceTimelineSubtitle(entry)}</p>
+                  </div>
+                ))}
 
                 {order.customerNote && (
                   <div className="relative animate-in slide-in-from-left-2 duration-300">
@@ -345,14 +374,6 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
                     </div>
                   </div>
                 )}
-
-                <div className="relative">
-                  <div className="absolute left-[-2.15rem] mt-1.5 h-4 w-4 rounded-full border-2 border-white bg-blue-500 shadow-sm" />
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold text-gray-900">Order placed</p>
-                    <span className="text-xs font-medium text-gray-400 uppercase">{formatShortDate(order.createdAt)}</span>
-                  </div>
-                </div>
 
                 {order.notes.map((note: OrderNote) => (
                   <div key={note.id} className="relative animate-in slide-in-from-left-2 duration-300">
@@ -416,7 +437,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
                     className="w-full appearance-none rounded-xl border bg-white px-4 py-3 pr-10 text-sm font-bold text-gray-700 shadow-sm outline-none focus:ring-2 focus:ring-primary-500 transition"
                   >
                     {NEXT_STATUSES[order.status].map((status: OrderStatus) => (
-                      <option key={status} value={status}>{humanizeOrderStatus(status)}</option>
+                      <option key={status} value={status}>{canonicalOrderStatusLabel(status)}</option>
                     ))}
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />

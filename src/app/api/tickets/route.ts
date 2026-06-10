@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
+import { getServerServices } from '@infrastructure/server/services';
+import { supportRouteResponse } from '@infrastructure/server/supportRouteAdapter';
 import { jsonError, readJsonObject, requireSessionUser } from '@infrastructure/server/apiGuards';
 import { DomainError } from '@domain/errors';
 import type { TicketPriority, TicketType } from '@domain/models';
@@ -23,9 +24,9 @@ function optionalText(value: unknown, field: string, maxLength = 200): string | 
 export async function GET(req: Request) {
   try {
     const user = await requireSessionUser();
-    
-    const tickets = await ticketRepository.getTickets({ userId: user.id });
-    return NextResponse.json(tickets);
+    const services = await getServerServices();
+    const result = await services.support.listTickets({ userId: user.id });
+    return supportRouteResponse(result);
   } catch (err) {
     return jsonError(err, 'Failed to load support tickets');
   }
@@ -35,7 +36,6 @@ export async function POST(req: Request) {
   try {
     const user = await requireSessionUser();
     const data = await readJsonObject(req);
-    const ticketId = crypto.randomUUID();
     const requestedType = optionalText(data.type, 'type', 30) as TicketType | undefined;
     const requestedPriority = optionalText(data.priority, 'priority', 30) as TicketPriority | undefined;
     const initialMessage = Array.isArray(data.messages) && data.messages[0]
@@ -43,35 +43,26 @@ export async function POST(req: Request) {
       : requiredText(data.message ?? data.content, 'message');
     const type = requestedType && TICKET_TYPES.has(requestedType) ? requestedType : 'question';
     const priority = requestedPriority && TICKET_PRIORITIES.has(requestedPriority) ? requestedPriority : 'medium';
-    const ticket = {
-      id: ticketId,
+    const idempotencyKey = optionalText(data.idempotencyKey, 'idempotencyKey') ?? `ticket.create:${user.id}:${requiredText(data.subject, 'subject', 200)}`;
+
+    const services = await getServerServices();
+    const result = await services.support.createTicket({
+      actor: { id: user.id, email: user.email, name: user.displayName },
+      source: 'customer',
+      idempotencyKey,
       userId: user.id,
       customerEmail: user.email,
       customerName: user.displayName || undefined,
       orderId: optionalText(data.orderId, 'orderId'),
       productId: optionalText(data.productId, 'productId'),
       subject: requiredText(data.subject, 'subject', 200),
+      message: initialMessage,
       type,
-      tags: [type],
       priority,
-      status: 'new' as const,
-      messages: [
-        {
-          id: crypto.randomUUID(),
-          ticketId,
-          senderId: user.id,
-          senderType: 'customer' as const,
-          visibility: 'public' as const,
-          content: initialMessage,
-          createdAt: new Date()
-        }
-      ],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+      tags: [type],
+    });
 
-    await ticketRepository.createTicket(ticket);
-    return NextResponse.json(ticket);
+    return supportRouteResponse(result);
   } catch (err) {
     return jsonError(err, 'Failed to create support ticket');
   }

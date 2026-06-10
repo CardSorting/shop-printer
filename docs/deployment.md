@@ -2,7 +2,7 @@
 
 Production deployment guide for DreamBees Art — self-hosted on **Firebase Hosting** (SSR) with **Firestore**, **Firebase Auth**, and **Stripe**.
 
-Prerequisites: completed [onboarding.md](./onboarding.md) locally.
+Prerequisites: completed [onboarding.md](./onboarding.md) locally. Production gate: [production-readiness.md](./production-readiness.md).
 
 ---
 
@@ -106,6 +106,7 @@ What `deploy-optimized.sh` does:
 
 Verify after deploy:
 
+- `GET /api/system/health/protocols` returns `ok: true`
 - Storefront loads at production URL
 - Login/register works (Firebase Auth)
 - Test checkout with live **test mode** keys first if validating pipeline before going live

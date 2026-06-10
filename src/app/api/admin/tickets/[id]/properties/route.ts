@@ -1,6 +1,6 @@
-import { requireAdminSession, jsonError, readJsonObject, requireString } from '@infrastructure/server/apiGuards';
-import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
-import { getInitialServices } from '@core/container';
+import { requireAdminSession, jsonError, readJsonObject, requireString, optionalString } from '@infrastructure/server/apiGuards';
+import { getServerServices } from '@infrastructure/server/services';
+import { supportRouteResponse } from '@infrastructure/server/supportRouteAdapter';
 import { parseTicketProperties } from '../../parsers';
 
 export async function PATCH(
@@ -9,25 +9,22 @@ export async function PATCH(
 ) {
   try {
     const session = await requireAdminSession(req);
-    const properties = parseTicketProperties(await readJsonObject(req));
+    const body = await readJsonObject(req);
+    const properties = parseTicketProperties(body);
     const { id: rawId } = await params;
     const id = requireString(rawId, 'id');
-    
-    const oldTicket = await ticketRepository.getTicketById(id);
-    await ticketRepository.updateTicketProperties(id, properties);
-    const updatedTicket = await ticketRepository.getTicketById(id);
-    
-    // PRODUCTION HARDENING: Forensic Auditing
-    const { auditService } = getInitialServices();
-    await auditService.record({
-      userId: session.id,
-      userEmail: session.email,
-      action: 'ticket_updated',
-      targetId: id,
-      details: { properties, previousTags: oldTicket?.tags }
+
+    const services = await getServerServices();
+    const result = await services.support.updateTicket({
+      actor: { id: session.id, email: session.email, name: session.displayName },
+      source: 'admin',
+      idempotencyKey: optionalString(body.idempotencyKey, 'idempotencyKey') ?? `ticket.properties:${id}`,
+      ticketId: id,
+      patch: properties,
+      reason: optionalString(body.reason, 'reason'),
     });
 
-    return Response.json(updatedTicket);
+    return supportRouteResponse(result);
   } catch (err) {
     return jsonError(err);
   }

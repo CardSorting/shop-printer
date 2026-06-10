@@ -12,6 +12,7 @@ export const dynamic = 'force-dynamic';
 import { getUnifiedDb, collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion, getDoc, runTransaction } from '@infrastructure/firebase/bridge';
 // import { collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { getInitialServices } from '@core/container';
+import { CONCIERGE_ADMIN_ACTOR, requireConciergeAdminResult } from '@infrastructure/server/conciergeActor';
 
 const ChatSchema = z.object({
   messages: z.array(z.object({
@@ -289,7 +290,7 @@ export async function POST(req: NextRequest) {
       },
       async flush(controller) {
         const flushStart = Date.now();
-        const { discountService, orderService, ticketRepository, auditService } = getInitialServices();
+        const { discountService, orderService, support, auditService, admin } = getInitialServices();
         const db = getUnifiedDb();
         const sessionRef = activeSessionId ? doc(db, 'conciergeSessions', activeSessionId) : null;
         if (!sessionRef) return;
@@ -594,9 +595,14 @@ export async function POST(req: NextRequest) {
           const tStart = Date.now();
           if (!validateToolCall('closeTicket', { ticketId }, sessionData.context)) continue;
           try {
-            const ticket = await ticketRepository.getTicketById(ticketId);
-            if (ticket && ticket.userId === userId) {
-              await ticketRepository.updateTicketStatus(ticketId, 'closed');
+            const ticketResult = await support.getTicket({ ticketId, userId });
+            if (ticketResult.ok && ticketResult.data.userId === userId) {
+              await support.closeTicket({
+                actor: { id: userId, email: userEmail },
+                source: 'concierge',
+                idempotencyKey: `concierge.close:${activeSessionId}:${ticketId}`,
+                ticketId,
+              });
               sessionUpdates['context.lastActionStatus'] = 'success';
               sessionUpdates.events.push({
                 type: 'resolved',
@@ -691,10 +697,12 @@ export async function POST(req: NextRequest) {
           try {
             const order = await orderService.getOrder(orderId, userId === 'anonymous' ? undefined : userId);
             if (order) {
-              await orderService.addOrderNote(orderId, noteText, {
-                id: 'concierge',
-                email: 'concierge@woodbine.com'
-              });
+              requireConciergeAdminResult(await admin.addOrderNote({
+                actor: CONCIERGE_ADMIN_ACTOR,
+                orderId,
+                text: noteText,
+                idempotencyKey: `concierge-note:${activeSessionId}:${orderId}:${noteText.slice(0, 32)}`,
+              }), 'addOrderNote');
               sessionUpdates.events.push({
                 type: 'note_added',
                 timestamp: new Date().toISOString(),
@@ -721,11 +729,13 @@ export async function POST(req: NextRequest) {
           const orderId = m[1];
           if (!validateToolCall('cancelOrder', { orderId }, sessionData.context)) continue;
           try {
-            const { orderService } = getInitialServices();
-            await orderService.updateOrderStatus(orderId, 'cancelled', {
-              id: 'concierge',
-              email: 'concierge@woodbine.com'
-            });
+            requireConciergeAdminResult(await admin.updateOrderStatus({
+              actor: CONCIERGE_ADMIN_ACTOR,
+              orderId,
+              status: 'cancelled',
+              reason: `Concierge cancellation for session ${activeSessionId}`,
+              idempotencyKey: `concierge-cancel:${activeSessionId}:${orderId}`,
+            }), 'cancelOrder');
             sessionUpdates.events.push({
               type: 'cancelled',
               timestamp: new Date().toISOString(),
@@ -905,11 +915,12 @@ export async function POST(req: NextRequest) {
           const orderId = m[1];
           try {
             const address = JSON.parse(m[2]);
-            const { orderService } = getInitialServices();
-            await orderService.updateShippingAddress(orderId, address, {
-              id: 'concierge',
-              email: 'concierge@woodbine.com'
-            });
+            requireConciergeAdminResult(await admin.updateOrderShippingAddress({
+              actor: CONCIERGE_ADMIN_ACTOR,
+              orderId,
+              address,
+              idempotencyKey: `concierge-address:${activeSessionId}:${orderId}`,
+            }), 'updateShippingAddress');
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
@@ -967,11 +978,12 @@ export async function POST(req: NextRequest) {
           const orderId = m[1];
           const code = m[2];
           try {
-            const { orderService } = getInitialServices();
-            await orderService.applyDiscountToOrder(orderId, code, {
-              id: 'concierge',
-              email: 'concierge@woodbine.com'
-            });
+            requireConciergeAdminResult(await admin.applyOrderDiscount({
+              actor: CONCIERGE_ADMIN_ACTOR,
+              orderId,
+              code,
+              idempotencyKey: `concierge-discount:${activeSessionId}:${orderId}:${code}`,
+            }), 'applyDiscount');
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
@@ -1026,15 +1038,18 @@ export async function POST(req: NextRequest) {
           const uId = m[1];
           const reason = m[2];
           try {
-            const { ticketRepository } = getInitialServices();
-            await ticketRepository.createTicket({
+            const { support: supportService } = getInitialServices();
+            await supportService.createTicket({
+              actor: { id: userId, email: userEmail },
+              source: 'concierge',
+              idempotencyKey: `concierge.account_deletion:${activeSessionId}:${uId}`,
               userId: uId,
+              customerEmail: userEmail,
               subject: 'Account Deletion Request',
-              description: `User requested account deletion. Reason: ${reason}`,
-              status: 'open',
+              message: `User requested account deletion. Reason: ${reason}`,
               priority: 'high',
-              tags: ['privacy', 'gdpr', 'account_deletion']
-            } as any);
+              tags: ['privacy', 'gdpr', 'account_deletion'],
+            });
             
             await auditService.record({
               userId, userEmail,
@@ -1074,8 +1089,9 @@ export async function POST(req: NextRequest) {
         if (tokens.getMacros.length > 0) {
           const tStart = Date.now();
           try {
-            const { ticketRepository } = getInitialServices();
-            const macros = await ticketRepository.getMacros();
+            const { support: supportService } = getInitialServices();
+            const macroResult = await supportService.getMacros();
+            const macros = macroResult.ok ? macroResult.data : [];
             sessionUpdates['context.supportMacros'] = macros.map((m: any) => ({
               id: m.id,
               name: m.name,
@@ -1091,8 +1107,9 @@ export async function POST(req: NextRequest) {
           const tStart = Date.now();
           const uId = m[1];
           try {
-            const { ticketRepository } = getInitialServices();
-            const summary = await ticketRepository.getCustomerSupportSummary(uId);
+            const { support: supportService } = getInitialServices();
+            const summaryResult = await supportService.getCustomerSupportSummary(uId);
+            const summary = summaryResult.ok ? summaryResult.data : null;
             sessionUpdates['context.customerInsights'] = summary;
           } catch (err) {
             logger.error('Failed to get customer insights from concierge', err);
@@ -1458,17 +1475,24 @@ export async function POST(req: NextRequest) {
           const ticketId = m[1];
           const reason = m[2];
           try {
-            const { ticketRepository } = getInitialServices();
-            await ticketRepository.updateTicketPriority(ticketId, 'urgent');
-            await ticketRepository.addMessage({
-              id: crypto.randomUUID(),
+            const { support: supportService } = getInitialServices();
+            await supportService.updateTicket({
+              actor: { id: 'concierge', email: 'concierge@woodbine.com' },
+              source: 'concierge',
+              idempotencyKey: `concierge.urgency.priority:${activeSessionId}:${ticketId}`,
               ticketId,
-              senderId: 'concierge',
-              senderType: 'staff',
-              visibility: 'internal',
+              patch: { priority: 'urgent' },
+              reason,
+            });
+            await supportService.addTicketMessage({
+              actor: { id: 'concierge', email: 'concierge@woodbine.com' },
+              source: 'concierge',
+              idempotencyKey: `concierge.urgency.message:${activeSessionId}:${ticketId}`,
+              ticketId,
               content: `URGENCY FLAGGED BY CONCIERGE: ${reason}`,
-              createdAt: new Date()
-            } as any);
+              visibility: 'internal',
+              senderType: 'system',
+            });
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
@@ -1511,11 +1535,13 @@ export async function POST(req: NextRequest) {
           const oldId = m[2];
           const newId = m[3];
           try {
-            const { orderService } = getInitialServices();
-            await orderService.swapOrderItem(orderId, oldId, newId, {
-              id: 'concierge',
-              email: 'concierge@woodbine.com'
-            });
+            requireConciergeAdminResult(await admin.swapOrderItem({
+              actor: CONCIERGE_ADMIN_ACTOR,
+              orderId,
+              oldProductId: oldId,
+              newProductId: newId,
+              idempotencyKey: `concierge-swap:${activeSessionId}:${orderId}:${oldId}:${newId}`,
+            }), 'swapOrderItem');
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
@@ -1536,11 +1562,13 @@ export async function POST(req: NextRequest) {
           const carrier = m[2];
           const service = m[3];
           try {
-            const { orderService } = getInitialServices();
-            await orderService.upgradeShipping(orderId, carrier, service, {
-              id: 'concierge',
-              email: 'concierge@woodbine.com'
-            });
+            requireConciergeAdminResult(await admin.upgradeOrderShipping({
+              actor: CONCIERGE_ADMIN_ACTOR,
+              orderId,
+              carrier,
+              service,
+              idempotencyKey: `concierge-shipping:${activeSessionId}:${orderId}:${carrier}:${service}`,
+            }), 'upgradeShipping');
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
@@ -1580,15 +1608,18 @@ export async function POST(req: NextRequest) {
             const bugCount = existingEvents.filter((e: any) => e.label === 'Bug Report Filed').length;
             if (bugCount >= 2) continue;
 
-            const { ticketRepository } = getInitialServices();
-            await ticketRepository.createTicket({
+            const { support: supportService } = getInitialServices();
+            await supportService.createTicket({
+              actor: { id: 'concierge', email: 'concierge@woodbine.com' },
+              source: 'concierge',
+              idempotencyKey: `concierge.bug:${activeSessionId}:${desc.slice(0, 32)}`,
               userId: 'system',
+              customerEmail: 'concierge@woodbine.com',
               subject: 'SYSTEM BUG REPORTED BY CONCIERGE',
-              description: `Concierge detected a site bug: ${desc}`,
-              status: 'new',
+              message: `Concierge detected a site bug: ${desc}`,
               priority: 'high',
-              tags: ['bug', 'technical_debt', 'concierge_alert']
-            } as any);
+              tags: ['bug', 'technical_debt', 'concierge_alert'],
+            });
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
@@ -1633,20 +1664,26 @@ export async function POST(req: NextRequest) {
           const orderId = m[1];
           const itemIds = JSON.parse(m[2]);
           try {
-            const { ticketRepository, orderService } = getInitialServices();
-            await ticketRepository.createTicket({
+            const { support: supportService } = getInitialServices();
+            await supportService.createTicket({
+              actor: { id: 'concierge', email: 'concierge@woodbine.com' },
+              source: 'concierge',
+              idempotencyKey: `concierge.order_split:${activeSessionId}:${orderId}`,
               userId: 'warehouse',
+              customerEmail: userEmail,
               subject: `ORDER SPLIT REQUEST: #${orderId}`,
-              description: `Customer requested splitting items ${itemIds.join(', ')} from Order #${orderId} to ship separately.`,
-              status: 'new',
+              message: `Customer requested splitting items ${itemIds.join(', ')} from Order #${orderId} to ship separately.`,
               priority: 'medium',
-              tags: ['order_split', 'warehouse_action']
-            } as any);
-            
-            await orderService.addOrderNote(orderId, `Split requested for items: ${itemIds.join(', ')}`, {
-              id: 'concierge',
-              email: 'concierge@woodbine.com'
+              tags: ['order_split', 'warehouse_action'],
+              orderId,
             });
+            
+            requireConciergeAdminResult(await admin.addOrderNote({
+              actor: CONCIERGE_ADMIN_ACTOR,
+              orderId,
+              text: `Split requested for items: ${itemIds.join(', ')}`,
+              idempotencyKey: `concierge-split:${activeSessionId}:${orderId}`,
+            }), 'orderSplitNote');
 
             sessionUpdates.events.push({
               type: 'note_added',
@@ -1694,11 +1731,12 @@ export async function POST(req: NextRequest) {
           const orderId = m[1];
           const reason = m[2];
           try {
-            const { orderService } = getInitialServices();
-            await orderService.setOrderHold(orderId, reason, {
-              id: 'concierge',
-              email: 'concierge@woodbine.com'
-            });
+            requireConciergeAdminResult(await admin.setOrderHold({
+              actor: CONCIERGE_ADMIN_ACTOR,
+              orderId,
+              reason,
+              idempotencyKey: `concierge-hold:${activeSessionId}:${orderId}`,
+            }), 'setOrderHold');
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
@@ -1715,11 +1753,11 @@ export async function POST(req: NextRequest) {
           const tStart = Date.now();
           const orderId = m[1];
           try {
-            const { orderService } = getInitialServices();
-            await orderService.releaseOrderHold(orderId, {
-              id: 'concierge',
-              email: 'concierge@woodbine.com'
-            });
+            requireConciergeAdminResult(await admin.releaseOrderHold({
+              actor: CONCIERGE_ADMIN_ACTOR,
+              orderId,
+              idempotencyKey: `concierge-release-hold:${activeSessionId}:${orderId}`,
+            }), 'releaseOrderHold');
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
@@ -1736,15 +1774,18 @@ export async function POST(req: NextRequest) {
           const tStart = Date.now();
           const email = m[1];
           try {
-            const { ticketRepository } = getInitialServices();
-            await ticketRepository.createTicket({
+            const { support: supportService } = getInitialServices();
+            await supportService.createTicket({
+              actor: { id: 'concierge', email: 'concierge@woodbine.com' },
+              source: 'concierge',
+              idempotencyKey: `concierge.unsubscribe:${activeSessionId}:${email}`,
               userId: 'privacy',
+              customerEmail: email,
               subject: 'Marketing Unsubscribe Request',
-              description: `User requested removal from all marketing lists: ${email}`,
-              status: 'new',
+              message: `User requested removal from all marketing lists: ${email}`,
               priority: 'medium',
-              tags: ['privacy', 'unsubscribe', 'gdpr']
-            } as any);
+              tags: ['privacy', 'unsubscribe', 'gdpr'],
+            });
             
             await auditService.record({
               userId: 'system',
@@ -1770,15 +1811,19 @@ export async function POST(req: NextRequest) {
           const tStart = Date.now();
           const orderId = m[1];
           try {
-            const { ticketRepository } = getInitialServices();
-            await ticketRepository.createTicket({
+            const { support: supportService } = getInitialServices();
+            await supportService.createTicket({
+              actor: { id: 'concierge', email: 'concierge@woodbine.com' },
+              source: 'concierge',
+              idempotencyKey: `concierge.invoice:${activeSessionId}:${orderId}`,
               userId: 'finance',
+              customerEmail: userEmail,
               subject: `TAX INVOICE REQUEST: #${orderId}`,
-              description: `Customer requested a formal VAT/Tax invoice for Order #${orderId}.`,
-              status: 'new',
+              message: `Customer requested a formal VAT/Tax invoice for Order #${orderId}.`,
               priority: 'medium',
-              tags: ['finance', 'tax_invoice']
-            } as any);
+              tags: ['finance', 'tax_invoice'],
+              orderId,
+            });
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
@@ -1795,9 +1840,12 @@ export async function POST(req: NextRequest) {
           const tStart = Date.now();
           const orderId = m[1];
           try {
-            const { orderService } = getInitialServices();
-            const order = await orderService.getAdminOrder(orderId);
-            if (order) {
+            const orderResult = await admin.getAdminOrder({
+              actor: CONCIERGE_ADMIN_ACTOR,
+              orderId,
+            });
+            if (orderResult.ok) {
+              const order = orderResult.data;
               sessionUpdates['context.orderRisk'] = {
                 orderId,
                 score: order.riskScore || 0,

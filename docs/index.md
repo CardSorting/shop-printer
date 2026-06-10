@@ -98,6 +98,9 @@ troubleshooting.md
 | [platform-overview.md](./platform-overview.md) | Scope vs Shopify |
 | [protocols.md](./protocols.md) | Four protocols unified |
 | [quick-reference.md](./quick-reference.md) | Cheat sheet |
+| [production-readiness.md](./production-readiness.md) | Deploy gate, health endpoint, rollback |
+| [operator-commerce-runtime.md](./operator-commerce-runtime.md) | Operator runtime model |
+| [commerce-incident-runbook.md](./commerce-incident-runbook.md) | Commerce incident response |
 | [refunds.md](./refunds.md) | Money reversal protocol |
 | [release-checklist.md](./release-checklist.md) | Pre-release gate |
 | [runbook.md](./runbook.md) | Production ops |
@@ -113,6 +116,9 @@ troubleshooting.md
 ```bash
 npm test
 npm test -- --run src/tests/*-verification-ladder.test.ts
+npm test -- --run src/tests/protocol-guard.test.ts
+npm test -- --run src/tests/ui-protocol-alignment.test.ts
+npm test -- --run src/tests/production-readiness.test.ts
 npm run test:e2e
 ```
 
@@ -122,7 +128,6 @@ npm run test:e2e
 
 ## Legacy redirects
 
-- [checkout-orchestration.md](./checkout-orchestration.md) → [checkout.md](./checkout.md)
 - [checkout-protocol-frozen.md](./checkout-protocol-frozen.md) → [commerce-protocol-frozen.md](./commerce-protocol-frozen.md)
 - [woodbine-crm-whitepaper.md](./woodbine-crm-whitepaper.md) → [platform-overview.md](./platform-overview.md)
 

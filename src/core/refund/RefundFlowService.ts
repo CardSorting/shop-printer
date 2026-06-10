@@ -6,12 +6,15 @@ import type { RefundApplicationService } from './refundApplicationService';
 import type { CreateRefundInput, GetRefundStatusInput } from './refundApplicationService';
 import type { IRefundEventLog } from './refundEventLog';
 import { refundErr, refundFromError, refundOk } from './refundResult';
+import type { ICommerceEventBus } from '../commerce/commerceEventBus';
+import { mapRefundEventToEnvelope } from '../commerce/commerceEventMappers';
 
 export class RefundFlowService implements RefundApplicationService {
   constructor(
     private refundService: RefundService,
     private orderRepo: IOrderRepository,
     private eventLog: IRefundEventLog,
+    private commerceEventBus?: ICommerceEventBus,
   ) {}
 
   async createRefund(input: CreateRefundInput) {
@@ -68,7 +71,7 @@ export class RefundFlowService implements RefundApplicationService {
         input.idempotencyKey,
       );
 
-      await this.eventLog.recordExecution({
+      const executionEvent = {
         id: crypto.randomUUID(),
         idempotencyKey: input.idempotencyKey,
         orderId: result.orderId,
@@ -79,7 +82,11 @@ export class RefundFlowService implements RefundApplicationService {
         reason: input.reason,
         source: input.source ?? 'system',
         createdAt: new Date().toISOString(),
-      });
+      };
+      await this.eventLog.recordExecution(executionEvent);
+      if (this.commerceEventBus) {
+        await this.commerceEventBus.publish(mapRefundEventToEnvelope(executionEvent));
+      }
       await this.eventLog.markRefundExecutionCompleted(input.idempotencyKey);
 
       return refundOk({

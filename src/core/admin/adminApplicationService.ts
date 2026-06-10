@@ -1,8 +1,8 @@
-import type { Product, ProductDraft, ProductUpdate, User, UserRole, Order, OrderNote, InventoryLocation } from '@domain/models';
+import type { Address, Product, ProductDraft, ProductUpdate, User, UserRole, Order, OrderNote, InventoryLocation } from '@domain/models';
 import type { OrderStatus } from '@domain/models';
 import type { AdminDashboardSummary } from '@core/OrderQueryService';
 import type { ReconciliationOperatorAction } from '@core/order/checkoutTypes';
-import type { ReceiveItemsInput, ClosePurchaseOrderInput } from '@core/PurchaseOrderService';
+import type { CreatePurchaseOrderInput, ReceiveItemsInput, ClosePurchaseOrderInput } from '@core/PurchaseOrderService';
 import type { InventoryLedgerEntry } from '@domain/inventory';
 import type { AdminActor } from './adminTypes';
 import type { AdminResult } from './adminResult';
@@ -167,6 +167,59 @@ export type AddOrderNoteInput = {
   idempotencyKey?: string;
 };
 
+export type UpdateOrderShippingAddressInput = {
+  actor: AdminActor;
+  orderId: string;
+  address: Address;
+  idempotencyKey?: string;
+};
+
+export type ApplyOrderDiscountInput = {
+  actor: AdminActor;
+  orderId: string;
+  code: string;
+  idempotencyKey?: string;
+};
+
+export type SwapOrderItemInput = {
+  actor: AdminActor;
+  orderId: string;
+  oldProductId: string;
+  newProductId: string;
+  idempotencyKey?: string;
+};
+
+export type UpgradeOrderShippingInput = {
+  actor: AdminActor;
+  orderId: string;
+  carrier: string;
+  service: string;
+  idempotencyKey?: string;
+};
+
+export type SetOrderHoldInput = {
+  actor: AdminActor;
+  orderId: string;
+  reason: string;
+  idempotencyKey?: string;
+};
+
+export type ReleaseOrderHoldInput = {
+  actor: AdminActor;
+  orderId: string;
+  idempotencyKey?: string;
+};
+
+export type CreatePurchaseOrderAdminInput = {
+  actor: AdminActor;
+  purchaseOrder: CreatePurchaseOrderInput;
+  idempotencyKey?: string;
+};
+
+export type CreatePurchaseOrderAdminResult = {
+  purchaseOrder: PurchaseOrder;
+};
+
 export type SubmitPurchaseOrderInput = {
   actor: AdminActor;
   purchaseOrderId: string;
@@ -288,6 +341,13 @@ export interface AdminApplicationService {
   fulfillOrder(input: FulfillOrderInput): Promise<AdminResult<FulfillOrderResult>>;
   reconcileOrder(input: ReconcileOrderInput): Promise<AdminResult<ReconcileOrderResult>>;
   addOrderNote(input: AddOrderNoteInput): Promise<AdminResult<OrderNote>>;
+  updateOrderShippingAddress(input: UpdateOrderShippingAddressInput): Promise<AdminResult<{ orderId: string }>>;
+  applyOrderDiscount(input: ApplyOrderDiscountInput): Promise<AdminResult<{ orderId: string; code: string }>>;
+  swapOrderItem(input: SwapOrderItemInput): Promise<AdminResult<{ orderId: string }>>;
+  upgradeOrderShipping(input: UpgradeOrderShippingInput): Promise<AdminResult<{ orderId: string }>>;
+  setOrderHold(input: SetOrderHoldInput): Promise<AdminResult<{ orderId: string }>>;
+  releaseOrderHold(input: ReleaseOrderHoldInput): Promise<AdminResult<{ orderId: string }>>;
+  createPurchaseOrder(input: CreatePurchaseOrderAdminInput): Promise<AdminResult<CreatePurchaseOrderAdminResult>>;
   requestRefund(input: RequestRefundInput): Promise<AdminResult<RequestRefundResult>>;
 
   createProduct(input: CreateProductInput): Promise<AdminResult<ProductResult>>;

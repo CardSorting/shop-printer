@@ -3,6 +3,7 @@ import { DomainError } from '@domain/errors';
 import { jsonError, readJsonObject, requireAdminSession, requireStepUpAdminSession } from '@infrastructure/server/apiGuards';
 import { getServerServices } from '@infrastructure/server/services';
 import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { crmRouteResponse } from '@infrastructure/server/crmRouteAdapter';
 import { toAdminActor } from '@infrastructure/server/adminActor';
 import type { JsonValue, UserRole } from '@domain/models';
 
@@ -74,12 +75,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
                 return NextResponse.json(result.data);
             }
 
-            const updated = await services.authService.updateUser(id, rest, { id: actorUser.id, email: actorUser.email });
-            return NextResponse.json(updated);
+            const crmResult = await services.crm.updateCustomer({
+                actor: toAdminActor(actorUser),
+                customerId: id,
+                patch: rest,
+                idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
+            });
+            return crmRouteResponse(crmResult);
         }
 
-        const updated = await services.authService.updateUser(id, updates, { id: actorUser.id, email: actorUser.email });
-        return NextResponse.json(updated);
+        const crmResult = await services.crm.updateCustomer({
+            actor: toAdminActor(actorUser),
+            customerId: id,
+            patch: updates,
+            idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
+        });
+        return crmRouteResponse(crmResult);
     } catch (error) {
         return jsonError(error, 'Failed to update user');
     }

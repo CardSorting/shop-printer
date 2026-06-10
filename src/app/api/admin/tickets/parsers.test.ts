@@ -11,7 +11,7 @@ import {
 describe('admin ticket parsers', () => {
   it('bounds list options and validates status/priority enums', () => {
     expect(parseTicketListOptions(new URLSearchParams('status=open&limit=500'))).toEqual({ status: 'open', limit: 100 });
-    expect(parseTicketStatusUpdate({ status: 'solved' })).toBe('solved');
+    expect(parseTicketStatusUpdate({ status: 'solved' })).toBe('resolved');
     expect(parseTicketPriorityUpdate({ priority: 'urgent' })).toBe('urgent');
     expect(() => parseTicketListOptions(new URLSearchParams('status=deleted'))).toThrow('Ticket status is invalid');
     expect(() => parseTicketPriorityUpdate({ priority: 'critical' })).toThrow('Ticket priority is invalid');

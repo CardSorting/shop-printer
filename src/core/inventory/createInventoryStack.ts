@@ -11,6 +11,7 @@ import { InventoryLedgerService } from './InventoryLedgerService';
 import { InventoryMutationService } from './InventoryMutationService';
 import { InventoryReservationService } from './InventoryReservationService';
 import type { InventoryApplicationService } from './inventoryApplicationService';
+import type { ICommerceEventBus } from '../commerce/commerceEventBus';
 
 export type InventoryStackDeps = {
   productRepo: IProductRepository;
@@ -20,6 +21,7 @@ export type InventoryStackDeps = {
   inventoryLevelRepo?: IInventoryLevelRepository;
   reservationTtlMs?: number;
   onReservationReleased?: (input: { orderId: string; reason?: InventoryReleaseReason }) => Promise<void>;
+  commerceEventBus?: ICommerceEventBus;
 };
 
 export type InventoryStack = {
@@ -34,7 +36,7 @@ export type InventoryStack = {
  * Container and tests should use this instead of wiring services directly.
  */
 export function createInventoryStack(deps: InventoryStackDeps): InventoryStack {
-  const ledger = new InventoryLedgerService(deps.ledgerRepo);
+  const ledger = new InventoryLedgerService(deps.ledgerRepo, deps.commerceEventBus);
   const mutations = new InventoryMutationService(deps.productRepo, ledger);
   const reservations = new InventoryReservationService(deps.reservationRepo, deps.reconciliationRepo);
   const inventory = new InventoryFlowService(

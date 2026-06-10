@@ -4,16 +4,22 @@ One-page cheat sheet. Details in linked docs.
 
 ---
 
-## Commerce protocols
+## Commerce runtime
 
 ```txt
-services.checkout   money capture     CheckoutApplicationService
-services.refunds    money reversal    RefundApplicationService
-services.inventory  stock movement    InventoryApplicationService
-services.admin      human authority   AdminApplicationService
+checkout  = collect money      services.checkout
+refunds   = reverse money      services.refunds
+inventory = move stock         services.inventory
+admin     = authorize ops      services.admin
+crm       = customer truth     services.crm
+support   = issue resolution   services.support
+events    = committed memory   CommerceEventBus → commerce_events
+timeline  = operator view      GET /api/admin/orders/:id/timeline
 ```
 
-**Rule:** No route/tool calls `RefundService`, `StripeService`, or `batchUpdateStock` directly.
+**Rule:** No route/tool calls `RefundService`, `OrderService`, or `InventoryService` for mutations.  
+**Seal:** `src/tests/protocol-guard.test.ts`  
+**Operator guide:** [operator-commerce-runtime.md](./operator-commerce-runtime.md)
 
 ---
 

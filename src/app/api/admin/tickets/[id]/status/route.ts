@@ -1,6 +1,6 @@
-import { requireAdminSession, jsonError, readJsonObject, requireString } from '@infrastructure/server/apiGuards';
-import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
-import { getInitialServices } from '@core/container';
+import { requireAdminSession, jsonError, readJsonObject, requireString, optionalString } from '@infrastructure/server/apiGuards';
+import { getServerServices } from '@infrastructure/server/services';
+import { supportRouteResponse } from '@infrastructure/server/supportRouteAdapter';
 import { parseTicketStatusUpdate } from '../../parsers';
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -8,23 +8,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const session = await requireAdminSession(req);
     const { id: rawId } = await params;
     const id = requireString(rawId, 'id');
-    const status = parseTicketStatusUpdate(await readJsonObject(req));
-    
-    const oldTicket = await ticketRepository.getTicketById(id);
-    await ticketRepository.updateTicketStatus(id, status);
-    const updated = await ticketRepository.getTicketById(id);
+    const body = await readJsonObject(req);
+    const status = parseTicketStatusUpdate(body);
 
-    // PRODUCTION HARDENING: Forensic Auditing
-    const { auditService } = getInitialServices();
-    await auditService.record({
-      userId: session.id,
-      userEmail: session.email,
-      action: 'ticket_status_changed',
-      targetId: id,
-      details: { from: oldTicket?.status, to: status }
+    const services = await getServerServices();
+    const result = await services.support.updateTicket({
+      actor: { id: session.id, email: session.email, name: session.displayName },
+      source: 'admin',
+      idempotencyKey: optionalString(body.idempotencyKey, 'idempotencyKey') ?? `ticket.status:${id}:${status}`,
+      ticketId: id,
+      patch: { status },
+      reason: optionalString(body.reason, 'reason'),
     });
 
-    return Response.json(updated);
+    return supportRouteResponse(result);
   } catch (err) {
     return jsonError(err);
   }

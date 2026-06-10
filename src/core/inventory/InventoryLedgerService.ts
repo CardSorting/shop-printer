@@ -7,6 +7,12 @@ import type {
   InventoryLedgerEntry,
   InventoryLedgerReason,
 } from '@domain/inventory';
+import type { ICommerceEventBus } from '../commerce/commerceEventBus';
+import { mapInventoryLedgerToEnvelope } from '../commerce/commerceEventMappers';
+import {
+  isInPostCommitCommerceScope,
+  queuePostCommitCommerceEvent,
+} from '../commerce/postCommitCommerceEvents';
 
 export type AppendLedgerInput = {
   productId: string;
@@ -26,13 +32,16 @@ export type AppendLedgerInput = {
  * Append-only inventory audit log. Every stock mutation must create a ledger entry.
  */
 export class InventoryLedgerService {
-  constructor(private ledgerRepo: IInventoryLedgerRepository) {}
+  constructor(
+    private ledgerRepo: IInventoryLedgerRepository,
+    private commerceEventBus?: ICommerceEventBus,
+  ) {}
 
   async append(input: AppendLedgerInput): Promise<InventoryLedgerEntry> {
     const existing = await this.ledgerRepo.findByIdempotencyKey(input.idempotencyKey);
     if (existing) return existing;
 
-    return this.ledgerRepo.append(
+    const entry = await this.ledgerRepo.append(
       {
         productId: input.productId,
         variantId: input.variantId,
@@ -47,6 +56,13 @@ export class InventoryLedgerService {
       },
       input.transaction,
     );
+    const envelope = mapInventoryLedgerToEnvelope(entry);
+    if (isInPostCommitCommerceScope()) {
+      queuePostCommitCommerceEvent(envelope);
+    } else if (this.commerceEventBus && !input.transaction) {
+      await this.commerceEventBus.publish(envelope);
+    }
+    return entry;
   }
 
   async appendBatch(

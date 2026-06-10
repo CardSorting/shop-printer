@@ -11,8 +11,13 @@ import {
 } from 'lucide-react';
 import { useServices } from '../../hooks/useServices';
 import { useAuth } from '../../hooks/useAuth';
-import type { SupportTicket, TicketStatus, TicketPriority } from '@domain/models';
+import type { SupportTicket } from '@domain/models';
 import { formatShortDate } from '@utils/formatters';
+import { canonicalTicketStatusLabel } from '../../commerce/commerceUiHelpers';
+import {
+  getSupportStatusBadgeType,
+  isActiveTicketStatus,
+} from '../../support/supportStatus';
 import { 
   AdminPageHeader, 
   AdminEmptyState, 
@@ -55,12 +60,12 @@ export function AdminTickets() {
   }, []);
 
   const VIEWS: SupportView[] = [
-    { id: 'my-open', label: 'My open tickets', icon: User, color: 'text-blue-500', count: tickets.filter(t => t.assigneeId === currentUser?.id && t.status !== 'solved' && t.status !== 'closed').length },
+    { id: 'my-open', label: 'My open tickets', icon: User, color: 'text-blue-500', count: tickets.filter(t => t.assigneeId === currentUser?.id && isActiveTicketStatus(t.status)).length },
     { id: 'unassigned', label: 'Unassigned tickets', icon: Inbox, color: 'text-amber-500', count: tickets.filter(t => !t.assigneeId).length },
-    { id: 'all-unresolved', label: 'All unresolved', icon: MessageSquare, color: 'text-primary-500', count: tickets.filter(t => t.status !== 'solved' && t.status !== 'closed').length },
+    { id: 'all-unresolved', label: 'All unresolved', icon: MessageSquare, color: 'text-primary-500', count: tickets.filter(t => isActiveTicketStatus(t.status)).length },
     { id: 'sla-breached', label: 'SLA Breached', icon: AlertTriangle, color: 'text-red-500', count: tickets.filter(t => {
         const deadline = t.slaDeadline || new Date(t.createdAt.getTime() + (24 * 60 * 60 * 1000));
-        return deadline.getTime() < Date.now() && t.status !== 'solved' && t.status !== 'closed';
+        return deadline.getTime() < Date.now() && isActiveTicketStatus(t.status);
       }).length 
     },
     { id: 'recently-updated', label: 'Recently updated', icon: Clock, color: 'text-green-500' },
@@ -110,12 +115,12 @@ export function AdminTickets() {
     let list = [...tickets];
     
     // Apply View Logic
-    if (activeView === 'my-open') list = list.filter(t => t.assigneeId === currentUser?.id && t.status !== 'solved' && t.status !== 'closed');
+    if (activeView === 'my-open') list = list.filter(t => t.assigneeId === currentUser?.id && isActiveTicketStatus(t.status));
     if (activeView === 'unassigned') list = list.filter(t => !t.assigneeId);
-    if (activeView === 'all-unresolved') list = list.filter(t => t.status !== 'solved' && t.status !== 'closed');
+    if (activeView === 'all-unresolved') list = list.filter(t => isActiveTicketStatus(t.status));
     if (activeView === 'sla-breached') list = list.filter(t => {
       const deadline = t.slaDeadline || new Date(t.createdAt.getTime() + (24 * 60 * 60 * 1000));
-      return deadline.getTime() < Date.now() && t.status !== 'solved' && t.status !== 'closed';
+      return deadline.getTime() < Date.now() && isActiveTicketStatus(t.status);
     });
     if (activeView === 'recently-updated') list.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 
@@ -330,7 +335,7 @@ export function AdminTickets() {
                   [1, 2, 3, 4, 5].map(i => <SkeletonRow key={i} columns={6} />)
                 ) : filteredTickets.map((ticket) => {
                    const deadline = ticket.slaDeadline || new Date(ticket.createdAt.getTime() + (24 * 60 * 60 * 1000));
-                   const isOverdue = deadline.getTime() < Date.now() && ticket.status !== 'solved' && ticket.status !== 'closed';
+                   const isOverdue = deadline.getTime() < Date.now() && isActiveTicketStatus(ticket.status);
                    const hoursLeft = Math.floor((deadline.getTime() - Date.now()) / (60 * 60 * 1000));
                    
                    return (
@@ -378,13 +383,8 @@ export function AdminTickets() {
                       </td>
                       <td className="p-4">
                          <AdminBadge 
-                           type={
-                             ticket.status === 'new' ? 'blue' : 
-                             ticket.status === 'open' ? 'green' : 
-                             ticket.status === 'pending' ? 'amber' : 
-                             'gray'
-                           }
-                           label={ticket.status}
+                           type={getSupportStatusBadgeType(ticket.status)}
+                           label={canonicalTicketStatusLabel(ticket.status)}
                          />
                       </td>
                       <td className="p-4 text-right">
@@ -427,11 +427,11 @@ export function AdminTickets() {
            
            <div className="flex items-center gap-2">
               <button 
-                onClick={() => handleBatchUpdate({ status: 'solved' })}
+                onClick={() => handleBatchUpdate({ status: 'resolved' })}
                 className="px-4 py-2 rounded-xl bg-white/10 hover:bg-green-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                Mark Solved
+                Mark Resolved
               </button>
               <button 
                 onClick={() => handleBatchUpdate({ priority: 'urgent' })}

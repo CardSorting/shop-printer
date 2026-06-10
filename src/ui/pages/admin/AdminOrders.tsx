@@ -8,8 +8,10 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useServices } from '../../hooks/useServices';
 import type { Order, OrderStatus } from '@domain/models';
+import { adminOrdersApi } from '../../api/adminOrdersApi';
+import { formatAdminApiError } from '../../api/adminApiClient';
+import { canonicalOrderStatusLabel } from '../../commerce/commerceUiHelpers';
 import {
   ChevronDown,
   PackageCheck,
@@ -37,7 +39,7 @@ import {
   ShoppingBag,
   AlertTriangle
 } from 'lucide-react';
-import { formatCurrency, formatShortDate, humanizeOrderStatus, normalizeSearch, formatRelativeTime } from '@utils/formatters';
+import { formatCurrency, formatShortDate, normalizeSearch } from '@utils/formatters';
 import { nextOrderActionLabel } from '@domain/rules';
 import {
   AdminPageHeader,
@@ -85,7 +87,6 @@ const SHIPPING_PROFILES = [
 
 export function AdminOrders() {
   useAdminPageTitle('Orders');
-  const services = useServices();
   const { toast } = useToast();
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -142,7 +143,7 @@ export function AdminOrders() {
     setLoading(true);
     setError(null);
     try {
-      const result = await services.orderService.getAllOrders({
+      const result = await adminOrdersApi.listOrders({
         limit: 25,
         cursor,
         status: statusFilter === 'all' ? undefined : statusFilter,
@@ -164,7 +165,7 @@ export function AdminOrders() {
         setLoading(false);
       }
     }
-  }, [cursor, services.orderService, statusFilter]);
+  }, [cursor, statusFilter]);
 
   useEffect(() => {
     void loadOrders();
@@ -209,23 +210,27 @@ export function AdminOrders() {
     }));
     exportToCSV('orders_export', exportData);
     toast('success', `Exported ${orders.length} orders to CSV`);
-  }  async function handleStatusChange(id: string, status: OrderStatus) {
+  }
+
+  async function handleStatusChange(id: string, status: OrderStatus) {
     setUpdating(id);
     setError(null);
     try {
-      const user = await services.authService.getCurrentUser();
-      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
-      await services.orderService.updateOrderStatus(id, status, actor);
+      await adminOrdersApi.updateStatus(id, {
+        status,
+        reason: status === 'cancelled' ? 'Operator cancelled order from orders console' : undefined,
+        idempotencyKey: `admin-orders-status:${id}:${status}`,
+      });
       if (!isMounted.current) return;
       
-      toast('success', `Order updated to ${humanizeOrderStatus(status)}`);
+      toast('success', `Order updated to ${canonicalOrderStatusLabel(status)}`);
       if (selectedOrder?.id === id) {
         setSelectedOrder(prev => prev ? { ...prev, status } : null);
       }
       await loadOrders();
     } catch (err) {
       if (isMounted.current) {
-        toast('error', err instanceof Error ? err.message : 'Failed to update order status');
+        toast('error', formatAdminApiError(err));
       }
     } finally {
       if (isMounted.current) {
@@ -239,17 +244,20 @@ export function AdminOrders() {
     setBatchUpdating(true);
     setError(null);
     try {
-      const user = await services.authService.getCurrentUser();
-      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
-      await services.orderService.batchUpdateOrderStatus(Array.from(selectedIds), status, actor);
+      await adminOrdersApi.batchUpdateStatus({
+        ids: Array.from(selectedIds),
+        status,
+        reason: status === 'cancelled' ? 'Operator batch cancel from orders console' : undefined,
+        idempotencyKey: `admin-orders-batch:${status}:${Array.from(selectedIds).sort().join(',')}`,
+      });
       if (!isMounted.current) return;
 
-      toast('success', `${selectedIds.size} order${selectedIds.size > 1 ? 's' : ''} updated to ${humanizeOrderStatus(status)}`);
+      toast('success', `${selectedIds.size} order${selectedIds.size > 1 ? 's' : ''} updated to ${canonicalOrderStatusLabel(status)}`);
       setSelectedIds(new Set());
       await loadOrders();
     } catch (err) {
       if (isMounted.current) {
-        toast('error', err instanceof Error ? err.message : 'Failed to update multiple orders');
+        toast('error', formatAdminApiError(err));
       }
     } finally {
       if (isMounted.current) {
@@ -265,11 +273,11 @@ export function AdminOrders() {
 
     try {
       setBatchUpdating(true);
-      const csv = await services.orderService.exportOrdersToPirateShipCsv(
-        Array.from(selectedIds), 
-        profile?.dimensions, 
-        profile?.tare
-      );
+      const csv = await adminOrdersApi.exportPirateShipCsv({
+        ids: Array.from(selectedIds),
+        packageDimensions: profile?.dimensions,
+        tareWeight: profile?.tare,
+      });
       
       // Industrialized Download
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -282,16 +290,16 @@ export function AdminOrders() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
-      // Post-Export Workflow: Auto-advance status for unfulfilled orders
-      const user = await services.authService.getCurrentUser();
-      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
-      
       const toUpdate = orders
         .filter(o => selectedIds.has(o.id) && (o.status === 'pending' || o.status === 'confirmed'))
         .map(o => o.id);
       
       if (toUpdate.length > 0) {
-        await services.orderService.batchUpdateOrderStatus(toUpdate, 'processing', actor);
+        await adminOrdersApi.batchUpdateStatus({
+          ids: toUpdate,
+          status: 'processing',
+          idempotencyKey: `admin-orders-pirateship:${toUpdate.sort().join(',')}`,
+        });
         toast('success', `Exported ${count} orders and moved ${toUpdate.length} to Processing`);
         await loadOrders(); // Refresh list
       } else {
@@ -300,7 +308,7 @@ export function AdminOrders() {
       
       setSelectedIds(new Set());
     } catch (err) {
-      toast('error', 'Fulfillment wizard failed');
+      toast('error', formatAdminApiError(err));
     } finally {
       setBatchUpdating(false);
       setPirateShipConfirmOpen(false);
@@ -340,11 +348,14 @@ export function AdminOrders() {
 
         if (rows.length === 0) throw new Error('No valid rows found');
 
-        const result = await services.orderService.importTrackingNumbers(rows);
+        const result = await adminOrdersApi.importTracking({
+          rows,
+          idempotencyKey: `admin-orders-tracking-import:${Date.now()}`,
+        });
         toast('success', `Successfully imported ${result.successCount} tracking numbers`);
         await loadOrders();
       } catch (err) {
-        toast('error', 'Tracking import failed. Check CSV format.');
+        toast('error', formatAdminApiError(err));
       } finally {
         setBatchUpdating(false);
         e.target.value = ''; // Reset input

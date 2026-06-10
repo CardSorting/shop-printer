@@ -3,6 +3,8 @@
  */
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import { jsonError, requireAdminSession, readJsonObject } from '@infrastructure/server/apiGuards';
 import { parsePurchaseOrderCreate, parsePurchaseOrderListOptions, parseSupplierMetricsQuery } from './parsers';
 
@@ -41,8 +43,13 @@ export async function POST(request: Request) {
     const user = await requireAdminSession(request);
     const body = parsePurchaseOrderCreate(await readJsonObject(request), user);
     const services = await getServerServices();
-    const order = await services.purchaseOrderService.createPurchaseOrder(body);
-    return Response.json(order, { status: 201 });
+    const result = await services.admin.createPurchaseOrder({
+      actor: toAdminActor(user),
+      purchaseOrder: body,
+      idempotencyKey: `po-create:${user.id}:${body.referenceNumber ?? body.supplier}`,
+    });
+    if (!result.ok) return adminRouteResponse(result);
+    return NextResponse.json(result.data.purchaseOrder, { status: 201 });
   } catch (error) {
     return jsonError(error, 'Failed to create purchase order');
   }

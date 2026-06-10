@@ -57,7 +57,9 @@ Webhook forwarding or staging webhook endpoint verified.
 
 ## Production deploy (if shipping)
 
-From [deployment.md](./deployment.md):
+From [production-readiness.md](./production-readiness.md) and [deployment.md](./deployment.md):
+
+- [ ] `GET /api/system/health/protocols` returns `ok: true` on staging/production
 
 - [ ] Production env vars set (not dev secrets)
 - [ ] `ALLOW_PRODUCTION_SEEDING=false`

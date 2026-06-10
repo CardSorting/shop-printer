@@ -34,6 +34,10 @@ import type {
   CheckoutMutationBackend,
   RunCheckoutReservationParams,
 } from './checkoutMutationBackend';
+import type { ICommerceEventBus } from '../commerce/commerceEventBus';
+import { mapCheckoutEventToEnvelope } from '../commerce/commerceEventMappers';
+import { orderCorrelationId } from '../commerce/correlation';
+import { runWithPostCommitCommerceEvents } from '../commerce/postCommitCommerceEvents';
 
 /** @internal Checkout mutations — construct via createCheckoutStack() only. */
 export class CheckoutMutationService implements CheckoutMutationBackend {
@@ -48,8 +52,21 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
     private audit: AuditService,
     private locker: ILockProvider,
     private inventory: InventoryMutationBackend,
-    private shippingRepo?: IShippingRepository
+    private shippingRepo?: IShippingRepository,
+    private commerceEventBus?: ICommerceEventBus,
   ) {}
+
+  private async publishCheckoutEvent(input: {
+    id: string;
+    type: string;
+    orderId: string;
+    correlationId?: string;
+    idempotencyKey?: string;
+    payload?: Record<string, unknown>;
+  }) {
+    if (!this.commerceEventBus) return;
+    await this.commerceEventBus.publish(mapCheckoutEventToEnvelope(input));
+  }
 
   private logPhaseTransition(
     idempotencyKey: string,
@@ -162,7 +179,8 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
       if (!resumedFromExisting) {
         const prevPhase = idempotencyKey ? 'CREATE_OR_RESUME_ATTEMPT' : 'ACQUIRE_RESERVATION';
         this.logPhaseTransition(attemptId, prevPhase, 'INITIALIZE_ORDER', 'local', 'none');
-        order = await runTransaction(getUnifiedDb(), async (transaction: any) => {
+        order = await runWithPostCommitCommerceEvents(this.commerceEventBus, () =>
+          runTransaction(getUnifiedDb(), async (transaction: any) => {
           const cart = await this.cartRepo.getByUserId(userId, transaction);
           if (!cart || cart.items.length === 0) throw new CartEmptyError();
 
@@ -363,6 +381,14 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
           });
 
           return createdOrder;
+        }));
+        await this.publishCheckoutEvent({
+          id: crypto.randomUUID(),
+          type: 'checkout.session_created',
+          orderId: order.id,
+          correlationId: orderCorrelationId(order.id, attemptId),
+          idempotencyKey: attemptId,
+          payload: { status: order.status, paymentState: order.paymentState },
         });
       }
 
@@ -560,7 +586,8 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
     let finalizedAttemptId: string | null = null;
 
     try {
-      const finalizedOrder = await runTransaction(db, async (transaction: any) => {
+      const finalizedOrder = await runWithPostCommitCommerceEvents(this.commerceEventBus, () =>
+        runTransaction(db, async (transaction: any) => {
         let order = await this.orderRepo.getByPaymentTransactionIdTransactional(paymentIntentId, transaction);
         
         if (order && (order.reconciliationState === 'resolved' || order.metadata?.reconciliationResolvedAt)) {
@@ -849,6 +876,19 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
         }, transaction);
 
         return { ...order, status: nextStatus, riskScore };
+      }));
+
+      await this.publishCheckoutEvent({
+        id: crypto.randomUUID(),
+        type: 'checkout.payment_confirmed',
+        orderId: finalizedOrder.id,
+        correlationId: orderCorrelationId(finalizedOrder.id, paymentIntentId),
+        idempotencyKey: paymentIntentId,
+        payload: {
+          paymentState: 'paid',
+          status: finalizedOrder.status,
+          stripeEventId: paymentIntentId,
+        },
       });
 
       if (terminalPaymentConflict.current) {
@@ -987,7 +1027,8 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
     const db = getUnifiedDb();
     logger.info(`[CHECKOUT-WORKFLOW] [Attempt: ${checkoutAttemptId}] Initiating rollbackUnpaidCheckout for Order: ${orderId}, PI: ${paymentIntentId || 'null'}, Reason: ${reason}`);
 
-    await runTransaction(db, async (transaction: any) => {
+    await runWithPostCommitCommerceEvents(this.commerceEventBus, () =>
+      runTransaction(db, async (transaction: any) => {
       const order = await this.orderRepo.getById(orderId, transaction);
       if (!order) {
         logger.warn('rollbackUnpaidCheckout: Order not found', { orderId });
@@ -1129,7 +1170,7 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
         await this.orderRepo.updateCheckoutAttempt(checkoutAttemptId, { state: 'restore_blocked' }, transaction);
         logger.warn('Skipping cart restore because user cart is not empty', { userId: order.userId, orderId });
       }
-    });
+    }));
   }
 
   private normalizeLockResult(result: { success: boolean; fencingToken: number | null } | boolean): { success: boolean; fencingToken: number | null } {

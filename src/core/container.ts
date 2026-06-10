@@ -40,6 +40,14 @@ import { createAdminStack } from './admin/createAdminStack';
 import type { AdminApplicationService } from './admin/adminApplicationService';
 import { createRefundStack } from './refund/createRefundStack';
 import type { RefundApplicationService } from './refund/refundApplicationService';
+import { createSupportStack } from './support/createSupportStack';
+import type { SupportApplicationService } from './support/supportApplicationService';
+import { createCrmStack } from './crm/createCrmStack';
+import type { CrmApplicationService } from './crm/crmApplicationService';
+import { CommerceEventBus } from './commerce/commerceEventBus';
+import { CommerceTimelineService } from './commerce/commerceTimelineService';
+import { FirestoreCommerceEventStore } from '@infrastructure/commerce/FirestoreCommerceEventStore';
+import { FirestoreSupportEventLog } from '@infrastructure/support/FirestoreSupportEventLog';
 import { FirestoreRefundEventLog } from '@infrastructure/refund/FirestoreRefundEventLog';
 import { FirestoreAdminOperatorEventLog } from '@infrastructure/admin/FirestoreAdminOperatorEventLog';
 import { FirestoreCheckoutEventLog } from '@infrastructure/checkout/FirestoreCheckoutEventLog';
@@ -133,6 +141,9 @@ let checkoutInstance: CheckoutApplicationService | null = null;
 let inventoryInstance: InventoryApplicationService | null = null;
 let adminInstance: AdminApplicationService | null = null;
 let refundsInstance: RefundApplicationService | null = null;
+let supportInstance: SupportApplicationService | null = null;
+let crmInstance: CrmApplicationService | null = null;
+let supportEventLogInstance: FirestoreSupportEventLog | null = null;
 let checkoutEventLogInstance: FirestoreCheckoutEventLog | null = null;
 let adminOperatorEventLogInstance: FirestoreAdminOperatorEventLog | null = null;
 let refundEventLogInstance: FirestoreRefundEventLog | null = null;
@@ -140,6 +151,23 @@ let refundServiceInstance: RefundService | null = null;
 let inventoryLedgerRepoInstance: FirestoreInventoryLedgerRepository | null = null;
 let inventoryReservationRepoInstance: FirestoreInventoryReservationRepository | null = null;
 let inventoryReconciliationRepoInstance: FirestoreInventoryReconciliationRepository | null = null;
+let commerceEventStoreInstance: FirestoreCommerceEventStore | null = null;
+let commerceEventBusInstance: CommerceEventBus | null = null;
+let commerceTimelineInstance: CommerceTimelineService | null = null;
+
+function getCommerceEventBus() {
+  if (!commerceEventStoreInstance) commerceEventStoreInstance = new FirestoreCommerceEventStore();
+  if (!commerceEventBusInstance) commerceEventBusInstance = new CommerceEventBus(commerceEventStoreInstance);
+  return commerceEventBusInstance;
+}
+
+function getCommerceTimeline() {
+  if (!commerceTimelineInstance) {
+    if (!commerceEventStoreInstance) getCommerceEventBus();
+    commerceTimelineInstance = new CommerceTimelineService(commerceEventStoreInstance!);
+  }
+  return commerceTimelineInstance;
+}
 
 function createInventoryApplication(
   productRepo: IProductRepository,
@@ -155,6 +183,7 @@ function createInventoryApplication(
     reservationRepo: inventoryReservationRepoInstance,
     reconciliationRepo: inventoryReconciliationRepoInstance,
     inventoryLevelRepo,
+    commerceEventBus: getCommerceEventBus(),
     onReservationReleased: orderRepo
       ? async ({ orderId }) => {
           const order = await orderRepo.getById(orderId);
@@ -208,8 +237,41 @@ function wireOrderCheckoutStack(
     inventory,
     cancelExpiredPendingOrder: (orderId) => orderService.cancelExpiredPendingOrder(orderId),
     recordOperatorAction: (input) => orderService.handleReconciliationOperatorAction(input),
+    commerceEventBus: getCommerceEventBus(),
   });
   return { orderService, checkout };
+}
+
+function wireSupportStack(deps: {
+  ticketRepo: ITicketRepository;
+  orderQueryService: OrderQueryService;
+}) {
+  const eventLog = supportEventLogInstance ?? new FirestoreSupportEventLog();
+  supportEventLogInstance = eventLog;
+  const { support } = createSupportStack({
+    ticketRepo: deps.ticketRepo,
+    orderQueryService: deps.orderQueryService,
+    eventLog,
+    commerceEventBus: getCommerceEventBus(),
+  });
+  return support;
+}
+
+function wireCrmStack(deps: {
+  authService: AuthService;
+  orderQueryService: OrderQueryService;
+  ticketRepo: ITicketRepository;
+}) {
+  const operatorEventLog = adminOperatorEventLogInstance ?? new FirestoreAdminOperatorEventLog();
+  adminOperatorEventLogInstance = operatorEventLog;
+  const { crm } = createCrmStack({
+    authService: deps.authService,
+    orderQueryService: deps.orderQueryService,
+    ticketRepo: deps.ticketRepo,
+    operatorEventLog,
+    commerceEventBus: getCommerceEventBus(),
+  });
+  return crm;
 }
 
 function wireAdminStack(deps: {
@@ -228,6 +290,7 @@ function wireAdminStack(deps: {
   const { admin } = createAdminStack({
     ...deps,
     operatorEventLog,
+    commerceEventBus: getCommerceEventBus(),
   });
   return admin;
 }
@@ -296,7 +359,12 @@ export function getServiceContainer() {
     inventory,
   );
   const refundEventLog = new FirestoreRefundEventLog();
-  const { refunds } = createRefundStack({ refundService, orderRepo: repos.orderRepo, eventLog: refundEventLog });
+  const { refunds } = createRefundStack({
+    refundService,
+    orderRepo: repos.orderRepo,
+    eventLog: refundEventLog,
+    commerceEventBus: getCommerceEventBus(),
+  });
   const admin = wireAdminStack({
     checkout,
     inventory,
@@ -308,6 +376,8 @@ export function getServiceContainer() {
     inventoryLocationRepo: repos.inventoryLocationRepo,
     refunds,
   });
+  const support = wireSupportStack({ ticketRepo: repos.ticketRepo, orderQueryService });
+  const crm = wireCrmStack({ authService, orderQueryService, ticketRepo: repos.ticketRepo });
 
   return {
     authProvider,
@@ -319,6 +389,10 @@ export function getServiceContainer() {
     inventory,
     admin,
     refunds,
+    support,
+    crm,
+    commerceEventBus: getCommerceEventBus(),
+    commerceTimeline: getCommerceTimeline(),
     fulfillmentService: new FulfillmentService(repos.orderRepo, repos.shippingRepo),
     orderManagementService: new OrderManagementService(repos.orderRepo, new AuditService()),
     orderQueryService,
@@ -450,6 +524,7 @@ export function getInitialServices() {
         refundService: getRefundService(),
         orderRepo: orderRepoInstance!,
         eventLog,
+        commerceEventBus: getCommerceEventBus(),
       }).refunds;
     }
     return refundsInstance;
@@ -460,7 +535,7 @@ export function getInitialServices() {
     return stripeServiceInstance;
   };
 
-  if (!orderServiceInstance || !checkoutInstance || !inventoryInstance || !adminInstance) {
+  if (!orderServiceInstance || !checkoutInstance || !inventoryInstance || !adminInstance || !supportInstance || !crmInstance) {
     const inventory = createInventoryApplication(productRepoInstance!, orderRepoInstance!, inventoryLevelRepoInstance!);
     inventoryInstance = inventory;
     const stack = wireOrderCheckoutStack(
@@ -496,16 +571,23 @@ export function getInitialServices() {
     checkoutInstance = stack.checkout;
 
     const productService = new ProductService(productRepoInstance!, getAuditService(), inventoryInstance!);
+    const orderQueryService = new OrderQueryService(orderRepoInstance!, productService);
     adminInstance = wireAdminStack({
       checkout: checkoutInstance,
       inventory: inventoryInstance,
       orderService: orderServiceInstance,
-      orderQueryService: new OrderQueryService(orderRepoInstance!, productService),
+      orderQueryService,
       purchaseOrderService: getPurchaseOrderService(),
       authService: authServiceInstance!,
       productService,
       inventoryLocationRepo: inventoryLocationRepoInstance!,
       refunds: getRefunds(),
+    });
+    supportInstance = wireSupportStack({ ticketRepo: ticketRepoInstance!, orderQueryService });
+    crmInstance = wireCrmStack({
+      authService: authServiceInstance!,
+      orderQueryService,
+      ticketRepo: ticketRepoInstance!,
     });
   }
 
@@ -519,6 +601,10 @@ export function getInitialServices() {
     inventory: inventoryInstance!,
     admin: adminInstance!,
     refunds: getRefunds(),
+    support: supportInstance!,
+    crm: crmInstance!,
+    commerceEventBus: getCommerceEventBus(),
+    commerceTimeline: getCommerceTimeline(),
     fulfillmentService: new FulfillmentService(orderRepoInstance!, shippingRepoInstance!),
     orderManagementService: new OrderManagementService(orderRepoInstance!, getAuditService()),
     orderQueryService: new OrderQueryService(orderRepoInstance!, new ProductService(productRepoInstance!, getAuditService())),

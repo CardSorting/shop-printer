@@ -11,6 +11,7 @@ import { AdminFlowService } from './AdminFlowService';
 import { ProductAdminService } from './ProductAdminService';
 import { LocationAdminService } from './LocationAdminService';
 import type { IAdminOperatorEventLog } from './adminOperatorEventLog';
+import type { ICommerceEventBus } from '../commerce/commerceEventBus';
 
 export type AdminStackDeps = {
   checkout: CheckoutApplicationService;
@@ -23,6 +24,7 @@ export type AdminStackDeps = {
   inventoryLocationRepo: IInventoryLocationRepository;
   refunds: RefundApplicationService;
   operatorEventLog: IAdminOperatorEventLog;
+  commerceEventBus?: ICommerceEventBus;
 };
 
 export type AdminStack = {
@@ -47,6 +49,7 @@ export function createAdminStack(deps: AdminStackDeps): AdminStack {
     locationAdmin,
     refunds: deps.refunds,
     operatorEventLog: deps.operatorEventLog,
+    commerceEventBus: deps.commerceEventBus,
   });
   return { admin };
 }

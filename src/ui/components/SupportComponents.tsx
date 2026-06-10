@@ -10,6 +10,11 @@ import Link from 'next/link';
 import { useServices } from '../hooks/useServices';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect, useRef } from 'react';
+import {
+  getSupportStatusLabel,
+  isActiveTicketStatus,
+  isResolvedTicketStatus,
+} from '../support/supportStatus';
 
 export function KnowledgebaseCategoryCard({
   category,
@@ -464,16 +469,16 @@ export function TicketList({ tickets, onTicketClick }: {
               className="flex items-center justify-between p-6 rounded-3xl bg-white border border-gray-100 hover:border-primary-100 hover:shadow-lg transition-all group text-left"
             >
               <div className="flex items-center gap-5">
-                <div className={`p-3 rounded-2xl ${ticket.status === 'solved' ? 'bg-green-50 text-green-500' : 'bg-blue-50 text-blue-500'} group-hover:bg-primary-50 group-hover:text-primary-500 transition-colors`}>
+                <div className={`p-3 rounded-2xl ${isResolvedTicketStatus(ticket.status) ? 'bg-green-50 text-green-500' : 'bg-blue-50 text-blue-500'} group-hover:bg-primary-50 group-hover:text-primary-500 transition-colors`}>
                   <MessageSquare className="h-6 w-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors">{ticket.subject}</p>
                     <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${
-                      ticket.status === 'solved' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                      isResolvedTicketStatus(ticket.status) ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                     }`}>
-                      {ticket.status.replace('_', ' ')}
+                      {getSupportStatusLabel(ticket.status)}
                     </span>
                   </div>
                   <p className="text-sm font-medium text-gray-500 mt-1">Ticket #{ticket.id.slice(0, 8).toUpperCase()} • Last updated {new Date(ticket.updatedAt).toLocaleDateString()}</p>
@@ -533,9 +538,9 @@ export function TicketDetailView({ ticket, onBack, onReply }: {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${
-                ticket.status === 'solved' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                isResolvedTicketStatus(ticket.status) ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
               }`}>
-                {ticket.status.replace('_', ' ')}
+                {getSupportStatusLabel(ticket.status)}
               </span>
               <span className="text-[10px] font-bold text-gray-300">Ticket #{ticket.id.slice(0, 8).toUpperCase()}</span>
             </div>
@@ -569,7 +574,7 @@ export function TicketDetailView({ ticket, onBack, onReply }: {
           })}
         </div>
 
-        {ticket.status !== 'solved' && (
+        {isActiveTicketStatus(ticket.status) && (
           <div className="p-4 bg-white border-t">
             <form onSubmit={handleSubmit} className="relative">
               <textarea

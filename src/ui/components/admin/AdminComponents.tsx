@@ -11,6 +11,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { useServices } from '../../hooks/useServices';
 import { formatCurrency, formatShortDate, formatRelativeTime } from '../../../utils/formatters';
+import { canonicalOrderStatusLabel } from '../../commerce/commerceUiHelpers';
 import type { AdminDashboardSummary, Order, Product } from '@domain/models';
 import { 
   TrendingUp, 
@@ -251,7 +252,7 @@ export function AdminStatusBadge({ status, type }: AdminStatusBadgeProps) {
     }
   }
 
-  const displayText = status.replace(/_/g, ' ');
+  const displayText = type === 'order' ? canonicalOrderStatusLabel(status) : status.replace(/_/g, ' ');
 
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${colorClass}`}>

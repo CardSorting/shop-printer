@@ -1078,7 +1078,14 @@ export interface WishlistItem {
 // Support & Tickets
 // ─────────────────────────────────────────────
 
-export type TicketStatus = 'new' | 'open' | 'pending' | 'on_hold' | 'solved' | 'closed';
+export type TicketStatus =
+  | 'new'
+  | 'open'
+  | 'pending_customer'
+  | 'pending_internal'
+  | 'resolved'
+  | 'closed'
+  | 'reopened';
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type TicketType = 'question' | 'incident' | 'problem' | 'task';
 

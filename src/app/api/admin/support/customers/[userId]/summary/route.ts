@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
+import { getServerServices } from '@infrastructure/server/services';
+import { supportRouteResponse } from '@infrastructure/server/supportRouteAdapter';
 import { jsonError, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
 
 export async function GET(
@@ -10,8 +10,9 @@ export async function GET(
     await requireAdminSession(request);
     const { userId: rawUserId } = await params;
     const userId = requireString(rawUserId, 'userId');
-    const summary = await ticketRepository.getCustomerSupportSummary(userId);
-    return NextResponse.json(summary);
+    const services = await getServerServices();
+    const result = await services.support.getCustomerSupportSummary(userId);
+    return supportRouteResponse(result);
   } catch (err) {
     return jsonError(err, 'Failed to fetch customer summary');
   }

@@ -2,7 +2,20 @@ import type { SupportTicket, TicketPriority, TicketStatus, TicketType } from '@d
 import { DomainError } from '@domain/errors';
 import { optionalString, optionalStringArray, parseBoundedLimit, requireString } from '@infrastructure/server/apiGuards';
 
-const TICKET_STATUSES = new Set<TicketStatus>(['new', 'open', 'pending', 'on_hold', 'solved', 'closed']);
+const TICKET_STATUSES = new Set<TicketStatus>([
+  'new',
+  'open',
+  'pending_customer',
+  'pending_internal',
+  'resolved',
+  'closed',
+  'reopened',
+]);
+const LEGACY_TICKET_STATUSES: Record<string, TicketStatus> = {
+  pending: 'pending_customer',
+  on_hold: 'pending_internal',
+  solved: 'resolved',
+};
 const TICKET_PRIORITIES = new Set<TicketPriority>(['low', 'medium', 'high', 'urgent']);
 const TICKET_TYPES = new Set<TicketType>(['question', 'incident', 'problem', 'task']);
 const MAX_BATCH_SIZE = 100;
@@ -79,7 +92,11 @@ function parseTicketStatus(value: unknown, required = false): TicketStatus | und
     if (required) throw new DomainError('status is required.');
     return undefined;
   }
-  if (typeof value === 'string' && TICKET_STATUSES.has(value as TicketStatus)) return value as TicketStatus;
+  if (typeof value === 'string') {
+    if (TICKET_STATUSES.has(value as TicketStatus)) return value as TicketStatus;
+    const legacy = LEGACY_TICKET_STATUSES[value];
+    if (legacy) return legacy;
+  }
   throw new DomainError('Ticket status is invalid.');
 }
 

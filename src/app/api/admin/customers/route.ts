@@ -1,13 +1,13 @@
 import { getServerServices } from '@infrastructure/server/services';
-import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { crmRouteResponse } from '@infrastructure/server/crmRouteAdapter';
 import { toAdminActor } from '@infrastructure/server/adminActor';
 import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
 
 async function getCustomerSummariesResponse(request: Request) {
     const user = await requireAdminSession(request);
     const services = await getServerServices();
-    const result = await services.admin.listUsers({ actor: toAdminActor(user) });
-    return adminRouteResponse(result);
+    const result = await services.crm.listCustomers({ actor: toAdminActor(user) });
+    return crmRouteResponse(result);
 }
 
 export async function GET(request: Request) {

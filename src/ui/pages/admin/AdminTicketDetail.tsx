@@ -10,8 +10,15 @@ import {
 } from 'lucide-react';
 import { useServices } from '../../hooks/useServices';
 import { useAuth } from '../../hooks/useAuth';
-import type { SupportTicket, TicketMessage, TicketStatus, TicketPriority, SupportMacro, TicketType, Order } from '@domain/models';
+import type { SupportTicket, TicketMessage, TicketPriority, SupportMacro, TicketType, Order } from '@domain/models';
 import { formatShortDate, formatFullDateTime } from '@utils/formatters';
+import { canonicalTicketStatusLabel } from '../../commerce/commerceUiHelpers';
+import {
+  CANONICAL_SUPPORT_STATUSES,
+  isResolvedTicketStatus,
+  normalizeSupportStatus,
+  toCanonicalTicketStatus,
+} from '../../support/supportStatus';
 import { 
   AdminPageHeader, 
   SkeletonRow, 
@@ -68,7 +75,7 @@ export function AdminTicketDetail() {
         
         setTicket(result);
         setLocalProps({
-          status: result.status,
+          status: toCanonicalTicketStatus(result.status) ?? result.status,
           priority: result.priority,
           type: result.type,
           assigneeId: result.assigneeId,
@@ -216,7 +223,7 @@ export function AdminTicketDetail() {
 
   const getSLAInfo = useMemo(() => {
     if (!ticket) return null;
-    if (ticket.status === 'solved' || ticket.status === 'closed') {
+    if (isResolvedTicketStatus(ticket.status)) {
       return { label: 'Achieved', color: 'text-green-500', bg: 'bg-green-50', percent: 100 };
     }
     
@@ -556,16 +563,16 @@ export function AdminTicketDetail() {
                  <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Status</label>
                     <select 
-                      value={localProps.status}
-                      onChange={e => setLocalProps({ ...localProps, status: e.target.value as any })}
+                      value={normalizeSupportStatus(localProps.status) ?? ''}
+                      onChange={e => setLocalProps({ ...localProps, status: e.target.value as SupportTicket['status'] })}
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all appearance-none cursor-pointer"
                     >
-                      <option value="new">New</option>
-                      <option value="open">Open</option>
-                      <option value="pending">Pending</option>
-                      <option value="on_hold">On-hold</option>
-                      <option value="solved">Solved</option>
-                      <option value="closed">Closed</option>
+                      {!normalizeSupportStatus(localProps.status) && (
+                        <option value="" disabled>Unknown</option>
+                      )}
+                      {CANONICAL_SUPPORT_STATUSES.map((status) => (
+                        <option key={status} value={status}>{canonicalTicketStatusLabel(status)}</option>
+                      ))}
                     </select>
                  </div>
 

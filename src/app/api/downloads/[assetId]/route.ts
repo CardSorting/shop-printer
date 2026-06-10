@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { StorageService } from '../../../../infrastructure/services/StorageService';
 import { getServerServices } from '../../../../infrastructure/server/services';
-import { FirestoreDigitalAccessRepository } from '../../../../infrastructure/repositories/firestore/FirestoreDigitalAccessRepository';
+import { recordDigitalAssetAccess } from '@infrastructure/server/digitalAccessLog';
 import { jsonError, requireSessionUser } from '@infrastructure/server/apiGuards';
 
 // Helper to verify if a user has purchased a specific asset
@@ -37,10 +37,8 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied or asset not found' }, { status: 403 });
     }
 
-    // Log the access
-    const accessRepo = new FirestoreDigitalAccessRepository();
     try {
-      await accessRepo.record({
+      await recordDigitalAssetAccess({
         id: crypto.randomUUID(),
         userId: user.id,
         assetId,

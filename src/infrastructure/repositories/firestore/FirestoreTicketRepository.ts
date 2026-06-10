@@ -206,14 +206,14 @@ export class FirestoreTicketRepository {
     // Production Hardening: Fetch only unresolved tickets for health metrics to avoid O(N) scan of history
     const q = query(
       collection(getUnifiedDb(), this.ticketCollection), 
-      where('status', 'in', ['new', 'open', 'pending', 'on_hold'])
+      where('status', 'in', ['new', 'open', 'pending_customer', 'pending_internal', 'reopened', 'pending', 'on_hold'])
     );
     const snapshot = await getDocs(q);
     const tickets: TicketHealthDoc[] = snapshot.docs.map((d: QueryDocumentSnapshot) => d.data() as TicketHealthDoc);
     const total = tickets.length;
     if (total === 0) return { slaCompliance: 100, unassignedRate: 0, totalActive: 0 };
 
-    const unresolved = tickets.filter((t) => t.status !== 'solved' && t.status !== 'closed');
+    const unresolved = tickets.filter((t) => t.status !== 'resolved' && t.status !== 'solved' && t.status !== 'closed');
     const unassigned = unresolved.filter((t) => !t.assigneeId);
     
     const breached = unresolved.filter((t) => {
@@ -237,7 +237,9 @@ export class FirestoreTicketRepository {
     const orders: CustomerOrderSummaryDoc[] = ordersSnapshot.docs.map((d: QueryDocumentSnapshot) => d.data() as CustomerOrderSummaryDoc);
 
     const totalSpend = orders.reduce((sum, order) => sum + (order.total || 0), 0);
-    const resolvedCount = tickets.filter((ticket) => ticket.status === 'solved' || ticket.status === 'closed').length;
+    const resolvedCount = tickets.filter((ticket) =>
+      ticket.status === 'resolved' || ticket.status === 'solved' || ticket.status === 'closed',
+    ).length;
 
     return {
       totalTickets: tickets.length,

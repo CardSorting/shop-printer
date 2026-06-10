@@ -1,16 +1,26 @@
-import { requireAdminSession, jsonError, readJsonObject, requireString } from '@infrastructure/server/apiGuards';
-import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
+import { requireAdminSession, jsonError, readJsonObject, requireString, optionalString } from '@infrastructure/server/apiGuards';
+import { getServerServices } from '@infrastructure/server/services';
+import { supportRouteResponse } from '@infrastructure/server/supportRouteAdapter';
 import { parseTicketPriorityUpdate } from '../../parsers';
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdminSession(req);
+    const session = await requireAdminSession(req);
     const { id: rawId } = await params;
     const id = requireString(rawId, 'id');
-    const priority = parseTicketPriorityUpdate(await readJsonObject(req));
-    await ticketRepository.updateTicketPriority(id, priority);
-    const updated = await ticketRepository.getTicketById(id);
-    return Response.json(updated);
+    const body = await readJsonObject(req);
+    const priority = parseTicketPriorityUpdate(body);
+
+    const services = await getServerServices();
+    const result = await services.support.updateTicket({
+      actor: { id: session.id, email: session.email, name: session.displayName },
+      source: 'admin',
+      idempotencyKey: optionalString(body.idempotencyKey, 'idempotencyKey') ?? `ticket.priority:${id}:${priority}`,
+      ticketId: id,
+      patch: { priority },
+    });
+
+    return supportRouteResponse(result);
   } catch (err) {
     return jsonError(err);
   }

@@ -110,7 +110,7 @@ Client generates `crypto.randomUUID()` idempotency key per batch submit.
 
 ```text
 /admin/purchase-orders/[id]/receive
-  → services.admin → PurchaseOrderService.receiveItems
+  → services.admin.receivePurchaseOrder
   → inventory.receiveStockAtLocation (ONE call)
        → catalog += qty
        → location.availableQty += qty

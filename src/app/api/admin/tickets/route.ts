@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
+import { getServerServices } from '@infrastructure/server/services';
+import { supportRouteResponse } from '@infrastructure/server/supportRouteAdapter';
 import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
 import { parseTicketListOptions } from './parsers';
 
@@ -7,9 +7,9 @@ export async function GET(req: Request) {
   try {
     await requireAdminSession(req);
     const { searchParams } = new URL(req.url);
-    
-    const tickets = await ticketRepository.getTickets(parseTicketListOptions(searchParams));
-    return NextResponse.json(tickets);
+    const services = await getServerServices();
+    const result = await services.support.listTickets(parseTicketListOptions(searchParams));
+    return supportRouteResponse(result);
   } catch (err: any) {
     return jsonError(err, 'Failed to fetch tickets');
   }

@@ -23,6 +23,13 @@ import type {
   GetOrderInput,
   GetAdminOrderInput,
   AddOrderNoteInput,
+  ApplyOrderDiscountInput,
+  CreatePurchaseOrderAdminInput,
+  ReleaseOrderHoldInput,
+  SetOrderHoldInput,
+  SwapOrderItemInput,
+  UpdateOrderShippingAddressInput,
+  UpgradeOrderShippingInput,
   ArchiveLocationInput,
   ListOrdersInput,
   ListUsersInput,
@@ -51,6 +58,8 @@ import {
 } from './adminResult';
 import type { IAdminOperatorEventLog } from './adminOperatorEventLog';
 import { adminMutationKey } from './adminOperatorEventLog';
+import type { ICommerceEventBus } from '../commerce/commerceEventBus';
+import { mapAdminEventToEnvelope } from '../commerce/commerceEventMappers';
 
 type AdminFlowDeps = {
   checkout: CheckoutApplicationService;
@@ -63,6 +72,7 @@ type AdminFlowDeps = {
   locationAdmin: LocationAdminService;
   refunds: RefundApplicationService;
   operatorEventLog: IAdminOperatorEventLog;
+  commerceEventBus?: ICommerceEventBus;
 };
 
 const DESTRUCTIVE_ORDER_STATUSES = new Set<OrderStatus>(['cancelled']);
@@ -134,6 +144,10 @@ export class AdminFlowService implements AdminApplicationService {
 
   private get operatorEventLog() {
     return this.deps.operatorEventLog;
+  }
+
+  private get commerceEventBus() {
+    return this.deps.commerceEventBus;
   }
 
   async listDashboard(input: { actor: AdminActor }) {
@@ -361,6 +375,181 @@ export class AdminFlowService implements AdminApplicationService {
       },
       after: { text: input.text.trim() },
       run: () => this.orderService.addOrderNote(input.orderId, input.text, toServiceActor(input.actor)),
+    });
+  }
+
+  async updateOrderShippingAddress(input: UpdateOrderShippingAddressInput) {
+    const idempotencyKey = adminMutationKey(
+      'order.shipping_address',
+      input.orderId,
+      input.actor.id,
+      input.idempotencyKey,
+    );
+
+    return this.runIdempotentMutation({
+      actor: input.actor,
+      action: 'order.shipping_address',
+      targetType: 'order',
+      targetId: input.orderId,
+      idempotencyKey,
+      duplicateData: { orderId: input.orderId },
+      run: async () => {
+        await this.orderService.updateShippingAddress(input.orderId, input.address, toServiceActor(input.actor));
+        return { orderId: input.orderId };
+      },
+    });
+  }
+
+  async applyOrderDiscount(input: ApplyOrderDiscountInput) {
+    const idempotencyKey = adminMutationKey(
+      'order.discount',
+      input.orderId,
+      input.actor.id,
+      input.idempotencyKey ?? input.code,
+    );
+
+    return this.runIdempotentMutation({
+      actor: input.actor,
+      action: 'order.discount',
+      targetType: 'order',
+      targetId: input.orderId,
+      idempotencyKey,
+      duplicateData: { orderId: input.orderId, code: input.code },
+      run: async () => {
+        await this.orderService.applyDiscountToOrder(input.orderId, input.code, toServiceActor(input.actor));
+        return { orderId: input.orderId, code: input.code };
+      },
+    });
+  }
+
+  async swapOrderItem(input: SwapOrderItemInput) {
+    const idempotencyKey = adminMutationKey(
+      'order.swap_item',
+      input.orderId,
+      input.actor.id,
+      input.idempotencyKey ?? `${input.oldProductId}:${input.newProductId}`,
+    );
+
+    return this.runIdempotentMutation({
+      actor: input.actor,
+      action: 'order.swap_item',
+      targetType: 'order',
+      targetId: input.orderId,
+      idempotencyKey,
+      duplicateData: { orderId: input.orderId },
+      run: async () => {
+        await this.orderService.swapOrderItem(
+          input.orderId,
+          input.oldProductId,
+          input.newProductId,
+          toServiceActor(input.actor),
+        );
+        return { orderId: input.orderId };
+      },
+    });
+  }
+
+  async upgradeOrderShipping(input: UpgradeOrderShippingInput) {
+    const idempotencyKey = adminMutationKey(
+      'order.upgrade_shipping',
+      input.orderId,
+      input.actor.id,
+      input.idempotencyKey ?? `${input.carrier}:${input.service}`,
+    );
+
+    return this.runIdempotentMutation({
+      actor: input.actor,
+      action: 'order.upgrade_shipping',
+      targetType: 'order',
+      targetId: input.orderId,
+      idempotencyKey,
+      duplicateData: { orderId: input.orderId },
+      run: async () => {
+        await this.orderService.upgradeShipping(
+          input.orderId,
+          input.carrier,
+          input.service,
+          toServiceActor(input.actor),
+        );
+        return { orderId: input.orderId };
+      },
+    });
+  }
+
+  async setOrderHold(input: SetOrderHoldInput) {
+    const reasonError = validateReason(input.reason);
+    if (reasonError) return reasonError;
+
+    const idempotencyKey = adminMutationKey(
+      'order.hold',
+      input.orderId,
+      input.actor.id,
+      input.idempotencyKey,
+    );
+
+    return this.runIdempotentMutation({
+      actor: input.actor,
+      action: 'order.hold',
+      targetType: 'order',
+      targetId: input.orderId,
+      reason: input.reason,
+      idempotencyKey,
+      duplicateData: { orderId: input.orderId },
+      run: async () => {
+        await this.orderService.setOrderHold(input.orderId, input.reason, toServiceActor(input.actor));
+        return { orderId: input.orderId };
+      },
+    });
+  }
+
+  async releaseOrderHold(input: ReleaseOrderHoldInput) {
+    const idempotencyKey = adminMutationKey(
+      'order.release_hold',
+      input.orderId,
+      input.actor.id,
+      input.idempotencyKey,
+    );
+
+    return this.runIdempotentMutation({
+      actor: input.actor,
+      action: 'order.release_hold',
+      targetType: 'order',
+      targetId: input.orderId,
+      idempotencyKey,
+      duplicateData: { orderId: input.orderId },
+      run: async () => {
+        await this.orderService.releaseOrderHold(input.orderId, toServiceActor(input.actor));
+        return { orderId: input.orderId };
+      },
+    });
+  }
+
+  async createPurchaseOrder(input: CreatePurchaseOrderAdminInput) {
+    const targetId = input.purchaseOrder.referenceNumber?.trim()
+      || input.purchaseOrder.supplier.trim()
+      || 'purchase-order';
+    const idempotencyKey = adminMutationKey(
+      'purchase_order.create',
+      targetId,
+      input.actor.id,
+      input.idempotencyKey,
+    );
+
+    return this.runIdempotentMutation({
+      actor: input.actor,
+      action: 'purchase_order.create',
+      targetType: 'purchase_order',
+      targetId,
+      idempotencyKey,
+      duplicateData: { purchaseOrder: { id: targetId } as any },
+      run: async () => {
+        const purchaseOrder = await this.purchaseOrderService.createPurchaseOrder({
+          ...input.purchaseOrder,
+          adminUserId: input.actor.id,
+          adminUserEmail: input.actor.email,
+        });
+        return { purchaseOrder };
+      },
     });
   }
 
@@ -997,6 +1186,9 @@ export class AdminFlowService implements AdminApplicationService {
       createdAt: new Date().toISOString(),
     };
     await this.operatorEventLog.recordEvent(event);
+    if (this.commerceEventBus) {
+      await this.commerceEventBus.publish(mapAdminEventToEnvelope(event));
+    }
   }
 }
 
