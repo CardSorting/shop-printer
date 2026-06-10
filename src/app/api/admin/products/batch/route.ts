@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { DomainError } from '@domain/errors';
 import { getServerServices } from '@infrastructure/server/services';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import { jsonError, parseProductUpdate, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
 
 const MAX_BATCH_PRODUCTS = 100;
@@ -21,12 +23,13 @@ export async function POST(request: Request) {
         }));
 
         const services = await getServerServices();
-        const results = await services.productService.batchUpdateProducts(
-            validatedUpdates, 
-            { id: user.id, email: user.email }
-        );
+        const result = await services.admin.batchUpdateProducts({
+            actor: toAdminActor(user),
+            updates: validatedUpdates,
+            idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
+        });
 
-        return NextResponse.json(results);
+        return adminRouteResponse(result);
     } catch (error) {
         return jsonError(error, 'Failed to perform batch update');
     }
@@ -45,12 +48,18 @@ export async function DELETE(request: Request) {
         const validatedIds = ids.map((id, i) => requireString(id, `ids[${i}]`));
 
         const services = await getServerServices();
-        await services.productService.batchDeleteProducts(
-            validatedIds, 
-            { id: user.id, email: user.email }
-        );
+        const result = await services.admin.batchArchiveProducts({
+            actor: toAdminActor(user),
+            productIds: validatedIds,
+            reason: typeof body.reason === 'string' ? body.reason : 'Batch product archive',
+            idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
+        });
 
-        return NextResponse.json({ success: true });
+        if (!result.ok) {
+            return adminRouteResponse(result);
+        }
+
+        return NextResponse.json({ success: true, duplicate: result.duplicate ?? false });
     } catch (error) {
         return jsonError(error, 'Failed to perform batch deletion');
     }

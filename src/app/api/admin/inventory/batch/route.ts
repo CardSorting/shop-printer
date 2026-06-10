@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { DomainError } from '@domain/errors';
 import { getServerServices } from '@infrastructure/server/services';
-import { inventoryRouteResponse } from '@infrastructure/server/inventoryRouteAdapter';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import { requireAdminSession, readJsonObject, jsonError, requireString } from '@infrastructure/server/apiGuards';
 
 const MAX_INVENTORY_BATCH_UPDATES = 100;
@@ -32,7 +33,7 @@ function parseInventoryUpdate(value: unknown, index: number): { id: string; vari
 export async function POST(request: Request) {
   try {
     const user = await requireAdminSession(request);
-    const actor = { id: user.id, email: user.email };
+    const actor = toAdminActor(user);
     const services = await getServerServices();
 
     const body = await readJsonObject(request);
@@ -49,24 +50,26 @@ export async function POST(request: Request) {
       ? bodyKey.trim()
       : `admin-batch:${actor.id}:${Date.now()}:${parsed.map((u) => `${u.id}:${u.variantId ?? ''}:${u.stock}`).join('|')}`;
 
-    const result = await services.inventory.adjustInventory({
+    const result = await services.admin.adjustInventory({
+      actor,
       updates: parsed.map((u) => ({
         productId: u.id,
         variantId: u.variantId,
         stock: u.stock,
       })),
       idempotencyKey,
-      actor: 'admin',
-      actorUserId: actor.id,
-      actorEmail: actor.email,
       note: typeof note === 'string' ? note : undefined,
     });
 
     if (!result.ok) {
-      return inventoryRouteResponse(result);
+      return adminRouteResponse(result);
     }
 
-    return NextResponse.json({ success: true, updatedCount: updates.length, duplicate: result.duplicate ?? false });
+    return NextResponse.json({
+      success: true,
+      updatedCount: result.data.updatedCount,
+      duplicate: result.duplicate ?? false,
+    });
   } catch (err) {
     console.error('[API] Inventory Batch Update Failed:', err);
     return jsonError(err, 'Inventory Batch Update Failed');

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { checkoutRouteResponse } from '@infrastructure/server/checkoutRouteAdapter';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import { jsonError, parseBoundedLimit, requireAdminSession, readJsonObject } from '@infrastructure/server/apiGuards';
 
 export async function GET(request: Request) {
@@ -32,17 +33,16 @@ export async function POST(request: Request) {
     }
 
     const services = await getServerServices();
-    const actor = { id: adminUser.id, email: adminUser.email };
-
-    const result = await services.checkout.handleReconciliationOperatorAction({
+    const result = await services.admin.resolveReconciliationCase({
+      actor: toAdminActor(adminUser),
       caseId,
       action,
       reason,
-      actor,
+      idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
     });
 
     if (!result.ok) {
-      return checkoutRouteResponse(result);
+      return adminRouteResponse(result);
     }
 
     return NextResponse.json({

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import {
     jsonError,
     optionalString,
@@ -24,12 +25,14 @@ export async function PATCH(
         }
 
         const services = await getServerServices();
-        await services.orderService.updateOrderFulfillment(
-            id,
-            { trackingNumber, shippingCarrier },
-            { id: user.id, email: user.email }
-        );
-        return NextResponse.json({ ok: true });
+        const result = await services.admin.fulfillOrder({
+            actor: toAdminActor(user),
+            orderId: id,
+            trackingNumber,
+            shippingCarrier,
+            idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
+        });
+        return adminRouteResponse(result);
     } catch (error) {
         return jsonError(error, 'Failed to update fulfillment');
     }

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
 import { DomainError } from '@domain/errors';
 
@@ -21,12 +23,13 @@ export async function POST(request: Request) {
         if (rows.length > 250) throw new DomainError('Tracking import is limited to 250 rows at a time.');
 
         const services = await getServerServices();
-        const actor = { id: user.id, email: user.email };
+        const actor = toAdminActor(user);
 
         let successCount = 0;
         const errors: string[] = [];
 
-        for (const row of rows) {
+        for (let index = 0; index < rows.length; index++) {
+            const row = rows[index];
             try {
                 if (!row || typeof row !== 'object' || Array.isArray(row)) {
                     throw new DomainError('Tracking row must be an object.');
@@ -34,16 +37,30 @@ export async function POST(request: Request) {
                 const orderId = requireString(row.orderId, 'orderId');
                 const trackingNumber = requireString(row.trackingNumber, 'trackingNumber');
                 const carrier = typeof row.carrier === 'string' && row.carrier.trim() ? row.carrier.trim() : 'USPS';
+                const idempotencyBase = typeof body.idempotencyKey === 'string' ? body.idempotencyKey : 'tracking-import';
 
-                await services.orderService.updateOrderFulfillment(orderId, {
+                const fulfillResult = await services.admin.fulfillOrder({
+                    actor,
+                    orderId,
                     trackingNumber,
-                    shippingCarrier: carrier
-                }, actor);
+                    shippingCarrier: carrier,
+                    idempotencyKey: `${idempotencyBase}:fulfill:${orderId}:${index}`,
+                });
+                if (!fulfillResult.ok) {
+                    throw new DomainError(fulfillResult.message);
+                }
 
-                // Auto-advance to shipped if not already
-                const order = await services.orderService.getAdminOrder(orderId);
-                if (order && (order.status === 'confirmed' || order.status === 'processing')) {
-                    await services.orderService.updateOrderStatus(orderId, 'shipped', actor);
+                const orderResult = await services.admin.getOrder({ actor, orderId });
+                if (orderResult.ok && (orderResult.data.status === 'confirmed' || orderResult.data.status === 'processing')) {
+                    const statusResult = await services.admin.updateOrderStatus({
+                        actor,
+                        orderId,
+                        status: 'shipped',
+                        idempotencyKey: `${idempotencyBase}:ship:${orderId}:${index}`,
+                    });
+                    if (!statusResult.ok) {
+                        throw new DomainError(statusResult.message);
+                    }
                 }
 
                 successCount++;

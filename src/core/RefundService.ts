@@ -11,6 +11,15 @@ import { AuditService } from './AuditService';
 import type { InventoryApplicationService } from './inventory/inventoryApplicationService';
 import { logger } from '@utils/logger';
 
+export type ProcessRefundResult = {
+  orderId: string;
+  amount: number;
+  status: Extract<OrderStatus, 'refunded' | 'partially_refunded'>;
+  stripeRefundId?: string;
+  idempotencyKey: string;
+  duplicate?: boolean;
+};
+
 export class RefundService {
   constructor(
     private orderRepo: IOrderRepository,
@@ -22,7 +31,7 @@ export class RefundService {
     private inventory: InventoryApplicationService,
   ) {}
 
-  async processRefund(orderId: string, amount: number, actor: { id: string, email: string }, refundAttemptId: string): Promise<void> {
+  async processRefund(orderId: string, amount: number, actor: { id: string, email: string }, refundAttemptId: string): Promise<ProcessRefundResult> {
     // 0. Production Hardening: Acquire distributed lock to prevent double-refund races
     const lockId = `refund_lock:${orderId}`;
     let fencingToken: number | null = null;
@@ -77,7 +86,18 @@ export class RefundService {
       const processedRefundKeys = order.metadata?.processedRefundKeys || [];
       if (processedRefundKeys.includes(refundIdempotencyKey)) {
         logger.info(`[RefundService] Duplicate refund attempt detected. Key ${refundIdempotencyKey} already transactionally processed. Returning success (idempotent resume).`);
-        return;
+        const existingRefunds = (order.metadata?.stripeRefunds as Array<{ id: string; amount: number; idempotencyKey: string }> | undefined) || [];
+        const existing = existingRefunds.find((entry) => entry.idempotencyKey === refundIdempotencyKey);
+        return {
+          orderId,
+          amount: existing?.amount ?? safeAmount,
+          status: (order.status === 'refunded' || order.status === 'partially_refunded')
+            ? order.status
+            : nextStatus,
+          stripeRefundId: existing?.id,
+          idempotencyKey: refundIdempotencyKey,
+          duplicate: true,
+        };
       }
       
       const result = await this.payment.refundPayment(order.paymentTransactionId, safeAmount, refundIdempotencyKey);
@@ -94,9 +114,19 @@ export class RefundService {
             // 1.5 Update order metadata with the processed refund idempotency key
             const currentMetadata = order.metadata || {};
             const nextKeys = [...(currentMetadata.processedRefundKeys || []), refundIdempotencyKey];
+            const stripeRefunds = [
+              ...((currentMetadata.stripeRefunds as Array<{ id: string; amount: number; idempotencyKey: string }>) || []),
+              {
+                id: result.refundId || refundIdempotencyKey,
+                amount: safeAmount,
+                idempotencyKey: refundIdempotencyKey,
+              },
+            ];
             await this.orderRepo.updateMetadata(orderId, {
               ...currentMetadata,
-              processedRefundKeys: nextKeys
+              processedRefundKeys: nextKeys,
+              stripeRefunds,
+              lastStripeRefundId: result.refundId,
             }, transaction);
 
             // 2. Restock inventory (physical items only)
@@ -156,6 +186,13 @@ export class RefundService {
         }
         
         logger.info(`[RefundService] Refund processed and state synchronized for order ${orderId}`);
+        return {
+          orderId,
+          amount: safeAmount,
+          status: nextStatus,
+          stripeRefundId: result.refundId,
+          idempotencyKey: refundIdempotencyKey,
+        };
       } else {
         // Production Hardening: Audit the failed refund attempt for forensic traceability
         await this.audit.record({

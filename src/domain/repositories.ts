@@ -198,7 +198,7 @@ export interface IPaymentProcessor {
     paymentMethodId?: string;
     idempotencyKey: string;
   }): Promise<{ success: boolean; transactionId: string | null }>;
-  refundPayment(transactionId: string, amount: number, idempotencyKey: string): Promise<{ success: boolean }>;
+  refundPayment(transactionId: string, amount: number, idempotencyKey: string): Promise<{ success: boolean; refundId?: string; status?: string }>;
 }
 
 export interface ICheckoutGateway {

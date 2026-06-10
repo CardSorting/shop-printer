@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import { jsonError, parseBoundedLimit, parseProductDraft, readJsonObject, requireAdminSession } from '@infrastructure/server/apiGuards';
 
 export async function GET(request: Request) {
@@ -25,12 +27,17 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const user = await requireAdminSession();
+        const body = await readJsonObject(request);
         const services = await getServerServices();
-        const product = await services.productService.createProduct(
-            parseProductDraft(await readJsonObject(request)),
-            { id: user.id, email: user.email }
-        );
-        return NextResponse.json(product);
+        const result = await services.admin.createProduct({
+            actor: toAdminActor(user),
+            draft: parseProductDraft(body),
+            idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
+        });
+        if (!result.ok) {
+            return adminRouteResponse(result);
+        }
+        return NextResponse.json(result.data, { status: result.duplicate ? 200 : 201 });
     } catch (error) {
         return jsonError(error, 'Failed to create product');
     }

@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import { DomainError } from '@domain/errors';
-import { jsonError, readJsonObject, requireAdminSession } from '@infrastructure/server/apiGuards';
+import { jsonError, readJsonObject, requireAdminSession, requireStepUpAdminSession } from '@infrastructure/server/apiGuards';
 import { getServerServices } from '@infrastructure/server/services';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import type { JsonValue, UserRole } from '@domain/models';
 
 const USER_ROLES = new Set<UserRole>(['customer', 'admin']);
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const actor = await requireAdminSession();
+        const actorUser = await requireAdminSession();
         const { id } = await params;
         const body = await readJsonObject(request);
 
@@ -52,7 +54,31 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }
 
         const services = await getServerServices();
-        const updated = await services.authService.updateUser(id, updates, actor);
+
+        if (updates.role !== undefined) {
+            const elevatedUser = await requireStepUpAdminSession(request);
+            const reason = typeof body.reason === 'string' ? body.reason : '';
+            const result = await services.admin.updateUserRole({
+                actor: toAdminActor(elevatedUser, { elevated: true }),
+                userId: id,
+                role: updates.role,
+                reason,
+                idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
+            });
+            if (!result.ok) {
+                return adminRouteResponse(result);
+            }
+
+            const { role: _role, ...rest } = updates;
+            if (Object.keys(rest).length === 0) {
+                return NextResponse.json(result.data);
+            }
+
+            const updated = await services.authService.updateUser(id, rest, { id: actorUser.id, email: actorUser.email });
+            return NextResponse.json(updated);
+        }
+
+        const updated = await services.authService.updateUser(id, updates, { id: actorUser.id, email: actorUser.email });
         return NextResponse.json(updated);
     } catch (error) {
         return jsonError(error, 'Failed to update user');

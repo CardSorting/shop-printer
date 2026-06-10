@@ -3,6 +3,8 @@
  */
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
 import { parseClosePurchaseOrder, parsePurchaseOrderAction, parseReceiveItems } from '../parsers';
 
@@ -31,25 +33,48 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = await readJsonObject(request);
     const action = parsePurchaseOrderAction(body);
     const services = await getServerServices();
+    const actor = toAdminActor(user);
+    const idempotencyKey = typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined;
 
     if (action === 'submit') {
-      const order = await services.purchaseOrderService.submitOrder(id, user.id, user.email);
-      return NextResponse.json(order);
+      const result = await services.admin.submitPurchaseOrder({
+        actor,
+        purchaseOrderId: id,
+        idempotencyKey,
+      });
+      if (!result.ok) return adminRouteResponse(result);
+      return NextResponse.json(result.data.purchaseOrder);
     }
 
     if (action === 'cancel') {
-      const order = await services.purchaseOrderService.cancelOrder(id, user.id, user.email);
-      return NextResponse.json(order);
+      const result = await services.admin.cancelPurchaseOrder({
+        actor,
+        purchaseOrderId: id,
+        reason: typeof body.reason === 'string' ? body.reason : '',
+        idempotencyKey,
+      });
+      if (!result.ok) return adminRouteResponse(result);
+      return NextResponse.json(result.data.purchaseOrder);
     }
 
     if (action === 'close') {
-      const order = await services.purchaseOrderService.closeOrder(parseClosePurchaseOrder(body, id), user.id, user.email);
-      return NextResponse.json(order);
+      const result = await services.admin.closePurchaseOrder({
+        actor,
+        close: parseClosePurchaseOrder(body, id),
+        idempotencyKey,
+      });
+      if (!result.ok) return adminRouteResponse(result);
+      return NextResponse.json(result.data.purchaseOrder);
     }
 
     if (action === 'receive') {
-      const result = await services.purchaseOrderService.receiveItems(parseReceiveItems(body, id, user.id), { id: user.id, email: user.email });
-      return NextResponse.json(result);
+      const receive = parseReceiveItems(body, id, user.id);
+      const result = await services.admin.receivePurchaseOrder({
+        actor,
+        receive,
+        idempotencyKey: idempotencyKey ?? receive.idempotencyKey,
+      });
+      return adminRouteResponse(result);
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

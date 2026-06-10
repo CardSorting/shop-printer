@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
 import { DomainError } from '@domain/errors';
 
@@ -28,7 +30,7 @@ function parseOptionalNumber(value: unknown, field: string): number | undefined 
  */
 export async function POST(request: Request) {
     try {
-        await requireAdminSession(request);
+        const user = await requireAdminSession(request);
         const body = await readJsonObject(request);
         const { ids, packageDimensions, tareWeight } = body;
 
@@ -39,11 +41,14 @@ export async function POST(request: Request) {
         const validatedIds = ids.map((id, i) => requireString(id, `ids[${i}]`));
 
         const services = await getServerServices();
-        const csv = await services.orderService.exportOrdersToPirateShipCsv(
-            validatedIds, 
-            parsePackageDimensions(packageDimensions),
-            parseOptionalNumber(tareWeight, 'tareWeight')
-        );
+        const result = await services.admin.exportOrdersToPirateShipCsv({
+            actor: toAdminActor(user),
+            orderIds: validatedIds,
+            packageDimensions: parsePackageDimensions(packageDimensions),
+            tareWeight: parseOptionalNumber(tareWeight, 'tareWeight'),
+        });
+        if (!result.ok) return adminRouteResponse(result);
+        const csv = result.data;
 
         return new NextResponse(csv, {
             headers: {

@@ -74,7 +74,7 @@ export class StripePaymentProcessor implements IPaymentProcessor {
     }
   }
 
-  async refundPayment(transactionId: string, amount: number, idempotencyKey: string): Promise<{ success: boolean }> {
+  async refundPayment(transactionId: string, amount: number, idempotencyKey: string): Promise<{ success: boolean; refundId?: string; status?: string }> {
     if (!process.env.STRIPE_SECRET_KEY) {
       throw new PaymentFailedError('Stripe processor is not configured.');
     }
@@ -93,9 +93,9 @@ export class StripePaymentProcessor implements IPaymentProcessor {
         userEmail: 'refunds@woodbine.com',
         action: 'order_refunded',
         targetId: transactionId,
-        details: { amount, status: refund.status, success }
+        details: { amount, status: refund.status, success, refundId: refund.id }
       });
-      return { success };
+      return { success, refundId: refund.id, status: refund.status };
     } catch (error: any) {
       const message = error.message || 'Stripe refund request failed.';
       throw new PaymentFailedError(message);

@@ -145,8 +145,8 @@ describe('Inventory Location Consistency Proof Ladder (sealed movement protocol)
       path.join(process.cwd(), 'src/app/api/admin/inventory/ledger/route.ts'),
       'utf8',
     );
-    expect(batchRoute).toMatch(/services\.inventory\.adjustInventory/);
-    expect(batchRoute).not.toMatch(/batchUpdateStock|batchSetInventory/);
+    expect(batchRoute).toMatch(/services\.admin\.adjustInventory/);
+    expect(batchRoute).not.toMatch(/services\.inventory\.adjustInventory|batchUpdateStock|batchSetInventory/);
     expect(ledgerRoute).toMatch(/services\.inventory\.getProductLedger/);
   });
 

@@ -760,14 +760,24 @@ export async function POST(req: NextRequest) {
               throw new Error(`Refund amount ($${amount/100}) exceeds concierge autonomous limit of $${MAX_CONCIERGE_REFUND_CENTS/100}. Please escalate to a manager.`);
             }
 
-            const { refundService } = getInitialServices();
-            // Production Hardening: Idempotency Key for Concierge Refund
+            const { refunds } = getInitialServices();
             const idempotencyKey = `concierge-refund-${activeSessionId}-${orderId}-${amount}`;
-            
-            await refundService.processRefund(orderId, amount, {
-              id: 'concierge',
-              email: 'concierge@woodbine.com'
-            }, idempotencyKey);
+            const conciergeActor = { id: 'concierge', email: 'concierge@woodbine.com' };
+            const refundReason = `Concierge autonomous refund for session ${activeSessionId} (customer: ${userEmail})`;
+
+            const refundResult = await refunds.createRefund({
+              orderId,
+              amount,
+              idempotencyKey,
+              reason: refundReason,
+              actor: conciergeActor,
+              source: 'concierge',
+            });
+            if (!refundResult.ok) {
+              sessionUpdates['context.lastActionStatus'] = 'failed';
+              sessionUpdates['context.lastActionError'] = `Refund failed for Order #${orderId}: ${refundResult.message}`;
+              continue;
+            }
             sessionUpdates.events.push({
               type: 'refunded',
               timestamp: new Date().toISOString(),

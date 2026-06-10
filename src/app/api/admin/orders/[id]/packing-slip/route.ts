@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
-import { OrderNotFoundError } from '@domain/errors';
 import { formatCurrency } from '@utils/formatters';
 
 function escapeHtml(value: unknown): string {
@@ -18,11 +19,15 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        await requireAdminSession(request);
+        const user = await requireAdminSession(request);
         const { id } = await params;
         const services = await getServerServices();
-        const order = await services.orderService.getAdminOrder(id);
-        if (!order) throw new OrderNotFoundError(id);
+        const orderResult = await services.admin.getAdminOrder({
+            actor: toAdminActor(user),
+            orderId: id,
+        });
+        if (!orderResult.ok) return adminRouteResponse(orderResult);
+        const order = orderResult.data;
         const safeFileId = order.id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80) || 'order';
 
         const address = order.shippingAddress;

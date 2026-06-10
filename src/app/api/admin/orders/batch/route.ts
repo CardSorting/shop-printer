@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import { DomainError } from '@domain/errors';
 import { jsonError, readJsonObject, requireAdminSession, requireOrderStatus, requireStepUpAdminSession, requireString } from '@infrastructure/server/apiGuards';
 
@@ -30,13 +31,27 @@ export async function PATCH(request: Request) {
         }
 
         const services = await getServerServices();
-        const result = await services.orderService.batchUpdateOrderStatus(
-            validatedIds, 
-            status, 
-            { id: user.id, email: user.email }
-        );
+        const result = await services.admin.batchUpdateOrderStatus({
+            actor: toAdminActor(user, { elevated: status === 'cancelled' }),
+            orderIds: validatedIds,
+            status,
+            reason: typeof body.reason === 'string' ? body.reason : undefined,
+            idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
+        });
 
-        return NextResponse.json({ success: true, updatedCount: result.updatedIds.length, updatedIds: result.updatedIds });
+        if (!result.ok) {
+            return adminRouteResponse(result);
+        }
+
+        return adminRouteResponse({
+            ok: true,
+            data: {
+                success: true,
+                updatedCount: result.data.updatedIds.length,
+                updatedIds: result.data.updatedIds,
+                duplicate: result.duplicate ?? false,
+            },
+        });
     } catch (error) {
         return jsonError(error, 'Failed to perform batch order update');
     }

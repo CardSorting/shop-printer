@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
 
 export async function POST(
@@ -13,8 +14,13 @@ export async function POST(
         const text = requireString(body.text, 'text');
 
         const services = await getServerServices();
-        const note = await services.orderService.addOrderNote(id, text, { id: user.id, email: user.email });
-        return NextResponse.json(note);
+        const result = await services.admin.addOrderNote({
+            actor: toAdminActor(user),
+            orderId: id,
+            text,
+            idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
+        });
+        return adminRouteResponse(result);
     } catch (error) {
         return jsonError(error, 'Failed to add order note');
     }

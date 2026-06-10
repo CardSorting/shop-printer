@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { DomainError } from '@domain/errors';
 import { getServerServices } from '@infrastructure/server/services';
+import { adminRouteResponse } from '@infrastructure/server/adminRouteAdapter';
+import { toAdminActor } from '@infrastructure/server/adminActor';
 import {
     jsonError,
     parseProductDraft,
@@ -30,12 +32,17 @@ export async function POST(request: Request) {
         });
 
         const services = await getServerServices();
-        const created = await services.productService.batchCreateProducts(
+        const result = await services.admin.batchCreateProducts({
+            actor: toAdminActor(user),
             drafts,
-            { id: user.id, email: user.email }
-        );
+            idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
+        });
 
-        return NextResponse.json(created, { status: 201 });
+        if (!result.ok) {
+            return adminRouteResponse(result);
+        }
+
+        return NextResponse.json(result.data, { status: result.duplicate ? 200 : 201 });
     } catch (error) {
         return jsonError(error, 'Failed to perform batch product creation', request);
     }
