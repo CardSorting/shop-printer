@@ -1,110 +1,61 @@
-# WoodBine
+# DreamBees Art
 
-**Old Hall. New Flavors.**
+**Open-source, self-hosted ecommerce — Shopify-class capabilities, full source access.**
 
-WoodBine is a Salt Lake City food hall anchored in a historic, beautifully restored warehouse—a neighborhood table where independent vendors, regulars, and first-timers gather for cold drinks, full plates, and the best kind of company.
+DreamBees Art is a standalone commerce platform you deploy and own. It ships a customer storefront, merchant admin, checkout pipeline, inventory engine, support CRM, marketing concierge, and digital fulfillment — the same surface area merchants expect from Shopify, without SaaS lock-in or per-transaction platform fees.
 
-Come for the food, stay for the people—and the space. No membership, no dress code—just show up.
+The reference deployment in this repository uses **WoodBine** demo branding (food-hall skin). Replace store name, SEO, and theme content via admin settings and `src/domain/seo/brand.ts` for your merchant.
 
-## Current Project Shape
+## What you get
 
-| Area | Current implementation |
+| Surface | Capabilities |
 | --- | --- |
-| Storefront | Home, product listing/detail, collections, search, cart, checkout, account, orders, wishlist, support, blog, and digital vault pages. |
-| Checkout and orders | `CheckoutApplicationService` (`services.checkout` / `CheckoutFlowService`) is the only checkout boundary for routes. It coordinates sessions, webhooks, recovery, cleanup, and operator actions. `OrderService` handles fulfillment, reads, and admin mutations only. |
-| Inventory | `InventoryApplicationService` (`services.inventory` / `InventoryFlowService`) is the only stock mutation boundary. Reservations, commits, ledger entries, and admin/fulfillment adjustments flow through the inventory protocol. |
-| Admin console | Dashboard, orders, products, bulk editor, inventory, receiving/purchase orders, suppliers, collections, taxonomy, discounts, analytics, support tickets, settings, files, blog, audit, and operations planning routes. |
-| Persistence | Firestore repositories implement Domain repository contracts for products, carts, orders, discounts, settings, suppliers, inventory, support, marketing, wishlists, and digital access. |
-| Security | Signed HTTP-only sessions, admin route guards, same-origin mutation policy, rate-limit guards, idempotency keys, and checkout locks. |
-| Test coverage | Vitest unit/integration tests plus Playwright e2e tests for checkout, security, admin inventory, shopping flow, chaos regression, and commerce workflows. |
+| **Storefront** | Home, collections, product pages, search, cart, checkout, account, order history, wishlist, support center, blog, digital vault |
+| **Admin** | Dashboard, orders, products, bulk editor, inventory, locations, PO receiving, suppliers, customers, discounts, collections, taxonomy, shipping, analytics, SEO, support tickets, blog, files, audit log, operations planning |
+| **Commerce core** | Protocol-bound checkout, refunds, inventory, and admin authorization — no route-level money or stock freelancing |
+| **Support & AI** | Ticketing, knowledge base, macros, and Concierge (customer chat + operator workspace) |
+| **Integrations** | Stripe payments, Firebase Auth + Firestore, Brevo email, optional Gemini/Vertex for Concierge |
 
-Repository snapshot:
+## Why open source instead of Shopify
 
-- 136 API route files under `src/app/api`.
-- 59 App Router page files under `src/app`.
-- 45 test/spec files across unit, integration, API, and e2e coverage.
-- Firestore-backed service container in `src/core/container.ts`.
-- Documentation ledger in `.wiki/` and long-form docs in `docs/`.
+| | Shopify (SaaS) | DreamBees Art (self-hosted) |
+| --- | --- | --- |
+| **Data** | Platform-hosted | Your Firestore project |
+| **Customization** | Themes, apps, Liquid limits | Full TypeScript source |
+| **Fees** | Subscription + transaction fees | Infrastructure you pay for directly |
+| **Checkout** | Managed black box | Inspectable protocol with recovery and reconciliation |
+| **Extensibility** | Webhooks and app store | Fork, patch, and wire your own adapters |
 
 ## Architecture
 
-The codebase follows a layered TypeScript architecture:
+Layered TypeScript monolith on Next.js App Router:
 
-| Layer | Path | Responsibility |
+| Layer | Path | Role |
 | --- | --- | --- |
-| Domain | `src/domain/` | Models, repository contracts, pure rules, validation, calculations, and typed errors. |
-| Core | `src/core/` | Application services and workflow orchestration. |
-| Infrastructure | `src/infrastructure/` | Firestore repositories, Firebase/Auth bridges, Stripe/Brevo/storage adapters, server guards, and session helpers. |
-| App Router | `src/app/` | Next.js pages and API transport boundaries. |
-| UI | `src/ui/` | React pages, reusable components, checkout components, admin components, hooks, and browser API facade. |
-| Utils | `src/utils/` | Stateless formatters, validators, logging, SEO, navigation, and image helpers. |
+| Domain | `src/domain/` | Models, repository contracts, pure rules — no I/O |
+| Core | `src/core/` | Application services and workflow orchestration |
+| Infrastructure | `src/infrastructure/` | Firestore, Firebase, Stripe, email, guards, adapters |
+| App Router | `src/app/` | Pages and HTTP API boundaries |
+| UI | `src/ui/` | React storefront and admin components |
 
-The main design rule is that Domain stays free of I/O and framework imports. Core owns orchestration. Infrastructure and App Router adapt real transport/storage/payment behavior into those contracts.
+### Commerce protocols (frozen)
 
-## Checkout
-
-Checkout is an application protocol, not route spaghetti. All checkout HTTP paths call `services.checkout` (`CheckoutApplicationService`), which returns typed `CheckoutResult<T>` outcomes.
-
-The full guide — architecture, six public methods, state machines, idempotency, routes, HTTP mapping, observability, file map, and verification ladder — lives in **[docs/checkout.md](docs/checkout.md)**.
-
-See also [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md) for core benchmarks.
-
-## Inventory
-
-Inventory is a **movement protocol**, not a stock counter: cached catalog stock, location levels, reservations, commits, and an append-only ledger. Routes, checkout, fulfillment, and admin call `services.inventory` only — never `productRepo.batchUpdateStock` directly.
-
-The full guide — architecture, public methods, PO receive fan-out (`receiveStockAtLocation`), reservation state machine, idempotency, HTTP mapping, defense-in-depth guards, verification ladders, and audit checklist — lives in **[docs/inventory.md](docs/inventory.md)**.
-
-Proof ladders:
-
-```bash
-npm test -- --run \
-  src/tests/inventory-protocol.test.ts \
-  src/tests/inventory-verification-ladder.test.ts \
-  src/tests/inventory-location-consistency-ladder.test.ts
-```
-
-## Commerce Core
-
-Four application protocols own commerce mutations. Raw services are internal; routes, tools, admin actions, and automations call `ApplicationService` boundaries only.
+All mutations go through application protocols — raw services are internal:
 
 ```txt
-checkout  = money capture      → services.checkout
-refunds   = money reversal     → services.refunds
-inventory = stock movement     → services.inventory
-admin     = human authority    → services.admin
+checkout  = money capture      → services.checkout   (CheckoutApplicationService)
+refunds   = money reversal     → services.refunds    (RefundApplicationService)
+inventory = stock movement     → services.inventory  (InventoryApplicationService)
+admin     = human authority    → services.admin      (AdminApplicationService)
 ```
 
-**[docs/commerce-protocol-frozen.md](docs/commerce-protocol-frozen.md)** — frozen policy. Leave money paths alone unless a new use case appears.
+**Invariant:** No route, tool, admin action, or automation touches raw money-mutation services directly.
 
-## Benchmark Baseline
+See **[docs/commerce-protocol-frozen.md](docs/commerce-protocol-frozen.md)** and **[docs/architecture.md](docs/architecture.md)**.
 
-A reproducible Core-level benchmark exists for cart, checkout, and full order/payment/finalization flows:
+## Quick start
 
-```bash
-npm run benchmark:order-flow
-```
-
-Latest local benchmark summary:
-
-| Flow | Max clean concurrency tested | Throughput | p95 latency | Failures |
-| --- | ---: | ---: | ---: | ---: |
-| Cart add-to-cart | 200 | 31,150.57 ops/sec | 7.40 ms | 0 |
-| Checkout reservation | 200 | 22,495.54 ops/sec | 10.39 ms | 0 |
-| Full order + payment finalization | 100 | 11,125.71 ops/sec | 9.47 ms | 0 |
-
-These numbers measure Core orchestration with in-memory adapters and a mocked Firebase transaction bridge. They are a repeatable application baseline, not a Firestore or Stripe production capacity claim.
-
-## Quick Start
-
-Prerequisites:
-
-- Node.js 22.x expected by `package.json`.
-- Firebase project with Firestore and Authentication enabled.
-- Stripe account for payment flows.
-- Environment variables configured for Firebase, Stripe, session signing, and any optional email/AI integrations.
-
-Install and run:
+**Prerequisites:** Node.js 22, Firebase project (Auth + Firestore), Stripe account, `.env` from `.env.example`.
 
 ```bash
 npm install
@@ -112,7 +63,7 @@ npm run setup
 npm run dev
 ```
 
-Useful verification commands:
+**Verify:**
 
 ```bash
 npm run lint
@@ -122,32 +73,41 @@ npm run test:e2e
 npm run benchmark:order-flow
 ```
 
+Full setup: **[docs/getting-started.md](docs/getting-started.md)**
+
 ## Documentation
 
-Start here:
+| Doc | Contents |
+| --- | --- |
+| [docs/index.md](docs/index.md) | Documentation hub |
+| [docs/platform-overview.md](docs/platform-overview.md) | Shopify comparison, feature map, deployment model |
+| [docs/architecture.md](docs/architecture.md) | Layers, protocols, request lifecycle |
+| [docs/storefront.md](docs/storefront.md) | Customer-facing features and routes |
+| [docs/admin.md](docs/admin.md) | Merchant console and operator workflows |
+| [docs/getting-started.md](docs/getting-started.md) | Environment, seed, deploy |
+| [docs/checkout.md](docs/checkout.md) | Checkout protocol reference |
+| [docs/inventory.md](docs/inventory.md) | Inventory protocol reference |
+| [docs/refunds.md](docs/refunds.md) | Refund protocol reference |
+| [docs/concierge/overview.md](docs/concierge/overview.md) | AI support and lifecycle marketing |
+| [docs/commerce-protocol-frozen.md](docs/commerce-protocol-frozen.md) | Frozen mutation policy |
 
-- [Knowledge Ledger](.wiki/index.md)
-- [Project State](.wiki/architecture/project-state.md)
-- [Architecture Overview](.wiki/architecture/overview.md)
-- [Directory Dictionary](.wiki/architecture/directories.md)
-- [Schemas](.wiki/architecture/schemas.md)
-- [Risk Map](.wiki/architecture/risk-map.md)
-- [Order Flow Throughput](.wiki/architecture/order-flow-throughput.md)
-- [Checkout](docs/checkout.md)
-- [Inventory](docs/inventory.md)
-- [Whitepaper](docs/woodbine-crm-whitepaper.md)
+Operational wiki: [.wiki/index.md](.wiki/index.md)
 
-## Tech Stack
+## Tech stack
 
-- Next.js `15.5.18` App Router
-- React `18.3.1`
-- TypeScript `~6.0.2`
-- Firebase `12.13.0` and Firebase Admin `13.9.0`
-- Stripe SDK `17.2.0`
-- Tailwind CSS `4.2.4`
-- Vitest `3.2.4`
-- Playwright `1.59.1`
+- Next.js 15 App Router, React 18, TypeScript
+- Firebase 12 + Firestore, Firebase Admin
+- Stripe 17
+- Tailwind CSS 4
+- Vitest + Playwright
+
+## Repository snapshot
+
+- ~142 API routes under `src/app/api`
+- ~67 App Router pages under `src/app`
+- Service container: `src/core/container.ts`
+- 320+ automated tests
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

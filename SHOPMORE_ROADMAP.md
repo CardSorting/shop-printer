@@ -1,6 +1,8 @@
-# ShopMore: The Open Source CRM Platform (Audit & Roadmap)
+# ShopMore: Open Source Ecommerce Platform (Audit & Roadmap)
 
-ShopMore is designed to be the definitive open-source alternative to Shopify—a neutral, high-performance, and deeply customizable platform for modern merchants. This document outlines the forensic audit and strategic roadmap for achieving industrial-grade commerce sovereignty.
+> **Documentation:** Product and architecture docs live in [docs/index.md](docs/index.md). This file tracks strategic roadmap items.
+
+ShopMore / **DreamBees Art** is an open-source, self-hosted alternative to Shopify — a neutral, high-performance commerce platform with full source access.
 
 ## 1. The "Neutrality" Wedge (Design Philosophy)
 

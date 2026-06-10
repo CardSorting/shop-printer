@@ -1,10 +1,12 @@
 # Checkout
 
-> **Checkout is no longer route behavior. Checkout is an application protocol.**
+> **Checkout is an application protocol — not route spaghetti.**
 
-WoodBine checkout is a monolith-local, Firestore-backed commerce workflow. It coordinates cart reservation, order creation, Stripe PaymentIntent lifecycle, payment finalization, rollback, reconciliation, operator recovery, and expired-order cleanup — without distributed infrastructure.
+DreamBees Art checkout coordinates cart reservation, order creation, Stripe PaymentIntent lifecycle, payment finalization, rollback, reconciliation, operator recovery, and expired-order cleanup. It is the **money capture** boundary for this open-source ecommerce platform (Shopify Checkout analogue, fully inspectable in source).
 
-The public boundary is frozen. Do not rename types or re-broaden routes. Harden contracts and observability only.
+The public boundary is frozen. Extend behavior inside `CheckoutFlowService` and flow modules — do not add parallel checkout entry points.
+
+Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) · Platform context: [platform-overview.md](./platform-overview.md)
 
 ---
 

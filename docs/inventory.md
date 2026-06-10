@@ -1,10 +1,12 @@
 # Inventory
 
-> **Inventory is no longer a stock counter. Inventory is a movement protocol.**
+> **Inventory is a movement protocol — not a stock counter.**
 
-WoodBine inventory coordinates **cached stock counts** (sellable catalog truth), **location levels** (operational warehouse truth), **reservations** (temporary claims), **commits** (final claims), and an **append-only ledger** (audit truth). Checkout, fulfillment, admin, and system jobs request protocol actions — they never mutate `product.stock` or `inventory_levels` directly.
+DreamBees Art inventory coordinates **cached stock counts** (sellable catalog truth), **location levels** (warehouse truth), **reservations** (checkout holds), **commits** (post-payment), and an **append-only ledger** (audit truth). It is the **stock movement** boundary for this open-source ecommerce platform (Shopify inventory analogue, with explicit ledger and reconciliation).
 
-The public boundary is frozen. Harden contracts, observability, and proof ladders — do not bypass the stack.
+Routes, checkout, fulfillment, admin, and system jobs call `services.inventory` only — never `productRepo.batchUpdateStock` directly.
+
+Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) · Platform context: [platform-overview.md](./platform-overview.md)
 
 ---
 

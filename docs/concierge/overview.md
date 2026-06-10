@@ -1,69 +1,134 @@
-# WoodBine Concierge — Technical & Operational Overview
+# Concierge
 
-## Introduction
-The WoodBine Concierge is an industrialized customer support and sales assistance system designed for premium ecommerce environments. It focuses on **Operational Truth**, **Team Collaboration**, and **Invisible AI** to provide a calm and effective support experience.
+DreamBees Art **Concierge** is an AI-assisted customer support and lifecycle marketing layer — comparable to Shopify Sidekick plus support automation, but wired to this platform’s orders, tickets, inventory, and refund protocols.
 
----
-
-## 🏗️ Architecture Summary
-
-### 1. Storefront Bubble (`/src/ui/components/Concierge/ConciergeBubble.tsx`)
-- **Purpose**: Customer-facing entry point.
-- **Key Logic**: Reconnection handling, session syncing, quick conversion triggers (Sizing/Returns).
-- **Aesthetics**: Premium, calm design with high-fidelity micro-interactions.
-
-### 2. Admin Workspace (`/src/ui/pages/admin/AdminConciergeInsights.tsx`)
-- **Purpose**: Operational command center for support teams.
-- **Key Logic**: Triage, outcome tracking, team assignment, and strategic digests.
-- **Workflow**: Linear-grade scanability with evidence-backed findings.
-
-### 3. Intelligence Engine (`/src/core/ConciergeService.ts`)
-- **Purpose**: Analysis, memory injection, and truth extraction.
-- **Logic**: Forensic grounding, uncertainty detection, and pattern recognition.
+Concierge is not a separate product. It is a privileged client of the same Core services merchants use in admin, with tool policies and spend limits on autonomous actions.
 
 ---
 
-## 🛠️ Key Capabilities
+## Surfaces
 
-### 🛡️ Trust Infrastructure
-- **Facts vs. Assumptions**: Clearly distinguishes explicit customer statements from AI interpretations.
-- **Grounding Evidence**: Every suggestion is backed by direct quotes from the conversation transcript.
-- **Uncertainty Notes**: Explains why the system might be unsure, preventing overconfident errors.
-
-### 🤝 Team Collaboration
-- **Assignment**: Formal ownership of customer sessions.
-- **Activity Feed**: Real-time audit trail of all support actions.
-- **Internal Notes**: Context-rich handoffs between team members.
-
-### 📈 Operational Intelligence
-- **Outcome Tracking**: Measures resolution, escalation, and conversion rates.
-- **Operational Digest**: Natural-language summaries of store health (e.g., *"Shipping anxiety trending up on plushie pages"*).
-- **Operator Feedback**: Suggestion accuracy tracking through "Helpful/Not Useful" loops.
+| Surface | Path | Audience |
+| --- | --- | --- |
+| Storefront bubble | `src/ui/components/Concierge/ConciergeBubble.tsx` | Shoppers |
+| Chat API | `POST /api/concierge/chat` | Session + tool execution |
+| Admin workspace | `/admin/concierge`, `AdminConciergeInsights.tsx` | Support leads |
+| Session APIs | `/api/concierge/sessions`, admin session actions | Operators |
 
 ---
 
-## 📊 Data Schema (Firestore)
+## Architecture
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `status` | `string` | active, resolved, analyzed, failed |
-| `customerOutcome` | `string` | resolved, escalated, abandoned, converted |
-| `assignedOperator` | `string` | Operator ID or name |
-| `isRepeatIssue` | `boolean` | Flag for returning concerns |
-| `events` | `array` | Activity feed audit trail |
-| `operatorFeedback` | `array` | Accuracy tracking for AI suggestions |
+```text
+Customer message
+  → Concierge LLM (Gemini / optional Hermes)
+  → Structured tool tokens in response
+  → route.ts token parser + validateToolCall()
+  → Core services (orders, tickets, refunds, KB, …)
+  → Session updates + audit trail
+```
 
----
+**Intelligence core:** `src/core/ConciergeService.ts` — analysis, memory injection, grounding.
 
-## 🚀 Reliability & Resilience
-- **Offline Resilience**: Built-in reconnection logic and status indicators.
-- **Session Syncing**: Automatic state restoration across devices/reloads.
-- **Failure Recovery**: Graceful handling of interrupted analysis passes.
+**System prompt:** `src/domain/concierge/systemPrompt.ts` — tool grammar and policy.
 
 ---
 
-## 🎯 Success Criteria
-1. **Faster Triage**: Reduce time to first human action through high-fidelity summaries.
-2. **Reduced Burden**: Increase autonomous resolution of common queries.
-3. **Higher Conversion**: Assist customers at critical checkout hurdles (Sizing/Shipping).
-4. **Team Trust**: High adoption of AI-suggested fixes.
+## Tool capabilities
+
+Concierge can invoke operational tools when policy allows (non-exhaustive):
+
+| Tool | Effect | Protocol |
+| --- | --- | --- |
+| Fetch order | Read order context | Read services |
+| Add order note | Note on order | Order service (authorized) |
+| Cancel order | Cancel if not shipped | Order service |
+| **Process refund** | Partial refund | **`services.refunds.createRefund`** |
+| Open / close ticket | Support CRM | Ticket repository |
+| KB search | Help articles | Knowledge base |
+| Update shipping address | Address change | Order update (guarded) |
+| Escalate to human | Handoff flag | Session state |
+| Lifecycle marketing | Campaign playbooks | Marketing services |
+
+Destructive tools (`processRefund`, `cancelOrder`, etc.) pass through `validateToolCall()` and session context checks.
+
+---
+
+## Refund boundary (sealed)
+
+Concierge refunds **must** use the refund protocol:
+
+```text
+services.refunds.createRefund({
+  orderId,
+  amount,
+  idempotencyKey: `concierge-refund-{sessionId}-{orderId}-{amount}`,
+  reason: `Concierge autonomous refund for session …`,
+  actor: { id: 'concierge', email: 'concierge@woodbine.com' },
+  source: 'concierge',
+})
+```
+
+Concierge does **not** import `refundService`. Duplicate keys do not double-refund. Event log records `source: 'concierge'`.
+
+See [refunds.md](../refunds.md).
+
+---
+
+## Trust and grounding
+
+| Principle | Implementation |
+| --- | --- |
+| Facts vs assumptions | Transcript grounding in analysis output |
+| Evidence quotes | Suggestions cite customer messages |
+| Uncertainty | Explicit confidence notes |
+| Operator feedback | Helpful / not useful loops in admin |
+| Audit | `auditService.record` on autonomous actions |
+
+---
+
+## Admin operator workspace
+
+Operators use Concierge admin for:
+
+- Session triage and assignment
+- Outcome tracking (resolved, escalated, converted)
+- Operational digests (“shipping anxiety trending…”)
+- Marketing strategy analysis endpoints
+- Repeat-issue detection
+
+Data model (Firestore session documents): `status`, `customerOutcome`, `assignedOperator`, `events[]`, `operatorFeedback[]`, forensic context fields.
+
+---
+
+## Configuration
+
+| Variable | Purpose |
+| --- | --- |
+| `GEMINI_API_KEY` | Primary LLM |
+| `HERMES_*` | Optional alternate agent endpoint |
+| Concierge settings API | `/api/concierge/settings` |
+
+Without AI keys, Concierge degrades gracefully; core commerce continues unaffected.
+
+---
+
+## Limits and safety
+
+| Guard | Behavior |
+| --- | --- |
+| `MAX_CONCIERGE_REFUND_CENTS` | Autonomous refund cap; escalate above |
+| Customer auth | Refunds require logged-in customer |
+| Tool validation | Destructive tools need session approval state |
+| Rate limits | Route guards on chat endpoint |
+
+---
+
+## Related docs
+
+- [refunds.md](../refunds.md) — money reversal protocol
+- [admin.md](../admin.md) — support CRM
+- [storefront.md](../storefront.md) — customer bubble
+- [architecture.md](../architecture.md) — layer boundaries
+
+Lifecycle marketing depth: [.wiki/architecture/lifecycle-marketing-concierge.md](../../.wiki/architecture/lifecycle-marketing-concierge.md)
