@@ -3,14 +3,14 @@
 /**
  * [LAYER: UI]
  */
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useServices } from '../hooks/useServices';
 import { useCart } from '../hooks/useCart';
 import type { Product, ProductCategory } from '@domain/models';
 import { Search, ChevronRight, PackageSearch, X, LayoutGrid, Grid3X3, Grid2X2, Loader2 } from 'lucide-react';
 import { useWishlist } from '../hooks/useWishlist';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { getProductUrl, STORE_PATHS } from '@utils/navigation';
@@ -48,7 +48,6 @@ export function ProductsPage({
   initialSortBy = 'newest',
   initialSearch = '',
 }: ProductsPageProps = {}) {
-  const router = useRouter();
   const params = useParams();
   const fallbackSlug = (params?.slug as string | undefined) || (params?.handle as string | undefined);
   const collectionSlug = resolvedSlug || fallbackSlug;
@@ -76,6 +75,10 @@ export function ProductsPage({
   const loadProductsControllerRef = useRef<AbortController | null>(null);
   const skipInitialFetchRef = useRef(hasBootstrap);
   const hasProductsRef = useRef((initialProducts?.length ?? 0) > 0);
+  const visibleProducts = useMemo(() => sortProducts(products, sortBy), [products, sortBy]);
+  const trimmedSearch = search.trim();
+  const trimmedDebouncedSearch = debouncedSearch.trim();
+  const isSearchSettling = trimmedSearch !== trimmedDebouncedSearch;
 
   useEffect(() => {
     if (initialCategories?.length) return;
@@ -106,14 +109,17 @@ export function ProductsPage({
     const params = new URLSearchParams();
 
     if (sortBy !== 'newest') params.set('sort_by', sortBy);
-    if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
+    if (trimmedDebouncedSearch) params.set('q', trimmedDebouncedSearch);
 
     const queryString = params.toString();
     const currentPath = window.location.pathname;
     const newUrl = queryString ? `${currentPath}?${queryString}` : currentPath;
+    const currentUrl = `${currentPath}${window.location.search}`;
 
-    router.replace(newUrl, { scroll: false });
-  }, [sortBy, debouncedSearch, router]);
+    if (newUrl !== currentUrl) {
+      window.history.replaceState(window.history.state, '', newUrl);
+    }
+  }, [sortBy, trimmedDebouncedSearch]);
 
   useEffect(() => {
     if (initialCollectionInfo !== undefined) return;
@@ -165,17 +171,15 @@ export function ProductsPage({
         const result = await services.productService.getProducts({
           category: !isCollectionType && selectedCategories.length > 0 ? selectedCategories : undefined,
           collection: isCollectionType && collectionSlug ? collectionSlug : undefined,
-          query: debouncedSearch.trim() || undefined,
+          query: trimmedDebouncedSearch || undefined,
           limit: 20,
           cursor,
           signal: controller.signal,
         });
 
         if (!controller.signal.aborted) {
-          const filtered = sortProducts(result.products, sortBy);
-
           setProducts((prev) => {
-            const next = cursor ? [...prev, ...filtered] : filtered;
+            const next = cursor ? [...prev, ...result.products] : result.products;
             hasProductsRef.current = next.length > 0;
             return next;
           });
@@ -194,7 +198,7 @@ export function ProductsPage({
         }
       }
     },
-    [selectedCategories, sortBy, debouncedSearch, services.productService, resolvedType, collectionSlug],
+    [selectedCategories, trimmedDebouncedSearch, services.productService, resolvedType, collectionSlug],
   );
 
   useEffect(() => {
@@ -219,6 +223,12 @@ export function ProductsPage({
 
   const gridClass =
     gridCols === 2 ? 'xl:grid-cols-2' : gridCols === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-4';
+  const productImageSizes =
+    gridCols === 2
+      ? '(max-width: 640px) calc(100vw - 2rem), (max-width: 1280px) calc(50vw - 3rem), 624px'
+      : gridCols === 4
+        ? '(max-width: 640px) calc(100vw - 2rem), (max-width: 1280px) calc(50vw - 3rem), 296px'
+        : '(max-width: 640px) calc(100vw - 2rem), (max-width: 1280px) calc(50vw - 3rem), 405px';
 
   return (
     <div className="min-h-screen bg-white">
@@ -338,7 +348,7 @@ export function ProductsPage({
           </div>
         </div>
 
-        {debouncedSearch && (
+        {trimmedDebouncedSearch && (
           <div className="flex flex-wrap items-center gap-3 mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 mr-2 shrink-0">
               Active Search:
@@ -348,20 +358,20 @@ export function ProductsPage({
                 onClick={() => setSearch('')}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 transition-all border border-transparent shadow-lg shadow-gray-200"
               >
-                &quot;{debouncedSearch}&quot; <X className="w-3 h-3" />
+                &quot;{trimmedDebouncedSearch}&quot; <X className="w-3 h-3" />
               </button>
             </div>
           </div>
         )}
 
         <div className="w-full">
-          {loading && products.length === 0 ? (
+          {(loading || isSearchSettling) && products.length === 0 ? (
             <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridClass} gap-8`}>
-              {Array.from({ length: 8 }).map((_, i) => (
+              {Array.from({ length: 9 }).map((_, i) => (
                 <ProductCardSkeleton key={i} />
               ))}
             </div>
-          ) : products.length === 0 ? (
+          ) : visibleProducts.length === 0 ? (
             <div className="py-32 text-center rounded-[3rem] bg-gray-50 border border-gray-100 px-6">
               <div className="inline-flex h-24 w-24 items-center justify-center rounded-full bg-white shadow-xl mb-8">
                 <PackageSearch className="h-10 w-10 text-gray-200" />
@@ -381,9 +391,9 @@ export function ProductsPage({
             <>
               <div className="mb-8 flex items-center justify-between">
                 <p className="text-sm font-bold text-gray-400 tracking-tight">
-                  Showing <span className="text-gray-900">{products.length}</span> items
+                  Showing <span className="text-gray-900">{visibleProducts.length}</span> items
                 </p>
-                {isRefreshing && (
+                {(isRefreshing || isSearchSettling) && (
                   <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     Updating
@@ -391,16 +401,19 @@ export function ProductsPage({
                 )}
               </div>
               <div
-                className={`grid grid-cols-1 sm:grid-cols-2 ${gridClass} gap-x-8 gap-y-16`}
+                className={`grid grid-cols-1 sm:grid-cols-2 ${gridClass} gap-x-8 gap-y-16 transition-opacity duration-200 ${
+                  isRefreshing || isSearchSettling ? 'opacity-75' : 'opacity-100'
+                }`}
                 itemScope
                 itemType="https://schema.org/ItemList"
+                aria-busy={isRefreshing || isSearchSettling}
               >
-                <meta itemProp="numberOfItems" content={products.length.toString()} />
-                {products.map((p, i) => (
+                <meta itemProp="numberOfItems" content={visibleProducts.length.toString()} />
+                {visibleProducts.map((p, i) => (
                   <div
                     key={p.id}
-                    className="h-full animate-in fade-in duration-500 fill-mode-both [content-visibility:auto] [contain-intrinsic-size:0_520px]"
-                    style={{ animationDelay: `${Math.min(i, 11) * 40}ms` }}
+                    className="h-full animate-in fade-in duration-300 fill-mode-both [content-visibility:auto] [contain-intrinsic-size:0_520px]"
+                    style={{ animationDelay: `${i < 6 ? 0 : Math.min(i - 5, 6) * 20}ms` }}
                     itemProp="itemListElement"
                     itemScope
                     itemType="https://schema.org/ListItem"
@@ -412,13 +425,14 @@ export function ProductsPage({
                       product={p}
                       onAddToCart={handleQuickAdd}
                       onQuickView={setQuickViewProduct}
-                      priority={i < gridCols * 2}
+                      priority={i < 3}
+                      imageSizes={productImageSizes}
                     />
                   </div>
                 ))}
               </div>
 
-              {nextCursor && !debouncedSearch && (
+              {nextCursor && !trimmedDebouncedSearch && (
                 <div className="mt-20 text-center">
                   <button
                     onClick={() => void loadProducts(nextCursor)}

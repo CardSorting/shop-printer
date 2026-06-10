@@ -14,12 +14,30 @@ interface ProductCardProps {
   onAddToCart?: (id: string) => void;
   onQuickView?: (product: Product) => void;
   priority?: boolean;
+  imageSizes?: string;
 }
 
-export function ProductCard({ product, onAddToCart, onQuickView, priority = false }: ProductCardProps) {
+function productTime(value: Product['createdAt'] | string | number | null | undefined): number {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+export function ProductCard({
+  product,
+  onAddToCart,
+  onQuickView,
+  priority = false,
+  imageSizes = '(max-width: 640px) calc(100vw - 2rem), (max-width: 1280px) calc(50vw - 3rem), 405px',
+}: ProductCardProps) {
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [shouldLoadSecondaryImage, setShouldLoadSecondaryImage] = useState(false);
   const isMounted = useRef(true);
   const successTimerRef = useRef<number | null>(null);
 
@@ -34,7 +52,7 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
   }, []);
   
   const favorited = isInWishlist(product.id);
-  const isNew = product.tags?.includes('new') || (product.createdAt instanceof Date && product.createdAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+  const isNew = product.tags?.includes('new') || productTime(product.createdAt) > Date.now() - 7 * 24 * 60 * 60 * 1000;
   const isTrending = product.tags?.includes('trending') || product.tags?.includes('popular') || product.tags?.includes('bestseller');
   
   // Calculate discount percentage
@@ -49,6 +67,12 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
   const secondaryImage = product.media && product.media.length > 1
     ? product.media.find(m => m.position === 2)?.url || product.media[1]?.url
     : null;
+
+  const primeSecondaryImage = () => {
+    if (secondaryImage && !shouldLoadSecondaryImage) {
+      setShouldLoadSecondaryImage(true);
+    }
+  };
 
   const handleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -96,24 +120,33 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
   return (
     <div className="group relative flex flex-col h-full bg-white" data-testid="product-card">
       {/* Visual Container */}
-      <div className="relative aspect-4/5 rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-500 hover:shadow-xl">
-        <Link href={`/products/${product.handle || product.id}`} className="absolute inset-0 z-10" aria-label={`View ${product.name}`}>
+      <div
+        className="relative aspect-4/5 rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-500 hover:shadow-xl"
+        onFocusCapture={primeSecondaryImage}
+        onPointerEnter={primeSecondaryImage}
+      >
+        <Link
+          href={`/products/${product.handle || product.id}`}
+          prefetch={false}
+          className="absolute inset-0 z-10"
+          aria-label={`View ${product.name}`}
+        >
           <Image
             src={sanitizeImageUrl(product.imageUrl)}
             alt={`${product.name} - Handcrafted ${product.category}`}
             fill
             priority={priority}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+            sizes={imageSizes}
             className={`object-cover transition-all duration-700 ${
               secondaryImage ? 'group-hover:opacity-0' : 'group-hover:scale-105'
             }`}
           />
-          {secondaryImage && (
+          {secondaryImage && shouldLoadSecondaryImage && (
             <Image
               src={sanitizeImageUrl(secondaryImage)}
               alt={`${product.name} - Alternate view`}
               fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+              sizes={imageSizes}
               className="object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-700 ease-in-out group-hover:scale-105"
             />
           )}
@@ -205,7 +238,7 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
 
         {/* Title */}
         <h3 className="font-bold text-gray-900 text-base leading-snug mb-1 group-hover:text-primary-600 transition-colors line-clamp-2 min-h-[2.85rem]">
-          <Link href={`/products/${product.handle || product.id}`}>{product.name}</Link>
+          <Link href={`/products/${product.handle || product.id}`} prefetch={false}>{product.name}</Link>
         </h3>
         
         {/* Ratings (Star Icons under the title) */}
