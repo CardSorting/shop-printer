@@ -1,6 +1,59 @@
 # Architecture
 
-DreamBees Art is a **layered TypeScript monolith**: one Next.js deployable that contains storefront, admin, API routes, and commerce orchestration. The design goal is Shopify-familiar surfaces with **explicit protocol boundaries** for anything that moves money or stock.
+DreamBees Art is a **layered TypeScript monolith**: one Next.js deployable containing storefront, admin, API routes, and commerce orchestration. The design mirrors Shopify’s familiar surfaces while keeping **explicit protocol boundaries** for money and stock — because self-hosted checkout must be recoverable, auditable, and testable in source.
+
+**New here?** Read [onboarding.md](./onboarding.md) first, then [flows.md](./flows.md) for end-to-end stories.
+
+---
+
+## System context
+
+```mermaid
+flowchart TB
+  subgraph clients [Clients]
+    SF[Storefront browser]
+    AD[Admin browser]
+    ST[Stripe webhooks]
+  end
+
+  subgraph app [Next.js App Router]
+    API[src/app/api routes]
+    PAGES[src/app pages]
+  end
+
+  subgraph core [Core protocols]
+    CH[services.checkout]
+    RF[services.refunds]
+    INV[services.inventory]
+    ADM[services.admin]
+  end
+
+  subgraph infra [Infrastructure]
+    FS[(Firestore)]
+    STR[Stripe API]
+    AUTH[Firebase Auth]
+  end
+
+  SF --> PAGES
+  SF --> API
+  AD --> PAGES
+  AD --> API
+  ST --> API
+  API --> CH
+  API --> RF
+  API --> INV
+  API --> ADM
+  CH --> INV
+  ADM --> RF
+  ADM --> INV
+  CH --> STR
+  RF --> STR
+  CH --> FS
+  RF --> FS
+  INV --> FS
+  ADM --> FS
+  API --> AUTH
+```
 
 ---
 
@@ -15,53 +68,13 @@ DreamBees Art is a **layered TypeScript monolith**: one Next.js deployable that 
 | **UI** | `src/ui/` | React pages and components | Calls APIs via `apiClientServices.ts`; no direct Infra. |
 | **Utils** | `src/utils/` | Formatters, logging, SEO helpers | Stateless. |
 
-**Rule:** Domain stays pure. Core owns business workflow. Routes never call payment processors or stock mutation helpers directly.
+**Dependency rule:** UI → API → Core → Domain ← Infrastructure. Domain never imports outward.
 
 ---
 
-## Service container
+## Commerce protocols (the cages)
 
-All server-side wiring flows through `src/core/container.ts`:
-
-```text
-getInitialServices() / getServerServices()
-  → checkout      CheckoutApplicationService
-  → refunds       RefundApplicationService
-  → inventory     InventoryApplicationService
-  → admin         AdminApplicationService
-  → orderService, productService, cartService, …  (internal / read / fulfillment)
-  → refundService                               (internal — RefundFlowService only)
-```
-
-Factory paths:
-
-| Protocol | Factory | Flow implementation |
-| --- | --- | --- |
-| Checkout | `createCheckoutStack()` / `wireOrderCheckoutStack()` | `CheckoutFlowService` |
-| Refunds | `createRefundStack()` | `RefundFlowService` |
-| Inventory | `createInventoryStack()` | `InventoryFlowService` |
-| Admin | `createAdminStack()` | `AdminFlowService` + domain admin services |
-
----
-
-## Request lifecycle
-
-```text
-1. HTTP request → src/app/api/.../route.ts
-2. Guards        → session, role, rate limit, same-origin (apiGuards.ts)
-3. Parse body    → domain-aligned validators
-4. Delegate      → services.checkout | refunds | inventory | admin | read services
-5. Result        → typed *Result<T> → route adapter → JSON + HTTP status
-6. Audit         → optional operator/customer audit records
-```
-
-Forensic fields (`orderId`, `caseId`, `stripeEventId`, `idempotencyKey`) are logged at protocol boundaries for operator investigation.
-
----
-
-## Commerce protocols
-
-These four boundaries are **frozen**. See [commerce-protocol-frozen.md](./commerce-protocol-frozen.md).
+These four boundaries are **frozen**. Full policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md).
 
 ```txt
 checkout  = money capture      → CheckoutApplicationService
@@ -70,53 +83,178 @@ inventory = stock movement     → InventoryApplicationService
 admin     = human authority    → AdminApplicationService
 ```
 
-### Result types
-
-Each protocol returns a discriminated union — expected failures do not throw:
-
-| Protocol | Result type | Adapter |
-| --- | --- | --- |
-| Checkout | `CheckoutResult<T>` | `checkoutRouteAdapter.ts` |
-| Refunds | `RefundResult<T>` | `refundRouteAdapter.ts` |
-| Inventory | `InventoryResult<T>` | `inventoryRouteAdapter.ts` |
-| Admin | `AdminResult<T>` | `adminRouteAdapter.ts` |
-
-### Authority chain
-
-```text
-Storefront checkout     → services.checkout
-Stripe webhook          → services.checkout.handleCheckoutWebhook
-Admin refund button     → services.admin.requestRefund → services.refunds.createRefund
-Concierge refund tool   → services.refunds.createRefund (source: concierge)
-Admin stock adjust      → services.admin → services.inventory
-PO receive              → services.admin → inventory receive paths
-```
-
-**Invariant:**
-
 ```txt
 No route, tool, admin action, or automation touches raw money mutation services directly.
 ```
 
-`RefundService.processRefund()` is internal to `RefundFlowService` only.
+| Protocol | Container key | Internal engine (do not import from routes) |
+| --- | --- | --- |
+| Checkout | `services.checkout` | `CheckoutMutationService`, `StripeService` |
+| Refunds | `services.refunds` | `RefundService` |
+| Inventory | `services.inventory` | `InventoryMutationService` → `batchUpdateStock` |
+| Admin | `services.admin` | Delegates to above + `OrderService` (authorized) |
+
+Each protocol returns `*Result<T>` — expected failures are data, not thrown exceptions.
 
 ---
 
-## Persistence
+## Service container
 
-Runtime commerce data is stored in **Firestore** via repository adapters under `src/infrastructure/repositories/firestore/`.
+All server wiring flows through `src/core/container.ts`:
 
-| Domain | Collections (representative) |
-| --- | --- |
-| Catalog | products, collections, taxonomy |
-| Cart & checkout | carts, orders, checkout attempts, stripe webhook events |
-| Inventory | inventory_levels, reservations, ledger, reconciliation cases |
-| Refunds | refund_execution_claims, refund_execution_events |
-| Admin ops | operator_action_events, audit |
-| Support | tickets, knowledgebase |
-| Marketing | campaigns, segments |
+```text
+getInitialServices() / getServerServices()
+  ├── checkout, refunds, inventory, admin    ← mutation boundaries
+  ├── orderService, productService, cartService ← orchestration / reads
+  ├── fulfillmentService, orderQueryService   ← fulfillment & queries
+  └── refundService                           ← INTERNAL (RefundFlowService only)
+```
 
-Checkout and refund protocols maintain **idempotency claim collections** separate from order documents to survive duplicate webhooks and retries.
+| Protocol | Factory | Implementation |
+| --- | --- | --- |
+| Checkout | `createCheckoutStack()` / `wireOrderCheckoutStack()` | `CheckoutFlowService` |
+| Refunds | `createRefundStack()` | `RefundFlowService` |
+| Inventory | `createInventoryStack()` | `InventoryFlowService` |
+| Admin | `createAdminStack()` | `AdminFlowService` |
+
+---
+
+## Read path vs write path
+
+Not every API call goes through the four protocols. Use this table when adding routes:
+
+| Operation | Correct entry | Example |
+| --- | --- | --- |
+| Start checkout | `services.checkout` | `createCheckoutSession` |
+| Stripe webhook | `services.checkout` | `handleCheckoutWebhook` |
+| Refund | `services.admin.requestRefund` → `services.refunds` | Admin UI |
+| Concierge refund | `services.refunds.createRefund` | Chat tool |
+| Adjust stock | `services.admin` → `services.inventory` | Batch adjust |
+| PO receive | `services.admin` → PO service → `receiveStockAtLocation` | Receiving UI |
+| List orders (customer) | `orderQueryService` / read repos | `GET /api/orders` |
+| Product detail (storefront) | `productService` / repos | `GET /api/products/[id]` |
+| Fulfill order | `services.admin.fulfillOrder` | Admin order page |
+
+**Rule of thumb:** If it moves money or catalog stock, it goes through a protocol. If it only reads or sends email, it uses the appropriate read/orchestration service.
+
+---
+
+## Cross-protocol purchase sequence
+
+The most important integration in the codebase:
+
+```mermaid
+sequenceDiagram
+  participant R as Route
+  participant C as checkout
+  participant I as inventory
+  participant S as Stripe
+  participant F as Firestore
+
+  R->>C: createCheckoutSession
+  C->>I: reserveInventory
+  I->>F: stock -= qty, ledger
+  C->>S: PaymentIntent
+  S-->>R: clientSecret
+  Note over S,R: customer pays
+  S->>C: webhook succeeded
+  C->>I: confirmReservation
+  C->>F: order = paid
+```
+
+Full narrative: [flows.md § Purchase flow](./flows.md#purchase-flow-storefront-checkout)
+
+---
+
+## Request lifecycle
+
+Every mutation route should follow this shape:
+
+```text
+1. HTTP request     → src/app/api/.../route.ts
+2. Guards           → session, role, rate limit, same-origin (apiGuards.ts)
+3. Parse + validate → domain-aligned parsers
+4. Delegate         → services.{checkout|refunds|inventory|admin}.*
+5. Adapt result     → *RouteAdapter → JSON + HTTP status
+6. Audit (optional) → AuditService / operator event log
+```
+
+Forensic correlation fields logged at protocol boundaries: `orderId`, `caseId`, `stripeEventId`, `idempotencyKey`.
+
+---
+
+## Persistence model
+
+Runtime commerce data lives in **Firestore** (`src/infrastructure/repositories/firestore/`).
+
+| Concern | Representative data | Idempotency stores |
+| --- | --- | --- |
+| Catalog | products, collections, taxonomy | — |
+| Cart & orders | carts, orders, checkout attempts | checkout attempt keys |
+| Payments | Stripe metadata on orders | `stripe_webhook_events` |
+| Inventory | levels, reservations, ledger | ledger markers per operation |
+| Refunds | order refund metadata | `refund_execution_claims` |
+| Admin ops | audit, operator events | `operator_action_events` |
+| Support | tickets, knowledgebase | — |
+
+Checkout and refund protocols use **separate claim collections** so duplicate webhooks and retries never double-apply.
+
+---
+
+## Core entities (conceptual)
+
+How major records relate — not an exhaustive schema:
+
+```mermaid
+erDiagram
+  Product ||--o{ OrderLine : sold_as
+  Order ||--|{ OrderLine : contains
+  Order ||--o| InventoryReservation : holds
+  Order }o--|| User : placed_by
+  PurchaseOrder ||--|{ POLine : contains
+  POLine }o--|| Product : receives
+  InventoryReservation }o--|| Product : reserves
+  Ticket }o--|| User : opened_by
+
+  Product {
+    string id
+    number stock
+    string handle
+  }
+  Order {
+    string id
+    string status
+    object metadata
+  }
+  InventoryReservation {
+    string state
+    string orderId
+  }
+```
+
+| Entity | Primary store | Owned by |
+| --- | --- | --- |
+| Product | Firestore `products` | Catalog / ProductService reads; stock via inventory protocol |
+| Order | Firestore `orders` | Checkout creates; admin fulfills |
+| Reservation | Firestore reservations | Inventory protocol |
+| Ledger entry | Firestore ledger | Inventory protocol (append-only) |
+| Refund event | `refund_execution_events` | Refund protocol |
+| Checkout claim | `stripe_webhook_events` | Checkout protocol |
+
+Schema detail: [.wiki/architecture/schemas.md](../.wiki/architecture/schemas.md)
+
+---
+
+## Extension guide (summary)
+
+Full checklist: [contributing-commerce.md](./contributing-commerce.md)
+
+```text
+Money?     → checkout or refunds
+Stock?     → inventory (admin wraps with authorization)
+Operator?  → admin
+Read-only? → query services / repos
+```
 
 ---
 
@@ -125,42 +263,63 @@ Checkout and refund protocols maintain **idempotency claim collections** separat
 | Mechanism | Location | Purpose |
 | --- | --- | --- |
 | Signed session cookie | `session.ts` | Customer and admin identity |
-| Admin route guards | `apiGuards.ts`, admin layouts | Role and elevation checks |
+| Admin guards | `apiGuards.ts`, admin layouts | Role + route protection |
+| Elevation | `AdminFlowService` | Refunds, sensitive batch ops |
 | Same-origin mutations | `assertTrustedMutationOrigin` | CSRF mitigation |
-| Rate limits | Route-level guards | Abuse protection |
+| Rate limits | Route guards | Abuse protection |
 | Checkout lock | Checkout protocol | One active checkout per user |
-| Idempotency keys | Checkout, refunds, admin mutations | Safe retries |
-| Elevation | Admin protocol | Destructive ops require elevated actor + reason |
+| Idempotency keys | All mutation protocols | Safe retries |
+
+---
+
+## Directory map for contributors
+
+| I want to… | Open |
+| --- | --- |
+| Understand entity shapes | `src/domain/models.ts` |
+| Wire a new service | `src/core/container.ts` |
+| Change checkout behavior | `src/core/order/CheckoutFlowService.ts` |
+| Change stock behavior | `src/core/inventory/InventoryFlowService.ts` |
+| Change refund behavior | `src/core/refund/RefundFlowService.ts` |
+| Change admin authorization | `src/core/admin/AdminFlowService.ts` |
+| Add an API route | `src/app/api/…` (thin delegate only) |
+| Change storefront UI | `src/ui/pages/` |
+| Change admin UI | `src/ui/pages/admin/` |
+| Map HTTP errors | `src/infrastructure/server/*RouteAdapter.ts` |
+| Firestore adapter | `src/infrastructure/repositories/firestore/` |
 
 ---
 
 ## Testing strategy
 
-| Layer | Tooling |
-| --- | --- |
-| Protocol invariants | Vitest verification ladders (`src/tests/*-verification-ladder.test.ts`) |
-| Flow modules | Unit tests with in-memory repos |
-| API routes | Route-level tests where critical |
-| Storefront journeys | Playwright e2e (`e2e/`) |
-| Throughput baseline | `npm run benchmark:order-flow` (Core, in-memory) |
+| Layer | Tooling | When to run |
+| --- | --- | --- |
+| Protocol seals | `*-verification-ladder.test.ts` | After any protocol change |
+| Flow modules | Unit tests + in-memory repos | During development |
+| API routes | Route tests on critical paths | Webhook, checkout verify |
+| Storefront journeys | Playwright `e2e/` | Before release |
+| Throughput | `npm run benchmark:order-flow` | Performance regression |
 
-Protocol changes require updating the relevant verification ladder — that is the seal.
+Protocol changes **require** ladder test updates — that is the architecture enforcement mechanism.
+
+```bash
+npm test -- --run \
+  src/tests/checkout-verification-ladder.test.ts \
+  src/tests/refund-verification-ladder.test.ts \
+  src/tests/inventory-verification-ladder.test.ts \
+  src/tests/admin-verification-ladder.test.ts
+```
 
 ---
 
-## Key entry files
+## Deep dives
 
-```
-src/core/container.ts              # Service wiring
-src/infrastructure/server/services.ts
-src/domain/models.ts               # Core entity shapes
-src/ui/apiClientServices.ts        # Browser → API facade
-src/ui/navigation/adminNavigation.ts
-```
-
-Deep dives:
-
-- [checkout.md](./checkout.md)
-- [inventory.md](./inventory.md)
-- [refunds.md](./refunds.md)
-- [admin.md](./admin.md)
+| Topic | Document |
+| --- | --- |
+| End-to-end stories | [flows.md](./flows.md) |
+| Money capture | [checkout.md](./checkout.md) |
+| Stock movement | [inventory.md](./inventory.md) |
+| Money reversal | [refunds.md](./refunds.md) |
+| Merchant console | [admin.md](./admin.md) |
+| Frozen rules | [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) |
+| Local setup | [onboarding.md](./onboarding.md) |

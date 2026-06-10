@@ -2,6 +2,32 @@
 
 The DreamBees Art **customer-facing shop** covers discovery, cart, checkout, account, support, and content — the same jobs Shopify’s Online Store channel handles. All pages live under `src/app/` with UI in `src/ui/`.
 
+**First test purchase:** [onboarding.md § First purchase walkthrough](./onboarding.md#first-purchase-walkthrough-what-actually-happens) · **Checkout internals:** [checkout.md](./checkout.md) · **Full flow:** [flows.md § Purchase](./flows.md#purchase-flow-storefront-checkout)
+
+---
+
+## Customer journey
+
+```mermaid
+flowchart LR
+  A[Discover] --> B[Product page]
+  B --> C[Cart]
+  C --> D[Checkout]
+  D --> E[Pay Stripe]
+  E --> F[Order confirmation]
+  F --> G[Account / orders]
+  G --> H[Support or Concierge]
+```
+
+| Stage | Routes | Backend |
+| --- | --- | --- |
+| Discover | `/`, `/products`, `/collections/*`, `/search` | Product/collection APIs |
+| Evaluate | `/products/[handle]` | Reviews, metafields, availability read |
+| Cart | `/cart` | `CartService` + inventory availability check |
+| Checkout | `/checkout` | `services.checkout` only for payment |
+| Post-purchase | `/orders`, `/account/vault` | Order query, digital vault |
+| Help | `/support`, Concierge bubble | Tickets, KB, AI tools |
+
 ---
 
 ## Page map

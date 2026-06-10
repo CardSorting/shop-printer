@@ -87,7 +87,7 @@ Seal tests in those files assert route-layer imports and protocol usage.
 3. Do **not** bypass idempotency or actor/reason requirements on money reversal.
 4. **Leave money paths alone** unless a new use case appears.
 
-The engine is still complex — but it is **professionally cursed inside cages**.
+**Where does my change go?** [contributing-commerce.md § Decision tree](./contributing-commerce.md#decision-tree-where-does-my-change-go)
 
 ---
 

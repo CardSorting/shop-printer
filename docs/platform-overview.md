@@ -4,6 +4,8 @@ DreamBees Art is a **standalone, open-source ecommerce application** that mirror
 
 This is not a headless-only API or a theme kit. It is a full merchant operating system: customer-facing shop, operator admin, payment processing, stock movement, refunds, and support CRM in one deployable Next.js application.
 
+**Get running:** [onboarding.md](./onboarding.md) · **See flows in action:** [flows.md](./flows.md)
+
 ---
 
 ## Design goals
@@ -143,10 +145,16 @@ Track strategic direction in [SHOPMORE_ROADMAP.md](../SHOPMORE_ROADMAP.md) at re
 
 | Goal | Document |
 | --- | --- |
-| Run locally | [getting-started.md](./getting-started.md) |
+| Run locally | [getting-started.md](./getting-started.md) · [onboarding.md](./onboarding.md) |
+| After day 0 | [day-2.md](./day-2.md) |
 | Understand layers | [architecture.md](./architecture.md) |
+| End-to-end stories | [flows.md](./flows.md) |
+| Debug | [troubleshooting.md](./troubleshooting.md) |
+| Extend code | [contributing-commerce.md](./contributing-commerce.md) |
+| Terms | [glossary.md](./glossary.md) |
 | Storefront features | [storefront.md](./storefront.md) |
 | Merchant admin | [admin.md](./admin.md) |
 | Checkout internals | [checkout.md](./checkout.md) |
 | Stock internals | [inventory.md](./inventory.md) |
 | Refund internals | [refunds.md](./refunds.md) |
+| HTTP routes | [api-overview.md](./api-overview.md) |

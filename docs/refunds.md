@@ -4,7 +4,97 @@
 
 DreamBees Art routes every refund through `RefundApplicationService`. Admin buttons, Concierge tools, and future automations call `services.refunds.createRefund()` — never `RefundService.processRefund()` directly.
 
-Policy context: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md)
+Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) · Stories: [flows.md § Refund flow](./flows.md#refund-flow)
+
+---
+
+## Reading guide
+
+| You want to… | Jump to |
+| --- | --- |
+| Trace admin refund click | [Admin-initiated flow](#admin-initiated-refund) |
+| Trace Concierge refund | [Concierge-initiated flow](#concierge-initiated-refund) |
+| Understand idempotency | [Idempotency](#idempotency) |
+| Look up API fields | [Public API](#public-api) |
+| Run seal tests | [Verification](#verification) |
+
+---
+
+## Shopify analogue
+
+| Shopify concept | DreamBees Art implementation |
+| --- | --- |
+| Refund in admin | `services.admin.requestRefund` → `services.refunds.createRefund` |
+| Partial refund | `amount` in cents on `createRefund` |
+| Restock on refund | `RefundService` → `inventory.applyInventoryDeltas` (when policy requires) |
+| Refund idempotency | `refund_execution_claims` + order `processedRefundKeys` |
+
+---
+
+## Refund lifecycle
+
+```mermaid
+flowchart TD
+  A[Refund request] --> B{Entry point}
+  B -->|Admin UI| C[admin.requestRefund]
+  B -->|Concierge tool| D[refunds.createRefund direct]
+  C --> E{Elevation + reason?}
+  E -->|no| F[AdminResult error]
+  E -->|yes| G[refunds.createRefund]
+  D --> G
+  G --> H{Idempotency claim}
+  H -->|completed| I[Return duplicate ok]
+  H -->|new| J[RefundService.processRefund]
+  J --> K[Stripe refund API]
+  J --> L[Order metadata update]
+  G --> M[refund_execution_events]
+  C --> N[operator_action_events]
+```
+
+---
+
+## Admin-initiated refund
+
+```text
+Operator (elevated) → POST /api/admin/orders/[id]/refund
+  Input: amount, reason, idempotencyKey
+
+  services.admin.requestRefund
+    ✓ actor.elevated
+    ✓ reason non-empty
+    ✓ claim admin operator event
+
+  services.refunds.createRefund({ source: 'admin', ... })
+    ✓ claim refund_execution
+    ✓ RefundService → Stripe
+    ✓ recordExecution in event log
+
+  operator event marked completed
+```
+
+UI must send a **stable idempotency key** per refund intent (e.g. client UUID). Retries with the same key must not double-refund.
+
+---
+
+## Concierge-initiated refund
+
+```text
+Chat → [PROCESS_REFUND: "orderId", amount_cents]
+  ✓ customer authenticated
+  ✓ amount ≤ MAX_CONCIERGE_REFUND_CENTS
+  ✓ validateToolCall('processRefund', ...)
+
+  services.refunds.createRefund({
+    source: 'concierge',
+    actor: { id: 'concierge', email: '...' },
+    reason: 'Concierge autonomous refund for session …',
+    idempotencyKey: 'concierge-refund-{session}-{order}-{amount}',
+  })
+```
+
+Concierge skips `admin.requestRefund` but still hits the same refund protocol and Stripe path. Event log records `source: 'concierge'`.
+
+Details: [concierge/overview.md](./concierge/overview.md)
 
 ---
 
@@ -18,27 +108,6 @@ HTTP route / Concierge tool / Admin action
   → RefundService.processRefund()       (internal only)
   → StripePaymentProcessor.refundPayment()
   → FirestoreRefundEventLog             (idempotency + audit)
-```
-
-Admin refunds add an authorization layer:
-
-```text
-POST /api/admin/orders/[id]/refund
-  → services.admin.requestRefund()
-       (elevation + reason + operator event)
-  → services.refunds.createRefund({ source: 'admin', ... })
-```
-
-Concierge refunds:
-
-```text
-Concierge [PROCESS_REFUND] token
-  → services.refunds.createRefund({
-       source: 'concierge',
-       actor: { id: 'concierge', email: '...' },
-       reason: 'Concierge autonomous refund for session ...',
-       idempotencyKey: 'concierge-refund-{session}-{order}-{amount}',
-     })
 ```
 
 ---
@@ -104,14 +173,12 @@ Both use `services.admin.requestRefund` — no `refundService` import.
 
 ## Concierge limits
 
-Concierge autonomous refunds enforce:
-
-- Customer must be authenticated
-- Amount ≤ `MAX_CONCIERGE_REFUND_CENTS` (escalate above limit)
-- `validateToolCall('processRefund', ...)` guard
-- Protocol validation (actor, reason, idempotencyKey)
-
-Event log records `source: 'concierge'`.
+| Guard | Behavior |
+| --- | --- |
+| Customer auth | Refunds require logged-in customer |
+| Amount cap | `MAX_CONCIERGE_REFUND_CENTS` — escalate above |
+| Tool validation | `validateToolCall('processRefund', ...)` |
+| Protocol validation | actor, reason, idempotencyKey enforced in `RefundFlowService` |
 
 ---
 
@@ -156,8 +223,6 @@ npm test -- --run src/tests/refund-verification-ladder.test.ts
 
 Extend behavior inside `RefundFlowService` and `RefundService`. Do not add parallel refund entry points.
 
-Leave money paths alone unless a new use case appears.
-
 ---
 
 ## Key files
@@ -174,5 +239,5 @@ src/core/RefundService.ts
 src/infrastructure/refund/FirestoreRefundEventLog.ts
 src/infrastructure/server/refundRouteAdapter.ts
 src/app/api/admin/orders/[id]/refund/route.ts
-src/app/api/concierge/chat/route.ts   # Concierge refund tool
+src/app/api/concierge/chat/route.ts
 ```

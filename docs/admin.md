@@ -2,6 +2,8 @@
 
 The DreamBees Art **merchant admin** is the operator control plane — analogous to Shopify Admin. It covers catalog, orders, inventory, customers, marketing, content, support, and store settings. Admin screens call API routes; API routes delegate to Core services, with **mutations** flowing through `AdminApplicationService` and commerce protocols.
 
+**Operator onboarding:** [onboarding.md § Operator checklist](./onboarding.md#day-0-operator-checklist) · **End-to-end stories:** [flows.md](./flows.md)
+
 ---
 
 ## Navigation map
@@ -169,6 +171,83 @@ Concierge sessions link into the same operational data model.
 ## Settings
 
 `/admin/settings/[section]` covers store profile, payments, shipping, notifications, SEO, and feature flags. Settings persist via `SettingsService` and Firestore.
+
+---
+
+## Operator cookbook
+
+Step-by-step recipes for common Shopify-parity jobs. Each lists UI path, protocol touched, and doc deep-dive.
+
+### Fulfill an order
+
+| Step | Action |
+| ---: | --- |
+| 1 | `/admin/orders` → open order |
+| 2 | Confirm payment status paid/processing |
+| 3 | Pick/pack items |
+| 4 | **Fulfill** → enter tracking if available |
+| 5 | Customer sees update on `/orders/[id]` |
+
+Protocol: `services.admin.fulfillOrder` · API: `POST .../fulfillment`
+
+### Issue a partial refund
+
+| Step | Action |
+| ---: | --- |
+| 1 | Open order in admin |
+| 2 | Ensure session is **elevated** (step-up if prompted) |
+| 3 | Refund → enter amount in cents/dollars per UI |
+| 4 | Enter **reason** (required) |
+| 5 | Submit — UI sends idempotency key |
+
+Protocol: `admin.requestRefund` → `refunds.createRefund` · [refunds.md](./refunds.md)
+
+Retry with same key is safe (no double refund).
+
+### Adjust stock after a count
+
+| Step | Action |
+| ---: | --- |
+| 1 | `/admin/inventory` |
+| 2 | Select products/locations to adjust |
+| 3 | Enter new quantity or delta per UI |
+| 4 | Submit batch — client generates idempotency key |
+
+Protocol: `services.admin` → `inventory.adjustInventory` · **Not** product edit form stock field
+
+### Receive a purchase order
+
+| Step | Action |
+| ---: | --- |
+| 1 | `/admin/purchase-orders` → open PO |
+| 2 | **Receive** → enter quantities per line + location |
+| 3 | Submit once — note idempotency for retries |
+| 4 | Verify catalog + location in inventory views |
+| 5 | Optional: `GET ledger?productId=` for audit trail |
+
+Protocol: `receiveStockAtLocation` · [flows.md § Receive stock](./flows.md#receive-stock-flow-purchase-order)
+
+### Resolve a stuck payment
+
+| Step | Action |
+| ---: | --- |
+| 1 | Find order stuck **pending** with Stripe charge succeeded |
+| 2 | Open reconciliation / order forensic view |
+| 3 | If case `paid_not_finalized` → **retry recovery** with reason |
+| 4 | Confirm order moves to paid; reservation committed |
+
+Protocol: `services.checkout.handleReconciliationOperatorAction` · [troubleshooting.md § Webhooks](./troubleshooting.md#webhooks--finalization)
+
+### Handle a support ticket
+
+| Step | Action |
+| ---: | --- |
+| 1 | `/admin/tickets` → assign to self |
+| 2 | Review customer + order context |
+| 3 | Reply using macro or custom message |
+| 4 | Close or escalate; link Concierge session if applicable |
+
+Read-only order context uses query services — refunds still go through refund protocol.
 
 ---
 

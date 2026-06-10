@@ -8,6 +8,124 @@ Routes, checkout, fulfillment, admin, and system jobs call `services.inventory` 
 
 Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) · Platform context: [platform-overview.md](./platform-overview.md)
 
+**Related:** [flows.md § Receive stock](./flows.md#receive-stock-flow-purchase-order) · [checkout.md § Checkout × inventory](./checkout.md#checkout--inventory) · [onboarding.md](./onboarding.md)
+
+---
+
+## Reading guide
+
+| You want to… | Jump to |
+| --- | --- |
+| Understand the three stock truths | [Three layers of stock truth](#three-layers-of-stock-truth) |
+| Trace checkout holds | [Checkout integration](#checkout-integration) |
+| Receive a PO | [§6 PO receiving](#6-business-flows) |
+| Adjust counts in admin | [§6 Admin correction](#6-business-flows) |
+| Look up API methods | [§3 Public API](#3-public-api) |
+| Debug stock mismatch | [§6 Reconcile](#6-business-flows) + `reconcileInventory` |
+| Run proof tests | [§12 Verification](#12-verification) |
+
+---
+
+## Shopify analogue
+
+| Shopify concept | DreamBees Art implementation |
+| --- | --- |
+| Available inventory | Cached catalog `stock` on product/variant |
+| Location inventory | `inventory_levels.availableQty` per location |
+| Committed at checkout | `reserveInventory` → reservation document |
+| PO receive | `receiveStockAtLocation` (catalog + location + ledger) |
+| Inventory adjustments | `adjustInventory` via admin batch API |
+| Inventory history | Append-only ledger (`getProductLedger`) |
+
+Shopify hides ledger logic; this platform makes **movement auditable** by design.
+
+---
+
+## Three layers of stock truth
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  CATALOG STOCK (product.stock)                               │
+│  Sellable count for storefront + cart availability           │
+│  Mutated only by InventoryMutationService (internal)         │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ reserve / release / delta
+┌───────────────────────────▼─────────────────────────────────┐
+│  LOCATION LEVELS (inventory_levels)                          │
+│  Warehouse/retail availableQty — PO receive fan-out          │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ every movement logged
+┌───────────────────────────▼─────────────────────────────────┐
+│  LEDGER (append-only)                                        │
+│  Audit truth + idempotency markers                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Reconciliation** compares catalog stock to ledger balance and opens cases on drift.
+
+---
+
+## Checkout integration
+
+```mermaid
+stateDiagram-v2
+  [*] --> Available: product in stock
+  Available --> Reserved: reserveInventory (checkout)
+  Reserved --> Committed: confirmReservation (paid)
+  Reserved --> Available: releaseReservation (fail/expiry)
+  Committed --> Available: applyInventoryDeltas (refund restock)
+```
+
+| Event | Protocol method | Reservation state | Catalog stock |
+| --- | --- | --- | --- |
+| Add to cart | `checkAvailability` only | — | unchanged |
+| Checkout start | `reserveInventory` | `reserved` | decreased |
+| Payment OK | `confirmReservation` | `committed` | unchanged |
+| Payment fail | `releaseReservation` | `released` | restored |
+| Cleanup job | `cleanupExpiredReservations` | `expired` | restored |
+
+Checkout passes optional Firestore `transaction` so reserve/confirm/release align with order writes.
+
+Full purchase narrative: [flows.md § Purchase flow](./flows.md#purchase-flow-storefront-checkout)
+
+---
+
+## Operator journeys
+
+### Daily stock adjustment
+
+```text
+Admin Inventory UI
+  → POST /api/admin/inventory/batch
+  → services.admin (authorize)
+  → services.inventory.adjustInventory
+  → catalog stock set + ledger delta + idempotency marker
+```
+
+Client generates `crypto.randomUUID()` idempotency key per batch submit.
+
+### Receive purchase order
+
+```text
+/admin/purchase-orders/[id]/receive
+  → services.admin → PurchaseOrderService.receiveItems
+  → inventory.receiveStockAtLocation (ONE call)
+       → catalog += qty
+       → location.availableQty += qty
+       → ledger lines + receive marker
+```
+
+Duplicate submit with same idempotency key returns `{ duplicate: true }`.
+
+### Investigate discrepancy
+
+```text
+POST /api/admin/inventory/reconcile
+  → reconcileInventory
+  → compares catalog vs ledger
+  → opens reconciliation cases for review
+```
+
 ---
 
 ## 1. Protocol shape

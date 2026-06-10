@@ -1,6 +1,6 @@
 # Getting Started
 
-Run DreamBees Art locally as a **self-hosted Shopify-class store**: Next.js app + Firebase + Stripe. This guide covers prerequisites, environment setup, first boot, and verification.
+Technical setup reference for running DreamBees Art locally. For a guided **day-0 walkthrough** (checklists, first purchase, learning path), start with **[onboarding.md](./onboarding.md)**.
 
 ---
 
@@ -8,175 +8,183 @@ Run DreamBees Art locally as a **self-hosted Shopify-class store**: Next.js app 
 
 | Requirement | Version / notes |
 | --- | --- |
-| Node.js | 22.x (`package.json` engines) |
+| Node.js | 22.x recommended (`package.json` engines); setup script requires ≥ 20 |
 | npm | Bundled with Node |
 | Firebase project | Authentication + Firestore enabled |
 | Stripe account | Test mode keys for local dev |
+| Stripe CLI | Required for local webhook delivery |
 | OS | macOS, Linux, or WSL2 |
 
-Optional:
-
-- **Brevo** — transactional email (password reset, notifications)
-- **Gemini / Vertex** — Concierge AI features
-- **Firebase Storage** — media uploads in admin
+Optional: Brevo (email), Gemini (Concierge), Firebase Storage (media uploads).
 
 ---
 
-## One-command setup
+## Install
 
 ```bash
 git clone <your-fork-url>
 cd DreamBeesArt
 npm run setup
-```
-
-`npm run setup` runs `scripts/setup.sh`, which typically:
-
-1. Verifies Node version
-2. Copies `.env.example` → `.env` if missing
-3. Generates a `SESSION_SECRET` when needed
-4. Runs `npm install`
-5. Optionally seeds development data when configured
-
-Then start the dev server:
-
-```bash
 npm run dev
 ```
 
-Default dev URL: `http://localhost:3000` (see `scripts/dev.sh` for port behavior).
+### What `npm run setup` does
+
+From `scripts/setup.sh`:
+
+1. Verifies Node version
+2. Copies `.env.example` → `.env` if missing
+3. Generates random `SESSION_SECRET` (replaces placeholder)
+4. Runs `npm install`
+5. Seeds Firestore via `src/infrastructure/services/SeedDataLoader.ts`
+
+Seed creates sample catalog, inventory (protocol-safe), and a dev admin user. Re-running setup re-seeds — use caution if you rely on local data persistence.
 
 ---
 
 ## Environment variables
 
-Copy `.env.example` to `.env` and fill in values.
+Copy `.env.example` to `.env`. Grouped by concern:
 
-### Required for commerce
+### Security (required)
 
 | Variable | Purpose |
 | --- | --- |
-| `SESSION_SECRET` | 32+ char secret for signed cookies |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe.js |
-| `STRIPE_SECRET_KEY` | Server-side Stripe |
+| `SESSION_SECRET` | 32+ char HMAC secret for signed cookies |
+| `ALLOW_PRODUCTION_SEEDING` | Must be `false` in production |
+
+### Firebase (required)
+
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Client SDK |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Auth domain |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Project id |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Storage (optional media) |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Client config |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Client config |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Admin SDK credentials (server) |
+
+### Stripe (required for checkout)
+
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe.js on storefront |
+| `STRIPE_SECRET_KEY` | Server PaymentIntent API |
 | `STRIPE_WEBHOOK_SECRET` | Webhook signature verification |
-| `NEXT_PUBLIC_FIREBASE_*` | Client Firebase config |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | Admin SDK (server) — JSON string or path |
 
 ### Site & SEO
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Canonical site URL |
-| `NEXT_PUBLIC_BUSINESS_*` | Local business schema (street, city, hours, geo) |
+| `NEXT_PUBLIC_SITE_URL` | Canonical URL |
+| `NEXT_PUBLIC_BUSINESS_*` | Local business schema (address, hours, geo) |
 
-Replace WoodBine defaults with your merchant details.
+Replace WoodBine demo values with your merchant.
 
-### Optional
+### Optional integrations
 
 | Variable | Purpose |
 | --- | --- |
-| `CHECKOUT_ENDPOINT` | Trusted server-side checkout gateway URL |
-| `BREVO_API_KEY`, `BREVO_FROM_*` | Email delivery |
+| `CHECKOUT_ENDPOINT` | Trusted server-side checkout gateway |
+| `BREVO_API_KEY`, `BREVO_FROM_*` | Transactional email |
 | `GEMINI_API_KEY` | Concierge LLM |
-| `ALLOW_PRODUCTION_SEEDING` | Must stay `false` in production |
+| `HERMES_*` | Alternate Concierge agent endpoint |
 
-**Never commit live secrets.** Rotate any keys that appear in example files.
-
----
-
-## Firebase setup
-
-1. Create a Firebase project.
-2. Enable **Authentication** (email/password and/or Google as configured).
-3. Create a **Firestore** database.
-4. Download a **service account** key for the Admin SDK → `FIREBASE_SERVICE_ACCOUNT_JSON`.
-5. Add web app config → `NEXT_PUBLIC_FIREBASE_*` values.
-
-Deploy Firestore security rules from the repo if your workflow includes them (`src/tests/firestore-security.test.ts` documents expected rules behavior).
+**Never commit live secrets.**
 
 ---
 
-## Stripe setup
+## Firebase setup (step-by-step)
 
-1. Create products/prices in Stripe or let checkout create PaymentIntents dynamically.
-2. Add test keys to `.env`.
-3. For local webhooks, use Stripe CLI:
+1. Create project at [Firebase Console](https://console.firebase.google.com/)
+2. **Build → Authentication → Sign-in method** → Enable Email/Password
+3. **Build → Firestore Database → Create database**
+4. **Project settings → General → Your apps → Web** → Register app → copy config to `NEXT_PUBLIC_FIREBASE_*`
+5. **Project settings → Service accounts → Generate new private key** → set `FIREBASE_SERVICE_ACCOUNT_JSON`
+
+Apply Firestore security rules from your deployment workflow. Expected rule behavior is covered in `src/tests/firestore-security.test.ts`.
+
+---
+
+## Stripe setup (step-by-step)
+
+1. Dashboard → **Developers → API keys** (Test mode)
+2. Copy keys to `.env`
+3. In a **second terminal**, forward webhooks:
 
 ```bash
+stripe login
 stripe listen --forward-to localhost:3000/api/webhooks/stripe
 ```
 
-Copy the webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
+4. Copy the displayed `whsec_…` → `STRIPE_WEBHOOK_SECRET`
+5. Restart `npm run dev`
+
+**Test card:** `4242 4242 4242 4242` · any future expiry · any CVC.
+
+Without webhook forwarding, Stripe may show payment succeeded while the local order stays **pending**.
 
 ---
 
-## Seed data
+## Verify installation
 
-```bash
-npm run seed
-```
+### Manual smoke test
 
-Runs `migrate-and-seed.ts` with `.env` loaded. Seeding uses Admin SDK paths that mirror inventory protocol semantics (catalog stock via ledger markers, not raw PATCH).
+| Step | URL / action | Expected |
+| --- | --- | --- |
+| 1 | `/products` | Seeded products visible |
+| 2 | Add to cart → checkout | Payment form loads |
+| 3 | Pay with test card | Success / order confirmation |
+| 4 | `/orders` | Order listed as paid/processing |
+| 5 | `/login` as admin | See [onboarding.md § credentials](./onboarding.md#default-dev-credentials) |
+| 6 | `/admin/orders` | Same order visible |
 
-Set `ALLOW_PRODUCTION_SEEDING=false` in every production environment.
-
----
-
-## First login paths
-
-| Surface | URL |
-| --- | --- |
-| Storefront | `/` |
-| Products | `/products` |
-| Admin | `/admin` |
-| Register / login | `/register`, `/login` |
-
-Create an admin user through your Firebase Auth + admin bootstrap flow (see `.wiki/admin-access.md`).
-
----
-
-## Verification checklist
+### Automated verification
 
 ```bash
 # Types and lint
 npm run typecheck
 npm run lint
 
-# Production build
-npm run build
-
-# Unit and integration tests
+# Full test suite
 npm test
 
-# Commerce protocol seals
+# Commerce protocol seals (fast confidence check)
 npm test -- --run \
   src/tests/checkout-verification-ladder.test.ts \
   src/tests/refund-verification-ladder.test.ts \
   src/tests/inventory-verification-ladder.test.ts \
   src/tests/admin-verification-ladder.test.ts
 
-# Browser e2e (requires dev server or webServer config)
+# Production build
+npm run build
+
+# Browser e2e
 npm run test:e2e
 
 # Core throughput baseline
 npm run benchmark:order-flow
 ```
 
-All tests passing locally is the bar before deploying.
-
 ---
 
 ## Deploy
-
-Production build:
 
 ```bash
 npm run build:deploy   # FIREBASE_DEPLOY=1
 npm run deploy         # scripts/deploy-optimized.sh
 ```
 
-Hosting targets Firebase by default in project scripts. Any Node 22 host that runs `next start` after `next build` works if Firebase and Stripe env vars are present.
+Default scripts target Firebase Hosting. Any Node 22 host running `next start` after `next build` works with correct env vars.
+
+Pre-deploy checklist:
+
+- [ ] `ALLOW_PRODUCTION_SEEDING=false`
+- [ ] Production Stripe keys + live webhook endpoint registered in Stripe Dashboard
+- [ ] `SESSION_SECRET` rotated from dev default
+- [ ] Firebase rules deployed
+- [ ] `npm test` and `npm run build` pass in CI
 
 ---
 
@@ -184,19 +192,28 @@ Hosting targets Firebase by default in project scripts. Any Node 22 host that ru
 
 | Symptom | Check |
 | --- | --- |
+| Firebase `permission-denied` | Service account JSON, project id match |
 | Checkout 503 `STRIPE_NOT_CONFIGURED` | Stripe keys in `.env`, server restart |
-| Webhook duplicates / unpaid orders | Webhook secret, Stripe CLI forward URL |
-| Admin 403 | Session cookie, admin role claims |
-| Inventory adjust rejected | Use admin inventory API, not product PATCH `stock` |
-| Concierge refund fails | Customer logged in, amount within concierge limit |
+| Order pending after payment | `stripe listen` running, webhook secret matches |
+| Admin 403 | Admin role on user document in Firestore |
+| Inventory adjust rejected | Use `/admin/inventory` batch, not product PATCH |
+| Empty catalog after setup | Seed errors in terminal; Firebase connectivity |
 
-More: [.wiki/onboarding/troubleshooting.md](../.wiki/onboarding/troubleshooting.md)
+Guided troubleshooting: [onboarding.md § Troubleshooting](./onboarding.md#troubleshooting-first-hour)  
+**Full guide:** [troubleshooting.md](./troubleshooting.md)  
+Extended wiki: [.wiki/onboarding/troubleshooting.md](../.wiki/onboarding/troubleshooting.md)
 
 ---
 
 ## Next steps
 
-- [platform-overview.md](./platform-overview.md) — feature map
-- [architecture.md](./architecture.md) — layers and protocols
-- [storefront.md](./storefront.md) — customer surface
-- [admin.md](./admin.md) — merchant console
+| Goal | Document |
+| --- | --- |
+| Guided onboarding | [onboarding.md](./onboarding.md) |
+| After day 0 | [day-2.md](./day-2.md) |
+| How flows connect | [flows.md](./flows.md) |
+| System design | [architecture.md](./architecture.md) |
+| Debug issues | [troubleshooting.md](./troubleshooting.md) |
+| Extend safely | [contributing-commerce.md](./contributing-commerce.md) |
+| Storefront | [storefront.md](./storefront.md) |
+| Admin console | [admin.md](./admin.md) |

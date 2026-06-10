@@ -8,6 +8,103 @@ The public boundary is frozen. Extend behavior inside `CheckoutFlowService` and 
 
 Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) · Platform context: [platform-overview.md](./platform-overview.md)
 
+**Related:** [flows.md § Purchase flow](./flows.md#purchase-flow-storefront-checkout) · [inventory.md § Reservation lifecycle](./inventory.md#6-business-flows) · [onboarding.md § First purchase](./onboarding.md#first-purchase-walkthrough-what-actually-happens)
+
+---
+
+## Reading guide
+
+| You want to… | Jump to |
+| --- | --- |
+| Understand the happy-path checkout | [End-to-end happy path](#end-to-end-happy-path) |
+| See how inventory is reserved | [Checkout × inventory](#checkout--inventory) |
+| Debug stuck pending orders | [When things go wrong](#when-things-go-wrong) |
+| Look up a public method | [§3 Public API](#3-public-api) |
+| Map routes to methods | [§5 Route inventory](#5-route-inventory) |
+| Understand reconciliation | [§6 Business flows → Reconciliation](#6-business-flows) |
+| Run proof tests | [§11 Verification](#11-verification) |
+
+---
+
+## Shopify analogue
+
+| Shopify concept | DreamBees Art implementation |
+| --- | --- |
+| Checkout | `CheckoutApplicationService` — PaymentIntent flow |
+| Payments app / Stripe | `StripeService` internal to checkout stack only |
+| Order creation | Pending order during session create; finalized on payment |
+| Inventory reservation | `inventory.reserveInventory` during checkout |
+| Webhooks | `POST /api/webhooks/stripe` → `handleCheckoutWebhook` |
+| Abandoned checkout | Rollback + reservation release + cleanup job |
+| Manual payment recovery | Reconciliation cases + operator `retry_recovery` |
+
+Unlike Shopify’s hosted checkout, **you own the full state machine** in `src/core/order/`.
+
+---
+
+## End-to-end happy path
+
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant API as POST create-payment-intent
+  participant CH as services.checkout
+  participant INV as services.inventory
+  participant ST as Stripe
+
+  B->>API: idempotencyKey + shippingAddress
+  API->>CH: createCheckoutSession
+  CH->>CH: acquire checkout lock
+  CH->>INV: reserveInventory
+  CH->>CH: create pending order
+  CH->>ST: create/resume PaymentIntent
+  CH-->>B: clientSecret + orderId
+  B->>ST: Stripe.js confirm
+  par Finalize A
+    ST->>CH: webhook payment_intent.succeeded
+  and Finalize B
+    B->>CH: recoverPendingOrder (verify)
+  end
+  CH->>INV: confirmReservation
+  CH->>CH: order status paid/processing
+```
+
+Both finalization paths are idempotent. Duplicate webhook delivery must not double-finalize.
+
+---
+
+## Checkout × inventory
+
+Checkout never calls `batchUpdateStock`. It uses the narrow **mutation backend**:
+
+| Checkout phase | Inventory call | Catalog stock |
+| --- | --- | --- |
+| Session create | `reserveInventory` | Decremented (hold) |
+| Payment success | `confirmReservation` | Unchanged (already held) |
+| Payment fail / abandon | `releaseReservation` | Restored |
+| Expired pending (cleanup) | `releaseReservation` | Restored |
+
+Reservations run inside Firestore transactions when checkout provides a `transaction` handle — catalog and order stay consistent.
+
+Oversell during reserve opens a reconciliation case instead of silent double-sell. See [inventory.md](./inventory.md).
+
+---
+
+## When things go wrong
+
+| Symptom | Likely cause | First look |
+| --- | --- | --- |
+| Order stuck **pending** after card charge | Webhook not received or verify not called | Stripe CLI forwarding, `STRIPE_WEBHOOK_SECRET` |
+| Duplicate orders same cart | Missing client idempotency key | Client must send stable `idempotencyKey` |
+| Paid in Stripe, pending locally | Finalization race / crash | Reconciliation case `paid_not_finalized` |
+| Stock wrong after checkout | Bypassed inventory protocol | Never PATCH product `stock` |
+| Cleanup returns HTTP 207 | Partial per-order failures | `CleanupExpiredPendingOrdersReport.errors[]` |
+| Webhook 503 retry | Concurrent event claim | Stripe retries — expected |
+
+Operator recovery: `POST /api/admin/reconciliation/cases` with `retry_recovery` (valid only for `paid_not_finalized`).
+
+Narrative: [flows.md § Reconciliation](./flows.md#reconciliation-flow-payment-mismatch)
+
 ---
 
 ## 1. Protocol shape

@@ -126,9 +126,10 @@ Without AI keys, Concierge degrades gracefully; core commerce continues unaffect
 
 ## Related docs
 
-- [refunds.md](../refunds.md) — money reversal protocol
-- [admin.md](../admin.md) — support CRM
-- [storefront.md](../storefront.md) — customer bubble
-- [architecture.md](../architecture.md) — layer boundaries
+- [Onboarding](../onboarding.md) — first purchase walkthrough
+- [Flows](../flows.md) — end-to-end commerce stories
+- [Architecture](../architecture.md) — system context
+- [Refunds](../refunds.md) — money reversal protocol
+- [Admin](../admin.md) — operator console
 
 Lifecycle marketing depth: [.wiki/architecture/lifecycle-marketing-concierge.md](../../.wiki/architecture/lifecycle-marketing-concierge.md)

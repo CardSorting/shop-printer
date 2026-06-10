@@ -73,23 +73,28 @@ npm run test:e2e
 npm run benchmark:order-flow
 ```
 
-Full setup: **[docs/getting-started.md](docs/getting-started.md)**
+Full setup: **[docs/onboarding.md](docs/onboarding.md)** (guided) · **[docs/getting-started.md](docs/getting-started.md)** (reference)
 
 ## Documentation
 
+**Start here:** [docs/onboarding.md](docs/onboarding.md) — day-0 checklist, first test purchase, learning path.
+
 | Doc | Contents |
 | --- | --- |
-| [docs/index.md](docs/index.md) | Documentation hub |
-| [docs/platform-overview.md](docs/platform-overview.md) | Shopify comparison, feature map, deployment model |
-| [docs/architecture.md](docs/architecture.md) | Layers, protocols, request lifecycle |
-| [docs/storefront.md](docs/storefront.md) | Customer-facing features and routes |
-| [docs/admin.md](docs/admin.md) | Merchant console and operator workflows |
-| [docs/getting-started.md](docs/getting-started.md) | Environment, seed, deploy |
-| [docs/checkout.md](docs/checkout.md) | Checkout protocol reference |
-| [docs/inventory.md](docs/inventory.md) | Inventory protocol reference |
-| [docs/refunds.md](docs/refunds.md) | Refund protocol reference |
-| [docs/concierge/overview.md](docs/concierge/overview.md) | AI support and lifecycle marketing |
+| [docs/onboarding.md](docs/onboarding.md) | Day-0 checklist, first test purchase |
+| [docs/day-2.md](docs/day-2.md) | Rebrand, trace requests, production prep |
+| [docs/flows.md](docs/flows.md) | Purchase, receive, refund, reconciliation |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | Symptom-first debugging |
+| [docs/architecture.md](docs/architecture.md) | Layers, protocols, entity model |
+| [docs/api-overview.md](docs/api-overview.md) | HTTP route map |
+| [docs/glossary.md](docs/glossary.md) | Terms |
+| [docs/contributing-commerce.md](docs/contributing-commerce.md) | Safe extension checklist |
+| [docs/platform-overview.md](docs/platform-overview.md) | Shopify comparison |
+| [docs/storefront.md](docs/storefront.md) · [docs/admin.md](docs/admin.md) | Merchant surfaces |
+| [docs/checkout.md](docs/checkout.md) · [docs/inventory.md](docs/inventory.md) · [docs/refunds.md](docs/refunds.md) | Protocol reference |
 | [docs/commerce-protocol-frozen.md](docs/commerce-protocol-frozen.md) | Frozen mutation policy |
+| [docs/concierge/overview.md](docs/concierge/overview.md) | AI support layer |
+| [docs/index.md](docs/index.md) | Full documentation hub |
 
 Operational wiki: [.wiki/index.md](.wiki/index.md)
 
