@@ -4,6 +4,7 @@ This directory contains long-form technical documentation. The `.wiki/` director
 
 ## Primary Documents
 
+- [Commerce Protocol — FROZEN](./commerce-protocol-frozen.md) — architecture line for checkout, refunds, inventory, and admin mutation boundaries
 - [Checkout](./checkout.md) — application protocol, API, flows, verification (canonical)
 - [WoodBine Concierge Overview](./concierge/overview.md)
 - [WoodBine CRM Platform Whitepaper](./woodbine-crm-whitepaper.md)

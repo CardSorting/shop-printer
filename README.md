@@ -64,6 +64,19 @@ npm test -- --run \
   src/tests/inventory-location-consistency-ladder.test.ts
 ```
 
+## Commerce Core
+
+Four application protocols own commerce mutations. Raw services are internal; routes, tools, admin actions, and automations call `ApplicationService` boundaries only.
+
+```txt
+checkout  = money capture      → services.checkout
+refunds   = money reversal     → services.refunds
+inventory = stock movement     → services.inventory
+admin     = human authority    → services.admin
+```
+
+**[docs/commerce-protocol-frozen.md](docs/commerce-protocol-frozen.md)** — frozen policy. Leave money paths alone unless a new use case appears.
+
 ## Benchmark Baseline
 
 A reproducible Core-level benchmark exists for cart, checkout, and full order/payment/finalization flows:
