@@ -1,11 +1,11 @@
-import { Suspense } from 'react';
 import { ProductsPage } from '@ui/pages/ProductsPage';
 import type { Metadata } from 'next';
 import { JsonLd } from '@ui/components/JsonLd';
 import { getServerServices } from '@infrastructure/server/services';
 import { notFound } from 'next/navigation';
 import { buildNextPageMetadata, getAppSeoEngine } from '@infrastructure/seo';
-import { breadcrumbJsonLd, cleanSeoText, itemListJsonLd } from '@utils/seo';
+import { breadcrumbJsonLd, itemListJsonLd } from '@utils/seo';
+import { loadCatalogBootstrap, serializeCatalogBootstrap } from '@infrastructure/server/loadCatalogBootstrap';
 
 const seo = getAppSeoEngine();
 
@@ -22,6 +22,13 @@ async function getCategoryOrCollection(slug: string) {
   } catch {
     return null;
   }
+}
+
+function readCatalogFilters(filters: Record<string, string | string[] | undefined>) {
+  const sortBy = typeof filters.sort_by === 'string' ? filters.sort_by : 'newest';
+  const search =
+    typeof filters.q === 'string' ? filters.q : typeof filters.search === 'string' ? filters.search : '';
+  return { sortBy, search };
 }
 
 export async function generateMetadata({
@@ -65,13 +72,39 @@ export async function generateMetadata({
   return buildNextPageMetadata(seo.pages.collectionListing(listingInput, hasFilters), seo.config);
 }
 
-export default async function CollectionPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CollectionPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { slug } = await params;
+  const filters = await searchParams;
+  const { sortBy, search } = readCatalogFilters(filters);
   const resolved = await getCategoryOrCollection(slug);
 
   if (!resolved && slug !== 'all') {
     notFound();
   }
+
+  const collectionInfo = resolved
+    ? {
+        name: resolved.data.name,
+        description: resolved.data.description || '',
+        ...(resolved.type === 'collection' ? { imageUrl: resolved.data.imageUrl } : {}),
+      }
+    : null;
+
+  const bootstrap = serializeCatalogBootstrap(
+    await loadCatalogBootstrap({
+      resolvedType: resolved?.type,
+      collectionSlug: slug,
+      query: search,
+      sortBy,
+      collectionInfo,
+    }),
+  );
 
   const displayName = resolved?.data.name || 'All Vendors & Menu';
   const jsonLd = [
@@ -88,9 +121,16 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
   return (
     <>
       <JsonLd data={jsonLd} />
-      <Suspense fallback={<div className="mx-auto max-w-7xl px-4 py-12 text-sm font-bold text-gray-500">Loading vendors...</div>}>
-        <ProductsPage resolvedType={resolved?.type} resolvedSlug={slug} />
-      </Suspense>
+      <ProductsPage
+        resolvedType={resolved?.type}
+        resolvedSlug={slug}
+        initialProducts={bootstrap.products}
+        initialNextCursor={bootstrap.nextCursor}
+        initialCategories={bootstrap.categories}
+        initialCollectionInfo={bootstrap.collectionInfo}
+        initialSortBy={sortBy}
+        initialSearch={search}
+      />
     </>
   );
 }
