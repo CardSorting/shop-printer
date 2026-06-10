@@ -236,13 +236,18 @@ After any protocol change, update the matching verification ladder test.
 1. platform-overview.md       What this is vs Shopify
 2. onboarding.md              Day 0 setup
 3. day-2.md                   Rebrand, trace, production prep
-4. architecture.md            Layers + protocols
-5. flows.md                   End-to-end stories
-6. glossary.md                Terms when reading code
-7. checkout.md / inventory.md / refunds.md
-8. contributing-commerce.md   Before your first commerce PR
-9. commerce-protocol-frozen.md
-10. troubleshooting.md       When something breaks
+4. local-development.md       Daily dev workflow
+5. architecture.md            Layers + protocols
+6. protocols.md               All four protocols unified
+7. flows.md                   End-to-end stories
+8. glossary.md                Terms when reading code
+9. checkout.md / inventory.md / refunds.md
+10. contributing-commerce.md  Before your first commerce PR
+11. commerce-protocol-frozen.md
+12. troubleshooting.md        When something breaks
+13. deployment.md + runbook.md + release-checklist.md
+14. customization.md          Rebrand / fork
+15. faq.md                    Quick answers
 ```
 
 ---
@@ -264,6 +269,8 @@ Extended: [.wiki/onboarding/troubleshooting.md](../.wiki/onboarding/troubleshoot
 
 ## Next steps
 
-- [getting-started.md](./getting-started.md) — deploy, full verification matrix
-- [flows.md](./flows.md) — purchase, receive, refund, reconciliation stories
-- [architecture.md](./architecture.md) — system design for contributors
+- [local-development.md](./local-development.md) — daily dev workflow
+- [getting-started.md](./getting-started.md) — env reference, deploy
+- [flows.md](./flows.md) — purchase, receive, refund stories
+- [architecture.md](./architecture.md) — system design
+- [index.md](./index.md) — full documentation hub

@@ -159,7 +159,7 @@ Before first deploy:
 - [ ] Run cleanup jobs on a schedule (`/api/system/cleanup-orders`, `/api/system/cleanup-inventory`) with bearer auth
 - [ ] Monitor reconciliation cases in admin
 
-Deploy: [getting-started.md § Deploy](./getting-started.md#deploy)
+Deploy: [deployment.md](./deployment.md) · Ops: [runbook.md](./runbook.md) · Security: [security.md](./security.md)
 
 ---
 
@@ -179,6 +179,10 @@ Deploy: [getting-started.md § Deploy](./getting-started.md#deploy)
 | Goal | Doc |
 | --- | --- |
 | Extend commerce safely | [contributing-commerce.md](./contributing-commerce.md) |
-| Debug issues | [troubleshooting.md](./troubleshooting.md) |
+| Debug issues | [troubleshooting.md](./troubleshooting.md) · [faq.md](./faq.md) |
+| Deploy + operate | [deployment.md](./deployment.md) · [runbook.md](./runbook.md) |
+| Test suites | [testing.md](./testing.md) |
+| Cheat sheet | [quick-reference.md](./quick-reference.md) |
+| Firestore map | [data-model.md](./data-model.md) |
 | API surface | [api-overview.md](./api-overview.md) |
-| Term definitions | [glossary.md](./glossary.md) |
+| Terms | [glossary.md](./glossary.md) |

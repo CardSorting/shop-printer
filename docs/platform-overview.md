@@ -145,8 +145,12 @@ Track strategic direction in [SHOPMORE_ROADMAP.md](../SHOPMORE_ROADMAP.md) at re
 
 | Goal | Document |
 | --- | --- |
-| Run locally | [getting-started.md](./getting-started.md) · [onboarding.md](./onboarding.md) |
-| After day 0 | [day-2.md](./day-2.md) |
+| Run locally | [onboarding.md](./onboarding.md) · [local-development.md](./local-development.md) |
+| All protocols | [protocols.md](./protocols.md) |
+| Rebrand / fork | [customization.md](./customization.md) |
+| From Shopify | [migration-from-shopify.md](./migration-from-shopify.md) |
+| Env reference | [environment-variables.md](./environment-variables.md) |
+| Release | [release-checklist.md](./release-checklist.md) |
 | Understand layers | [architecture.md](./architecture.md) |
 | End-to-end stories | [flows.md](./flows.md) |
 | Debug | [troubleshooting.md](./troubleshooting.md) |
@@ -158,3 +162,5 @@ Track strategic direction in [SHOPMORE_ROADMAP.md](../SHOPMORE_ROADMAP.md) at re
 | Stock internals | [inventory.md](./inventory.md) |
 | Refund internals | [refunds.md](./refunds.md) |
 | HTTP routes | [api-overview.md](./api-overview.md) |
+| Production | [deployment.md](./deployment.md) · [runbook.md](./runbook.md) |
+| FAQ | [faq.md](./faq.md) |

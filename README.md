@@ -77,24 +77,18 @@ Full setup: **[docs/onboarding.md](docs/onboarding.md)** (guided) · **[docs/get
 
 ## Documentation
 
-**Start here:** [docs/onboarding.md](docs/onboarding.md) — day-0 checklist, first test purchase, learning path.
+**Start:** [docs/onboarding.md](docs/onboarding.md) · **Cheat sheet:** [docs/quick-reference.md](docs/quick-reference.md) · **Full hub:** [docs/index.md](docs/index.md)
 
-| Doc | Contents |
+| Area | Docs |
 | --- | --- |
-| [docs/onboarding.md](docs/onboarding.md) | Day-0 checklist, first test purchase |
-| [docs/day-2.md](docs/day-2.md) | Rebrand, trace requests, production prep |
-| [docs/flows.md](docs/flows.md) | Purchase, receive, refund, reconciliation |
-| [docs/troubleshooting.md](docs/troubleshooting.md) | Symptom-first debugging |
-| [docs/architecture.md](docs/architecture.md) | Layers, protocols, entity model |
-| [docs/api-overview.md](docs/api-overview.md) | HTTP route map |
-| [docs/glossary.md](docs/glossary.md) | Terms |
-| [docs/contributing-commerce.md](docs/contributing-commerce.md) | Safe extension checklist |
-| [docs/platform-overview.md](docs/platform-overview.md) | Shopify comparison |
-| [docs/storefront.md](docs/storefront.md) · [docs/admin.md](docs/admin.md) | Merchant surfaces |
-| [docs/checkout.md](docs/checkout.md) · [docs/inventory.md](docs/inventory.md) · [docs/refunds.md](docs/refunds.md) | Protocol reference |
-| [docs/commerce-protocol-frozen.md](docs/commerce-protocol-frozen.md) | Frozen mutation policy |
-| [docs/concierge/overview.md](docs/concierge/overview.md) | AI support layer |
-| [docs/index.md](docs/index.md) | Full documentation hub |
+| Setup | [onboarding](docs/onboarding.md), [local-development](docs/local-development.md), [environment-variables](docs/environment-variables.md) |
+| Architecture | [architecture](docs/architecture.md), [protocols](docs/protocols.md), [flows](docs/flows.md), [data-model](docs/data-model.md) |
+| Customize | [customization](docs/customization.md), [migration-from-shopify](docs/migration-from-shopify.md) |
+| Protocols | [checkout](docs/checkout.md), [inventory](docs/inventory.md), [refunds](docs/refunds.md), [commerce-protocol-frozen](docs/commerce-protocol-frozen.md) |
+| Ship | [deployment](docs/deployment.md), [release-checklist](docs/release-checklist.md), [runbook](docs/runbook.md), [security](docs/security.md) |
+| Debug | [troubleshooting](docs/troubleshooting.md), [faq](docs/faq.md), [testing](docs/testing.md) |
+| Extend | [contributing-commerce](docs/contributing-commerce.md) |
+| Cheat sheet | [quick-reference](docs/quick-reference.md) · **Hub:** [index](docs/index.md) |
 
 Operational wiki: [.wiki/index.md](.wiki/index.md)
 

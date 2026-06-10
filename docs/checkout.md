@@ -6,6 +6,8 @@ DreamBees Art checkout coordinates cart reservation, order creation, Stripe Paym
 
 The public boundary is frozen. Extend behavior inside `CheckoutFlowService` and flow modules — do not add parallel checkout entry points.
 
+> **Cheat sheet:** [quick-reference.md](./quick-reference.md) · **Tests:** [testing.md](./testing.md)
+
 Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) · Platform context: [platform-overview.md](./platform-overview.md)
 
 **Related:** [flows.md § Purchase flow](./flows.md#purchase-flow-storefront-checkout) · [inventory.md § Reservation lifecycle](./inventory.md#6-business-flows) · [onboarding.md § First purchase](./onboarding.md#first-purchase-walkthrough-what-actually-happens)

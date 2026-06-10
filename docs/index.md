@@ -1,102 +1,110 @@
 # DreamBees Art Documentation
 
-Open-source, self-hosted ecommerce with Shopify-class storefront and admin. You run Firebase and Stripe; the codebase is the platform.
+Open-source, self-hosted ecommerce with Shopify-class storefront and admin.
 
-**New developer?** [onboarding.md](./onboarding.md) → [day-2.md](./day-2.md)  
-**Something broken?** [troubleshooting.md](./troubleshooting.md)
+| I want to… | Start here |
+| --- | --- |
+| Run locally first time | [onboarding.md](./onboarding.md) |
+| Daily dev workflow | [local-development.md](./local-development.md) |
+| Rebrand / fork | [customization.md](./customization.md) |
+| Leave Shopify | [migration-from-shopify.md](./migration-from-shopify.md) |
+| Ship to production | [deployment.md](./deployment.md) → [release-checklist.md](./release-checklist.md) |
+| Operate live store | [runbook.md](./runbook.md) |
+| Debug something | [troubleshooting.md](./troubleshooting.md) · [faq.md](./faq.md) |
+| One-screen lookup | [quick-reference.md](./quick-reference.md) |
+| All four protocols | [protocols.md](./protocols.md) |
 
 ---
 
 ## Documentation map
 
 ```text
-                         onboarding.md
-                              │
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-        day-2.md      getting-started    platform-overview
-              │               │               │
-              └───────┬───────┴───────┬───────┘
-                      ▼               ▼
-                 architecture      flows.md
-                      │               │
-         ┌────────────┼───────────────┼────────────┐
-         ▼            ▼               ▼            ▼
-   checkout.md  inventory.md    refunds.md    admin.md
-         │            │               │            │
-         └────────────┴───────────────┴────────────┘
-                      │
-              commerce-protocol-frozen
-                      │
-         ┌────────────┼────────────┐
-         ▼            ▼            ▼
-   api-overview  glossary   contributing-commerce
-         │            │            │
-         └────────────┴────────────┘
-                 troubleshooting.md
+START                         BUILD                         SHIP
+─────                         ─────                         ────
+onboarding.md                 architecture.md               deployment.md
+day-2.md                      protocols.md                  release-checklist.md
+local-development.md          flows.md                      runbook.md
+getting-started.md            data-model.md                 security.md
+environment-variables.md      api-overview.md               testing.md
+
+REFERENCE                     SURFACES                      POLICY
+─────────                     ────────                      ──────
+glossary.md                   storefront.md                 commerce-protocol-frozen.md
+faq.md                        admin.md                      checkout.md
+quick-reference.md            concierge/overview.md         inventory.md
+platform-overview.md                                        refunds.md
+customization.md                                            contributing-commerce.md
+migration-from-shopify.md
+troubleshooting.md
 ```
 
 ---
 
 ## By role
 
-### Developer (first week)
+### Developer
 
-| Day | Document | Outcome |
-| --- | --- | --- |
-| 0 | [Onboarding](./onboarding.md) | Local store + test checkout |
-| 1 | [Day 2](./day-2.md) | Code map, safe first change |
-| 2 | [Architecture](./architecture.md) + [Flows](./flows.md) | Mental model |
-| 3 | [Contributing commerce](./contributing-commerce.md) | Protocol rules |
-| 4–5 | [Checkout](./checkout.md) + [Inventory](./inventory.md) | Reference when coding |
-
-### Merchant operator
-
-| Document | Outcome |
+| When | Docs |
 | --- | --- |
-| [Onboarding § Operator](./onboarding.md#day-0-operator-checklist) | Admin login |
-| [Admin § Cookbook](./admin.md#operator-cookbook) | Fulfill, refund, receive, reconcile |
-| [Flows](./flows.md) | What happens behind the UI |
+| Day 0 | [onboarding.md](./onboarding.md), [getting-started.md](./getting-started.md), [environment-variables.md](./environment-variables.md) |
+| Daily | [local-development.md](./local-development.md), [quick-reference.md](./quick-reference.md) |
+| Learning | [architecture.md](./architecture.md), [flows.md](./flows.md), [protocols.md](./protocols.md) |
+| PR | [contributing-commerce.md](./contributing-commerce.md), [testing.md](./testing.md), [release-checklist.md](./release-checklist.md) |
 
-### Architect / reviewer
+### Merchant / operator
 
-| Document | Outcome |
+| When | Docs |
 | --- | --- |
-| [Platform overview](./platform-overview.md) | Scope vs Shopify |
-| [Architecture](./architecture.md) | Layers + entity model |
-| [Commerce protocol — FROZEN](./commerce-protocol-frozen.md) | Invariants |
-| [API overview](./api-overview.md) | Surface area |
+| First login | [onboarding.md § Operator](./onboarding.md#day-0-operator-checklist) |
+| Daily tasks | [admin.md § Cookbook](./admin.md#operator-cookbook) |
+| From Shopify | [migration-from-shopify.md](./migration-from-shopify.md) |
+| Rebrand | [customization.md](./customization.md) |
+
+### Production / SRE
+
+| When | Docs |
+| --- | --- |
+| Deploy | [deployment.md](./deployment.md), [release-checklist.md](./release-checklist.md) |
+| Operate | [runbook.md](./runbook.md) |
+| Incidents | [troubleshooting.md](./troubleshooting.md) |
+| Security | [security.md](./security.md) |
 
 ---
 
-## Core documents
+## All documents (A–Z)
 
-| Document | Contents |
+| Doc | Summary |
 | --- | --- |
-| [Onboarding](./onboarding.md) | Day-0 checklist, first purchase, mental model |
-| [Day 2](./day-2.md) | Post-setup developer + operator tasks |
-| [Getting started](./getting-started.md) | Env reference, deploy |
-| [Platform overview](./platform-overview.md) | Shopify map, gaps, branding |
-| [Architecture](./architecture.md) | Layers, diagrams, entities |
-| [Flows](./flows.md) | End-to-end commerce stories |
-| [Troubleshooting](./troubleshooting.md) | Symptom-first fixes |
-| [Commerce protocol — FROZEN](./commerce-protocol-frozen.md) | Mutation policy |
-
----
-
-## Reference
-
-| Document | Contents |
-| --- | --- |
-| [API overview](./api-overview.md) | Route map, auth conventions |
-| [Glossary](./glossary.md) | Terms and definitions |
-| [Contributing commerce](./contributing-commerce.md) | PR checklist, decision tree |
-| [Checkout](./checkout.md) | Money capture protocol |
-| [Inventory](./inventory.md) | Stock movement protocol |
-| [Refunds](./refunds.md) | Money reversal protocol |
-| [Admin](./admin.md) | Merchant console + cookbook |
-| [Storefront](./storefront.md) | Customer surface |
-| [Concierge](./concierge/overview.md) | AI support layer |
+| [admin.md](./admin.md) | Merchant console + operator cookbook |
+| [api-overview.md](./api-overview.md) | HTTP route map |
+| [architecture.md](./architecture.md) | Layers, diagrams, entities |
+| [checkout.md](./checkout.md) | Money capture protocol |
+| [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) | Mutation policy |
+| [concierge/overview.md](./concierge/overview.md) | AI support |
+| [contributing-commerce.md](./contributing-commerce.md) | Safe extension guide |
+| [customization.md](./customization.md) | Rebrand + UI fork guide |
+| [data-model.md](./data-model.md) | Firestore collections |
+| [day-2.md](./day-2.md) | Post-setup week 1 |
+| [deployment.md](./deployment.md) | Production deploy |
+| [environment-variables.md](./environment-variables.md) | Full env reference |
+| [faq.md](./faq.md) | Common questions |
+| [flows.md](./flows.md) | End-to-end stories |
+| [getting-started.md](./getting-started.md) | Setup reference |
+| [glossary.md](./glossary.md) | Terms |
+| [inventory.md](./inventory.md) | Stock protocol |
+| [local-development.md](./local-development.md) | Dev workflow + debugging |
+| [migration-from-shopify.md](./migration-from-shopify.md) | Shopify migration map |
+| [onboarding.md](./onboarding.md) | Day-0 guided path |
+| [platform-overview.md](./platform-overview.md) | Scope vs Shopify |
+| [protocols.md](./protocols.md) | Four protocols unified |
+| [quick-reference.md](./quick-reference.md) | Cheat sheet |
+| [refunds.md](./refunds.md) | Money reversal protocol |
+| [release-checklist.md](./release-checklist.md) | Pre-release gate |
+| [runbook.md](./runbook.md) | Production ops |
+| [security.md](./security.md) | Auth, secrets, rules |
+| [storefront.md](./storefront.md) | Customer shop |
+| [testing.md](./testing.md) | Test suites |
+| [troubleshooting.md](./troubleshooting.md) | Symptom fixes |
 
 ---
 
@@ -104,29 +112,22 @@ Open-source, self-hosted ecommerce with Shopify-class storefront and admin. You 
 
 ```bash
 npm test
-
-npm test -- --run \
-  src/tests/checkout-verification-ladder.test.ts \
-  src/tests/refund-verification-ladder.test.ts \
-  src/tests/inventory-verification-ladder.test.ts \
-  src/tests/admin-verification-ladder.test.ts
-
-npm run benchmark:order-flow
+npm test -- --run src/tests/*-verification-ladder.test.ts
 npm run test:e2e
 ```
+
+[testing.md](./testing.md) · [release-checklist.md](./release-checklist.md)
 
 ---
 
 ## Legacy redirects
 
 - [checkout-orchestration.md](./checkout-orchestration.md) → [checkout.md](./checkout.md)
-- [checkout-protocol-frozen.md](./checkout-protocol-frozen.md) → [checkout.md](./checkout.md) §13 + [commerce-protocol-frozen.md](./commerce-protocol-frozen.md)
+- [checkout-protocol-frozen.md](./checkout-protocol-frozen.md) → [commerce-protocol-frozen.md](./commerce-protocol-frozen.md)
 - [woodbine-crm-whitepaper.md](./woodbine-crm-whitepaper.md) → [platform-overview.md](./platform-overview.md)
 
 ---
 
 ## Wiki
 
-- [Knowledge ledger](../.wiki/index.md)
-- [Schemas](../.wiki/architecture/schemas.md)
-- [Admin access](../.wiki/admin-access.md)
+- [Knowledge ledger](../.wiki/index.md) · [Schemas](../.wiki/architecture/schemas.md) · [Admin access](../.wiki/admin-access.md)

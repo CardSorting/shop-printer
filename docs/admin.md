@@ -34,6 +34,19 @@ Admin IA follows Shopify-familiar groupings (`src/ui/navigation/adminNavigation.
 
 Command palette (`SearchCommandPalette`) indexes the same taxonomy for keyboard-first navigation.
 
+### Keyboard shortcuts
+
+Shortcuts use **`G` then letter** (Go navigation pattern):
+
+| Keys | Destination |
+| --- | --- |
+| `G` `H` | Home / dashboard |
+| `G` `R` | Orders |
+| `G` `P` | Products |
+| `G` `O` | Planning / ops |
+
+Additional shortcuts defined on items in `src/ui/navigation/adminNavigation.ts`. Open command palette from admin header for searchable navigation and aliases (e.g. type "stock" → Inventory).
+
 ---
 
 ## Protocol boundary

@@ -44,7 +44,9 @@ Seed creates sample catalog, inventory (protocol-safe), and a dev admin user. Re
 
 ## Environment variables
 
-Copy `.env.example` to `.env`. Grouped by concern:
+Copy `.env.example` to `.env`. **Canonical reference:** [environment-variables.md](./environment-variables.md)
+
+Summary by concern:
 
 ### Security (required)
 

@@ -6,6 +6,8 @@ DreamBees Art inventory coordinates **cached stock counts** (sellable catalog tr
 
 Routes, checkout, fulfillment, admin, and system jobs call `services.inventory` only — never `productRepo.batchUpdateStock` directly.
 
+> **Cheat sheet:** [quick-reference.md](./quick-reference.md) · **Data model:** [data-model.md](./data-model.md) · **Tests:** [testing.md](./testing.md)
+
 Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) · Platform context: [platform-overview.md](./platform-overview.md)
 
 **Related:** [flows.md § Receive stock](./flows.md#receive-stock-flow-purchase-order) · [checkout.md § Checkout × inventory](./checkout.md#checkout--inventory) · [onboarding.md](./onboarding.md)

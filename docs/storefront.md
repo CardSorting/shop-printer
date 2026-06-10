@@ -104,7 +104,63 @@ Order pages show timeline events, tracking links when present, and fulfillment s
 
 ---
 
-## Catalog and SEO
+## Authentication flows
+
+### Guest shopper
+
+```text
+Browse → add to cart → checkout as guest OR register mid-flow
+  → Firebase Auth (email/password or Google if enabled)
+  → signed HTTP-only session cookie
+  → cart merged to user id
+```
+
+Routes: `/register`, `/login`, `/api/auth/sign-up`, `/api/auth/sign-in`
+
+### Returning customer
+
+Session persists across visits (cookie). Account at `/account` — profile, orders, vault, wishlist.
+
+### Password reset
+
+`/forgot-password` → `POST /api/auth/forgot-password` → Brevo email (when configured)
+
+### Step-up (high-value checkout)
+
+Some checkout paths require recent re-auth (`requireStepUpSessionUser`) — mirrors Shopify high-value order verification pattern.
+
+---
+
+## Checkout client behavior
+
+The checkout page (`/checkout`) typically:
+
+1. Loads cart from `/api/cart`
+2. Validates discount via `/api/discounts/validate` if code applied
+3. Calls `POST /api/checkout/create-payment-intent` with **idempotency key** (stable per checkout attempt)
+4. Initializes Stripe.js with `clientSecret`
+5. On payment success → redirect to success URL
+6. Success page calls `GET /api/checkout/verify?payment_intent=…` in parallel with webhook finalization
+
+**Client must not** finalize orders locally — always wait for verify response or poll `/api/orders`.
+
+Stripe test cards: [local-development.md](./local-development.md)
+
+---
+
+## Error states (customer-facing)
+
+| Situation | Typical UX | Backend |
+| --- | --- | --- |
+| Out of stock | Add-to-cart error | `checkAvailability` |
+| Payment declined | Stripe error message | `payment_failed` webhook → rollback |
+| Session expired | Re-login prompt | 401 on API |
+| Checkout already in progress | Error or resume | Checkout lock |
+| Verify slow | Loading / retry | Webhook may still finalize |
+
+Operator/debug: [troubleshooting.md](./troubleshooting.md)
+
+---
 
 - **Handle-based URLs** — `/products/[handle]` (stable, shareable)
 - **JSON-LD** and meta tags from product/collection SEO fields
