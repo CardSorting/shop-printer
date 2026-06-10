@@ -9,6 +9,7 @@ Open-source, self-hosted ecommerce with Shopify-class storefront and admin.
 | Full technical thesis | [whitepaper.md](./whitepaper.md) |
 | Run locally first time | [onboarding.md](./onboarding.md) |
 | Daily dev workflow | [local-development.md](./local-development.md) |
+| Contribute | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Rebrand / fork | [customization.md](./customization.md) |
 | Leave Shopify | [migration-from-shopify.md](./migration-from-shopify.md) |
 | Ship to production | [deployment.md](./deployment.md) → [release-checklist.md](./release-checklist.md) |
@@ -37,7 +38,8 @@ onboarding.md                 storefront.md                 commerce-protocol-fr
 day-2.md                      storefront-release.md         checkout.md
 local-development.md          admin.md                      inventory.md
 getting-started.md              concierge/overview.md         refunds.md
-environment-variables.md                                    contributing-commerce.md
+environment-variables.md                                    CONTRIBUTING.md (repo root)
+                                                            contributing-commerce.md
 
 REFERENCE
 ─────────
@@ -56,7 +58,7 @@ migration-from-shopify.md · troubleshooting.md
 | Day 0 | [onboarding.md](./onboarding.md), [getting-started.md](./getting-started.md), [environment-variables.md](./environment-variables.md) |
 | Daily | [local-development.md](./local-development.md), [quick-reference.md](./quick-reference.md) |
 | Learning | [architecture.md](./architecture.md), [flows.md](./flows.md), [protocols.md](./protocols.md) |
-| PR | [contributing-commerce.md](./contributing-commerce.md), [testing.md](./testing.md), [release-checklist.md](./release-checklist.md) |
+| PR | [CONTRIBUTING.md](../CONTRIBUTING.md), [contributing-commerce.md](./contributing-commerce.md), [testing.md](./testing.md), [release-checklist.md](./release-checklist.md) |
 
 ### Merchant / operator
 
@@ -88,7 +90,8 @@ migration-from-shopify.md · troubleshooting.md
 | [checkout.md](./checkout.md) | Money capture protocol |
 | [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) | Mutation policy |
 | [concierge/overview.md](./concierge/overview.md) | AI support |
-| [contributing-commerce.md](./contributing-commerce.md) | Safe extension guide |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | Contribution guide |
+| [contributing-commerce.md](./contributing-commerce.md) | Safe commerce extension guide |
 | [customization.md](./customization.md) | Rebrand + UI fork guide |
 | [data-model.md](./data-model.md) | Firestore collections |
 | [day-2.md](./day-2.md) | Post-setup week 1 |

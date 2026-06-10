@@ -143,7 +143,7 @@ Guided setup: [docs/onboarding.md](docs/onboarding.md) · Reference: [docs/getti
 | Architecture | [architecture](docs/architecture.md), [protocols](docs/protocols.md), [flows](docs/flows.md), [storefront-release](docs/storefront-release.md) |
 | Protocols | [checkout](docs/checkout.md), [inventory](docs/inventory.md), [refunds](docs/refunds.md), [commerce-protocol-frozen](docs/commerce-protocol-frozen.md) |
 | Ship | [production-readiness](docs/production-readiness.md), [deployment](docs/deployment.md), [release-checklist](docs/release-checklist.md), [runbook](docs/runbook.md) |
-| Extend | [customization](docs/customization.md), [contributing-commerce](docs/contributing-commerce.md), [migration-from-shopify](docs/migration-from-shopify.md) |
+| Extend | [CONTRIBUTING](CONTRIBUTING.md), [customization](docs/customization.md), [contributing-commerce](docs/contributing-commerce.md), [migration-from-shopify](docs/migration-from-shopify.md) |
 
 Operational wiki: [.wiki/index.md](.wiki/index.md)
 
@@ -163,6 +163,12 @@ Next.js 15 · React 18 · TypeScript · Firestore · Firebase Auth · Stripe 17 
 
 ---
 
+## Contributing
+
+Contributions welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md). Commerce and protocol changes also require [docs/contributing-commerce.md](docs/contributing-commerce.md).
+
+---
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — Copyright (c) 2026 [William Cruz](LICENSE). See [LICENSE](LICENSE).
