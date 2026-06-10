@@ -298,6 +298,8 @@ export interface Cart {
   userId: string;
   items: CartItem[];
   note?: string;
+  /** Advisory discount intent — checkout revalidates. */
+  discountCode?: string;
   updatedAt: Date;
 }
 

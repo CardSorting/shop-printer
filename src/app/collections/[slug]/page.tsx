@@ -1,35 +1,12 @@
-import { ProductsPage } from '@ui/pages/ProductsPage';
 import type { Metadata } from 'next';
 import { JsonLd } from '@ui/components/JsonLd';
-import { getServerServices } from '@infrastructure/server/services';
 import { notFound } from 'next/navigation';
 import { buildNextPageMetadata, getAppSeoEngine } from '@infrastructure/seo';
 import { breadcrumbJsonLd, itemListJsonLd } from '@utils/seo';
-import { loadCatalogBootstrap, serializeCatalogBootstrap } from '@infrastructure/server/loadCatalogBootstrap';
+import { prepareCatalogPage, resolveCatalogSlug } from '@infrastructure/server/catalog';
+import { CatalogPage, CatalogLcpPreload } from '@ui/pages/catalog';
 
 const seo = getAppSeoEngine();
-
-async function getCategoryOrCollection(slug: string) {
-  const services = await getServerServices();
-  try {
-    const category = await services.taxonomyService.getCategoryBySlug(slug);
-    if (category) return { type: 'category' as const, data: category };
-
-    const collection = await services.collectionService.getByHandle(slug);
-    if (collection) return { type: 'collection' as const, data: collection };
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function readCatalogFilters(filters: Record<string, string | string[] | undefined>) {
-  const sortBy = typeof filters.sort_by === 'string' ? filters.sort_by : 'newest';
-  const search =
-    typeof filters.q === 'string' ? filters.q : typeof filters.search === 'string' ? filters.search : '';
-  return { sortBy, search };
-}
 
 export async function generateMetadata({
   params,
@@ -40,7 +17,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const filters = await searchParams;
-  const resolved = await getCategoryOrCollection(slug);
+  const resolved = await resolveCatalogSlug(slug);
   const hasFilters = Object.keys(filters).length > 0;
 
   if (!resolved) {
@@ -81,56 +58,28 @@ export default async function CollectionPage({
 }) {
   const { slug } = await params;
   const filters = await searchParams;
-  const { sortBy, search } = readCatalogFilters(filters);
-  const resolved = await getCategoryOrCollection(slug);
+  const prepared = await prepareCatalogPage({ kind: 'collection', slug, filters });
 
-  if (!resolved && slug !== 'all') {
+  if (prepared.notFound) {
     notFound();
   }
 
-  const collectionInfo = resolved
-    ? {
-        name: resolved.data.name,
-        description: resolved.data.description || '',
-        ...(resolved.type === 'collection' ? { imageUrl: resolved.data.imageUrl } : {}),
-      }
-    : null;
-
-  const bootstrap = serializeCatalogBootstrap(
-    await loadCatalogBootstrap({
-      resolvedType: resolved?.type,
-      collectionSlug: slug,
-      query: search,
-      sortBy,
-      collectionInfo,
-    }),
-  );
-
-  const displayName = resolved?.data.name || 'All Vendors & Menu';
   const jsonLd = [
     breadcrumbJsonLd([
       { name: 'Home', path: '/' },
       { name: 'Hall Favorites', path: '/collections/bestsellers' },
-      { name: displayName, path: `/collections/${slug}` },
+      { name: prepared.displayName, path: `/collections/${slug}` },
     ]),
-    itemListJsonLd(displayName, `/collections/${slug}`, [
-      { name: displayName, path: `/collections/${slug}` },
+    itemListJsonLd(prepared.displayName, `/collections/${slug}`, [
+      { name: prepared.displayName, path: `/collections/${slug}` },
     ]),
   ];
 
   return (
     <>
+      <CatalogLcpPreload imageUrls={prepared.lcpImageUrls} />
       <JsonLd data={jsonLd} />
-      <ProductsPage
-        resolvedType={resolved?.type}
-        resolvedSlug={slug}
-        initialProducts={bootstrap.products}
-        initialNextCursor={bootstrap.nextCursor}
-        initialCategories={bootstrap.categories}
-        initialCollectionInfo={bootstrap.collectionInfo}
-        initialSortBy={sortBy}
-        initialSearch={search}
-      />
+      <CatalogPage {...prepared.pageProps} />
     </>
   );
 }

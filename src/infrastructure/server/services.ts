@@ -13,7 +13,6 @@ import type { SupportApplicationService } from '@core/support/supportApplication
 import type { CrmApplicationService } from '@core/crm/crmApplicationService';
 import type { CommerceTimelineService } from '@core/commerce/commerceTimelineService';
 import type { ICommerceEventBus } from '@core/commerce/commerceEventBus';
-
 export type ServerServices = ReturnType<typeof getInitialServices> & {
   checkout: CheckoutApplicationService;
   inventory: InventoryApplicationService;

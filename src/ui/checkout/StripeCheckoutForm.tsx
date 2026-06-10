@@ -126,6 +126,18 @@ function StripeCheckoutFields({ address, onSuccess, onPlaceOrder, isPlacing }: S
         </div>
       )}
 
+      {process.env.NEXT_PUBLIC_E2E_MOCK_CHECKOUT === '1' && (
+        <button
+          type="button"
+          data-testid="mock-checkout-button"
+          disabled={isPlacing || !isAddressValid}
+          onClick={() => void onSuccess('pm_e2e_mock')}
+          className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 py-3 text-sm font-black text-amber-900"
+        >
+          Mock Pay (E2E)
+        </button>
+      )}
+
       <button
         type="submit"
         disabled={!stripe || isPlacing || !isAddressValid}

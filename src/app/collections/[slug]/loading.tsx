@@ -1,5 +1,5 @@
-import { ProductsPageSkeleton } from '@ui/pages/ProductsPageSkeleton';
+import { CatalogPageSkeleton } from '@ui/pages/catalog';
 
 export default function CollectionLoading() {
-  return <ProductsPageSkeleton />;
+  return <CatalogPageSkeleton />;
 }

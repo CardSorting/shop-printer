@@ -150,6 +150,22 @@ export class CartService {
     });
   }
 
+  async updateDiscountCode(userId: string, discountCode: string | null): Promise<Cart> {
+    return await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const cart = await this.cartRepo.getByUserId(userId, transaction);
+      if (!cart) throw new Error(`Cart not found for user ${userId}`);
+
+      const updatedCart: Cart = {
+        ...cart,
+        discountCode: discountCode ?? undefined,
+        updatedAt: new Date(),
+      };
+
+      await this.cartRepo.save(updatedCart, transaction);
+      return updatedCart;
+    });
+  }
+
   getCartTotal(items: CartItem[]): number {
     return calculateCartTotal(items);
   }

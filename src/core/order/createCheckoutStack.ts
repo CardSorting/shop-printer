@@ -17,6 +17,7 @@ import { CheckoutMutationService } from './checkoutMutationService';
 import type { ICheckoutEventLog } from './checkoutEventLog';
 import type { ReconciliationOperatorAction } from './checkoutTypes';
 import type { ICommerceEventBus } from '../commerce/commerceEventBus';
+import type { CartApplicationService } from '../cart/cartApplicationService';
 
 export type CheckoutStackDeps = {
   orderRepo: IOrderRepository;
@@ -39,6 +40,7 @@ export type CheckoutStackDeps = {
     actor: { id: string; email: string };
   }) => Promise<void>;
   commerceEventBus?: ICommerceEventBus;
+  cartIntent?: Pick<CartApplicationService, 'validateCart'>;
 };
 
 export type CheckoutStack = {
@@ -62,6 +64,7 @@ export function createCheckoutStack(deps: CheckoutStackDeps): CheckoutStack {
     deps.inventory,
     deps.shippingRepo,
     deps.commerceEventBus,
+    deps.cartIntent,
   );
   const checkout = new CheckoutFlowService(mutations, deps.orderRepo, {
     checkoutGateway: deps.checkoutGateway,

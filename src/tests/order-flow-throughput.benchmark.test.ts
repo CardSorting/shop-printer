@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { CartService } from '@core/CartService';
+import { createCartStack } from '@core/cart';
 import { createOrderTestStack } from './helpers/orderTestStack';
 import type { Address, Cart, CheckoutAttempt, Order, Product } from '@domain/models';
 
@@ -396,7 +396,7 @@ function createHarness() {
     cartRepo,
     productRepo,
     orderRepo,
-    cartService: new CartService(cartRepo as any, productRepo as any),
+    cart: createCartStack({ cartRepo: cartRepo as any, productRepo: productRepo as any }).cart,
     orderService,
     checkout,
   };
@@ -409,7 +409,12 @@ describe.runIf(BENCHMARK_ENABLED)('order flow throughput benchmark', () => {
     for (const concurrency of [25, 50, 100, 200]) {
       const harness = createHarness();
       rows.push(await runMeasuredLoad('cart_add_to_cart', 2_000, concurrency, async index => {
-        await harness.cartService.addToCart(`cart-user-${concurrency}-${index}`, 'product-benchmark', 1);
+        const result = await harness.cart.addItem({
+          userId: `cart-user-${concurrency}-${index}`,
+          productId: 'product-benchmark',
+          quantity: 1,
+        });
+        if (!result.ok) throw new Error(result.message);
       }));
     }
 

@@ -38,6 +38,7 @@ import type { ICommerceEventBus } from '../commerce/commerceEventBus';
 import { mapCheckoutEventToEnvelope } from '../commerce/commerceEventMappers';
 import { orderCorrelationId } from '../commerce/correlation';
 import { runWithPostCommitCommerceEvents } from '../commerce/postCommitCommerceEvents';
+import type { CartApplicationService } from '../cart/cartApplicationService';
 
 /** @internal Checkout mutations — construct via createCheckoutStack() only. */
 export class CheckoutMutationService implements CheckoutMutationBackend {
@@ -54,6 +55,7 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
     private inventory: InventoryMutationBackend,
     private shippingRepo?: IShippingRepository,
     private commerceEventBus?: ICommerceEventBus,
+    private cartIntent?: Pick<CartApplicationService, 'validateCart'>,
   ) {}
 
   private async publishCheckoutEvent(input: {
@@ -124,6 +126,16 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
     const attemptId = idempotencyKey || crypto.randomUUID();
     this.logPhaseTransition(attemptId, null, 'PREPARE_CHECKOUT', 'local', 'none', { userId, discountCode });
     assertValidShippingAddress(shippingAddress);
+
+    if (this.cartIntent) {
+      const cartValidation = await this.cartIntent.validateCart({ userId });
+      if (!cartValidation.ok || !cartValidation.data.valid) {
+        const message = cartValidation.ok
+          ? cartValidation.data.issues.map((issue) => issue.message).join(' ')
+          : cartValidation.message;
+        throw new DomainError(message || 'Cart validation failed. Please refresh your cart before checkout.');
+      }
+    }
 
     this.logPhaseTransition(attemptId, 'PREPARE_CHECKOUT', 'ACQUIRE_RESERVATION', 'local', 'none', { userId });
     const lockId = `checkout_lock:${userId}`;

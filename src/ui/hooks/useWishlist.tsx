@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from './useAuth';
 import { useServices } from './useServices';
 import type { Wishlist, Product } from '@domain/models';
@@ -8,6 +8,7 @@ import type { Wishlist, Product } from '@domain/models';
 interface WishlistContextType {
   wishlists: Wishlist[];
   recentlyViewed: Product[];
+  wishlistedProductIds: ReadonlySet<string>;
   loading: boolean;
   error: string | null;
   refreshWishlists: () => Promise<void>;
@@ -97,7 +98,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     return () => controllerRef.current?.abort();
   }, [refreshWishlists]);
 
-  const addToWishlist = async (productId: string, wishlistId?: string) => {
+  const addToWishlist = useCallback(async (productId: string, wishlistId?: string) => {
     if (!user) throw new Error('Must be logged in');
     
     const targetId = wishlistId || wishlists.find(w => w.isDefault)?.id;
@@ -109,20 +110,20 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       [targetId]: new Set([...(prev[targetId] || []), productId])
     }));
-  };
+  }, [user, wishlists, services.wishlistService]);
 
-  const removeFromWishlist = async (productId: string, wishlistId?: string) => {
+  const removeFromWishlist = useCallback(async (productId: string, wishlistId?: string) => {
     if (!user) throw new Error('Must be logged in');
 
     if (!wishlistId) {
       const listsWithItem = Object.entries(itemMap)
         .filter(([_, items]) => items.has(productId))
         .map(([id]) => id);
-      
+
       for (const id of listsWithItem) {
         await services.wishlistService.removeItem(id, productId);
       }
-      
+
       setItemMap(prev => {
         const next = { ...prev };
         for (const id of listsWithItem) {
@@ -132,41 +133,69 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         }
         return next;
       });
-    } else {
-      await services.wishlistService.removeItem(wishlistId, productId);
-      setItemMap(prev => {
-        const newSet = new Set(prev[wishlistId]);
-        newSet.delete(productId);
-        return { ...prev, [wishlistId]: newSet };
-      });
+      return;
     }
-  };
 
-  const isInWishlist = (productId: string) => {
-    return Object.values(itemMap).some(items => items.has(productId));
-  };
+    await services.wishlistService.removeItem(wishlistId, productId);
+    setItemMap(prev => {
+      const newSet = new Set(prev[wishlistId]);
+      newSet.delete(productId);
+      return { ...prev, [wishlistId]: newSet };
+    });
+  }, [user, itemMap, services.wishlistService]);
 
-  const createCollection = async (name: string) => {
+  const wishlistedProductIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const items of Object.values(itemMap)) {
+      for (const id of items) ids.add(id);
+    }
+    return ids;
+  }, [itemMap]);
+
+  const isInWishlist = useCallback(
+    (productId: string) => wishlistedProductIds.has(productId),
+    [wishlistedProductIds],
+  );
+
+  const createCollection = useCallback(async (name: string) => {
     if (!user) throw new Error('Must be logged in');
     const newList = await services.wishlistService.createWishlist(name);
     setWishlists(prev => [...prev, newList]);
     setItemMap(prev => ({ ...prev, [newList.id]: new Set() }));
     return newList;
-  };
+  }, [user, services.wishlistService]);
 
-  return (
-    <WishlistContext.Provider value={{ 
-      wishlists, 
+  const contextValue = useMemo<WishlistContextType>(
+    () => ({
+      wishlists,
       recentlyViewed,
-      loading, 
-      error, 
-      refreshWishlists, 
-      addToWishlist, 
-      removeFromWishlist, 
+      wishlistedProductIds,
+      loading,
+      error,
+      refreshWishlists,
+      addToWishlist,
+      removeFromWishlist,
       isInWishlist,
       createCollection,
-      trackView
-    }}>
+      trackView,
+    }),
+    [
+      wishlists,
+      recentlyViewed,
+      wishlistedProductIds,
+      loading,
+      error,
+      refreshWishlists,
+      addToWishlist,
+      removeFromWishlist,
+      isInWishlist,
+      createCollection,
+      trackView,
+    ],
+  );
+
+  return (
+    <WishlistContext.Provider value={contextValue}>
       {children}
     </WishlistContext.Provider>
   );

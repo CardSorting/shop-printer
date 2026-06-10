@@ -3,6 +3,7 @@
  */
 'use client';
 
+import type { CartResult, CartValidation, CartView, CartLineItem } from '@core/cart';
 import type { 
     Address, Cart, CartItem, Collection, Discount, InventoryLevel, InventoryLocation, 
     Product, ProductMedia, PurchaseOrder, SupportTicket, TicketMessage, User, 
@@ -62,15 +63,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 function reviveDates(value: unknown): unknown {
-    if (Array.isArray(value)) return value.map(reviveDates);
-    if (value && typeof value === 'object') {
-        const out: Record<string, unknown> = {};
-        for (const [key, val] of Object.entries(value)) {
-            out[key] = DATE_FIELD_KEYS.has(key) && typeof val === 'string' ? new Date(val) : reviveDates(val);
-        }
-        return out;
+  if (Array.isArray(value)) return value.map(reviveDates);
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(value)) {
+      out[key] = DATE_FIELD_KEYS.has(key) && typeof val === 'string' ? new Date(val) : reviveDates(val);
     }
-    return value;
+    return out;
+  }
+  return value;
 }
 
 export function createApiClientServices() {
@@ -189,14 +190,33 @@ export function createApiClientServices() {
             completeWithPaymentMethod: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey: string, discountCode?: string) =>
                 (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
         },
-        cartService: {
-            getCart: (userId: string, signal?: AbortSignal) => (sessionScoped(userId), request<Cart | null>('/api/cart', { signal })),
-            addToCart: (userId: string, productId: string, quantity: number, variantId?: string) => (sessionScoped(userId), request<Cart>('/api/cart/items', { method: 'POST', body: JSON.stringify({ productId, quantity, variantId }) })),
-            removeFromCart: (userId: string, productId: string, variantId?: string) => (sessionScoped(userId), request<Cart>('/api/cart/items', { method: 'DELETE', body: JSON.stringify({ productId, variantId }) })),
-            updateQuantity: (userId: string, productId: string, quantity: number, variantId?: string) => (sessionScoped(userId), request<Cart>('/api/cart/items', { method: 'PATCH', body: JSON.stringify({ productId, quantity, variantId }) })),
-            updateNote: (userId: string, note: string) => (sessionScoped(userId), request<Cart>('/api/cart/note', { method: 'POST', body: JSON.stringify({ note }) })),
-            clearCart: (userId: string) => (sessionScoped(userId), request<void>('/api/cart', { method: 'DELETE' })),
-            getCartTotal: (items: { priceSnapshot: number; quantity: number }[]) => items.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0),
+        cart: {
+            getCart: (signal?: AbortSignal) => request<CartResult<CartView>>('/api/cart', { signal }),
+            addItem: (productId: string, quantity: number, variantId?: string) =>
+                request<CartResult<CartView>>('/api/cart/items', { method: 'POST', body: JSON.stringify({ productId, quantity, variantId }) }),
+            updateItem: (productId: string, quantity: number, variantId?: string) =>
+                request<CartResult<CartView>>('/api/cart/items', { method: 'PATCH', body: JSON.stringify({ productId, quantity, variantId }) }),
+            removeItem: (productId: string, variantId?: string) =>
+                request<CartResult<CartView>>('/api/cart/items', { method: 'DELETE', body: JSON.stringify({ productId, variantId }) }),
+            clearCart: () => request<CartResult<CartView>>('/api/cart', { method: 'DELETE' }),
+            updateNote: (note: string) =>
+                request<CartResult<CartView>>('/api/cart/note', { method: 'POST', body: JSON.stringify({ note }) }),
+            applyDiscount: (code: string) =>
+                request<CartResult<CartView>>('/api/cart/discount', { method: 'POST', body: JSON.stringify({ code }) }),
+            validateCart: () => request<CartResult<CartValidation>>('/api/cart/validate', { method: 'POST' }),
+            previewLineItem: (productId: string, quantity: number, variantId?: string) =>
+                request<CartResult<CartLineItem>>('/api/cart/preview-line', {
+                    method: 'POST',
+                    body: JSON.stringify({ productId, quantity, variantId }),
+                }),
+            mergeGuestItems: (items: Array<{ productId: string; quantity: number; variantId?: string }>) =>
+                request<
+                    CartResult<{
+                        cart: CartView;
+                        mergeIssues: import('@core/cart').CartIssue[];
+                        remainingGuestItems: Array<{ productId: string; quantity: number; variantId?: string }>;
+                    }>
+                >('/api/cart/merge-guest', { method: 'POST', body: JSON.stringify({ items }) }),
         },
         orderQueryService: {
             getAdminDashboardSummary: (signal?: AbortSignal) => request<AdminDashboardSummary>('/api/admin/dashboard', { signal }),

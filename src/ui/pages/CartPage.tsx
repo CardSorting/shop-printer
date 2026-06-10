@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { useCart } from '../hooks/useCart';
+import { useAuth } from '../hooks/useAuth';
 import { useServices } from '../hooks/useServices';
 import type { Product } from '@domain/models';
 import { MAX_CART_QUANTITY } from '@domain/rules';
@@ -19,6 +20,7 @@ import { logger } from '@utils/logger';
 import { getProductUrl, STORE_PATHS } from '@utils/navigation';
 import { sanitizeImageUrl } from '@utils/imageSanitizer';
 import { SITE_CART_EMPTY_LINE } from '@utils/seo';
+import { CartIssuesBanner } from '@ui/cart';
 
 
 function formatMoney(cents: number): string {
@@ -28,10 +30,20 @@ function formatMoney(cents: number): string {
 const FREE_SHIPPING_THRESHOLD = 10000;
 
 export function CartPage() {
-  const { 
-    cart, loading, updateQuantity, removeItem, clearCart, 
-    subtotal, totalItems, addItem 
+  const {
+    cart,
+    loading,
+    refreshing,
+    viewState,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    subtotal,
+    totalItems,
+    addItem,
+    refreshCart,
   } = useCart();
+  const { user } = useAuth();
   const services = useServices();
   
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -49,6 +61,20 @@ export function CartPage() {
 
     try {
       const code = promoCode.trim().toUpperCase();
+
+      if (user) {
+        const result = await services.cart.applyDiscount(code);
+        if (result.ok) {
+          setAppliedPromo({ code, amount: 0 });
+          setPromoMessage({ text: `${code} applied!`, isError: false });
+          localStorage.setItem('checkout:discountCode', code);
+          await refreshCart();
+        } else {
+          setPromoMessage({ text: result.message || 'Invalid code', isError: true });
+        }
+        return;
+      }
+
       const res = await fetch('/api/discounts/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -74,6 +100,10 @@ export function CartPage() {
       setIsApplying(false);
     }
   };
+
+  useEffect(() => {
+    if (!loading) void refreshCart();
+  }, [loading, refreshCart]);
 
   useEffect(() => {
     const loadFeatured = async () => {
@@ -129,6 +159,14 @@ export function CartPage() {
             )}
           </div>
         </div>
+
+        {viewState.state === 'invalid' && (
+          <CartIssuesBanner
+            issues={viewState.issues}
+            onRefresh={() => void refreshCart()}
+            refreshing={refreshing}
+          />
+        )}
 
         {totalItems === 0 ? (
           <div className="space-y-20">

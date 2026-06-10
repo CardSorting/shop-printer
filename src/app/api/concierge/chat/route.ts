@@ -863,12 +863,12 @@ export async function POST(req: NextRequest) {
         if (tokens.analyzeCartConflicts.length > 0) {
           const tStart = Date.now();
           try {
-            const { cartService, productService } = getInitialServices();
-            const cart = await cartService.getCart(userId);
+            const { cart, productService } = getInitialServices();
+            const cartResult = await cart.getCart({ userId });
             const conflicts = [];
-            
-            if (cart) {
-              for (const item of cart.items) {
+
+            if (cartResult.ok && cartResult.data.items.length > 0) {
+              for (const item of cartResult.data.items) {
                 const product = await productService.getProduct(item.productId);
                 if (product.status === 'archived') {
                   conflicts.push(`Product "${product.name}" is discontinued.`);
@@ -878,11 +878,11 @@ export async function POST(req: NextRequest) {
                 }
               }
             }
-            
+
             sessionUpdates['context.cartAnalysis'] = {
               hasConflicts: conflicts.length > 0,
               conflicts,
-              itemCount: cart?.items.length || 0
+              itemCount: cartResult.ok ? cartResult.data.items.length : 0,
             };
           } catch (err) {
             logger.error('Failed to analyze cart conflicts from concierge', err);

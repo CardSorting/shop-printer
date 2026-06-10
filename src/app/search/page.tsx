@@ -1,21 +1,15 @@
-import { ProductsPage } from '@ui/pages/ProductsPage';
 import type { Metadata } from 'next';
 import { JsonLd } from '@ui/components/JsonLd';
 import { buildNextPageMetadata, getAppSeoEngine } from '@infrastructure/seo';
 import { breadcrumbJsonLd, cleanSeoText } from '@utils/seo';
-import { loadCatalogBootstrap, serializeCatalogBootstrap } from '@infrastructure/server/loadCatalogBootstrap';
+import { prepareCatalogPage } from '@infrastructure/server/catalog';
+import { CatalogPage, CatalogLcpPreload } from '@ui/pages/catalog';
 
 type SearchProps = {
   searchParams: Promise<{ q?: string; sort_by?: string }>;
 };
 
 const seo = getAppSeoEngine();
-
-function readSearchFilters(filters: { q?: string; sort_by?: string }) {
-  const sortBy = typeof filters.sort_by === 'string' ? filters.sort_by : 'newest';
-  const search = typeof filters.q === 'string' ? filters.q : '';
-  return { sortBy, search };
-}
 
 export async function generateMetadata({ searchParams }: SearchProps): Promise<Metadata> {
   const { q = '' } = await searchParams;
@@ -24,14 +18,11 @@ export async function generateMetadata({ searchParams }: SearchProps): Promise<M
 
 export default async function SearchPage({ searchParams }: SearchProps) {
   const filters = await searchParams;
-  const { sortBy, search } = readSearchFilters(filters);
+  const prepared = await prepareCatalogPage({ kind: 'search', filters });
 
-  const bootstrap = serializeCatalogBootstrap(
-    await loadCatalogBootstrap({
-      query: search,
-      sortBy,
-    }),
-  );
+  if (prepared.notFound) {
+    throw new Error('Search catalog page returned notFound');
+  }
 
   const jsonLd = breadcrumbJsonLd([
     { name: 'Home', path: '/' },
@@ -40,15 +31,9 @@ export default async function SearchPage({ searchParams }: SearchProps) {
 
   return (
     <>
+      <CatalogLcpPreload imageUrls={prepared.lcpImageUrls} />
       <JsonLd data={jsonLd} />
-      <ProductsPage
-        initialProducts={bootstrap.products}
-        initialNextCursor={bootstrap.nextCursor}
-        initialCategories={bootstrap.categories}
-        initialCollectionInfo={null}
-        initialSortBy={sortBy}
-        initialSearch={search}
-      />
+      <CatalogPage {...prepared.pageProps} />
     </>
   );
 }

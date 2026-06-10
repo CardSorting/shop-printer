@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Star, ShoppingCart, Eye, Heart, Check } from 'lucide-react';
 import { formatCurrency } from '@utils/formatters';
 import { useWishlist } from '../../hooks/useWishlist';
 import type { Product } from '@domain/models';
 import Image from 'next/image';
 import { sanitizeImageUrl } from '@utils/imageSanitizer';
+import { productTimeValue } from '@utils/sortProducts';
 
 interface ProductCardProps {
   product: Product;
@@ -15,31 +17,74 @@ interface ProductCardProps {
   onQuickView?: (product: Product) => void;
   priority?: boolean;
   imageSizes?: string;
+  isFavorited?: boolean;
+  onToggleWishlist?: (productId: string) => void | Promise<void>;
 }
 
-function productTime(value: Product['createdAt'] | string | number | null | undefined): number {
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  if (typeof value === 'string') {
-    const parsed = Date.parse(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  return 0;
+const STAR_INDICES = [0, 1, 2, 3, 4] as const;
+
+function areProductCardPropsEqual(prev: ProductCardProps, next: ProductCardProps): boolean {
+  return (
+    prev.product.id === next.product.id &&
+    prev.product.price === next.product.price &&
+    prev.product.stock === next.product.stock &&
+    prev.product.imageUrl === next.product.imageUrl &&
+    prev.product.name === next.product.name &&
+    prev.product.compareAtPrice === next.product.compareAtPrice &&
+    prev.priority === next.priority &&
+    prev.imageSizes === next.imageSizes &&
+    prev.isFavorited === next.isFavorited &&
+    prev.onAddToCart === next.onAddToCart &&
+    prev.onQuickView === next.onQuickView &&
+    prev.onToggleWishlist === next.onToggleWishlist
+  );
 }
 
-export function ProductCard({
+const WishlistHeartConnected = memo(function WishlistHeartConnected({ productId }: { productId: string }) {
+  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
+  const favorited = isInWishlist(productId);
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      if (favorited) await removeFromWishlist(productId);
+      else await addToWishlist(productId);
+    } catch (err) {
+      console.error('Wishlist action failed', err);
+    }
+  };
+
+  return (
+    <button
+      onClick={(e) => void handleClick(e)}
+      aria-label={favorited ? 'Remove from wishlist' : 'Add to wishlist'}
+      className="absolute top-3 right-3 z-20 h-9 w-9 flex items-center justify-center rounded-full bg-white/95 border border-gray-100 shadow-sm text-gray-500 hover:text-red-500 hover:scale-105 transition-all duration-300"
+    >
+      <Heart className={`h-4 w-4 transition-colors ${favorited ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
+    </button>
+  );
+});
+
+function ProductCardInner({
   product,
   onAddToCart,
   onQuickView,
   priority = false,
   imageSizes = '(max-width: 640px) calc(100vw - 2rem), (max-width: 1280px) calc(50vw - 3rem), 405px',
+  isFavorited,
+  onToggleWishlist,
 }: ProductCardProps) {
-  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
+  const router = useRouter();
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [shouldLoadSecondaryImage, setShouldLoadSecondaryImage] = useState(false);
   const isMounted = useRef(true);
   const successTimerRef = useRef<number | null>(null);
+  const hasPrefetchedRef = useRef(false);
+
+  const productHref = `/products/${product.handle || product.id}`;
+  const usesExternalWishlist = isFavorited !== undefined && onToggleWishlist !== undefined;
 
   useEffect(() => {
     isMounted.current = true;
@@ -51,11 +96,9 @@ export function ProductCard({
     };
   }, []);
   
-  const favorited = isInWishlist(product.id);
-  const isNew = product.tags?.includes('new') || productTime(product.createdAt) > Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const isNew = product.tags?.includes('new') || productTimeValue(product.createdAt) > Date.now() - 7 * 24 * 60 * 60 * 1000;
   const isTrending = product.tags?.includes('trending') || product.tags?.includes('popular') || product.tags?.includes('bestseller');
   
-  // Calculate discount percentage
   const isOnSale = product.compareAtPrice !== undefined && product.compareAtPrice > product.price;
   const discountPercent = isOnSale ? Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100) : 0;
 
@@ -63,26 +106,28 @@ export function ProductCard({
   const averageRating = Number((product as any).averageRating);
   const displayRating = Number.isFinite(averageRating) && Number.isFinite(reviewCount) && reviewCount > 0 ? averageRating : null;
 
-  // Get secondary image for hover swap if available
   const secondaryImage = product.media && product.media.length > 1
     ? product.media.find(m => m.position === 2)?.url || product.media[1]?.url
     : null;
 
-  const primeSecondaryImage = () => {
-    if (secondaryImage && !shouldLoadSecondaryImage) {
+  const prefetchProductPage = useCallback(() => {
+    if (hasPrefetchedRef.current) return;
+    hasPrefetchedRef.current = true;
+    void router.prefetch(productHref);
+  }, [router, productHref]);
+
+  const primeSecondaryImage = useCallback(() => {
+    if (secondaryImage) {
       setShouldLoadSecondaryImage(true);
     }
-  };
+    prefetchProductPage();
+  }, [secondaryImage, prefetchProductPage]);
 
   const handleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     try {
-      if (favorited) {
-        await removeFromWishlist(product.id);
-      } else {
-        await addToWishlist(product.id);
-      }
+      await onToggleWishlist?.(product.id);
     } catch (err) {
       console.error('Wishlist action failed', err);
     }
@@ -119,14 +164,13 @@ export function ProductCard({
 
   return (
     <div className="group relative flex flex-col h-full bg-white" data-testid="product-card">
-      {/* Visual Container */}
       <div
-        className="relative aspect-4/5 rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-500 hover:shadow-xl"
+        className="relative aspect-4/5 rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-shadow duration-500 hover:shadow-xl"
         onFocusCapture={primeSecondaryImage}
         onPointerEnter={primeSecondaryImage}
       >
         <Link
-          href={`/products/${product.handle || product.id}`}
+          href={productHref}
           prefetch={false}
           className="absolute inset-0 z-10"
           aria-label={`View ${product.name}`}
@@ -147,12 +191,12 @@ export function ProductCard({
               alt={`${product.name} - Alternate view`}
               fill
               sizes={imageSizes}
+              loading="lazy"
               className="object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-700 ease-in-out group-hover:scale-105"
             />
           )}
         </Link>
 
-        {/* Floating Badges */}
         <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5 pointer-events-none">
           {isOnSale && (
             <span className="inline-flex items-center px-2.5 py-1 rounded bg-red-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
@@ -171,16 +215,18 @@ export function ProductCard({
           )}
         </div>
 
-        {/* Wishlist Toggle */}
-        <button
-          onClick={handleWishlist}
-          aria-label={favorited ? "Remove from wishlist" : "Add to wishlist"}
-          className="absolute top-3 right-3 z-20 h-9 w-9 flex items-center justify-center rounded-full bg-white/95 border border-gray-100 shadow-sm text-gray-500 hover:text-red-500 hover:scale-105 transition-all duration-300"
-        >
-          <Heart className={`h-4 w-4 transition-colors ${favorited ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
-        </button>
+        {usesExternalWishlist ? (
+          <button
+            onClick={(e) => void handleWishlist(e)}
+            aria-label={isFavorited ? 'Remove from wishlist' : 'Add to wishlist'}
+            className="absolute top-3 right-3 z-20 h-9 w-9 flex items-center justify-center rounded-full bg-white/95 border border-gray-100 shadow-sm text-gray-500 hover:text-red-500 hover:scale-105 transition-all duration-300"
+          >
+            <Heart className={`h-4 w-4 transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
+          </button>
+        ) : (
+          <WishlistHeartConnected productId={product.id} onClick={handleWishlist} />
+        )}
 
-        {/* Centered Quick View */}
         <button 
           onClick={(e) => {
             e.preventDefault();
@@ -193,7 +239,6 @@ export function ProductCard({
           <Eye className="w-5 h-5" />
         </button>
 
-        {/* Quick Add Slide-up Overlay */}
         <button 
           onClick={handleAddToCart}
           data-testid="quick-add"
@@ -223,9 +268,7 @@ export function ProductCard({
         </button>
       </div>
 
-      {/* Content Area */}
       <div className="mt-4 px-1 flex-1 flex flex-col">
-        {/* Category Row */}
         <div className="h-5 flex items-center gap-2 mb-1.5">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
             {product.category}
@@ -236,17 +279,21 @@ export function ProductCard({
           </span>
         </div>
 
-        {/* Title */}
         <h3 className="font-bold text-gray-900 text-base leading-snug mb-1 group-hover:text-primary-600 transition-colors line-clamp-2 min-h-[2.85rem]">
-          <Link href={`/products/${product.handle || product.id}`} prefetch={false}>{product.name}</Link>
+          <Link
+            href={productHref}
+            prefetch={false}
+            onPointerEnter={prefetchProductPage}
+          >
+            {product.name}
+          </Link>
         </h3>
         
-        {/* Ratings (Star Icons under the title) */}
         <div className="h-5 mb-2.5">
           {displayRating ? (
             <div className="flex items-center gap-1">
               <div className="flex items-center">
-                {Array.from({ length: 5 }).map((_, i) => {
+                {STAR_INDICES.map((i) => {
                   const starValue = i + 1;
                   const isFilled = starValue <= Math.round(displayRating);
                   return (
@@ -264,11 +311,10 @@ export function ProductCard({
               </span>
             </div>
           ) : (
-            <div className="h-5" /> /* Empty spacer to preserve layout height alignment */
+            <div className="h-5" />
           )}
         </div>
 
-        {/* Pricing and Stock Row */}
         <div className="mt-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             {isOnSale ? (
@@ -304,3 +350,5 @@ export function ProductCard({
     </div>
   );
 }
+
+export const ProductCard = memo(ProductCardInner, areProductCardPropsEqual);

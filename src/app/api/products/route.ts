@@ -17,7 +17,11 @@ export async function GET(request: Request) {
             limit: parseBoundedLimit(searchParams.get('limit')),
             cursor: searchParams.get('cursor') ?? undefined,
         });
-        return NextResponse.json(result);
+        return NextResponse.json(result, {
+            headers: {
+                'Cache-Control': 'private, max-age=30, stale-while-revalidate=120',
+            },
+        });
     } catch (error) {
         console.error('[API Products] 500 Error:', error);
         return jsonError(error, 'Failed to load products');

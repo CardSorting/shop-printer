@@ -29,7 +29,8 @@ import {
 } from 'lucide-react';
 import type { Address, Order } from '@domain/models';
 import { logger } from '@utils/logger';
-import { isStripeConfigured } from '../checkout/stripeClient';
+import { CartIssuesBanner } from '@ui/cart';
+import { gateCheckoutCommit, isStripeConfigured } from '@ui/checkout';
 import { OrderConfirmation } from '../checkout/OrderConfirmation';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
@@ -74,7 +75,7 @@ import { Stepper } from '../components/Stepper';
 
 export function CheckoutPage() {
   const { user } = useAuth();
-  const { cart, loading: loadingCart, subtotal, totalItems } = useCart();
+  const { cart, loading: loadingCart, subtotal, totalItems, viewState, refreshCart } = useCart();
   const services = useServices();
 
   const [step, setStep] = useState<CheckoutStep>('information');
@@ -97,6 +98,12 @@ export function CheckoutPage() {
   const [shippingResult, setShippingResult] = useState<{ amount: number; rateName: string; shippingClassId?: string } | null>(null);
   const [loadingShipping, setLoadingShipping] = useState(false);
   const checkoutAttemptKey = useRef("");
+
+  useEffect(() => {
+    if (!loadingCart && user) {
+      void refreshCart();
+    }
+  }, [loadingCart, user, refreshCart]);
 
   useEffect(() => {
     if (!checkoutAttemptKey.current) {
@@ -281,6 +288,13 @@ export function CheckoutPage() {
       setStep('information');
       return;
     }
+    const commitGate = gateCheckoutCommit(await services.cart.validateCart());
+    if (commitGate.blocked) {
+      setCheckoutError(commitGate.message || 'Your cart needs attention before checkout.');
+      setStep('information');
+      return;
+    }
+
     setCheckoutError(null);
     setCheckoutStatus('finalizing');
     try {
@@ -383,6 +397,13 @@ export function CheckoutPage() {
           />
 
           <div className="max-w-2xl mx-auto lg:mx-0">
+            {viewState.state === 'invalid' && (
+              <CartIssuesBanner
+                issues={viewState.issues}
+                onRefresh={() => void refreshCart()}
+              />
+            )}
+
             {checkoutError && (
               <div id="checkout-error" role="alert" className="mb-10 flex gap-4 rounded-4xl border-2 border-red-100 bg-red-50 p-6 text-sm text-red-700 shadow-sm animate-in zoom-in-95">
                 <AlertCircle className="h-6 w-6 shrink-0" />

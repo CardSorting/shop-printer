@@ -31,6 +31,8 @@ import { FirestoreCampaignEventRepository } from '@infrastructure/repositories/f
 import { FirestoreCustomerSegmentRepository } from '@infrastructure/repositories/firestore/FirestoreCustomerSegmentRepository';
 import { ProductService } from './ProductService';
 import { CartService } from './CartService';
+import { createCartStack, type CartStack } from './cart/createCartStack';
+import type { CartApplicationService } from './cart/cartApplicationService';
 import { OrderService } from './OrderService';
 import { createCheckoutStack } from './order/createCheckoutStack';
 import type { CheckoutApplicationService } from './order/checkoutApplicationService';
@@ -147,6 +149,7 @@ let supportEventLogInstance: FirestoreSupportEventLog | null = null;
 let checkoutEventLogInstance: FirestoreCheckoutEventLog | null = null;
 let adminOperatorEventLogInstance: FirestoreAdminOperatorEventLog | null = null;
 let refundEventLogInstance: FirestoreRefundEventLog | null = null;
+let cartStackInstance: CartStack | null = null;
 let refundServiceInstance: RefundService | null = null;
 let inventoryLedgerRepoInstance: FirestoreInventoryLedgerRepository | null = null;
 let inventoryReservationRepoInstance: FirestoreInventoryReservationRepository | null = null;
@@ -202,6 +205,20 @@ function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
 }
 
+function wireCartStack(
+  repos: Pick<ReturnType<typeof createRepositories>, 'cartRepo' | 'productRepo' | 'discountRepo' | 'orderRepo'>,
+  inventory: InventoryApplicationService,
+  audit: AuditService,
+): CartStack {
+  const discountService = new DiscountService(repos.discountRepo, audit, repos.orderRepo);
+  return createCartStack({
+    cartRepo: repos.cartRepo,
+    productRepo: repos.productRepo,
+    inventory,
+    discountService,
+  });
+}
+
 function wireOrderCheckoutStack(
   repos: ReturnType<typeof createRepositories>,
   payment: IPaymentProcessor,
@@ -210,6 +227,7 @@ function wireOrderCheckoutStack(
   stripeService: StripeService,
   inventory: InventoryApplicationService,
   checkoutGateway?: ICheckoutGateway,
+  cartIntent?: Pick<CartApplicationService, 'validateCart'>,
 ) {
   const orderService = new OrderService(
     repos.orderRepo,
@@ -238,6 +256,7 @@ function wireOrderCheckoutStack(
     cancelExpiredPendingOrder: (orderId) => orderService.cancelExpiredPendingOrder(orderId),
     recordOperatorAction: (input) => orderService.handleReconciliationOperatorAction(input),
     commerceEventBus: getCommerceEventBus(),
+    cartIntent,
   });
   return { orderService, checkout };
 }
@@ -331,6 +350,7 @@ export function getServiceContainer() {
   const authService = new AuthService(authProvider, auditService);
   const stripeService = new StripeService();
   const inventory = createInventoryApplication(repos.productRepo, repos.orderRepo, repos.inventoryLevelRepo);
+  const cartStack = wireCartStack(repos, inventory, auditService);
   const { orderService, checkout } = wireOrderCheckoutStack(
     repos,
     new StripePaymentProcessor(),
@@ -339,6 +359,7 @@ export function getServiceContainer() {
     stripeService,
     inventory,
     createCheckoutGateway(),
+    cartStack.cart,
   );
   const productService = new ProductService(repos.productRepo, auditService, inventory);
   const orderQueryService = new OrderQueryService(repos.orderRepo, productService);
@@ -383,7 +404,8 @@ export function getServiceContainer() {
     authProvider,
     authService,
     productService,
-    cartService: new CartService(repos.cartRepo, repos.productRepo, inventory),
+    cart: cartStack.cart,
+    cartService: cartStack.cartService,
     orderService,
     checkout,
     inventory,
@@ -538,6 +560,18 @@ export function getInitialServices() {
   if (!orderServiceInstance || !checkoutInstance || !inventoryInstance || !adminInstance || !supportInstance || !crmInstance) {
     const inventory = createInventoryApplication(productRepoInstance!, orderRepoInstance!, inventoryLevelRepoInstance!);
     inventoryInstance = inventory;
+    if (!cartStackInstance) {
+      cartStackInstance = wireCartStack(
+        {
+          cartRepo: cartRepoInstance!,
+          productRepo: productRepoInstance!,
+          discountRepo: discountRepoInstance!,
+          orderRepo: orderRepoInstance!,
+        },
+        inventory,
+        getAuditService(),
+      );
+    }
     const stack = wireOrderCheckoutStack(
       {
         productRepo: productRepoInstance!,
@@ -566,6 +600,7 @@ export function getInitialServices() {
       getStripeService(),
       inventory,
       checkoutGatewayInstance ?? undefined,
+      cartStackInstance!.cart,
     );
     orderServiceInstance = stack.orderService;
     checkoutInstance = stack.checkout;
@@ -591,11 +626,25 @@ export function getInitialServices() {
     });
   }
 
+  if (!cartStackInstance && cartRepoInstance && productRepoInstance && discountRepoInstance && orderRepoInstance) {
+    cartStackInstance = wireCartStack(
+      {
+        cartRepo: cartRepoInstance,
+        productRepo: productRepoInstance,
+        discountRepo: discountRepoInstance,
+        orderRepo: orderRepoInstance,
+      },
+      inventoryInstance ?? createInventoryApplication(productRepoInstance, orderRepoInstance!, inventoryLevelRepoInstance!),
+      getAuditService(),
+    );
+  }
+
   return {
     authProvider: authProviderInstance!,
     authService: authServiceInstance,
     productService: new ProductService(productRepoInstance!, getAuditService(), inventoryInstance!),
-    cartService: new CartService(cartRepoInstance!, productRepoInstance!, inventoryInstance!),
+    cart: cartStackInstance!.cart,
+    cartService: cartStackInstance!.cartService,
     orderService: orderServiceInstance,
     checkout: checkoutInstance,
     inventory: inventoryInstance!,
