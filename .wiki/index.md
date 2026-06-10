@@ -36,7 +36,9 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 
 ### Long-Form Docs
 - [Documentation Index](../docs/index.md) — long-form technical documents outside the wiki ledger.
-- [CRM Platform Whitepaper](../docs/woodbine-crm-whitepaper.md) — project thesis, architecture, reliability model, benchmark evidence, and roadmap implications.
+- [Brief](../docs/brief.md) — executive summary.
+- [Philosophy](../docs/philosophy.md) — design principles and architectural mindset.
+- [Whitepaper](../docs/whitepaper.md) — full technical thesis, reliability model, and verification architecture.
 
 ## Current Verified State
 

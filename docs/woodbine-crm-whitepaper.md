@@ -2,10 +2,11 @@
 
 This document has been superseded.
 
-DreamBees Art documentation now describes the project as an **open-source, self-hosted ecommerce platform** with Shopify-class capabilities.
+DreamBees Art documentation now describes the project as an **open-source, self-hosted ecommerce platform** with protocol-bound commerce and provable storefront release gates.
 
-**Read instead:** [platform-overview.md](./platform-overview.md)
+**Read instead:**
 
-Technical architecture: [architecture.md](./architecture.md)
-
-Commerce protocol policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md)
+- [whitepaper.md](./whitepaper.md) — full technical whitepaper
+- [philosophy.md](./philosophy.md) — design principles
+- [brief.md](./brief.md) — executive summary
+- [platform-overview.md](./platform-overview.md) — capability map

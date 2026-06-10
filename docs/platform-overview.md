@@ -4,6 +4,8 @@ DreamBees Art is a **standalone, open-source ecommerce application** that mirror
 
 This is not a headless-only API or a theme kit. It is a full merchant operating system: customer-facing shop, operator admin, payment processing, stock movement, refunds, and support CRM in one deployable Next.js application.
 
+**Strategy:** [brief.md](./brief.md) · [philosophy.md](./philosophy.md) · [whitepaper.md](./whitepaper.md)
+
 **Get running:** [onboarding.md](./onboarding.md) · **See flows in action:** [flows.md](./flows.md)
 
 ---
@@ -146,6 +148,9 @@ Track strategic direction in [SHOPMORE_ROADMAP.md](../SHOPMORE_ROADMAP.md) at re
 
 | Goal | Document |
 | --- | --- |
+| Executive summary | [brief.md](./brief.md) |
+| Design philosophy | [philosophy.md](./philosophy.md) |
+| Technical whitepaper | [whitepaper.md](./whitepaper.md) |
 | Run locally | [onboarding.md](./onboarding.md) · [local-development.md](./local-development.md) |
 | All protocols | [protocols.md](./protocols.md) |
 | Rebrand / fork | [customization.md](./customization.md) |

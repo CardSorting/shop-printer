@@ -4,6 +4,9 @@ Open-source, self-hosted ecommerce with Shopify-class storefront and admin.
 
 | I want to… | Start here |
 | --- | --- |
+| Understand the project (2 min) | [brief.md](./brief.md) |
+| Why we built it this way | [philosophy.md](./philosophy.md) |
+| Full technical thesis | [whitepaper.md](./whitepaper.md) |
 | Run locally first time | [onboarding.md](./onboarding.md) |
 | Daily dev workflow | [local-development.md](./local-development.md) |
 | Rebrand / fork | [customization.md](./customization.md) |
@@ -20,23 +23,26 @@ Open-source, self-hosted ecommerce with Shopify-class storefront and admin.
 ## Documentation map
 
 ```text
-START                         BUILD                         SHIP
-─────                         ─────                         ────
-onboarding.md                 architecture.md               deployment.md
-day-2.md                      protocols.md                  release-checklist.md
-local-development.md          flows.md                      runbook.md
-getting-started.md            data-model.md                 security.md
-environment-variables.md      api-overview.md               testing.md
+STRATEGY                      BUILD                         SHIP
+────────                      ─────                         ────
+brief.md                      architecture.md               deployment.md
+philosophy.md                 protocols.md                  release-checklist.md
+whitepaper.md                 flows.md                      runbook.md
+platform-overview.md          data-model.md                 security.md
+                              api-overview.md               testing.md
 
-REFERENCE                     SURFACES                      POLICY
-─────────                     ────────                      ──────
-glossary.md                   storefront.md                 commerce-protocol-frozen.md
-faq.md                        admin.md                      checkout.md
-quick-reference.md            concierge/overview.md         inventory.md
-platform-overview.md          storefront-release.md         refunds.md
-customization.md                                            contributing-commerce.md
-migration-from-shopify.md
-troubleshooting.md
+START                         SURFACES                      POLICY
+─────                         ────────                      ──────
+onboarding.md                 storefront.md                 commerce-protocol-frozen.md
+day-2.md                      storefront-release.md         checkout.md
+local-development.md          admin.md                      inventory.md
+getting-started.md              concierge/overview.md         refunds.md
+environment-variables.md                                    contributing-commerce.md
+
+REFERENCE
+─────────
+glossary.md · faq.md · quick-reference.md · customization.md
+migration-from-shopify.md · troubleshooting.md
 ```
 
 ---
@@ -132,7 +138,7 @@ npm run test:e2e
 ## Legacy redirects
 
 - [checkout-protocol-frozen.md](./checkout-protocol-frozen.md) → [commerce-protocol-frozen.md](./commerce-protocol-frozen.md)
-- [woodbine-crm-whitepaper.md](./woodbine-crm-whitepaper.md) → [platform-overview.md](./platform-overview.md)
+- [woodbine-crm-whitepaper.md](./woodbine-crm-whitepaper.md) → [whitepaper.md](./whitepaper.md)
 
 ---
 
