@@ -117,15 +117,8 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
             {isHome ? <HomeDeferredFooter /> : <Footer />}
             <StorefrontMobileDock
                 showBottomNav={showMobileChrome}
-                showConcierge={showMobileChrome}
-                conciergeProps={conciergeProps}
             />
             <StorefrontCartDrawer />
-            {showMobileChrome && (
-                <div className="hidden lg:block">
-                    <ConciergeBubble placement="desktop" {...conciergeProps} />
-                </div>
-            )}
         </div>
     );
 }

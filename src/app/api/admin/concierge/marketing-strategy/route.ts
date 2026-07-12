@@ -4,6 +4,7 @@ import { jsonError, readJsonObject, requireAdminSession, requireString } from '@
 import { logger } from '@utils/logger';
 
 export async function GET(request: Request) {
+  return NextResponse.json({ error: 'Concierge is disabled' }, { status: 503 });
   try {
     await requireAdminSession(request);
     const services = await getServerServices();
@@ -15,6 +16,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  return NextResponse.json({ error: 'Concierge is disabled' }, { status: 503 });
   try {
     const user = await requireAdminSession(request);
     const services = await getServerServices();
@@ -94,7 +96,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'playbookId is required' }, { status: 400 });
     }
 
-    const campaign = await campaignService.createCampaignFromPlaybook(playbookId);
+    const campaign = await campaignService.createCampaignFromPlaybook(playbookId as string);
     await auditService.record({
       userId: user.id,
       userEmail: user.email,

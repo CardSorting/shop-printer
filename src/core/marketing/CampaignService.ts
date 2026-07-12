@@ -151,7 +151,7 @@ export class CampaignService {
       const rfm = await this.intelligence.calculateRFM(userId);
       const discountCode = step?.discountCode || campaign.discountCode;
       
-      if (campaign.aiPersonalizationEnabled || nba === 'escalate_to_vip_personalization') {
+      if (false) {
         const personalization = await this.personalization.generateAIPersonalization(campaign, userId);
         subject = personalization.subject || subject;
         body = personalization.body || body;

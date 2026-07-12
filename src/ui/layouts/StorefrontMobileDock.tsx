@@ -1,29 +1,16 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import dynamic from 'next/dynamic';
 import { BottomNav } from '@ui/components/BottomNav';
 import { MobileDockProvider, useMobileDock } from '@ui/layouts/MobileDockContext';
 import { useCart } from '@ui/hooks/useCart';
-import type { ComponentProps } from 'react';
-
-const ConciergeBubble = dynamic(
-  () => import('@ui/components/Concierge/ConciergeBubble').then((m) => ({ default: m.ConciergeBubble })),
-  { ssr: false },
-);
-
-type ConciergeProps = ComponentProps<typeof ConciergeBubble>;
 
 type StorefrontMobileDockProps = {
   showBottomNav: boolean;
-  showConcierge: boolean;
-  conciergeProps: ConciergeProps;
 };
 
 function MobileDockInner({
   showBottomNav,
-  showConcierge,
-  conciergeProps,
 }: StorefrontMobileDockProps) {
   const dockRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
@@ -69,16 +56,14 @@ function MobileDockInner({
       root.style.removeProperty('--storefront-mobile-nav-height');
       root.classList.remove('storefront-mobile-chat-open');
     };
-  }, [showBottomNav, showConcierge]);
+  }, [showBottomNav]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('storefront-mobile-chat-open', chatOpen);
     return () => document.documentElement.classList.remove('storefront-mobile-chat-open');
   }, [chatOpen]);
 
-  if (!showBottomNav && !showConcierge) return null;
-
-  const showChat = showConcierge && !cartOpen;
+  if (!showBottomNav) return null;
 
   return (
     <div
@@ -89,15 +74,7 @@ function MobileDockInner({
       className="storefront-mobile-dock fixed inset-x-0 bottom-0 z-nav lg:hidden"
     >
       <div className="storefront-mobile-dock__grid">
-        {showChat ? (
-          <div className="storefront-mobile-dock__concierge pointer-events-none px-3 pb-2 pt-1">
-            <div className="pointer-events-auto">
-              <ConciergeBubble placement="mobile-dock" {...conciergeProps} />
-            </div>
-          </div>
-        ) : (
-          <div className="storefront-mobile-dock__concierge-spacer" aria-hidden />
-        )}
+        <div className="storefront-mobile-dock__concierge-spacer" aria-hidden />
 
         {showBottomNav ? (
           <div ref={navRef} className="storefront-mobile-dock__nav">

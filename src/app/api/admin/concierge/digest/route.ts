@@ -4,6 +4,7 @@ import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards
 import { logger } from '@utils/logger';
 
 export async function GET(request: Request) {
+  return NextResponse.json({ error: 'Concierge is disabled' }, { status: 503 });
   try {
     await requireAdminSession(request);
     const { conciergeService } = await getServerServices();

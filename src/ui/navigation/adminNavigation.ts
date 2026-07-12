@@ -278,14 +278,6 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: 'Intelligence',
     items: [
       {
-        id: 'concierge-insights',
-        href: '/admin/concierge',
-        label: 'Concierge AI',
-        description: 'Customer struggles and support intelligence',
-        icon: Sparkles,
-        aliases: ['concierge', 'intelligence', 'suggestions', 'struggles', 'chat insights'],
-      },
-      {
         id: 'analytics',
         href: '/admin/analytics',
         label: 'Analytics',

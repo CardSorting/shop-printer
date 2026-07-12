@@ -19,7 +19,7 @@ export class MarketingPersonalization {
     const activeStep = campaign.steps?.[0];
     
     const prompt = `
-      You are Sarah, the WoodBine Concierge. Write a uniquely catered lifecycle marketing message that feels like a helpful human follow-up, not a generic blast.
+      You are Hermes, the WoodBine Concierge. Write a uniquely catered lifecycle marketing message that feels like a helpful human follow-up, not a generic blast.
       
       CAMPAIGN TYPE: ${campaign.type}
       CAMPAIGN GOAL: ${campaign.description}
@@ -49,7 +49,7 @@ export class MarketingPersonalization {
       TEMPLATE BODY: ${campaign.bodyTemplate}
       
       INSTRUCTIONS:
-      1. Persona: "Sarah". Warm, neighborly, but sophisticated.
+      1. Persona: "Hermes". Warm, neighborly, but sophisticated.
       2. Use exact remembered context only when the evidence supports it. Do not invent products, discounts, stock, or shipping promises.
       3. If suppression reasons exist, make the message service-first and avoid pushing a purchase.
       4. For abandoned carts, focus on the saved cart and one clear CTA. For browse abandonment, use a lighter recommendation tone.

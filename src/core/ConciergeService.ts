@@ -190,7 +190,7 @@ export class ConciergeService {
               "campaignType": "abandoned_cart" | "browse_abandonment" | "comeback_offer" | "win_back" | "loyalty_reward" | "service_recovery",
               "triggerSignal": "Observed customer behavior or phrase that justifies this flow",
               "audienceFit": "Why this person belongs or should be excluded",
-              "recommendedMessageAngle": "Personalized angle Sarah should use",
+              "recommendedMessageAngle": "Personalized angle Hermes should use",
               "offerGuidance": "No discount, help-first, small tiered discount, bundle value, VIP access, or service recovery",
               "suppressionReason": "Why not to market yet, if applicable",
               "confidence": "low" | "medium" | "high"

@@ -6,6 +6,7 @@ import { logger } from '@utils/logger';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  return NextResponse.json({ error: 'Concierge is disabled' }, { status: 503 });
   try {
     const user = await requireAdminSession(req);
     const body = await readJsonObject(req);
@@ -22,7 +23,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(result);
-  } catch (error) {
+  } catch (err) {
+    const error = err as any;
     logger.error('Failed to trigger session analysis', { error: error instanceof Error ? error.message : String(error) });
     return jsonError(error, 'Failed to trigger session analysis', req);
   }

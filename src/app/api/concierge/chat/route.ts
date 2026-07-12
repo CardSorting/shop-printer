@@ -38,6 +38,9 @@ const ChatSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  if (req.method === 'POST' || req.method) {
+    return NextResponse.json({ error: 'Concierge is disabled' }, { status: 503 });
+  }
   try {
     const body = await req.json();
     const result = ChatSchema.safeParse(body);
@@ -771,6 +774,9 @@ export async function POST(req: NextRequest) {
             }
 
             const { refunds } = getInitialServices();
+            if (!refunds) {
+              throw new Error('Refund service not available');
+            }
             const idempotencyKey = `concierge-refund-${activeSessionId}-${orderId}-${amount}`;
             const conciergeActor = { id: 'concierge', email: 'concierge@woodbine.com' };
             const refundReason = `Concierge autonomous refund for session ${activeSessionId} (customer: ${userEmail})`;

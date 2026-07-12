@@ -33,6 +33,7 @@ export async function createHermesChatCompletionStream(
   contextString?: string,
   securityNonce?: string
 ) {
+  throw new HermesConfigurationError('AI features are disabled.');
   const config = getHermesConfig();
   
   const nonce = securityNonce || 'INTERNAL_DEFAULT';
@@ -88,6 +89,7 @@ export async function createHermesChatCompletion(
   contextString?: string,
   securityNonce?: string
 ) {
+  throw new HermesConfigurationError('AI features are disabled.');
   const config = getHermesConfig();
   
   const nonce = securityNonce || 'INTERNAL_DEFAULT';

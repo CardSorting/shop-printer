@@ -63,7 +63,7 @@ export function ConciergeBubble({ placement = 'desktop', initialContext, product
   const [messages, setMessages] = useState<ClientChatMessage[]>([
     { 
       role: 'assistant', 
-      content: "Hi! I'm Sarah from the studio. How can I help you find something special today?" 
+      content: "Hi! I'm Hermes from Nous Research. How can I help you find something special today?" 
     }
   ]);
   const [inputValue, setInputValue] = useState('');
@@ -146,7 +146,7 @@ export function ConciergeBubble({ placement = 'desktop', initialContext, product
     setMessages(prev => [...prev, userMsg]);
     if (!manualContent) setInputValue('');
     setIsLoading(true);
-    setStatusMessage('Sarah is typing...');
+    setStatusMessage('Hermes is typing...');
 
     try {
       const res = await fetch('/api/concierge/chat', {
@@ -258,7 +258,7 @@ export function ConciergeBubble({ placement = 'desktop', initialContext, product
     <div
       role="dialog"
       aria-modal={isMobileDock ? 'true' : undefined}
-      aria-label="Chat with Sarah"
+      aria-label="Chat with Hermes"
       className={`bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-300 relative ${
         isMobileDock
           ? 'storefront-mobile-chat-sheet w-auto max-w-none h-auto'
@@ -270,12 +270,12 @@ export function ConciergeBubble({ placement = 'desktop', initialContext, product
           <div className="bg-gray-900 px-3 py-2 text-white relative overflow-hidden flex items-center justify-between">
             <div className="flex items-center gap-2 relative z-10">
               <div className="relative">
-                <div className="h-7 w-7 rounded-full bg-white flex items-center justify-center text-[10px] font-black text-gray-900 overflow-hidden">S</div>
+                <div className="h-7 w-7 rounded-full bg-white flex items-center justify-center text-[10px] font-black text-gray-900 overflow-hidden">H</div>
                 <div className="absolute -bottom-0.5 -right-0.5 h-2 w-2 bg-green-500 rounded-full border border-gray-900" />
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-[11px] font-black leading-none">Sarah</h3>
+                  <h3 className="text-[11px] font-black leading-none">Hermes</h3>
                   <span className="text-[6px] font-black text-primary-300 uppercase bg-primary-900/40 px-1 py-0.5 rounded-sm">Live</span>
                 </div>
                 <span className="text-[6px] font-black uppercase text-gray-500 tracking-tighter">
@@ -345,7 +345,7 @@ export function ConciergeBubble({ placement = 'desktop', initialContext, product
               </div>
             ) : (
               <form onSubmit={handleSendMessage} className="relative">
-                <input id="concierge-message" name="message" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Message Sarah..." className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 pr-10 text-[12px] outline-none focus:border-gray-900" />
+                <input id="concierge-message" name="message" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Message Hermes..." className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 pr-10 text-[12px] outline-none focus:border-gray-900" />
                 <button type="submit" disabled={!inputValue.trim()} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 bg-gray-900 text-white rounded-lg shadow-md disabled:opacity-0 transition-opacity">
                   <Send className="h-3 w-3" />
                 </button>
@@ -358,7 +358,7 @@ export function ConciergeBubble({ placement = 'desktop', initialContext, product
   const trigger = (
       <button
         onClick={toggleOpen}
-        aria-label={isOpen ? 'Close chat' : 'Open chat with Sarah'}
+        aria-label={isOpen ? 'Close chat' : 'Open chat with Hermes'}
         aria-expanded={isOpen}
         className={`bg-gray-900 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-all relative shrink-0 ${
           isMobileDock ? 'h-11 w-11' : 'h-14 w-14'
