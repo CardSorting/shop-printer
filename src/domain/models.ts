@@ -315,6 +315,7 @@ export interface CartItem {
   isDigital?: boolean;
   shippingClassId?: string;
   weightGrams?: number;
+  customImages?: string[];
 }
 
 export interface OrderStripeIdentity {
@@ -596,6 +597,7 @@ export interface OrderItem {
   shippingClassId?: string;
   fulfilledQty: number;
   hsCode?: string;
+  customImages?: string[];
 }
 
 export type OrderStatus =

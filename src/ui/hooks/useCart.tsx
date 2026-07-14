@@ -31,7 +31,7 @@ export interface CartContextValue {
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
-  addItem: (productId: string, quantity: number, variantId?: string) => Promise<void>;
+  addItem: (productId: string, quantity: number, variantId?: string, customImages?: string[]) => Promise<void>;
   updateQuantity: (productId: string, quantity: number, variantId?: string) => Promise<void>;
   removeItem: (productId: string, variantId?: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -211,9 +211,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshCart]);
 
-  const addItem = async (productId: string, quantity: number, variantId?: string) => {
+  const addItem = async (productId: string, quantity: number, variantId?: string, customImages?: string[]) => {
     if (user) {
-      const result = await services.cart.addItem(productId, quantity, variantId);
+      const result = await services.cart.addItem(productId, quantity, variantId, customImages);
       if (!result.ok) throw new Error(result.message);
       if (isMounted.current) {
         syncFromView(result.data);
@@ -227,8 +227,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const preview = await services.cart.previewLineItem(productId, quantity, variantId);
     if (!preview.ok) throw new Error(preview.message);
 
+    const lineItemData = {
+      ...preview.data,
+      customImages,
+    };
+
     const shell = cart ?? loadGuestCart() ?? createGuestCartShell();
-    const next = addGuestLineItem(shell, preview.data);
+    const next = addGuestLineItem(shell, lineItemData);
     if (isMounted.current) {
       setCart(next);
       saveGuestCart(next);

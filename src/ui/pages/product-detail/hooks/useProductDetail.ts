@@ -79,7 +79,7 @@ export function useProductDetail({ product, relatedProducts }: ProductDetailPage
 
   const isFavorite = product?.id ? isInWishlist(product.id) : false;
 
-  const handleAddToCart = useCallback(async () => {
+  const handleAddToCart = useCallback(async (customImages?: string[]) => {
     if (!product || availability.purchaseDisabled) return;
     setAdding(true);
     setCartError(null);
@@ -88,6 +88,7 @@ export function useProductDetail({ product, relatedProducts }: ProductDetailPage
         product.id,
         Math.min(selection.quantity, availability.maxSelectableQuantity),
         selection.selectedVariant?.id,
+        customImages,
       );
       if (isMounted.current) {
         setAdded(true);

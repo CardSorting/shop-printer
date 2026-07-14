@@ -38,11 +38,8 @@ import {
   SkeletonPage, 
   useAdminPageTitle, 
   AdminSparkline, 
-  HelpTooltip,
-  LogisticsHealthCard
+  HelpTooltip
 } from '../../components/admin/AdminComponents';
-import { combinedNeedsWorkSummary } from '@domain/seo/merchant-ui';
-import { SeoHealthWidget } from '../../components/admin/SeoHealthWidget';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -76,22 +73,20 @@ export function AdminDashboard() {
     if (isMounted.current) setLoading(true);
     setError(null);
     try {
-      const [dashSummary, users, progress, mediaRes, logistics, seoRes] = await Promise.all([
+      const [dashSummary, users, progress, mediaRes] = await Promise.all([
         services.orderQueryService.getAdminDashboardSummary(controller.signal),
         services.authService.getAllUsers(controller.signal),
         services.settingsService.getSetupProgress(controller.signal),
         fetch('/api/admin/media', { signal: controller.signal }).then(r => r.json()),
-        services.orderQueryService.getLogisticsInsights(controller.signal),
-        fetch('/api/admin/seo/snapshot', { signal: controller.signal }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
       
       if (!controller.signal.aborted && isMounted.current) {
         setSummary(dashSummary);
         setCustomerCount(users.length);
         setSetupProgress(progress);
-        setLogisticsStats(logistics);
-        setSeoNeedsWork(seoRes?.snapshot?.combinedNeedsWork ?? 0);
-        setSeoSetupPercent(seoRes?.report?.setupProgress?.percent ?? null);
+        setLogisticsStats(null);
+        setSeoNeedsWork(0);
+        setSeoSetupPercent(null);
         if (mediaRes.files) {
           setMediaStats({
             count: mediaRes.files.length,
@@ -169,10 +164,10 @@ export function AdminDashboard() {
       {/* ── Quick Actions (High Velocity) ── */}
       <section className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
         {[
-          { label: 'Add Product', href: '/admin/products/new', icon: Plus, color: 'text-blue-600 bg-blue-50' },
-          { label: 'Upload Media', href: '/admin/files', icon: ImageIcon, color: 'text-purple-600 bg-purple-50' },
-          { label: 'Create Discount', href: '/admin/discounts/new', icon: Tag, color: 'text-green-600 bg-green-50' },
-          { label: 'Support Tickets', href: '/admin/tickets', icon: MessageSquare, color: 'text-red-600 bg-red-50' },
+          { label: 'Add Card Variant', href: '/admin/products/new', icon: Plus, color: 'text-blue-600 bg-blue-50' },
+          { label: 'Manage Orders', href: '/admin/orders', icon: ShoppingBag, color: 'text-purple-600 bg-purple-50' },
+          { label: 'View Customers', href: '/admin/customers', icon: Users, color: 'text-green-600 bg-green-50' },
+          { label: 'Sales Analytics', href: '/admin/analytics', icon: TrendingUp, color: 'text-red-600 bg-red-50' },
         ].map((action) => (
           <Link key={action.label} href={action.href} className="group flex items-center gap-4 rounded-2xl border bg-white p-4 transition-all hover:border-primary-500 hover:shadow-lg active:scale-95">
             <div className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${action.color} group-hover:bg-primary-600 group-hover:text-white`}>
@@ -209,21 +204,7 @@ export function AdminDashboard() {
                      <ArrowRight className="h-4 w-4 text-gray-300 transition-transform group-hover:translate-x-1" />
                   </Link>
                 )}
-                {setupProgress?.hasProducts && seoNeedsWork > 0 && (
-                  <Link href="/admin/seo?tab=listings" className="flex items-center gap-4 rounded-lg bg-white p-4 shadow-xs ring-1 ring-black/5 transition hover:shadow-md cursor-pointer group">
-                     <div className="h-6 w-6 shrink-0 rounded-full border-2 border-amber-500 flex items-center justify-center"><Globe className="h-3 w-3 text-amber-600" /></div>
-                     <div className="flex-1"><p className="text-sm font-bold text-gray-900">Improve search listings</p><p className="text-xs text-gray-500">{combinedNeedsWorkSummary(seoNeedsWork)}</p></div>
-                     <ArrowRight className="h-4 w-4 text-gray-300 transition-transform group-hover:translate-x-1" />
-                  </Link>
-                )}
-                {seoSetupPercent !== null && seoSetupPercent < 100 && (
-                  <Link href="/admin/seo" className="flex items-center gap-4 rounded-lg bg-white p-4 shadow-xs ring-1 ring-black/5 transition hover:shadow-md cursor-pointer group">
-                     <div className="h-6 w-6 shrink-0 rounded-full border-2 border-primary-500 flex items-center justify-center"><Globe className="h-3 w-3 text-primary-600" /></div>
-                     <div className="flex-1"><p className="text-sm font-bold text-gray-900">Complete search visibility setup</p><p className="text-xs text-gray-500">{seoSetupPercent}% done — finish visibility tasks in Search & Visibility.</p></div>
-                     <ArrowRight className="h-4 w-4 text-gray-300 transition-transform group-hover:translate-x-1" />
-                  </Link>
-                )}
-                {setupProgress?.hasProducts && setupProgress?.hasPaymentConfigured && seoNeedsWork === 0 && (
+                {setupProgress?.hasProducts && setupProgress?.hasPaymentConfigured && (
                    <div className="flex items-center gap-4 rounded-lg bg-green-50/50 p-4 shadow-xs ring-1 ring-green-600/10 transition">
                       <div className="h-6 w-6 shrink-0 rounded-full bg-green-500 flex items-center justify-center"><CheckCircle2 className="h-4 w-4 text-white" /></div>
                       <div className="flex-1"><p className="text-sm font-bold text-gray-900">Store is Operational</p><p className="text-xs text-gray-500">Your storefront is ready to handle high-velocity traffic.</p></div>
@@ -258,7 +239,6 @@ export function AdminDashboard() {
             </div>
           </section>
 
-          {logisticsStats && <LogisticsHealthCard stats={logisticsStats} />}
         </div>
 
         {/* ── Right Column: Insights ── */}
@@ -277,8 +257,6 @@ export function AdminDashboard() {
               ))}
             </div>
           </section>
-
-          <SeoHealthWidget />
 
           <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 border-b px-5 py-4 bg-gray-50/50">
@@ -315,7 +293,7 @@ export function AdminDashboard() {
         </div>
         <div className="flex items-center gap-6">
           <Link href="/admin/settings" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-gray-900 transition">Settings</Link>
-          <Link href="/admin/tickets" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-gray-900 transition">Support</Link>
+          <Link href="/admin/customers" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-gray-900 transition">Customers</Link>
         </div>
       </div>
     </div>

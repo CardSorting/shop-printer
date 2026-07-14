@@ -192,8 +192,8 @@ export function createApiClientServices() {
         },
         cart: {
             getCart: (signal?: AbortSignal) => request<CartResult<CartView>>('/api/cart', { signal }),
-            addItem: (productId: string, quantity: number, variantId?: string) =>
-                request<CartResult<CartView>>('/api/cart/items', { method: 'POST', body: JSON.stringify({ productId, quantity, variantId }) }),
+            addItem: (productId: string, quantity: number, variantId?: string, customImages?: string[]) =>
+                request<CartResult<CartView>>('/api/cart/items', { method: 'POST', body: JSON.stringify({ productId, quantity, variantId, customImages }) }),
             updateItem: (productId: string, quantity: number, variantId?: string) =>
                 request<CartResult<CartView>>('/api/cart/items', { method: 'PATCH', body: JSON.stringify({ productId, quantity, variantId }) }),
             removeItem: (productId: string, variantId?: string) =>

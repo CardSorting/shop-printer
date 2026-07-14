@@ -81,11 +81,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         if (key === 'h') router.push('/admin');
         if (key === 'o') router.push('/admin/orders');
         if (key === 'p') router.push('/admin/products');
-        if (key === 'i') router.push('/admin/inventory');
-        if (key === 's') router.push('/admin/seo'); // Search & Visibility
-        if (key === 'v') router.push('/admin/suppliers'); // Partners
         if (key === 'c') router.push('/admin/customers');
-        if (key === 'd') router.push('/admin/discounts');
+        if (key === 'a') router.push('/admin/analytics');
       }
     }
     window.addEventListener('keydown', onKey);

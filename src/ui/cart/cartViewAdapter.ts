@@ -20,6 +20,7 @@ export function cartViewToDomain(view: CartView): Cart {
       isDigital: line.isDigital,
       shippingClassId: line.shippingClassId,
       weightGrams: line.weightGrams,
+      customImages: line.customImages,
     })),
   };
 }

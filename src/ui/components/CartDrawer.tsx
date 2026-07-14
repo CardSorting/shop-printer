@@ -199,10 +199,16 @@ export function CartDrawer() {
                             </button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
                           {item.variantTitle && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-50 text-[9px] font-black uppercase tracking-widest text-gray-400 border border-gray-100">
                               {item.variantTitle}
+                            </span>
+                          )}
+                          {(item as any).customImages && (item as any).customImages.slice(0, -1).filter(Boolean).length > 0 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary-50 text-[9px] font-black uppercase tracking-widest text-primary-600 border border-primary-100">
+                              {(item as any).customImages.slice(0, -1).filter(Boolean).length} / {((item as any).customImages.length - 1)} Cards Customized
+                              {(item as any).customImages[(item as any).customImages.length - 1] && ' + Custom Back'}
                             </span>
                           )}
                           <span className="text-[11px] font-black text-primary-600">

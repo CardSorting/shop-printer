@@ -296,7 +296,6 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
                       )}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">{formatCurrency(item.unitPrice)} × {item.quantity}</p>
-                    
                     {item.digitalAssets && item.digitalAssets.length > 0 && (
                       <div className="mt-2 space-y-1">
                         {item.digitalAssets.map((asset: any) => (
@@ -305,6 +304,40 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
                             {asset.name} ({(asset.size / 1024 / 1024).toFixed(2)} MB)
                           </div>
                         ))}
+                      </div>
+                    )}
+                    {item.customImages && item.customImages.filter(Boolean).length > 0 && (
+                      <div className="mt-3 bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-4 text-left">
+                        {/* Common Card Back */}
+                        <div>
+                          <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1.5">Common Card Back:</p>
+                          <div className="relative h-14 w-10 rounded border overflow-hidden bg-white shadow-sm hover:scale-105 transition-transform shrink-0">
+                            <Image 
+                              src={item.customImages[item.customImages.length - 1] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&q=80&sig=101'} 
+                              alt="Card back" 
+                              fill 
+                              className="object-cover" 
+                              sizes="40px" 
+                            />
+                          </div>
+                        </div>
+
+                        {/* Card Faces */}
+                        {item.customImages.slice(0, -1).filter(Boolean).length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-2">Custom Card Faces ({item.customImages.slice(0, -1).filter(Boolean).length} / {item.customImages.length - 1} cards):</p>
+                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-2 styled-scrollbar">
+                              {item.customImages.slice(0, -1).map((imgUrl: string, idx: number) => {
+                                if (!imgUrl) return null;
+                                return (
+                                  <div key={idx} className="relative h-12 w-9 rounded border overflow-hidden bg-white shadow-sm hover:scale-105 transition-transform shrink-0" title={`Card ${idx + 1}`}>
+                                    <Image src={imgUrl} alt="" fill className="object-cover" sizes="36px" />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

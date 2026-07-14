@@ -256,6 +256,14 @@ export function CartPage() {
                              <div className="h-4 w-px bg-gray-200" />
                              <p className="text-sm font-black text-primary-600" data-testid="item-total">Total: {formatMoney(item.priceSnapshot * item.quantity)}</p>
                           </div>
+                          {(item as any).customImages && (item as any).customImages.slice(0, -1).filter(Boolean).length > 0 && (
+                            <div className="mt-3">
+                              <span className="inline-flex items-center px-3 py-1 rounded-xl bg-primary-50 text-xs font-black uppercase tracking-widest text-primary-600 border border-primary-100">
+                                {(item as any).customImages.slice(0, -1).filter(Boolean).length} / {((item as any).customImages.length - 1)} Cards Customized
+                                {(item as any).customImages[(item as any).customImages.length - 1] && ' + Custom Back'}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <button 
                           onClick={() => removeItem(item.productId)}

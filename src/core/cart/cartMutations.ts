@@ -5,7 +5,10 @@ import type { CartLineItem } from './types';
 /** Pure guest-cart mutations — snapshots only, no inventory writes. */
 export function addGuestLineItem(cart: Cart, line: CartLineItem): Cart {
   const existingIndex = cart.items.findIndex(
-    (i) => i.productId === line.productId && i.variantId === line.variantId,
+    (i) => 
+      i.productId === line.productId && 
+      i.variantId === line.variantId &&
+      JSON.stringify(i.customImages || []) === JSON.stringify(line.customImages || []),
   );
   const domainItem: CartItem = {
     productId: line.productId,
@@ -19,6 +22,7 @@ export function addGuestLineItem(cart: Cart, line: CartLineItem): Cart {
     isDigital: line.isDigital,
     shippingClassId: line.shippingClassId,
     weightGrams: line.weightGrams,
+    customImages: line.customImages,
   };
 
   const items = [...cart.items];

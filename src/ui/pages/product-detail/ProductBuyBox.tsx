@@ -6,7 +6,7 @@
  * clear CTA hierarchy.
  */
 import {
-  ShoppingCart, Heart, Check, Truck, RefreshCcw, ShieldCheck, ChevronDown
+  ShoppingCart, Heart, Check, Truck, RefreshCcw, ShieldCheck, ChevronDown, Sparkles
 } from 'lucide-react';
 import { formatCurrency } from '@utils/formatters';
 import type { Wishlist } from '@domain/models';
@@ -134,16 +134,12 @@ export function ProductBuyBox({
       {/* CTA Buttons */}
       <div className="space-y-3">
         <button
-          onClick={added ? onOpenCart : onAddToCart}
-          disabled={adding || currentStock === 0}
-          className={`w-full h-14 flex items-center justify-center gap-3 rounded-2xl font-bold text-sm uppercase tracking-wider transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 outline-none ${
-            added
-              ? 'bg-green-600 text-white'
-              : 'bg-gray-900 text-white hover:bg-black shadow-xl shadow-gray-200 hover:-translate-y-0.5 active:translate-y-0'
-          }`}
+          onClick={onAddToCart}
+          disabled={currentStock === 0}
+          className="w-full h-14 flex items-center justify-center gap-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all bg-gray-900 text-white hover:bg-black shadow-xl shadow-gray-200 hover:-translate-y-0.5 active:translate-y-0 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 outline-none"
         >
-          {added ? <Check className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
-          {adding ? 'Adding...' : added ? 'View Cart' : currentStock === 0 ? 'Sold Out' : 'Add to Cart'}
+          <Sparkles className="w-5 h-5 text-primary-400 animate-pulse" />
+          {currentStock === 0 ? 'Sold Out' : 'Customize & Design Deck'}
         </button>
 
         {/* Wishlist */}

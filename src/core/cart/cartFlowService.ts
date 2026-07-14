@@ -71,6 +71,7 @@ export class CartFlowService {
         input.productId,
         input.quantity,
         input.variantId,
+        input.customImages,
       );
       this.deps.events?.emit({
         type: 'cart.item_added',

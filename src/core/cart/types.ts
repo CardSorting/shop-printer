@@ -16,6 +16,7 @@ export type CartLineItem = {
   isDigital?: boolean;
   shippingClassId?: string;
   weightGrams?: number;
+  customImages?: string[];
 };
 
 export type CartView = {
@@ -64,6 +65,7 @@ export type AddCartItemInput = CartContext & {
   productId: string;
   quantity: number;
   variantId?: string;
+  customImages?: string[];
 };
 
 export type UpdateCartItemInput = CartContext & {

@@ -28,7 +28,8 @@ export class CartService {
     userId: string,
     productId: string,
     quantity: number,
-    variantId?: string
+    variantId?: string,
+    customImages?: string[]
   ): Promise<Cart> {
     // Production Hardening: Move product lookup INSIDE the transaction.
     // Doing it outside creates a TOCTOU window where stock could change
@@ -44,7 +45,7 @@ export class CartService {
       const existingQty = items.find((i) => i.productId === productId && i.variantId === variantId)?.quantity ?? 0;
       await this.assertAvailability(product, existingQty + quantity, variantId);
 
-      const updatedItems = addCartItem(items, product, quantity, variantId);
+      const updatedItems = addCartItem(items, product, quantity, variantId, customImages);
 
       const updatedCart: Cart = {
         id: userId,

@@ -575,9 +575,14 @@ export function addCartItem(
   items: CartItem[],
   product: Product,
   quantity: number,
-  variantId?: string
+  variantId?: string,
+  customImages?: string[]
 ): CartItem[] {
-  const existingIndex = items.findIndex((i) => i.productId === product.id && i.variantId === variantId);
+  const existingIndex = items.findIndex((i) => 
+    i.productId === product.id && 
+    i.variantId === variantId &&
+    JSON.stringify(i.customImages || []) === JSON.stringify(customImages || [])
+  );
   const existingQty = existingIndex >= 0 ? items[existingIndex].quantity : 0;
 
   if (!validateCartItem(product, quantity, existingQty, variantId)) {
@@ -618,6 +623,7 @@ export function addCartItem(
     isDigital: product.isDigital,
     shippingClassId: product.shippingClassId,
     weightGrams,
+    customImages,
   };
 
   if (existingIndex >= 0) {

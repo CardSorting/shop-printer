@@ -325,6 +325,14 @@ export function OrdersPage() {
                                         )}
                                       </div>
                                       <p className="text-xs font-bold text-gray-400">Qty: {item.quantity} • {formatMoney(item.unitPrice)} each</p>
+                                      {item.customImages && item.customImages.slice(0, -1).filter(Boolean).length > 0 && (
+                                        <div className="mt-2">
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary-50 text-[9px] font-black uppercase tracking-widest text-primary-600 border border-primary-100">
+                                            {item.customImages.slice(0, -1).filter(Boolean).length} / {(item.customImages.length - 1)} Cards Customized
+                                            {item.customImages[item.customImages.length - 1] && ' + Custom Back'}
+                                          </span>
+                                        </div>
+                                      )}
                                     </div>
                                     <div className="flex flex-col gap-2 shrink-0">
                                       {item.digitalAssets && item.digitalAssets.length > 0 && (

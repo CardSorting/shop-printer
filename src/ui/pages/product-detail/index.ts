@@ -6,4 +6,5 @@
 export { ProductDetailPage } from './ProductDetailPage';
 export { ProductDetailSkeleton } from './ProductDetailSkeleton';
 export { ProductLcpPreload } from './ProductLcpPreload';
+export { CustomizeWorkspaceShell } from './components/CustomizeWorkspaceShell';
 export type { ProductDetailPageProps, ProductDetailViewState } from './types';

@@ -281,7 +281,8 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
                 digitalAssets: item.isDigital ? (product?.digitalAssets || []) : [],
                 shippingClassId: item.shippingClassId,
                 fulfilledQty: 0,
-                at: new Date()
+                at: new Date(),
+                customImages: item.customImages,
               };
             }) as any,
             shippingAmount: shipping,

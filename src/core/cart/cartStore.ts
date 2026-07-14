@@ -11,8 +11,8 @@ export class CartStore {
     return this.cartService.getCart(userId);
   }
 
-  add(userId: string, productId: string, quantity: number, variantId?: string): Promise<Cart> {
-    return this.cartService.addToCart(userId, productId, quantity, variantId);
+  add(userId: string, productId: string, quantity: number, variantId?: string, customImages?: string[]): Promise<Cart> {
+    return this.cartService.addToCart(userId, productId, quantity, variantId, customImages);
   }
 
   updateQuantity(

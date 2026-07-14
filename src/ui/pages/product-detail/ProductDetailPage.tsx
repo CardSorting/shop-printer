@@ -7,7 +7,8 @@
  * Composes PDP sub-components and wires them to useProductDetail.
  * Layout: Gallery | Info | Buy Box
  */
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useProductDetail } from './hooks/useProductDetail';
 import { ProductMediaGallery } from './components/ProductMediaGallery';
 import { ProductHero } from './components/ProductHero';
@@ -26,6 +27,11 @@ import type { ProductDetailPageProps } from './types';
 export function ProductDetailPage({ product, relatedProducts }: ProductDetailPageProps) {
   const pdp = useProductDetail({ product, relatedProducts });
   const buyBoxRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  const handleCustomizeRedirect = () => {
+    router.push(`/products/${product.handle}/customize?variant=${pdp.selectedVariant?.id || ''}&qty=${pdp.quantity}`);
+  };
 
   if (pdp.viewState.state === 'loading') {
     return <ProductDetailSkeleton />;
@@ -111,7 +117,7 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
               newCollectionName={pdp.newCollectionName}
               setNewCollectionName={pdp.setNewCollectionName}
               creatingCollection={pdp.creatingCollection}
-              onAddToCart={pdp.handleAddToCart}
+              onAddToCart={handleCustomizeRedirect}
               onIncrement={pdp.incrementQuantity}
               onDecrement={pdp.decrementQuantity}
               onAddToCollection={pdp.handleAddToCollection}
@@ -120,6 +126,8 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
             />
           </div>
         </div>
+
+        {/* Customize workspace has been separated into its own clean sub-route */}
 
         <div id="details" className="mt-12 pt-8 border-t border-gray-100 scroll-mt-32">
           <ProductDescription product={product} />

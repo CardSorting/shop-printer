@@ -61,6 +61,89 @@ function rejectDirectStockMutation(updates: Record<string, unknown>): void {
   }
 }
 
+export const PLAYING_CARDS_PRODUCT: Product = {
+  id: 'playing-cards-pod',
+  name: 'Custom TCG Proxy Decks (2.5" x 3.5")',
+  description: '<p>Design and print your own custom trading card game proxy decks! Choose the deck size corresponding to your favorite game (Yu-Gi-Oh!, One Piece, Pokémon, or MTG) to print premium proxies for kitchen-table playtesting before buying the real cards.</p><ul><li>Standard poker/TCG size: 2.5 x 3.5 inches</li><li>Premium linen finish with professional snap and feel</li><li>Choose between 40, 50, 60, or 100-card decks</li><li>High-resolution print-on-demand fulfillment</li></ul>',
+  price: 1499, // default price
+  compareAtPrice: 1999,
+  stock: 99999,
+  handle: 'playing-cards-pod',
+  imageUrl: '/images/playing-cards.png',
+  isDigital: false,
+  status: 'active',
+  category: 'Playing Cards',
+  tags: ['custom', 'pod', 'playing cards', 'tcg', 'mtg', 'yugioh', 'pokemon', 'onepiece'],
+  weightGrams: 150,
+  createdAt: new Date('2026-07-12'),
+  updatedAt: new Date('2026-07-12'),
+  hasVariants: true,
+  options: [{
+    id: 'deck-type-option',
+    productId: 'playing-cards-pod',
+    name: 'Deck Type',
+    position: 0,
+    values: [
+      'Yu-Gi-Oh! Proxy (40 Cards)',
+      'One Piece Proxy (50 Cards)',
+      'Pokemon / MTG Standard (60 Cards)',
+      'Commander MTG Proxy (100 Cards)'
+    ]
+  }],
+  variants: [
+    {
+      id: 'var-yugioh-40',
+      productId: 'playing-cards-pod',
+      title: 'Yu-Gi-Oh! Proxy (40 Cards)',
+      price: 1299, // $12.99
+      compareAtPrice: 1699,
+      stock: 9999,
+      option1: 'Yu-Gi-Oh! Proxy (40 Cards)',
+      createdAt: new Date('2026-07-12'),
+      updatedAt: new Date('2026-07-12')
+    },
+    {
+      id: 'var-onepiece-50',
+      productId: 'playing-cards-pod',
+      title: 'One Piece Proxy (50 Cards)',
+      price: 1499, // $14.99
+      compareAtPrice: 1999,
+      stock: 9999,
+      option1: 'One Piece Proxy (50 Cards)',
+      createdAt: new Date('2026-07-12'),
+      updatedAt: new Date('2026-07-12')
+    },
+    {
+      id: 'var-pokemon-mtg-60',
+      productId: 'playing-cards-pod',
+      title: 'Pokemon / MTG Standard (60 Cards)',
+      price: 1699, // $16.99
+      compareAtPrice: 2299,
+      stock: 9999,
+      option1: 'Pokemon / MTG Standard (60 Cards)',
+      createdAt: new Date('2026-07-12'),
+      updatedAt: new Date('2026-07-12')
+    },
+    {
+      id: 'var-commander-100',
+      productId: 'playing-cards-pod',
+      title: 'Commander MTG Proxy (100 Cards)',
+      price: 2499, // $24.99
+      compareAtPrice: 3299,
+      stock: 9999,
+      option1: 'Commander MTG Proxy (100 Cards)',
+      createdAt: new Date('2026-07-12'),
+      updatedAt: new Date('2026-07-12')
+    }
+  ],
+  media: [{
+    id: 'playing-cards-media-1',
+    url: '/images/playing-cards.png',
+    position: 0,
+    createdAt: new Date('2026-07-12')
+  }]
+};
+
 export class FirestoreProductRepository implements IProductRepository {
   private readonly collectionName = 'products';
 
@@ -74,87 +157,24 @@ export class FirestoreProductRepository implements IProductRepository {
     limit?: number;
     cursor?: string;
   } = {}): Promise<{ products: Product[]; nextCursor?: string }> {
-    try {
-      const db = getUnifiedDb();
-      const baseColl = collection(db, this.collectionName);
-      const constraints: any[] = [];
-
-      if (options.category) {
-        if (Array.isArray(options.category)) {
-          if (options.category.length > 0) {
-            constraints.push(where('category', 'in', options.category));
-          }
-        } else {
-          constraints.push(where('category', '==', options.category));
-        }
-      }
-      if (options.query) {
-        const searchStr = options.query.toLowerCase().trim();
-        constraints.push(where('searchKeywords', 'array-contains', searchStr));
-      }
-      if (options.status && options.status !== 'all') constraints.push(where('status', '==', options.status));
-      if (options.inventoryHealth && options.inventoryHealth !== 'all') constraints.push(where('inventoryHealth', '==', options.inventoryHealth));
-      if (options.setupStatus && options.setupStatus !== 'all') constraints.push(where('setupStatus', '==', options.setupStatus));
-      if (options.collection) constraints.push(where('collections', 'array-contains', options.collection));
-
-      const shouldOrder = options.limit !== 1;
-      const queryWithOrder = shouldOrder 
-        ? query(baseColl, ...constraints, orderBy('createdAt', 'desc'))
-        : query(baseColl, ...constraints);
-      
-      let snapshot;
-      try {
-        snapshot = await this.executePaginatedQuery(queryWithOrder, options);
-      } catch (err: any) {
-        if (err?.code === 400 || err?.status === 400 || String(err).includes('index')) {
-          logger.warn('Product query failed (missing index), falling back to in-memory sort', { options });
-          const unorderedQuery = query(baseColl, ...constraints);
-          snapshot = await this.executePaginatedQuery(unorderedQuery, options, true);
-        } else {
-          throw err;
-        }
-      }
-
-      const results = snapshot.docs.map((d: QueryDocumentSnapshot) => mapDocToProduct(d.id, d.data()));
-      const limitVal = options.limit ?? 20;
-      const hasNextPage = results.length > limitVal;
-      const products = results.slice(0, limitVal);
-      const nextCursor = hasNextPage ? products[products.length - 1].id : undefined;
-
-      return { products, nextCursor };
-    } catch (err) {
-      logger.error('Product fetch failed permanently', { options, err });
-      return { products: [], nextCursor: undefined };
-    }
-  }
-
-  private async executePaginatedQuery(q: any, options: any, isFallback = false) {
-    let finalQuery = q;
-    const limitVal = options.limit ?? 20;
-    finalQuery = query(finalQuery, limit(limitVal + 1));
-
-    if (options.cursor && !isFallback) {
-      const cursorDoc = await getDoc(doc(getUnifiedDb(), this.collectionName, options.cursor));
-      if (cursorDoc.exists()) {
-        finalQuery = query(finalQuery, startAfter(cursorDoc));
-      }
-    }
-    return await getDocs(finalQuery);
+    return {
+      products: [PLAYING_CARDS_PRODUCT],
+      nextCursor: undefined
+    };
   }
 
   async getById(id: string, transaction?: any): Promise<Product | null> {
-    const docRef = doc(getUnifiedDb(), this.collectionName, id);
-    const docSnap = transaction ? await transaction.get(docRef) : await getDoc(docRef);
-    if (!docSnap.exists()) return null;
-    return mapDocToProduct(docSnap.id, docSnap.data() as DocumentData);
+    return {
+      ...PLAYING_CARDS_PRODUCT,
+      id
+    };
   }
 
   async getByHandle(handle: string, transaction?: any): Promise<Product | null> {
-    const q = query(collection(getUnifiedDb(), this.collectionName), where('handle', '==', handle), limit(1));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return null;
-    const d = snapshot.docs[0];
-    return mapDocToProduct(d.id, d.data() as DocumentData);
+    return {
+      ...PLAYING_CARDS_PRODUCT,
+      handle
+    };
   }
 
   async create(product: ProductDraft): Promise<Product> {

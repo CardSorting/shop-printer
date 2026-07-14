@@ -23,6 +23,7 @@ function domainItemToLineItem(
     isDigital: item.isDigital,
     shippingClassId: item.shippingClassId,
     weightGrams: item.weightGrams,
+    customImages: item.customImages,
   };
 }
 

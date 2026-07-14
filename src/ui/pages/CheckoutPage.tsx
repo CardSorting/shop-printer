@@ -690,6 +690,12 @@ export function CheckoutPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-black text-gray-900">{item.name}</p>
                       <p className="mt-1 text-[10px] font-bold text-gray-400">Collector Unit • {formatMoney(item.priceSnapshot)}</p>
+                      {(item as any).customImages && (item as any).customImages.slice(0, -1).filter(Boolean).length > 0 && (
+                        <p className="mt-1 text-[9px] font-black uppercase text-primary-600 bg-primary-50 border border-primary-100 rounded-md px-1.5 py-0.5 w-fit">
+                          {(item as any).customImages.slice(0, -1).filter(Boolean).length} / {((item as any).customImages.length - 1)} Cards Customized
+                          {(item as any).customImages[(item as any).customImages.length - 1] && ' + Custom Back'}
+                        </p>
+                      )}
                     </div>
                     <p className="text-sm font-black text-gray-900">{formatMoney(item.priceSnapshot * item.quantity)}</p>
                   </div>
