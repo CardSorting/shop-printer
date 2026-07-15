@@ -28,9 +28,8 @@ timeline  = operator view      GET /api/admin/orders/:id/timeline
 | Method | Route |
 | --- | --- |
 | `createCheckoutSession` | `POST /api/checkout/create-payment-intent` |
-| `recoverPendingOrder` | `GET /api/checkout/verify` |
+| `recoverPendingOrder` | `POST /api/checkout/verify` |
 | `handleCheckoutWebhook` | `POST /api/webhooks/stripe` |
-| `completeCheckoutWithPaymentMethod` | `POST /api/orders` |
 | `cleanupExpiredPendingOrders` | `POST /api/system/cleanup-orders` |
 | `handleReconciliationOperatorAction` | `POST /api/admin/reconciliation/cases` |
 
@@ -40,7 +39,7 @@ timeline  = operator view      GET /api/admin/orders/:id/timeline
 
 | Method | Primary caller |
 | --- | --- |
-| `checkAvailability` | `CartService` |
+| `checkAvailability` | Cart protocol via `InventoryAvailabilityReader` |
 | `reserveInventory` | Checkout mutation |
 | `confirmReservation` | Checkout mutation |
 | `releaseReservation` | Checkout / cleanup / admin |
@@ -115,8 +114,10 @@ inventory    = scarcity (reserve)       services.inventory @ checkout only
 payment      = money capture            services.checkout + Stripe webhook
 ```
 
-**Storefront gate:** `npm run test:storefront-release` (125 tests)  
-**Checkout smoke:** `npm run test:e2e:checkout-smoke` (3 tests)  
+- **Storefront gate:** `npm run test:storefront-release`
+- **Cart smoke:** `npm run test:e2e:cart-smoke`
+- **Checkout smoke:** `npm run test:e2e:checkout-smoke`
+
 Detail: [storefront-release.md](./storefront-release.md)
 
 ---
@@ -130,6 +131,7 @@ npm test -- --run src/tests/checkout-verification-ladder.test.ts
 npm test -- --run src/tests/inventory-verification-ladder.test.ts
 npm test -- --run src/tests/refund-verification-ladder.test.ts
 npm test -- --run src/tests/admin-verification-ladder.test.ts
+npm run test:e2e:cart-smoke
 npm run test:e2e:checkout-smoke
 ```
 
@@ -143,6 +145,7 @@ npm run test:e2e:checkout-smoke
 | Dev server | `npm run dev` |
 | Dev + E2E mock pay button | `npm run dev:e2e` |
 | Storefront proof suite | `npm run test:storefront-release` |
+| Cart E2E smoke | `npm run test:e2e:cart-smoke` |
 | Checkout E2E smoke | `npm run test:e2e:checkout-smoke` |
 | Clear stuck port 3000 | `npm run cleanup` |
 | Stripe webhooks local | `stripe listen --forward-to localhost:3000/api/webhooks/stripe` |
@@ -158,6 +161,7 @@ npm run test:e2e:checkout-smoke
 | First run | [onboarding.md](./onboarding.md) |
 | Debug | [troubleshooting.md](./troubleshooting.md) |
 | Flows | [flows.md](./flows.md) |
+| Cart | [cart.md](./cart.md) |
 | Extend code | [contributing-commerce.md](./contributing-commerce.md) |
 | All protocols | [protocols.md](./protocols.md) |
 | Env vars | [environment-variables.md](./environment-variables.md) |

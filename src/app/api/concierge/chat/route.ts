@@ -865,36 +865,6 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // 10. Handle IT Support: Analyze Cart Conflicts
-        if (tokens.analyzeCartConflicts.length > 0) {
-          const tStart = Date.now();
-          try {
-            const { cart, productService } = getInitialServices();
-            const cartResult = await cart.getCart({ userId });
-            const conflicts = [];
-
-            if (cartResult.ok && cartResult.data.items.length > 0) {
-              for (const item of cartResult.data.items) {
-                const product = await productService.getProduct(item.productId);
-                if (product.status === 'archived') {
-                  conflicts.push(`Product "${product.name}" is discontinued.`);
-                }
-                if ((product.stock || 0) < item.quantity) {
-                  conflicts.push(`Product "${product.name}" is out of stock (Requested: ${item.quantity}, Available: ${product.stock || 0}).`);
-                }
-              }
-            }
-
-            sessionUpdates['context.cartAnalysis'] = {
-              hasConflicts: conflicts.length > 0,
-              conflicts,
-              itemCount: cartResult.ok ? cartResult.data.items.length : 0,
-            };
-          } catch (err) {
-            logger.error('Failed to analyze cart conflicts from concierge', err);
-          }
-        }
-
         // 11. Handle IT Support: Get Payment Diagnostics
         for (const m of tokens.getPaymentDiagnostics) {
           const tStart = Date.now();
@@ -1410,22 +1380,10 @@ export async function POST(req: NextRequest) {
           const tStart = Date.now();
           const uId = m[1];
           try {
-            const { cartRepo, productRepo } = getInitialServices();
-            const cart = await cartRepo.getByUserId(uId);
-            if (cart) {
-              const conflicts: any[] = [];
-              for (const item of cart.items) {
-                const product = await productRepo.getById(item.productId);
-                if (!product) {
-                  conflicts.push({ item: item.name, reason: 'removed' });
-                } else if (product.stock < item.quantity) {
-                  conflicts.push({ item: item.name, reason: 'low_stock', available: product.stock });
-                } else if (product.price !== item.priceSnapshot) {
-                  conflicts.push({ item: item.name, reason: 'price_change', newPrice: product.price });
-                }
-              }
-              sessionUpdates['context.cartConflicts'] = conflicts;
-            }
+            const { cart } = getInitialServices();
+            const validation = await cart.validateCart({ userId: uId });
+            if (!validation.ok) throw new Error(validation.message);
+            sessionUpdates['context.cartConflicts'] = validation.data.issues;
           } catch (err) {
             logger.error('Failed to analyze cart conflicts from concierge', err);
           }
@@ -1518,8 +1476,9 @@ export async function POST(req: NextRequest) {
             // Production Hardening: Identity Match Verification
             if (userId !== uId) throw new Error('Cannot reset session for a different user ID.');
             
-            const { cartRepo } = getInitialServices();
-            await cartRepo.clear(uId);
+            const { cart } = getInitialServices();
+            const clearResult = await cart.clearCart({ userId: uId });
+            if (!clearResult.ok) throw new Error(clearResult.message);
             sessionUpdates['context.sessionReset'] = true;
             sessionUpdates.events.push({
               type: 'note_added',

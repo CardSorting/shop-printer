@@ -3,9 +3,10 @@ import type { IOrderRepository } from '@domain/repositories';
 import { OrderNotFoundError } from '@domain/errors';
 import type { RefundService } from '../RefundService';
 import type { RefundApplicationService } from './refundApplicationService';
-import type { CreateRefundInput, GetRefundStatusInput } from './refundApplicationService';
+import type { CreateRefundInput, CreateRefundResult, GetRefundStatusInput } from './refundApplicationService';
 import type { IRefundEventLog } from './refundEventLog';
 import { refundErr, refundFromError, refundOk } from './refundResult';
+import type { RefundResult } from './refundResult';
 import type { ICommerceEventBus } from '../commerce/commerceEventBus';
 import { mapRefundEventToEnvelope } from '../commerce/commerceEventMappers';
 
@@ -17,7 +18,7 @@ export class RefundFlowService implements RefundApplicationService {
     private commerceEventBus?: ICommerceEventBus,
   ) {}
 
-  async createRefund(input: CreateRefundInput) {
+  async createRefund(input: CreateRefundInput): Promise<RefundResult<CreateRefundResult>> {
     if (!input.actor?.id?.trim() || !input.actor?.email?.trim()) {
       return refundErr('VALIDATION_FAILED', 'actor is required for refund authorization.', false);
     }

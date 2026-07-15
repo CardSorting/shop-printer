@@ -39,6 +39,8 @@ describe('Cart production proof', () => {
     expect(hook).toMatch(/mergeGuestItems/);
     expect(hook).toMatch(/remainingGuestItems/);
     expect(hook).toMatch(/saveGuestCart\(null\)/);
+    expect(route).toMatch(/parseGuestCartMergeItems/);
+    expect(read('src/core/cart/mergeGuestCart.ts')).toMatch(/customImages/);
   });
 
   it('[refresh] stale cart refresh surfaces actionable issues', () => {
@@ -62,17 +64,17 @@ describe('Cart production proof', () => {
     const flow = read('src/core/cart/cartFlowService.ts');
     expect(flow).toMatch(/discount_invalid/);
     expect(flow).toMatch(/discount_expired/);
-    expect(flow).toMatch(/clearDiscountCode/);
+    expect(flow).toMatch(/updatePersistedDiscount/);
     expect(flow).toMatch(/cart\.discount_cleared/);
   });
 
   it('[quantity] quantity limits enforced consistently at 99', () => {
     expect(MAX_CART_QUANTITY).toBe(99);
-    const mergeRoute = read('src/app/api/cart/merge-guest/route.ts');
+    const guards = read('src/infrastructure/server/apiGuards.ts');
     const itemsRoute = read('src/app/api/cart/items/route.ts');
     const guestMutations = read('src/core/cart/cartMutations.ts');
     const validation = read('src/core/cart/cartValidationService.ts');
-    expect(mergeRoute).toMatch(/quantity > 99/);
+    expect(guards).toMatch(/parsed\.quantity > 99/);
     expect(itemsRoute).toMatch(/quantity > 99/);
     expect(guestMutations).toMatch(/MAX_CART_QUANTITY/);
     expect(validation).toMatch(/MAX_CART_QUANTITY/);

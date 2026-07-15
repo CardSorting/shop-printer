@@ -84,7 +84,8 @@ Storefront or checkout UI changes:
 
 ```bash
 npm run test:storefront-release
-npm run test:e2e:checkout-smoke   # recommended for checkout UI
+npm run test:e2e:cart-smoke       # cart, storage, merge, and handoff changes
+npm run test:e2e:checkout-smoke   # checkout UI changes
 ```
 
 All protocol changes also need verification ladders:

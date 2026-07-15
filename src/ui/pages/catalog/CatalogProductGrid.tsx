@@ -24,7 +24,7 @@ type CatalogProductGridProps = {
   showLoadMore: boolean;
   loadingMore: boolean;
   onLoadMore: (cursor: string) => void;
-  loadMoreSentinelRef: RefObject<HTMLDivElement | null>;
+  loadMoreSentinelRef: RefObject<HTMLDivElement>;
 };
 
 export const CatalogProductGrid = memo(function CatalogProductGrid({

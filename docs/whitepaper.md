@@ -2,7 +2,7 @@
 
 **Inspectable, self-hosted ecommerce with protocol-bound money and stock paths.**
 
-Version: reflects repository state as of the storefront release gate (`test:storefront-release`, 125 tests).
+Version: reflects repository state as of the storefront release gate (`test:storefront-release`).
 
 **Executive summary:** [brief.md](./brief.md) · **Design principles:** [philosophy.md](./philosophy.md)
 
@@ -125,8 +125,9 @@ payment        = money capture               (services.checkout + Stripe)
 Release gate: [storefront-release.md](./storefront-release.md)
 
 ```bash
-npm run test:storefront-release   # 17 files, 125 tests
-npm run test:e2e:checkout-smoke   # 3 Playwright tests, mocked APIs
+npm run test:storefront-release   # frozen storefront proof suite
+npm run test:e2e:cart-smoke       # isolated cart-to-checkout journey
+npm run test:e2e:checkout-smoke   # isolated mocked checkout journey
 ```
 
 ### 3.4 Purchase flow (happy path)
@@ -136,7 +137,7 @@ npm run test:e2e:checkout-smoke   # 3 Playwright tests, mocked APIs
 | 1 | Cart | Add line; `checkAvailability` for physical SKUs |
 | 2 | Checkout | `createCheckoutSession` → lock, reserve, pending order, PaymentIntent |
 | 3 | Payment | Customer confirms via Stripe.js (or mock in E2E) |
-| 4 | Finalize | Webhook `payment_intent.succeeded` and/or `GET /api/checkout/verify` — idempotent |
+| 4 | Finalize | Webhook `payment_intent.succeeded` and/or `POST /api/checkout/verify` — idempotent |
 | 5 | Inventory | `confirmReservation` — no second stock decrement |
 | 6 | Operator | Order visible in admin; events in `commerce_events` |
 
@@ -163,7 +164,7 @@ Protocols return discriminated unions (`*Result<T>`). Expected failures (validat
 Production checkout has parallel finalization paths:
 
 - **Stripe webhook** — `POST /api/webhooks/stripe` → `handleCheckoutWebhook`
-- **Browser verify** — `GET /api/checkout/verify` → `recoverPendingOrder`
+- **Browser verify** — `POST /api/checkout/verify` → `recoverPendingOrder`
 
 Webhook deduplication is proven in `checkout-webhook-ingress.test.ts` and `payment-capture-proof.test.ts`. Reconciliation cases cover `paid_not_finalized` and related drift.
 
@@ -219,7 +220,8 @@ DreamBees Art treats tests as **architectural enforcement**, not optional covera
 | **Seal / guard** | `protocol-guard`, `*-protocol-guard` | Route import boundaries |
 | **Production proof** | `cart-production-proof`, `payment-capture-proof` | Lane behavioral invariants |
 | **Verification ladder** | `checkout-verification-ladder`, etc. | Protocol semantics |
-| **E2E smoke** | `test:e2e:checkout-smoke` | Checkout UI regression |
+| **Cart E2E smoke** | `test:e2e:cart-smoke` | Guest/auth cart state and checkout handoff |
+| **Checkout E2E smoke** | `test:e2e:checkout-smoke` | Checkout UI regression |
 | **Benchmark** | `benchmark:order-flow` | Throughput regression (in-memory adapters) |
 
 ### 6.2 Storefront release gate
@@ -232,15 +234,20 @@ DreamBees Art treats tests as **architectural enforcement**, not optional covera
 - Ladders: inventory, checkout, webhook ingress
 - UI unit: `validateBeforeCommit`, catalog/PDP `viewState`
 
-### 6.3 E2E checkout smoke
+### 6.3 E2E cart smoke
 
-`npm run test:e2e:checkout-smoke` runs three Playwright tests against a dev server with `NEXT_PUBLIC_E2E_MOCK_CHECKOUT=1`:
+`npm run test:e2e:cart-smoke` runs seven Playwright tests against an isolated dev server. It covers guest persistence, authenticated merge, quantity limits, discounts, mixed and unavailable shipping, and payment failure.
+
+### 6.4 E2E checkout smoke
+
+`npm run test:e2e:checkout-smoke` runs four Playwright tests against an isolated dev server with `NEXT_PUBLIC_E2E_MOCK_CHECKOUT=1`:
 
 - Happy path through mock pay → order confirmation
 - Invalid cart blocked by `gateCheckoutCommit`
 - Payment API error surfaced in UI
+- Retired `POST /api/orders` method remains unavailable
 
-The runner script owns dev lifecycle (clears port 3000, starts fresh dev) to avoid zombie-process stalls.
+Both commands share a runner that owns the dev lifecycle: it clears port 3000, starts a fresh server, runs only the selected spec, and cleans up on success or failure.
 
 Detail: [testing.md](./testing.md)
 
@@ -333,13 +340,14 @@ Strategic tracker: [SHOPMORE_ROADMAP.md](../SHOPMORE_ROADMAP.md)
 
 ## 12. Repository scale
 
+Snapshot verified July 14, 2026.
+
 | Metric | Approximate |
 | --- | ---: |
-| API routes | 142 |
-| App pages | 67 |
-| Test/spec files | 70+ |
-| Vitest tests | 320+ |
-| Storefront release gate | 125 |
+| API route files | 150 |
+| App Router page files | 71 |
+| Test/spec files | 103 across `src/` and `e2e/` |
+| Storefront release gate | Frozen multi-lane suite (`npm run test:storefront-release`) |
 
 Service wiring: `src/core/container.ts`
 
@@ -361,6 +369,7 @@ For operators, that means recoverable checkout and auditable stock. For engineer
 npm install && npm run setup && npm run dev
 
 npm run test:storefront-release
+npm run test:e2e:cart-smoke
 npm run test:e2e:checkout-smoke
 npm test -- --run src/tests/*-verification-ladder.test.ts
 npm run benchmark:order-flow

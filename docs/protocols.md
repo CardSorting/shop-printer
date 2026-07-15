@@ -1,6 +1,6 @@
 # Commerce Protocols — Unified Reference
 
-Side-by-side view of the four frozen application protocols. Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md). Cheat sheet: [quick-reference.md](./quick-reference.md).
+Side-by-side view of the four frozen mutation protocols. Cart is a separate purchase-intent boundary because it may validate availability but cannot mutate stock or money. Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md). Cart: [cart.md](./cart.md). Cheat sheet: [quick-reference.md](./quick-reference.md).
 
 ---
 
@@ -28,7 +28,6 @@ Side-by-side view of the four frozen application protocols. Policy: [commerce-pr
 | `createCheckoutSession` | Storefront checkout start |
 | `recoverPendingOrder` | Success page verify |
 | `handleCheckoutWebhook` | Stripe webhook |
-| `completeCheckoutWithPaymentMethod` | Saved PM checkout |
 | `cleanupExpiredPendingOrders` | System cron |
 | `handleReconciliationOperatorAction` | Admin reconciliation |
 
@@ -135,8 +134,9 @@ Route adapters map `code` → HTTP status. Callers must branch on `ok`, not try/
 ## Verification commands
 
 ```bash
-npm run test:storefront-release   # storefront frozen chain (125 tests)
-npm run test:e2e:checkout-smoke   # mocked checkout browser smoke (3 tests)
+npm run test:storefront-release   # storefront frozen chain
+npm run test:e2e:cart-smoke       # isolated cart-to-checkout journey
+npm run test:e2e:checkout-smoke   # isolated mocked checkout journey
 
 npm test -- --run \
   src/tests/checkout-verification-ladder.test.ts \

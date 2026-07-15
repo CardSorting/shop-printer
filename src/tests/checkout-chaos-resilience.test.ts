@@ -374,10 +374,6 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
     decrementUsage: vi.fn(),
   };
 
-  const mockPayment: any = {
-    processPayment: vi.fn(),
-    refundPayment: vi.fn(),
-  };
 
   const mockAudit: any = {
     record: vi.fn(),
@@ -412,7 +408,18 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
       productRepo: mockProductRepo,
       cartRepo: mockCartRepo,
       discountRepo: mockDiscountRepo,
-      payment: mockPayment,
+      shippingRepo: {
+        getAllZones: vi.fn().mockResolvedValue([{ id: 'test-us', name: 'United States', countries: ['US'] }]),
+        getAllRates: vi.fn().mockResolvedValue([{
+          id: 'test-standard',
+          name: 'Test Standard',
+          amount: 0,
+          type: 'price_based',
+          minLimit: 0,
+          maxLimit: Number.MAX_SAFE_INTEGER,
+          shippingZoneId: 'test-us',
+        }]),
+      },
       audit: mockAudit,
       locker: mockLocker,
       inventory,
@@ -433,7 +440,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
     const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
     const idempotencyKey = 'attempt-dup-1';
     
-    // Initiate without paymentMethodId to keep attempt in INITIALIZE_ORDER state
+    // Reserve the order before attaching the PaymentIntent, matching the modern flow.
     const order = await flow.reserveCheckout({ userId: 'u1', shippingAddress: address as any, userEmail: 'u1@ex.com', userName: 'User 1', idempotencyKey: idempotencyKey });
 
     // Explicitly transition to AWAIT_PAYMENT_CONFIRMATION to simulate Stripe redirect/webhook expectations
@@ -797,7 +804,7 @@ describe('Checkout Orchestration Bounded Distributed-Chaos & Resilience', () => 
   it('9. should converge safely on subsequent retries when a rollback initially fails partially', async () => {
     const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
     const key = 'attempt-fail-rollback';
-    // Do NOT pass paymentMethodId to keep it in pending status
+    // Leave the reservation pending until Stripe confirmation.
     const order = await flow.reserveCheckout({ userId: 'u1', shippingAddress: address as any, userEmail: 'u1@ex.com', userName: 'User', idempotencyKey: key });
 
     // Make database update fail on first try

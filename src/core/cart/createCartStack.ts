@@ -1,11 +1,8 @@
-import type { ICartRepository, IDiscountRepository, IOrderRepository, IProductRepository } from '@domain/repositories';
-import { CartService } from '../CartService';
+import type { ICartRepository, IProductRepository } from '@domain/repositories';
 import type { DiscountService } from '../DiscountService';
 import type { InventoryApplicationService } from '../inventory/inventoryApplicationService';
-import { CartApplicationServiceImpl } from './cartApplicationService';
 import type { CartApplicationService } from './cartApplicationService';
 import { CartFlowService } from './cartFlowService';
-import { CartStore } from './cartStore';
 import { CartUxEventBus } from './cartEvents';
 import { CartValidationService } from './cartValidationService';
 import { InventoryAvailabilityReader } from './inventoryAvailabilityReader';
@@ -22,11 +19,8 @@ export type CartStackDeps = {
 
 export type CartStack = {
   cart: CartApplicationService;
-  flow: CartFlowService;
   validation: CartValidationService;
   events: CartUxEventBus;
-  /** @deprecated Use `cart` application service — persistence shim for legacy callers. */
-  cartService: CartService;
 };
 
 export function createCartStack(deps: CartStackDeps): CartStack {
@@ -34,16 +28,14 @@ export function createCartStack(deps: CartStackDeps): CartStack {
   const productReadModel = new ProductReadModel(deps.productRepo);
   const availabilityReader = new InventoryAvailabilityReader({ inventory: deps.inventory });
   const pricingSnapshot = new PricingSnapshotService();
-  const cartService = new CartService(deps.cartRepo, deps.productRepo, deps.inventory);
-  const store = new CartStore(cartService);
   const validation = new CartValidationService({
     productReadModel,
     availabilityReader,
     pricingSnapshot,
     discountService: deps.discountService,
   });
-  const flow = new CartFlowService({
-    store,
+  const cart = new CartFlowService({
+    cartRepo: deps.cartRepo,
     productReadModel,
     availabilityReader,
     pricingSnapshot,
@@ -51,7 +43,6 @@ export function createCartStack(deps: CartStackDeps): CartStack {
     discountService: deps.discountService,
     events,
   });
-  const cart = new CartApplicationServiceImpl(flow);
 
-  return { cart, flow, validation, events, cartService };
+  return { cart, validation, events };
 }

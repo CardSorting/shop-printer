@@ -213,7 +213,7 @@ export class FirestoreTicketRepository {
     const total = tickets.length;
     if (total === 0) return { slaCompliance: 100, unassignedRate: 0, totalActive: 0 };
 
-    const unresolved = tickets.filter((t) => t.status !== 'resolved' && t.status !== 'solved' && t.status !== 'closed');
+    const unresolved = tickets.filter((t) => t.status !== 'resolved' && t.status !== 'closed');
     const unassigned = unresolved.filter((t) => !t.assigneeId);
     
     const breached = unresolved.filter((t) => {
@@ -238,7 +238,7 @@ export class FirestoreTicketRepository {
 
     const totalSpend = orders.reduce((sum, order) => sum + (order.total || 0), 0);
     const resolvedCount = tickets.filter((ticket) =>
-      ticket.status === 'resolved' || ticket.status === 'solved' || ticket.status === 'closed',
+      ticket.status === 'resolved' || ticket.status === 'closed',
     ).length;
 
     return {

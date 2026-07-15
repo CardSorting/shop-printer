@@ -373,12 +373,12 @@ function createHarness() {
     incrementUsage: vi.fn(async () => undefined),
     decrementUsage: vi.fn(async () => undefined),
   };
-  const payment = {
-    processPayment: vi.fn(async ({ orderId }: { orderId: string }) => ({
-      success: true,
-      transactionId: `pi_${orderId}`,
+  const stripe = {
+    createPaymentIntent: vi.fn(async ({ orderId }: { orderId: string }) => ({
+      clientSecret: `pi_${orderId}_secret`,
+      id: `pi_${orderId}`,
+      status: 'requires_payment_method',
     })),
-    refundPayment: vi.fn(async () => ({ success: true })),
   };
   const locker = new InMemoryLockProvider();
 
@@ -387,7 +387,7 @@ function createHarness() {
     productRepo: productRepo as any,
     cartRepo: cartRepo as any,
     discountRepo: discountRepo as any,
-    payment: payment as any,
+    stripe: stripe as any,
     audit: audit as any,
     locker: locker as any,
   });
@@ -399,6 +399,7 @@ function createHarness() {
     cart: createCartStack({ cartRepo: cartRepo as any, productRepo: productRepo as any }).cart,
     orderService,
     checkout,
+    stripe,
   };
 }
 
@@ -435,16 +436,16 @@ describe.runIf(BENCHMARK_ENABLED)('order flow throughput benchmark', () => {
 
     for (const concurrency of [25, 50, 100]) {
       const harness = createHarness();
-      rows.push(await runMeasuredLoad('full_order_payment_finalize', 500, concurrency, async index => {
+      rows.push(await runMeasuredLoad('checkout_payment_intent_session', 500, concurrency, async index => {
         const userId = `order-user-${concurrency}-${index}`;
         harness.cartRepo.seed(userId);
-        await harness.checkout.completeWithPaymentMethod({
+        await harness.checkout.startClientCheckout({
           userId,
           shippingAddress: address,
           userEmail: `${userId}@example.test`,
           userName: 'Benchmark User',
           idempotencyKey: `order:${concurrency}:${index}`,
-          paymentMethodId: `pm_${concurrency}_${index}`,
+          stripe: harness.stripe,
         });
       }));
     }

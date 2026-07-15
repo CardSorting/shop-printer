@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 const CHECKOUT_ROUTES = [
   'src/app/api/checkout/create-payment-intent/route.ts',
   'src/app/api/checkout/verify/route.ts',
-  'src/app/api/orders/route.ts',
   'src/app/api/webhooks/stripe/route.ts',
 ];
 
@@ -47,11 +46,33 @@ describe('Checkout protocol guard (commitment gate boundary)', () => {
     }
   });
 
-  it('[routes] place-order route does not bypass checkout application service', () => {
+  it('[routes] orders collection is read-only; checkout cannot execute through it', () => {
     const source = read('src/app/api/orders/route.ts');
-    expect(source).toMatch(/completeCheckoutWithPaymentMethod/);
-    expect(source).toMatch(/checkoutRouteResponse/);
-    expect(source).not.toMatch(/orderService\.create/);
+    expect(source).toMatch(/export async function GET/);
+    expect(source).not.toMatch(/export async function POST/);
+    expect(source).not.toMatch(/paymentMethodId/);
+  });
+
+  it('[migration] retired payment-method and external-gateway paths stay deleted', () => {
+    for (const retiredFile of [
+      'src/core/order/checkoutPaymentMethodFlow.ts',
+      'src/infrastructure/checkout/TrustedCheckoutGateway.ts',
+      'src/infrastructure/services/StripePaymentProcessor.ts',
+    ]) {
+      expect(fs.existsSync(path.join(process.cwd(), retiredFile)), retiredFile).toBe(false);
+    }
+
+    const sources = [
+      ...collectTsSources(path.join(process.cwd(), 'src/core/order')),
+      ...collectTsSources(path.join(process.cwd(), 'src/app/api/checkout')),
+      { file: 'src/core/container.ts', source: read('src/core/container.ts') },
+      { file: 'src/domain/repositories.ts', source: read('src/domain/repositories.ts') },
+    ];
+    for (const { file, source } of sources) {
+      expect(source, file).not.toMatch(/completeCheckoutWithPaymentMethod|completeWithPaymentMethod/);
+      expect(source, file).not.toMatch(/ICheckoutGateway|CHECKOUT_ENDPOINT|paymentMethodId/);
+      expect(source, file).not.toMatch(/\.processPayment\s*\(/);
+    }
   });
 
   it('[routes] payment intent route requires idempotency key', () => {

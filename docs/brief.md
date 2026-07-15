@@ -44,7 +44,7 @@ admin     = human authority
 catalog/PDP → cart → checkout → inventory holds → payment capture
 ```
 
-One command proves the chain: `npm run test:storefront-release` (125 tests).
+One command proves the chain: `npm run test:storefront-release`.
 
 ---
 
@@ -57,7 +57,7 @@ One command proves the chain: `npm run test:storefront-release` (125 tests).
 | **Engineering teams** | Explicit protocols, idempotency, webhook recovery, proof ladders |
 | **Operators** | Admin CRM, inventory ledger, reconciliation cases, incident runbooks |
 
-Not a fit today: multi-tenant SaaS hosting, app marketplace, or POS hardware — see [whitepaper.md § Roadmap gaps](./whitepaper.md#roadmap-gaps).
+Not a fit today: multi-tenant SaaS hosting, app marketplace, or POS hardware — see [whitepaper.md § Roadmap gaps](./whitepaper.md#11-roadmap-gaps).
 
 ---
 
@@ -66,6 +66,7 @@ Not a fit today: multi-tenant SaaS hosting, app marketplace, or POS hardware —
 | Gate | Command | What it proves |
 | --- | --- | --- |
 | Storefront release | `npm run test:storefront-release` | Lane guards + behavioral proofs across catalog → payment |
+| Cart smoke | `npm run test:e2e:cart-smoke` | Isolated guest/auth cart and checkout-handoff journey |
 | Checkout smoke | `npm run test:e2e:checkout-smoke` | Browser journey with mocked APIs |
 | Protocol seals | `*-verification-ladder.test.ts` | Each mutation boundary stays caged |
 | Commerce-wide seal | `protocol-guard.test.ts` | Routes never import forbidden services |
@@ -78,7 +79,7 @@ Commerce changes without proof updates are architecture violations — by design
 
 Next.js 15 · React 18 · TypeScript · Firestore · Firebase Auth · Stripe · Vitest · Playwright
 
-~142 API routes · ~67 pages · 320+ automated tests
+150 API route files · 71 App Router page files · 103 test/spec files (verified July 14, 2026)
 
 ---
 

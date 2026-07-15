@@ -1,6 +1,6 @@
 import type { 
   IOrderRepository, 
-  IPaymentProcessor,
+  IRefundProcessor,
   IProductRepository 
 } from '@domain/repositories';
 import type { OrderStatus, PaymentState } from '@domain/models';
@@ -23,12 +23,12 @@ export type ProcessRefundResult = {
 export class RefundService {
   constructor(
     private orderRepo: IOrderRepository,
-    private payment: IPaymentProcessor,
+    private payment: IRefundProcessor,
     private audit: AuditService,
     private productRepo?: IProductRepository,
     private discountRepo?: import('@domain/repositories').IDiscountRepository,
     private locker?: import('@domain/repositories').ILockProvider,
-    private inventory: InventoryApplicationService,
+    private inventory?: InventoryApplicationService,
   ) {}
 
   async processRefund(orderId: string, amount: number, actor: { id: string, email: string }, refundAttemptId: string): Promise<ProcessRefundResult> {
@@ -130,7 +130,7 @@ export class RefundService {
             }, transaction);
 
             // 2. Restock inventory (physical items only)
-            if (isFullRefund) {
+            if (isFullRefund && this.inventory) {
               const restockDeltas = order.items
                 .filter((line) => !line.isDigital)
                 .map((item) => ({

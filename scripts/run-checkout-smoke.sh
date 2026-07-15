@@ -41,8 +41,8 @@ if port_in_use; then
   sleep 1
 fi
 
-echo "🌿 Starting dev server for checkout smoke on ${BASE_URL}..."
-DEV_LOG="${TMPDIR:-/tmp}/checkout-smoke-dev.log"
+echo "🌿 Starting isolated storefront smoke server on ${BASE_URL}..."
+DEV_LOG="${TMPDIR:-/tmp}/storefront-smoke-dev.log"
 NEXT_PUBLIC_E2E_MOCK_CHECKOUT=1 \
 NEXT_TELEMETRY_DISABLED=1 \
 npx next dev --turbo -p "$PORT" >"$DEV_LOG" 2>&1 &
@@ -69,4 +69,4 @@ if ! server_ready; then
   exit 1
 fi
 
-exec npx playwright test --config=playwright.checkout-smoke.config.ts "$@"
+npx playwright test --config=playwright.checkout-smoke.config.ts "$@"

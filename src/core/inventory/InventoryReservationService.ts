@@ -62,15 +62,15 @@ export class InventoryReservationService {
     return TERMINAL_RESERVATION_STATES.includes(state);
   }
 
-  isDuplicateReserve(existing: InventoryReservation | null): existing is InventoryReservation {
+  isDuplicateReserve(existing: InventoryReservation | null): boolean {
     return !!existing && (existing.state === 'reserved' || existing.state === 'committed');
   }
 
-  isDuplicateConfirm(existing: InventoryReservation | null): existing is InventoryReservation {
+  isDuplicateConfirm(existing: InventoryReservation | null): boolean {
     return !!existing && existing.state === 'committed';
   }
 
-  isDuplicateRelease(existing: InventoryReservation | null): existing is InventoryReservation {
+  isDuplicateRelease(existing: InventoryReservation | null): boolean {
     return !!existing && (existing.state === 'released' || existing.state === 'expired');
   }
 

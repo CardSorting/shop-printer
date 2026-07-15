@@ -454,6 +454,47 @@ export function parseCartItemMutation(body: Record<string, unknown>): { productI
     };
 }
 
+export function parseCartCustomImages(value: unknown): string[] | undefined {
+    if (value === undefined || value === null) return undefined;
+    if (!Array.isArray(value) || value.length > 100) {
+        throw new DomainError('customImages must be a list of at most 100 entries.');
+    }
+    return value.map((image, index) => {
+        if (typeof image !== 'string' || image.length > 4_096) {
+            throw new DomainError(`Invalid custom image at index ${index}.`);
+        }
+        return image;
+    });
+}
+
+export function parseCartNote(value: unknown): string {
+    if (typeof value !== 'string') throw new DomainError('note must be a string.');
+    if (value.length > 100) throw new DomainError('note must be at most 100 characters.');
+    return value;
+}
+
+export function parseGuestCartMergeItems(body: Record<string, unknown>): Array<{
+    productId: string;
+    quantity: number;
+    variantId?: string;
+    customImages?: string[];
+}> {
+    if (!Array.isArray(body.items) || body.items.length === 0 || body.items.length > 100) {
+        throw new DomainError('Guest cart must contain between 1 and 100 items.');
+    }
+    return body.items.map((entry, index) => {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+            throw new DomainError(`Invalid guest item at index ${index}.`);
+        }
+        const item = entry as Record<string, unknown>;
+        const parsed = parseCartItemMutation(item);
+        if (parsed.quantity <= 0 || parsed.quantity > 99) {
+            throw new DomainError(`Invalid guest item at index ${index}.`);
+        }
+        return { ...parsed, customImages: parseCartCustomImages(item.customImages) };
+    });
+}
+
 export function parseProductIdMutation(body: Record<string, unknown>): { productId: string; variantId?: string } {
     return { 
         productId: requireString(body.productId, 'productId'),
@@ -472,6 +513,26 @@ export function parseShippingAddress(value: unknown): Address {
         state: requireString(body.state, 'shippingAddress.state'),
         zip: requireString(body.zip, 'shippingAddress.zip'),
         country: requireString(body.country, 'shippingAddress.country').toUpperCase(),
+    };
+}
+
+/**
+ * Checkout accepts an incomplete address at the HTTP boundary so digital-only
+ * carts can proceed without collecting irrelevant shipping fields. The core
+ * checkout protocol remains authoritative and rejects incomplete addresses
+ * whenever the cart contains a physical item.
+ */
+export function parseCheckoutAddress(value: unknown): Address {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new DomainError('shippingAddress must be a JSON object.');
+    }
+    const body = value as Record<string, unknown>;
+    return {
+        street: optionalString(body.street, 'shippingAddress.street') ?? '',
+        city: optionalString(body.city, 'shippingAddress.city') ?? '',
+        state: optionalString(body.state, 'shippingAddress.state') ?? '',
+        zip: optionalString(body.zip, 'shippingAddress.zip') ?? '',
+        country: (optionalString(body.country, 'shippingAddress.country') ?? 'US').toUpperCase(),
     };
 }
 
@@ -563,20 +624,6 @@ export function requireIdempotencyKey(value: unknown): string {
     const key = parseIdempotencyKey(value);
     if (!key) throw new DomainError('idempotencyKey is required.');
     return key;
-}
-
-export function parseCheckoutRequest(body: Record<string, unknown>): { 
-    shippingAddress: Address; 
-    paymentMethodId: string; 
-    idempotencyKey: string;
-    discountCode?: string;
-} {
-    return {
-        shippingAddress: parseShippingAddress(body.shippingAddress),
-        paymentMethodId: requireString(body.paymentMethodId, 'paymentMethodId'),
-        idempotencyKey: requireIdempotencyKey(body.idempotencyKey),
-        discountCode: optionalString(body.discountCode, 'discountCode'),
-    };
 }
 
 export function jsonError(error: unknown, fallback = 'Request failed', request?: Request): NextResponse {

@@ -20,7 +20,6 @@ export type { CheckoutStack, CheckoutStackDeps } from './createCheckoutStack';
 export type { CheckoutMutationBackend, RunCheckoutReservationParams } from './checkoutMutationBackend';
 export type {
   CheckoutStripeLookupPort,
-  CompleteWithPaymentMethodParams,
   ReserveCheckoutParams,
   ResolveCheckoutOrderOptions,
   StartClientCheckoutParams,

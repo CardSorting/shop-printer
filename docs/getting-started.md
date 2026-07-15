@@ -88,7 +88,6 @@ Replace WoodBine demo values with your merchant.
 
 | Variable | Purpose |
 | --- | --- |
-| `CHECKOUT_ENDPOINT` | Trusted server-side checkout gateway |
 | `BREVO_API_KEY`, `BREVO_FROM_*` | Transactional email |
 | `GEMINI_API_KEY` | Concierge LLM |
 | `HERMES_*` | Alternate Concierge agent endpoint |
@@ -135,7 +134,7 @@ Without webhook forwarding, Stripe may show payment succeeded while the local or
 
 | Step | URL / action | Expected |
 | --- | --- | --- |
-| 1 | `/products` | Seeded products visible |
+| 1 | `/collections/bestsellers` | Seeded products visible (`/products` redirects here) |
 | 2 | Add to cart → checkout | Payment form loads |
 | 3 | Pay with test card | Success / order confirmation |
 | 4 | `/orders` | Order listed as paid/processing |
@@ -166,7 +165,8 @@ npm test -- --run \
 npm run build
 
 # Browser e2e
-npm run test:e2e:checkout-smoke   # fast mocked checkout smoke
+npm run test:e2e:cart-smoke       # isolated cart-to-checkout smoke
+npm run test:e2e:checkout-smoke   # isolated checkout smoke
 npm run test:e2e                  # full Playwright suite
 
 # Core throughput baseline

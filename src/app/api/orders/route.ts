@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { checkoutRouteResponse } from '@infrastructure/server/checkoutRouteAdapter';
-import { assertRateLimit, jsonError, parseCheckoutRequest, parseOrderStatus, readJsonObject, requireSessionUser } from '@infrastructure/server/apiGuards';
+import { jsonError, parseOrderStatus, requireSessionUser } from '@infrastructure/server/apiGuards';
 
 export async function GET(request: Request) {
     try {
-        const user = await requireSessionUser();
+        const user = await requireSessionUser(request);
         const services = await getServerServices();
         const { searchParams } = new URL(request.url);
         const statusParam = searchParams.get('status');
@@ -27,29 +26,5 @@ export async function GET(request: Request) {
         return NextResponse.json(orders);
     } catch (error) {
         return jsonError(error, 'Failed to load orders');
-    }
-}
-
-export async function POST(request: Request) {
-    try {
-        await assertRateLimit(request, 'checkout:place-order', 3, 60_000);
-        const user = await requireSessionUser();
-        const { shippingAddress, paymentMethodId, idempotencyKey, discountCode } = parseCheckoutRequest(await readJsonObject(request));
-        const services = await getServerServices();
-        const result = await services.checkout.completeCheckoutWithPaymentMethod({
-            userId: user.id,
-            shippingAddress,
-            paymentMethodId,
-            idempotencyKey,
-            discountCode,
-            userEmail: user.email,
-            userName: user.displayName,
-        });
-        if (!result.ok) {
-            return checkoutRouteResponse(result);
-        }
-        return NextResponse.json(result.data);
-    } catch (error) {
-        return jsonError(error, 'Failed to place order');
     }
 }

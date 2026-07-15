@@ -33,7 +33,7 @@ How DreamBees Art verifies commerce correctness — from protocol seals to brows
 npm run test:storefront-release
 ```
 
-**17 files · 125 tests** — catalog, PDP, cart, checkout commitment, inventory reservation, payment capture.
+The frozen suite covers catalog, PDP, cart, checkout commitment, inventory reservation, and payment capture.
 
 | Category | Files |
 | --- | --- |
@@ -132,7 +132,7 @@ Also documented in [checkout.md §11 Verification](./checkout.md#11-verification
 | `inventory-reservation-proof.test.ts` | Checkout-only reservation lifecycle |
 | `inventory-location-consistency-ladder.test.ts` | PO receive |
 | `src/core/PurchaseOrderService.test.ts` | PO → receiveStockAtLocation |
-| `src/core/CartService.test.ts` | Availability checks |
+| `src/core/cart/cartFlowService.test.ts` | Cart persistence and availability orchestration |
 
 ```bash
 npm test -- --run \
@@ -170,13 +170,23 @@ See [.wiki/architecture/order-flow-throughput.md](../.wiki/architecture/order-fl
 
 ## End-to-end (Playwright)
 
+### Cart smoke (recommended for cart releases)
+
+```bash
+npm run test:e2e:cart-smoke
+```
+
+Seven isolated tests cover guest persistence, authenticated merge, quantity limits, discount behavior, shipping transitions, unavailable shipping, and payment failure.
+
 ### Checkout smoke (recommended for checkout releases)
 
 ```bash
 npm run test:e2e:checkout-smoke
 ```
 
-Three mocked tests (~20s): happy path, cart validation block, payment error. See [storefront-release.md § E2E](./storefront-release.md#teste2echeckout-smoke-3-tests-20s).
+Four mocked tests cover the happy path, cart-validation block, payment failure, and rejection of the retired order-placement method.
+
+Both commands use the same isolated runner. It owns port 3000 and cleans up the dev server after success or failure.
 
 First-time setup:
 
@@ -240,6 +250,7 @@ npm run build
 Optional before release:
 
 ```bash
+npm run test:e2e:cart-smoke
 npm run test:e2e:checkout-smoke
 npm run test:e2e
 npm run benchmark:order-flow

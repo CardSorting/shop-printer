@@ -142,6 +142,7 @@ export function Navbar() {
             {/* Cart */}
             <button 
               onClick={openCart}
+              aria-label={`Open cart${totalItems > 0 ? `, ${totalItems} items` : ''}`}
               className="ml-1 h-9 px-3 sm:px-4 bg-gray-900 text-white rounded-full flex items-center gap-2 hover:bg-primary-600 transition-all"
             >
               <ShoppingCart className="w-4 h-4" />

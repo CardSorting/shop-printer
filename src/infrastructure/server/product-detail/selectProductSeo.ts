@@ -3,7 +3,6 @@ import type { Metadata } from 'next';
 import { productToSeoContext } from '@core/seo';
 import { buildNextPageMetadata, getAppSeoEngine } from '@infrastructure/seo';
 import { productImages, productPath } from '@utils/seo';
-import type { Product } from '@domain/models';
 import type { ProductSeo } from './types';
 
 const seo = getAppSeoEngine();

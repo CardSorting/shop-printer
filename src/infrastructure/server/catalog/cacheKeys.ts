@@ -20,7 +20,7 @@ export function buildServerCatalogCacheKey(input: ServerCatalogCacheKeyInput): s
 }
 
 export function serverCatalogCacheTags(input: ServerCatalogCacheKeyInput): string[] {
-  const tags = [CATALOG_SERVER_CACHE_TAGS.categories, CATALOG_SERVER_CACHE_TAGS.products];
+  const tags: string[] = [CATALOG_SERVER_CACHE_TAGS.categories, CATALOG_SERVER_CACHE_TAGS.products];
   if (input.kind === 'collection' && input.slug) {
     tags.push(`catalog-slug-${input.slug}`);
   }

@@ -23,9 +23,13 @@ const DEFAULT_ITEM: MockCartLine = {
 };
 
 export async function seedGuestCart(page: Page, items: MockCartLine[] = [DEFAULT_ITEM]) {
-  await page.goto('/');
-  await page.evaluate(
-    ({ key, cart }) => localStorage.setItem(key, JSON.stringify(cart)),
+  await page.addInitScript(
+    ({ key, cart }) => {
+      const marker = `${key}:e2e-seeded`;
+      if (sessionStorage.getItem(marker)) return;
+      localStorage.setItem(key, JSON.stringify(cart));
+      sessionStorage.setItem(marker, '1');
+    },
     { key: GUEST_CART_STORAGE_KEY, cart: guestCartPayload(items) },
   );
 }
@@ -133,12 +137,8 @@ export async function setupCheckoutSmokeMocks(
     });
   });
 
-  await page.route('/api/orders', async (route: Route) => {
-    if (route.request().method() !== 'POST') {
-      await route.continue();
-      return;
-    }
-
+  let checkoutAddress: Record<string, string> | undefined;
+  await page.route('/api/checkout/create-payment-intent', async (route: Route) => {
     if (orderStatus >= 400) {
       await route.fulfill({
         status: orderStatus,
@@ -149,12 +149,38 @@ export async function setupCheckoutSmokeMocks(
     }
 
     const payload = route.request().postDataJSON() as { shippingAddress?: Record<string, string> };
+    checkoutAddress = payload.shippingAddress;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        clientSecret: 'pi_smoke_secret_smoke',
+        paymentIntentId: 'pi_smoke',
+        orderId,
+        amount: 5599,
+        paymentStatus: 'requires_payment_method',
+        expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+      }),
+    });
+  });
+
+  await page.route('/api/checkout/verify', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, orderId, status: 'processing' }),
+    });
+  });
+
+  await page.route(`**/api/orders/${orderId}`, async (route: Route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         id: orderId,
+        userId: SMOKE_USER.id,
         status: 'confirmed',
+        paymentState: 'paid',
         total: 5599,
         shippingAmount: 599,
         createdAt: new Date().toISOString(),
@@ -168,7 +194,7 @@ export async function setupCheckoutSmokeMocks(
             imageUrl: DEFAULT_ITEM.imageUrl,
           },
         ],
-        shippingAddress: payload.shippingAddress,
+        shippingAddress: checkoutAddress,
         customerEmail: SMOKE_USER.email,
         customerName: SMOKE_USER.displayName,
       }),

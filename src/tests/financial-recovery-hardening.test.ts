@@ -52,7 +52,6 @@ function makeOrderStack(orderRepo: any) {
     productRepo: { getById: vi.fn(), batchUpdateStock: vi.fn() } as any,
     cartRepo: { getByUserId: vi.fn(), clear: vi.fn(), save: vi.fn() } as any,
     discountRepo: { getByCode: vi.fn() } as any,
-    payment: { processPayment: vi.fn(), refundPayment: vi.fn() } as any,
     audit: { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
     locker: { acquireLock: vi.fn().mockResolvedValue({ success: true, fencingToken: 1 }), releaseLock: vi.fn() } as any,
     stripe: { getPaymentIntent },
@@ -356,4 +355,3 @@ describe('financial recovery hardening', () => {
     expect(orderRepo.getByIdempotencyKey).toHaveBeenCalledWith('dup-key-1');
   });
 });
-

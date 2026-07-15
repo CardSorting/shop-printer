@@ -13,6 +13,11 @@ import type {
     InventoryOverview, ProductCategory, ProductType, BlogSeries,
     ShippingClass, ShippingZone, ShippingRate
 } from '@domain/models';
+import {
+    finalizeClientCheckout,
+    type CheckoutVerification,
+} from '@ui/checkout/clientCheckoutFlow';
+import type { CheckoutSessionStart } from '@ui/checkout/clientCheckoutState';
 import { getAuth } from '@infrastructure/firebase/firebase';
 import {
     GoogleAuthProvider,
@@ -39,6 +44,18 @@ const DATE_FIELD_KEYS = new Set([
     'at',
 ]);
 
+class ApiClientError extends Error {
+    constructor(
+        message: string,
+        readonly status: number,
+        readonly retryable: boolean,
+        readonly code?: string,
+    ) {
+        super(message);
+        this.name = 'ApiClientError';
+    }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(path, {
         ...init,
@@ -57,7 +74,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         const serverMessage = data && typeof data === 'object' && 'error' in data && typeof data.error === 'string'
             ? data.error
             : null;
-        throw new Error(serverMessage ?? `${init?.method ?? 'GET'} ${path} failed (${response.status})`);
+        const retryable = data && typeof data === 'object' && 'retryable' in data
+            ? data.retryable === true
+            : response.status === 429 || response.status >= 500;
+        const code = data && typeof data === 'object' && 'code' in data && typeof data.code === 'string'
+            ? data.code
+            : undefined;
+        throw new ApiClientError(
+            serverMessage ?? `${init?.method ?? 'GET'} ${path} failed (${response.status})`,
+            response.status,
+            retryable,
+            code,
+        );
     }
     return reviveDates(data) as T;
 }
@@ -187,17 +215,43 @@ export function createApiClientServices() {
             batchDeleteProducts: (ids: string[], _actor: { id: string; email: string }) => request<void>('/api/admin/products/batch', { method: 'DELETE', body: JSON.stringify({ ids }) }),
         },
         checkout: {
-            completeWithPaymentMethod: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey: string, discountCode?: string) =>
-                (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
+            start: (
+                userId: string,
+                shippingAddress: Address,
+                idempotencyKey: string,
+                discountCode?: string,
+            ) => {
+                sessionScoped(userId);
+                return request<CheckoutSessionStart>('/api/checkout/create-payment-intent', {
+                    method: 'POST',
+                    body: JSON.stringify({ shippingAddress, idempotencyKey, discountCode }),
+                });
+            },
+            finalize: async (
+                userId: string,
+                paymentIntentId: string,
+                expectedOrderId?: string,
+            ): Promise<Order> => {
+                sessionScoped(userId);
+                return finalizeClientCheckout({
+                    paymentIntentId,
+                    expectedOrderId,
+                    verify: (intentId) => request<CheckoutVerification>('/api/checkout/verify', {
+                        method: 'POST',
+                        body: JSON.stringify({ paymentIntentId: intentId }),
+                    }),
+                    loadOrder: (orderId) => request<Order>(`/api/orders/${orderId}`),
+                });
+            },
         },
         cart: {
             getCart: (signal?: AbortSignal) => request<CartResult<CartView>>('/api/cart', { signal }),
             addItem: (productId: string, quantity: number, variantId?: string, customImages?: string[]) =>
                 request<CartResult<CartView>>('/api/cart/items', { method: 'POST', body: JSON.stringify({ productId, quantity, variantId, customImages }) }),
-            updateItem: (productId: string, quantity: number, variantId?: string) =>
-                request<CartResult<CartView>>('/api/cart/items', { method: 'PATCH', body: JSON.stringify({ productId, quantity, variantId }) }),
-            removeItem: (productId: string, variantId?: string) =>
-                request<CartResult<CartView>>('/api/cart/items', { method: 'DELETE', body: JSON.stringify({ productId, variantId }) }),
+            updateItem: (productId: string, quantity: number, variantId?: string, customImages?: string[]) =>
+                request<CartResult<CartView>>('/api/cart/items', { method: 'PATCH', body: JSON.stringify({ productId, quantity, variantId, customImages }) }),
+            removeItem: (productId: string, variantId?: string, customImages?: string[]) =>
+                request<CartResult<CartView>>('/api/cart/items', { method: 'DELETE', body: JSON.stringify({ productId, variantId, customImages }) }),
             clearCart: () => request<CartResult<CartView>>('/api/cart', { method: 'DELETE' }),
             updateNote: (note: string) =>
                 request<CartResult<CartView>>('/api/cart/note', { method: 'POST', body: JSON.stringify({ note }) }),
@@ -209,12 +263,12 @@ export function createApiClientServices() {
                     method: 'POST',
                     body: JSON.stringify({ productId, quantity, variantId }),
                 }),
-            mergeGuestItems: (items: Array<{ productId: string; quantity: number; variantId?: string }>) =>
+            mergeGuestItems: (items: Array<{ productId: string; quantity: number; variantId?: string; customImages?: string[] }>) =>
                 request<
                     CartResult<{
                         cart: CartView;
                         mergeIssues: import('@core/cart').CartIssue[];
-                        remainingGuestItems: Array<{ productId: string; quantity: number; variantId?: string }>;
+                        remainingGuestItems: Array<{ productId: string; quantity: number; variantId?: string; customImages?: string[] }>;
                     }>
                 >('/api/cart/merge-guest', { method: 'POST', body: JSON.stringify({ items }) }),
         },

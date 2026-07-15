@@ -21,7 +21,7 @@ test.describe('Stripe Webhook Temporal Logic', () => {
 
     // Trigger both simultaneously
     const [res1, res2] = await Promise.all([
-      request.get(`/api/checkout/verify?payment_intent=${paymentIntentId}`),
+      request.post('/api/checkout/verify', { data: { paymentIntentId } }),
       request.post('/api/webhooks/stripe', {
         headers: { 'stripe-signature': 'mock_signature' }, // Would fail without bypass
         data: webhookPayload

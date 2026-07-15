@@ -15,7 +15,7 @@ import { useCart } from '../hooks/useCart';
 import { useAuth } from '../hooks/useAuth';
 import { useServices } from '../hooks/useServices';
 import type { Product } from '@domain/models';
-import { MAX_CART_QUANTITY } from '@domain/rules';
+import { cartLineKey, MAX_CART_QUANTITY } from '@domain/rules';
 import { logger } from '@utils/logger';
 import { getProductUrl, STORE_PATHS } from '@utils/navigation';
 import { sanitizeImageUrl } from '@utils/imageSanitizer';
@@ -35,6 +35,7 @@ export function CartPage() {
     loading,
     refreshing,
     viewState,
+    error,
     updateQuantity,
     removeItem,
     clearCart,
@@ -151,7 +152,7 @@ export function CartPage() {
             </div>
             {totalItems > 0 && (
                <button 
-                onClick={clearCart}
+                onClick={() => void clearCart().catch(() => undefined)}
                 className="text-xs font-bold uppercase tracking-widest text-red-500 hover:text-red-700 transition-colors flex items-center gap-2"
                >
                  <Trash2 className="h-4 w-4" /> Clear All Items
@@ -166,6 +167,12 @@ export function CartPage() {
             onRefresh={() => void refreshCart()}
             refreshing={refreshing}
           />
+        )}
+
+        {error && (
+          <div role="alert" className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 font-bold text-red-700">
+            {error}
+          </div>
         )}
 
         {totalItems === 0 ? (
@@ -235,7 +242,7 @@ export function CartPage() {
             {/* Left Side: Items */}
             <div className="lg:col-span-2 space-y-6">
               {cart?.items.map((item) => (
-                <article key={item.productId} className="bg-white rounded-4xl border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all duration-300 group" data-testid="cart-item">
+                <article key={cartLineKey(item)} className="bg-white rounded-4xl border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all duration-300 group" data-testid="cart-item">
                   <div className="flex flex-col sm:flex-row gap-8">
                     <div className="relative w-full sm:w-40 aspect-square shrink-0">
                       <Link href={getProductUrl({ id: item.productId, handle: item.productHandle })}>
@@ -266,7 +273,7 @@ export function CartPage() {
                           )}
                         </div>
                         <button 
-                          onClick={() => removeItem(item.productId)}
+                          onClick={() => void removeItem(item.productId, item.variantId, item.customImages).catch(() => undefined)}
                           className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
                         >
                           <Trash2 className="h-5 w-5" />
@@ -276,7 +283,7 @@ export function CartPage() {
                       <div className="mt-8 flex flex-wrap items-center justify-between gap-6">
                         <div className="flex items-center bg-gray-50 p-1.5 rounded-2xl border-2 border-transparent focus-within:border-primary-100 transition-all">
                            <button 
-                            onClick={() => updateQuantity(item.productId, Number(item.quantity) - 1, item.variantId)}
+                            onClick={() => void updateQuantity(item.productId, Number(item.quantity) - 1, item.variantId, item.customImages).catch(() => undefined)}
                             disabled={item.quantity <= 1}
                             className="h-10 w-10 flex items-center justify-center rounded-xl bg-white shadow-sm text-gray-400 hover:text-primary-600 disabled:opacity-30 transition-all active:scale-90"
                             aria-label="Decrease quantity"
@@ -286,7 +293,7 @@ export function CartPage() {
                            </button>
                            <span className="w-14 text-center text-lg font-black text-gray-900" data-testid="item-quantity">{item.quantity}</span>
                            <button 
-                            onClick={() => updateQuantity(item.productId, Number(item.quantity) + 1, item.variantId)}
+                            onClick={() => void updateQuantity(item.productId, Number(item.quantity) + 1, item.variantId, item.customImages).catch(() => undefined)}
                             disabled={item.quantity >= MAX_CART_QUANTITY}
                             className="h-10 w-10 flex items-center justify-center rounded-xl bg-white shadow-sm text-gray-400 hover:text-primary-600 disabled:opacity-30 transition-all active:scale-90"
                             aria-label="Increase quantity"

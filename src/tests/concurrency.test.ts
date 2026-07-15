@@ -25,7 +25,6 @@ describe('OrderService Concurrency', () => {
   let mockProductRepo: any;
   let mockCartRepo: any;
   let mockDiscountRepo: any;
-  let mockPayment: any;
   let mockAudit: any;
   let mockLocker: any;
 
@@ -67,9 +66,6 @@ describe('OrderService Concurrency', () => {
       getByCode: vi.fn(),
       incrementUsage: vi.fn(),
     };
-    mockPayment = {
-      processPayment: vi.fn(),
-    };
     mockAudit = {
       record: vi.fn(),
       recordWithTransaction: vi.fn(),
@@ -93,7 +89,18 @@ describe('OrderService Concurrency', () => {
       productRepo: mockProductRepo,
       cartRepo: mockCartRepo,
       discountRepo: mockDiscountRepo,
-      payment: mockPayment,
+      shippingRepo: {
+        getAllZones: vi.fn().mockResolvedValue([{ id: 'us', name: 'United States', countries: ['US'] }]),
+        getAllRates: vi.fn().mockResolvedValue([{
+          id: 'standard',
+          name: 'Standard',
+          amount: 599,
+          type: 'price_based',
+          minLimit: 0,
+          maxLimit: 1_000_000,
+          shippingZoneId: 'us',
+        }]),
+      },
       audit: mockAudit,
       locker: mockLocker,
     }));
@@ -194,7 +201,7 @@ describe('OrderService Concurrency', () => {
     expect(stock).toBe(0);
   });
 
-  it('should resume payment processing and transition order status to confirmed on checkout retry of a pending order with no payment transaction id', async () => {
+  it('returns the same pending reservation when a checkout attempt is retried', async () => {
     const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
     const idempotencyKey = 'timed-out-key';
 
@@ -211,53 +218,17 @@ describe('OrderService Concurrency', () => {
       items: [{ productId: 'p1', quantity: 1, isDigital: false }]
     });
 
-    mockPayment.processPayment.mockResolvedValueOnce({
-      success: true,
-      transactionId: 'tx-recovered'
-    });
-
-    mockOrderRepo.updateStatus = vi.fn();
-    mockOrderRepo.updatePaymentTransactionId = vi.fn();
-    mockOrderRepo.getByPaymentTransactionIdTransactional.mockResolvedValueOnce({
-      id: 'o-existing',
-      userId: 'u1',
-      total: 1000,
-      status: 'pending',
-      paymentTransactionId: 'tx-recovered',
-      idempotencyKey,
-      fulfillmentMethod: 'shipping',
-      metadata: { inventoryReserved: true },
-      items: [{ productId: 'p1', quantity: 1, isDigital: false }]
-    });
-    mockOrderRepo.updateRiskScore = vi.fn();
-    mockOrderRepo.updateMetadata = vi.fn();
-    mockOrderRepo.addFulfillmentEvent = vi.fn();
-
-    const order = await checkout.completeWithPaymentMethod({
+    const order = await checkout.reserveCheckout({
       userId: 'u1',
       shippingAddress: address as any,
       userEmail: 'user@example.com',
       userName: 'User',
       idempotencyKey,
-      paymentMethodId: 'pm_123',
     });
 
-    // Verify order is returned
     expect(order.id).toBe('o-existing');
-    // Verify status is fully finalized and paymentTransactionId is set in the returned order
-    expect(order.status).toBe('processing');
-    expect(order.paymentTransactionId).toBe('tx-recovered');
-
-    // Verify repository update calls were made
-    expect(mockOrderRepo.updatePaymentTransactionId).toHaveBeenCalledWith('o-existing', 'tx-recovered');
-    expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o-existing', 'processing', expect.anything());
-    expect(mockPayment.processPayment).toHaveBeenCalledWith({
-      amount: 1000,
-      orderId: 'o-existing',
-      paymentMethodId: 'pm_123',
-      idempotencyKey: 'timed-out-key'
-    });
-    // Verify that we did not run the cart checkout / create transaction flow again
+    expect(order.status).toBe('pending');
+    expect(order.paymentTransactionId).toBeNull();
     expect(mockOrderRepo.create).not.toHaveBeenCalled();
   });
 
@@ -389,87 +360,4 @@ describe('OrderService Concurrency', () => {
     }));
   });
 
-  it('should transactionally restore physical stock and update metadata on payment failure during checkout', async () => {
-    const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
-
-    // Force processPayment to throw an error
-    mockPayment.processPayment.mockRejectedValueOnce(new Error('Stripe card declined'));
-
-    mockOrderRepo.updateStatus = vi.fn().mockResolvedValue(undefined);
-    mockOrderRepo.updateMetadata = vi.fn().mockResolvedValue(undefined);
-    mockProductRepo.batchUpdateStock = vi.fn().mockResolvedValue(undefined);
-
-    // Mock existing created order having metadata inventoryReserved: true
-    mockOrderRepo.create.mockResolvedValueOnce({
-      id: 'o1',
-      userId: 'u1',
-      status: 'pending',
-      paymentTransactionId: null,
-      discountCode: undefined,
-      metadata: { inventoryReserved: true },
-      items: [{ productId: 'p1', quantity: 1, isDigital: false }]
-    });
-
-    await expect(checkout.completeWithPaymentMethod({
-      userId: 'u1',
-      shippingAddress: address as any,
-      userEmail: 'user@example.com',
-      userName: 'User',
-      idempotencyKey: 'bad-payment-key',
-      paymentMethodId: 'pm_declined',
-    })).rejects.toThrow('Stripe card declined');
-
-    // Verify order was cancelled
-    expect(mockOrderRepo.transitionPaymentState).toHaveBeenCalledWith('o1', ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'payment_processor_failure');
-    expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o1', 'cancelled', undefined);
-
-    // Verify physical product stock was batch updated to be restored (delta of positive item quantity)
-    expect(mockProductRepo.batchUpdateStock).toHaveBeenLastCalledWith([{ id: 'p1', delta: 1 }], undefined);
-
-    // Verify metadata is updated with inventoryReservationReleased: true
-    expect(mockOrderRepo.updateMetadata).toHaveBeenCalledWith('o1', expect.objectContaining({
-      inventoryReservationReleased: true
-    }));
-  });
-
-  it('marks a paid order for reconciliation instead of releasing inventory when finalization fails', async () => {
-    const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
-
-    mockPayment.processPayment.mockResolvedValueOnce({
-      success: true,
-      transactionId: 'tx-paid-finalize-failed'
-    });
-    mockOrderRepo.updatePaymentTransactionId = vi.fn().mockResolvedValue(undefined);
-    mockOrderRepo.updateStatus = vi.fn().mockResolvedValue(undefined);
-    mockOrderRepo.markForReconciliation = vi.fn().mockResolvedValue(undefined);
-    mockOrderRepo.create.mockResolvedValueOnce({
-      id: 'o-paid',
-      userId: 'u1',
-      status: 'pending',
-      total: 1000,
-      paymentTransactionId: null,
-      metadata: { inventoryReserved: true, fencingToken: 1 },
-      items: [{ productId: 'p1', quantity: 1, isDigital: false }]
-    });
-    mockOrderRepo.getByPaymentTransactionIdTransactional.mockRejectedValueOnce(new Error('finalizer write failed'));
-
-    await expect(checkout.completeWithPaymentMethod({
-      userId: 'u1',
-      shippingAddress: address as any,
-      userEmail: 'user@example.com',
-      userName: 'User',
-      idempotencyKey: 'paid-but-finalizer-failed',
-      paymentMethodId: 'pm_123',
-    })).rejects.toThrow('finalizer write failed');
-
-    expect(mockOrderRepo.updatePaymentTransactionId).toHaveBeenCalledWith('o-paid', 'tx-paid-finalize-failed');
-    expect(mockOrderRepo.transitionReconciliationState).toHaveBeenCalledWith('o-paid', ['none', 'needs_review'], 'needs_review', 'finalization_failure');
-    expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o-paid', 'reconciling', undefined);
-    expect(mockOrderRepo.markForReconciliation).toHaveBeenCalledWith('o-paid', expect.arrayContaining([
-      'Payment tx-paid-finalize-failed succeeded but order finalization failed.',
-      'finalizer write failed'
-    ]));
-    expect(mockProductRepo.batchUpdateStock).toHaveBeenCalledWith([{ id: 'p1', delta: -1 }], expect.anything());
-    expect(mockProductRepo.batchUpdateStock).not.toHaveBeenCalledWith([{ id: 'p1', delta: 1 }], expect.anything());
-  });
 });

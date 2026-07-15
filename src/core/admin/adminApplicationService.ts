@@ -1,6 +1,5 @@
-import type { Address, Product, ProductDraft, ProductUpdate, User, UserRole, Order, OrderNote, InventoryLocation } from '@domain/models';
+import type { Address, Product, ProductDraft, ProductUpdate, User, UserRole, Order, OrderNote, InventoryLocation, AdminDashboardSummary } from '@domain/models';
 import type { OrderStatus } from '@domain/models';
-import type { AdminDashboardSummary } from '@core/OrderQueryService';
 import type { ReconciliationOperatorAction } from '@core/order/checkoutTypes';
 import type { CreatePurchaseOrderInput, ReceiveItemsInput, ClosePurchaseOrderInput } from '@core/PurchaseOrderService';
 import type { InventoryLedgerEntry } from '@domain/inventory';

@@ -65,7 +65,17 @@ Customer transactions. Checkout creates pending → paid transition.
 
 ### `carts`
 
-Session-scoped shopping carts. Not protocol-mutated for stock.
+Authenticated purchase intent, keyed by customer id and persisted through `CartFlowService`. Guest carts do not use this collection; they use the validated `cart:guest:v1` browser envelope.
+
+| Field area | Purpose |
+| --- | --- |
+| `id`, `userId` | Session-derived owner identity |
+| `items[]` | Product/variant/customization line snapshots |
+| `items[].priceSnapshot` | Display and drift detection; checkout revalidates |
+| `note`, `discountCode` | Cart-level intent preserved across item mutations |
+| `updatedAt` | Cart freshness/expiry evaluation |
+
+Cart writes never reserve or decrement inventory. Add/update reads availability; checkout remains responsible for authoritative revalidation and reservation. See [cart.md](./cart.md).
 
 ---
 
@@ -95,7 +105,7 @@ Opened on oversell, ledger drift, or checkout/inventory mismatch.
 | --- | --- | --- |
 | `stripe_webhook_events` | Checkout webhook | Stripe `event.id` |
 | `checkout_recovery_attempts` | Operator recovery | `recovery:{caseId}` |
-| `operator_action_events` | Checkout operator + legacy | `operator:{caseId}:{action}:{actorId}` |
+| `operator_action_events` | Checkout operator actions | `operator:{caseId}:{action}:{actorId}` |
 | `refund_execution_claims` | Refunds | Client idempotency key |
 | `refund_execution_events` | Refunds audit | Event uuid |
 | `admin_mutation_claims` | Admin dedup | Admin mutation key |

@@ -1,6 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import {
   GUEST_CART_STORAGE_KEY,
+  MOCK_CART_IMAGE_URL,
   buildCartView,
   cartOk,
   guestCartPayload,
@@ -21,30 +22,34 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
 
-    await page.route('/api/admin/shipping/rates', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([
-          {
-            id: 'r1',
-            name: 'Standard Shipping',
-            amount: 599,
-            type: 'price_based',
-            minLimit: 0,
-            maxLimit: 9999,
-            shippingZoneId: 'z1',
-          },
-        ]),
+    for (const path of ['/api/shipping/rates', '/api/admin/shipping/rates']) {
+      await page.route(path, async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              id: 'r1',
+              name: 'Standard Shipping',
+              amount: 599,
+              type: 'price_based',
+              minLimit: 0,
+              maxLimit: 9999,
+              shippingZoneId: 'z1',
+            },
+          ]),
+        });
       });
-    });
-    await page.route('/api/admin/shipping/zones', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([{ id: 'z1', name: 'USA', countries: ['US'] }]),
+    }
+    for (const path of ['/api/shipping/zones', '/api/admin/shipping/zones']) {
+      await page.route(path, async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([{ id: 'z1', name: 'USA', countries: ['US'] }]),
+        });
       });
-    });
+    }
 
     await page.route('/api/products*', async (route) => {
       await route.fulfill({
@@ -78,26 +83,7 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
       });
     });
 
-    await page.route('/api/cart/preview-line', async (route) => {
-      const body = route.request().postDataJSON() as { productId: string; quantity: number };
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(
-          cartOk({
-            productId: body.productId,
-            title: body.productId === 'p2' ? 'Digital Art' : 'Physical Art',
-            image: 'https://example.test/image.jpg',
-            priceSnapshot: body.productId === 'p2' ? 2000 : 5000,
-            currency: 'USD',
-            quantity: body.quantity,
-            availabilityStatus: 'in_stock',
-          }),
-        ),
-      });
-    });
-
-    await page.route('/api/cart/**', async (route) => {
+    await page.route(/\/api\/cart(?:\/|$)/, async (route) => {
       const url = route.request().url();
       const method = route.request().method();
       const items: MockCartLine[] = [{ productId: 'p1', name: 'Physical Art', priceSnapshot: 5000, quantity: 1 }];
@@ -114,6 +100,26 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
               cart: buildCartView(items, 'u1'),
               mergeIssues: [],
               remainingGuestItems: [],
+            }),
+          ),
+        });
+        return;
+      }
+
+      if (url.includes('/preview-line')) {
+        const body = route.request().postDataJSON() as { productId: string; quantity: number };
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(
+            cartOk({
+              productId: body.productId,
+              title: body.productId === 'p2' ? 'Digital Art' : 'Physical Art',
+              image: MOCK_CART_IMAGE_URL,
+              priceSnapshot: body.productId === 'p2' ? 2000 : 5000,
+              currency: 'USD',
+              quantity: body.quantity,
+              availabilityStatus: 'in_stock',
             }),
           ),
         });
@@ -139,9 +145,13 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
   }
 
   async function seedCart(page: Page, items: MockCartLine[]) {
-    await page.goto('/');
-    await page.evaluate(
-      ({ key, cart }) => localStorage.setItem(key, JSON.stringify(cart)),
+    await page.addInitScript(
+      ({ key, cart }) => {
+        const marker = `${key}:e2e-seeded`;
+        if (sessionStorage.getItem(marker)) return;
+        localStorage.setItem(key, JSON.stringify(cart));
+        sessionStorage.setItem(marker, '1');
+      },
       { key: GUEST_CART_STORAGE_KEY, cart: guestCartPayload(items) },
     );
   }
@@ -155,8 +165,7 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
         body: JSON.stringify({ id: 'u1', email: 'test@example.com' }),
       });
     });
-    await page.goto('/products');
-    await page.locator('button[aria-label="Open cart"]').filter({ visible: true }).first().click({ force: true });
+    await page.goto('/cart');
     await expect(page.locator('[data-testid="cart-item"]')).toBeVisible({ timeout: 15000 });
   });
 
@@ -178,16 +187,19 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
     await expect(page.getByText(/Delivery Speed/i)).toBeVisible({ timeout: 15000 });
   });
 
-  test('should block checkout for unsupported shipping countries', async ({ page }) => {
+  test('should block checkout when no shipping method is available', async ({ page }) => {
+    await page.route('/api/shipping/rates', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
     await seedCart(page, [{ productId: 'p1', name: 'Physical Art', priceSnapshot: 5000, quantity: 1 }]);
     await page.goto('/checkout');
     await page.locator('#checkout-email').fill('test@example.com');
-    await page.locator('#checkout-street').fill('123 Foreign St');
-    await page.locator('#checkout-city').fill('Toronto');
-    await page.locator('#checkout-state').fill('ON');
-    await page.locator('#checkout-zip').fill('M5V 2L7');
+    await page.locator('#checkout-street').fill('123 Test St');
+    await page.locator('#checkout-city').fill('Test City');
+    await page.locator('#checkout-state').fill('TS');
+    await page.locator('#checkout-zip').fill('12345');
     await page.locator('[data-testid="continue-to-shipping"]').click({ force: true });
-    await expect(page.getByText(/No matching zone/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#checkout-error')).toContainText(/Shipping is not available/i, { timeout: 15000 });
   });
 
   test('should handle payment errors', async ({ page }) => {
@@ -198,14 +210,12 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
         body: JSON.stringify({ id: 'u1', email: 'test@example.com' }),
       });
     });
-    await page.route('/api/orders', async (route) => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({
-          status: 402,
-          contentType: 'application/json',
-          body: JSON.stringify({ message: 'Insufficient funds.' }),
-        });
-      }
+    await page.route('/api/checkout/create-payment-intent', async (route) => {
+      await route.fulfill({
+        status: 402,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Insufficient funds.' }),
+      });
     });
 
     await seedCart(page, [{ productId: 'p1', name: 'Physical Art', priceSnapshot: 5000, quantity: 1 }]);
@@ -239,23 +249,19 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
   });
 
   test('should enforce quantity limits', async ({ page }) => {
-    await seedCart(page, [{ productId: 'p1', name: 'Physical Art', priceSnapshot: 5000, quantity: 1 }]);
-    await page.goto('/products');
-    await page.locator('button[aria-label="Open cart"]').filter({ visible: true }).first().click({ force: true });
+    await seedCart(page, [{ productId: 'p1', name: 'Physical Art', priceSnapshot: 5000, quantity: 98 }]);
+    await page.goto('/cart');
 
-    const plusBtn = page.locator('button:has(svg.lucide-plus)');
-    for (let i = 0; i < 9; i++) {
-      await plusBtn.click({ force: true });
-    }
-    await expect(page.getByText('10')).toBeVisible({ timeout: 10000 });
+    const plusBtn = page.locator('[data-testid="cart-item"] button[aria-label="Increase quantity"]');
+    await plusBtn.click({ force: true });
+    await expect(page.locator('[data-testid="cart-item"]')).toContainText('99');
     await expect(plusBtn).toBeDisabled({ timeout: 5000 });
   });
 
   test('should persist cart after reload', async ({ page }) => {
     await seedCart(page, [{ productId: 'p1', name: 'Physical Art', priceSnapshot: 5000, quantity: 1 }]);
-    await page.goto('/products');
+    await page.goto('/cart');
     await page.reload();
-    await page.locator('button[aria-label="Open cart"]').filter({ visible: true }).first().click({ force: true });
     await expect(page.locator('[data-testid="cart-item"]')).toBeVisible({ timeout: 15000 });
   });
 });

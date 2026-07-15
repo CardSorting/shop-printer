@@ -69,6 +69,7 @@ npm run test
 npm run test:storefront-release
 
 # Mocked checkout browser smoke
+npm run test:e2e:cart-smoke
 npm run test:e2e:checkout-smoke
 
 # Reproduce the Core order-flow benchmark

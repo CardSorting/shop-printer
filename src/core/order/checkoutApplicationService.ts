@@ -1,5 +1,4 @@
-import type { Address, Order } from '@domain/models';
-import type { FulfillmentMethod } from './types';
+import type { Address } from '@domain/models';
 import type { ReconciliationOperatorAction } from './checkoutTypes';
 import type { CheckoutResult } from './checkoutResult';
 
@@ -18,18 +17,9 @@ export type CreateCheckoutSessionData = {
   paymentIntentId: string;
   orderId: string;
   amount: number;
+  paymentStatus: string;
+  expiresAt?: string;
   resumed?: boolean;
-};
-
-export type CompleteCheckoutWithPaymentMethodInput = {
-  userId: string;
-  shippingAddress: Address;
-  paymentMethodId: string;
-  idempotencyKey?: string;
-  discountCode?: string;
-  userEmail?: string;
-  userName?: string;
-  fulfillmentMethod?: FulfillmentMethod;
 };
 
 export type HandleCheckoutWebhookInput = {
@@ -42,6 +32,16 @@ export type HandleCheckoutWebhookData = {
   received: boolean;
   duplicate?: boolean;
   retry?: boolean;
+};
+
+export type HandleCheckoutWebhookResult = {
+  status: number;
+  body: {
+    error?: string;
+    received?: boolean;
+    duplicate?: boolean;
+    retry?: boolean;
+  };
 };
 
 export type HandleOperatorActionInput = {
@@ -94,9 +94,6 @@ export interface CheckoutApplicationService {
   createCheckoutSession(
     input: CreateCheckoutSessionInput,
   ): Promise<CheckoutResult<CreateCheckoutSessionData>>;
-  completeCheckoutWithPaymentMethod(
-    input: CompleteCheckoutWithPaymentMethodInput,
-  ): Promise<CheckoutResult<Order>>;
   handleCheckoutWebhook(
     input: HandleCheckoutWebhookInput,
   ): Promise<CheckoutResult<HandleCheckoutWebhookData>>;

@@ -13,6 +13,7 @@ checkout  = money capture
 refunds   = money reversal
 inventory = stock movement
 admin     = human authority
+cart      = purchase intent (no money or stock authority)
 ```
 
 ---
@@ -41,6 +42,7 @@ New commerce behavior must enter through:
 
 | Protocol | Service | Container key | Document |
 | --- | --- | --- | --- |
+| Purchase intent | `CartApplicationService` | `services.cart` | [cart.md](./cart.md) |
 | Money capture | `CheckoutApplicationService` | `services.checkout` | [checkout.md](./checkout.md) |
 | Money reversal | `RefundApplicationService` | `services.refunds` | [refunds.md](./refunds.md) |
 | Stock movement | `InventoryApplicationService` | `services.inventory` | [inventory.md](./inventory.md) |
@@ -53,6 +55,7 @@ New commerce behavior must enter through:
 - Concierge refunds → `services.refunds.createRefund({ source: 'concierge' })`
 - Admin stock changes → `services.admin` → `services.inventory`
 - Checkout reservations → `services.checkout` → inventory mutation backend
+- Cart add/update → `services.cart` → availability read only; checkout owns reservation
 
 ---
 
@@ -70,6 +73,7 @@ Per-protocol verification is mandatory when changing behavior:
 
 ```bash
 npm run test:storefront-release   # storefront + checkout + inventory reservation + payment
+npm run test:e2e:cart-smoke       # guest/auth cart transition and checkout handoff
 npm test -- --run \
   src/tests/checkout-verification-ladder.test.ts \
   src/tests/refund-verification-ladder.test.ts \

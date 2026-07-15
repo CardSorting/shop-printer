@@ -214,7 +214,7 @@ Pre-flight stock validation without mutation.
 
 | | |
 |---|---|
-| **Callers** | `CartService` (add/update for physical items) |
+| **Callers** | Cart protocol via `InventoryAvailabilityReader` (add/update for physical items) |
 | **Input** | `{ items: InventoryLineItem[] }` |
 | **Success data** | `{ available, lines[] }` per product/variant |
 | **Typical errors** | none (returns `available: false` in success data) |
@@ -395,7 +395,7 @@ Inventory protocol routes call **only** `services.inventory`:
 | Service | Protocol methods |
 |---------|------------------|
 | `CheckoutMutationService` | `reserveInventory`, `confirmReservation`, `releaseReservation` |
-| `CartService` | `checkAvailability` |
+| `CartFlowService` via `InventoryAvailabilityReader` | `checkAvailability` |
 | `ProductService` | `adjustInventory` |
 | `PurchaseOrderService` | `receiveStockAtLocation` |
 | `RefundService` | `applyInventoryDeltas` |
@@ -585,7 +585,7 @@ npm test -- --run \
   src/tests/inventory-reservation-proof.test.ts \
   src/tests/inventory-location-consistency-ladder.test.ts \
   src/core/PurchaseOrderService.test.ts \
-  src/core/CartService.test.ts
+  src/core/cart/cartFlowService.test.ts
 ```
 
 ### Reservation proof (`inventory-reservation-proof.test.ts`)
@@ -691,7 +691,8 @@ src/core/
   container.ts                     # createInventoryApplication + services.inventory
   PurchaseOrderService.ts          # receiveStockAtLocation caller
   ProductService.ts                # adjustInventory for admin catalog
-  CartService.ts                   # checkAvailability
+  cart/cartFlowService.ts          # Canonical cart application + persistence flow
+  cart/inventoryAvailabilityReader.ts # checkAvailability boundary
   order/checkoutMutationService.ts # InventoryMutationBackend consumer
 
 src/tests/

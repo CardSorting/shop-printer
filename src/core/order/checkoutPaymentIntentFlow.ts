@@ -1,6 +1,6 @@
 import type { IOrderRepository } from '@domain/repositories';
 import type { Order } from '@domain/models';
-import { DomainError } from '@domain/errors';
+import { CheckoutSessionExpiredError, DomainError } from '@domain/errors';
 import { logger } from '@utils/logger';
 import {
   CHECKOUT_PAYMENT_INTENT_ENTRY_PHASES,
@@ -15,7 +15,7 @@ export type CheckoutStripePort = {
     orderId?: string;
     idempotencyKey?: string;
     metadata?: Record<string, string>;
-  }): Promise<{ clientSecret: string; id: string }>;
+  }): Promise<{ clientSecret: string; id: string; status?: string }>;
   getPaymentIntent(id: string): Promise<{
     id: string;
     client_secret: string | null;
@@ -31,8 +31,20 @@ export type ClientPaymentIntentResult = {
   paymentIntentId: string;
   orderId: string;
   amount: number;
+  paymentStatus: string;
+  expiresAt?: string;
   resumed?: boolean;
 };
+
+function reservationExpiry(order: Order): string | undefined {
+  const value = order.metadata?.inventoryReservationExpiresAt;
+  return typeof value === 'string' ? value : undefined;
+}
+
+function reservationHasExpired(order: Order, now = Date.now()): boolean {
+  const expiresAt = reservationExpiry(order);
+  return Boolean(expiresAt && Date.parse(expiresAt) <= now);
+}
 
 type RollbackHandler = (
   orderId: string,
@@ -145,29 +157,100 @@ export async function createOrResumeClientPaymentIntent(params: {
   const { orderRepo, order, userId, idempotencyKey, stripe, onRollback } = params;
 
   if (order.status !== 'pending') {
+    if (order.status === 'cancelled') throw new CheckoutSessionExpiredError();
+    const finalized = order.paymentState === 'paid'
+      || ['confirmed', 'processing', 'delivered', 'ready_for_pickup', 'delivery_started'].includes(order.status);
+    if (finalized && order.paymentTransactionId) {
+      const finalizedPi = await stripe.getPaymentIntent(order.paymentTransactionId);
+      if (finalizedPi.metadata?.orderId && finalizedPi.metadata.orderId !== order.id) {
+        throw new DomainError('Existing payment intent metadata does not match this completed checkout.');
+      }
+      if (finalizedPi.amount !== order.total) {
+        throw new DomainError('Existing payment intent amount does not match this completed checkout.');
+      }
+      if (!finalizedPi.client_secret) {
+        throw new DomainError('Completed checkout payment cannot be resumed. Open the order from your account instead.');
+      }
+      return {
+        clientSecret: finalizedPi.client_secret,
+        paymentIntentId: finalizedPi.id,
+        orderId: order.id,
+        amount: order.total,
+        paymentStatus: finalizedPi.status || 'succeeded',
+        expiresAt: reservationExpiry(order),
+        resumed: true,
+      };
+    }
     throw new DomainError(`Checkout reservation is no longer payable (status: ${order.status}). Please start a new checkout.`);
   }
 
   if (order.paymentTransactionId) {
-    const existingPi = await stripe.getPaymentIntent(order.paymentTransactionId);
+    let existingPi = await stripe.getPaymentIntent(order.paymentTransactionId);
     if (existingPi.metadata?.orderId && existingPi.metadata.orderId !== order.id) {
       throw new DomainError('Existing payment intent metadata does not match this checkout reservation.');
     }
     if (existingPi.amount !== order.total) {
       throw new DomainError('Existing payment intent amount does not match this checkout reservation.');
     }
+    if (existingPi.status === 'canceled') {
+      await onRollback(
+        order.id,
+        idempotencyKey,
+        existingPi.id,
+        'checkout_canceled_payment_intent_rollback',
+      );
+      throw new CheckoutSessionExpiredError();
+    }
+    if (reservationHasExpired(order) && !['processing', 'succeeded'].includes(existingPi.status)) {
+      let latestStatus: string;
+      try {
+        latestStatus = (await stripe.cancelPaymentIntent(existingPi.id)).status;
+      } catch (cancelError) {
+        logger.warn('Unable to cancel an expired checkout PaymentIntent; checking Stripe before rollback.', {
+          orderId: order.id,
+          paymentIntentId: existingPi.id,
+          cancelError,
+        });
+        existingPi = await stripe.getPaymentIntent(existingPi.id);
+        latestStatus = existingPi.status;
+      }
+
+      if (latestStatus === 'canceled') {
+        await onRollback(
+          order.id,
+          idempotencyKey,
+          existingPi.id,
+          'checkout_expired_reservation_rollback',
+        );
+        throw new CheckoutSessionExpiredError('This checkout reservation expired before payment. Your cart has been restored so you can review it and try again.');
+      }
+      if (!['processing', 'succeeded'].includes(latestStatus)) {
+        throw new DomainError('The expired checkout could not be safely closed. Check payment status before trying again.');
+      }
+      existingPi = { ...existingPi, status: latestStatus };
+    }
     if (!existingPi.client_secret) {
       throw new DomainError('Existing payment intent cannot be resumed.');
     }
 
-    await transitionToPaymentIntentPhase(orderRepo, order, idempotencyKey, 'resume_existing_payment_intent', existingPi.id);
-    await transitionToAwaitPaymentPhase(orderRepo, order, idempotencyKey, 'existing_payment_intent_returned_to_client', existingPi.id);
+    try {
+      await transitionToPaymentIntentPhase(orderRepo, order, idempotencyKey, 'resume_existing_payment_intent', existingPi.id);
+      await transitionToAwaitPaymentPhase(orderRepo, order, idempotencyKey, 'existing_payment_intent_returned_to_client', existingPi.id);
+    } catch (error) {
+      logger.error('Resuming a linked PaymentIntent despite a non-authoritative phase-marker failure.', {
+        orderId: order.id,
+        paymentIntentId: existingPi.id,
+        error,
+      });
+    }
 
     return {
       clientSecret: existingPi.client_secret,
       paymentIntentId: existingPi.id,
       orderId: order.id,
       amount: order.total,
+      paymentStatus: existingPi.status || 'requires_payment_method',
+      expiresAt: reservationExpiry(order),
       resumed: true,
     };
   }
@@ -177,7 +260,7 @@ export async function createOrResumeClientPaymentIntent(params: {
   try {
     await transitionToPaymentIntentPhase(orderRepo, order, idempotencyKey, 'create_payment_intent_started');
 
-    const { clientSecret, id: paymentIntentId } = await stripe.createPaymentIntent({
+    const { clientSecret, id: paymentIntentId, status: paymentStatus } = await stripe.createPaymentIntent({
       amount: order.total,
       currency: 'usd',
       userId,
@@ -225,6 +308,8 @@ export async function createOrResumeClientPaymentIntent(params: {
       paymentIntentId,
       orderId: order.id,
       amount: order.total,
+      paymentStatus: paymentStatus || 'requires_payment_method',
+      expiresAt: reservationExpiry(order),
     };
   } catch (stripeErr) {
     logger.error(`CRITICAL: Stripe PI creation failed for order ${order.id}. Rolling back.`, stripeErr);

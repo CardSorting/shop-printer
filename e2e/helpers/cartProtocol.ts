@@ -1,6 +1,8 @@
 /** Cart protocol helpers for Playwright mocks — matches CartResult<CartView>. */
 
-export const GUEST_CART_STORAGE_KEY = 'WoodBine_guest_cart';
+export const GUEST_CART_STORAGE_VERSION = 1;
+export const GUEST_CART_STORAGE_KEY = 'cart:guest:v1';
+export const MOCK_CART_IMAGE_URL = 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=400';
 
 export type MockCartLine = {
   productId: string;
@@ -19,7 +21,7 @@ export function buildCartView(
     productId: item.productId,
     variantId: item.variantId,
     title: item.name,
-    image: item.imageUrl ?? 'https://example.test/image.jpg',
+    image: item.imageUrl ?? MOCK_CART_IMAGE_URL,
     priceSnapshot: item.priceSnapshot,
     currency: 'USD',
     quantity: item.quantity,
@@ -44,16 +46,19 @@ export function cartOk(data: Record<string, unknown>) {
 
 export function guestCartPayload(items: MockCartLine[]) {
   return {
-    id: 'guest',
-    userId: 'guest',
-    items: items.map((item) => ({
-      productId: item.productId,
-      variantId: item.variantId,
-      name: item.name,
-      priceSnapshot: item.priceSnapshot,
-      quantity: item.quantity,
-      imageUrl: item.imageUrl ?? 'https://example.test/image.jpg',
-    })),
-    updatedAt: new Date().toISOString(),
+    version: GUEST_CART_STORAGE_VERSION,
+    cart: {
+      id: 'guest',
+      userId: 'guest',
+      items: items.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId,
+        name: item.name,
+        priceSnapshot: item.priceSnapshot,
+        quantity: item.quantity,
+        imageUrl: item.imageUrl ?? MOCK_CART_IMAGE_URL,
+      })),
+      updatedAt: new Date().toISOString(),
+    },
   };
 }

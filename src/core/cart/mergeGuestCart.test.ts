@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mergeGuestCartItems } from './mergeGuestCart';
+import { guestCartItemsFromCart, mergeGuestCartItems } from './mergeGuestCart';
 
 describe('mergeGuestCartItems', () => {
   it('merges all guest items when every add succeeds', async () => {
@@ -41,5 +41,28 @@ describe('mergeGuestCartItems', () => {
     ]);
     expect(result.issues[0]?.message).toBe('Insufficient stock');
     expect(mergeItem).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves customization identity through merge and recovery', async () => {
+    const customImages = ['front-a.jpg', '', 'back.jpg'];
+    const items = guestCartItemsFromCart({
+      id: 'guest',
+      userId: 'guest',
+      items: [{
+        productId: 'p1',
+        quantity: 1,
+        name: 'Custom deck',
+        priceSnapshot: 2_500,
+        imageUrl: '/deck.jpg',
+        customImages,
+      }],
+      updatedAt: new Date(),
+    });
+    const mergeItem = vi.fn().mockResolvedValue({ ok: false, message: 'Try again' });
+
+    const result = await mergeGuestCartItems(items, mergeItem);
+
+    expect(mergeItem).toHaveBeenCalledWith(expect.objectContaining({ customImages }));
+    expect(result.remainingGuestItems[0]?.customImages).toEqual(customImages);
   });
 });

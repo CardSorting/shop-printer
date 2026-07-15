@@ -2,17 +2,19 @@ import { logger } from '@utils/logger';
 import type { StripeService } from '@infrastructure/services/StripeService';
 import type { HandleCheckoutWebhookResult } from './checkoutApplicationService';
 import type { StripePaymentIntentSnapshot } from './checkoutTypes';
+import type { CheckoutStripePort } from './checkoutPaymentIntentFlow';
 
-type WebhookCheckoutDeps = {
-  stripe: Pick<
+type CheckoutWebhookStripePort = Pick<
     StripeService,
     | 'constructEvent'
     | 'tryProcessEvent'
     | 'getEventStatus'
-    | 'getPaymentIntent'
     | 'markEventProcessed'
     | 'markEventFailed'
-  >;
+  > & Pick<CheckoutStripePort, 'getPaymentIntent'>;
+
+type WebhookCheckoutDeps = {
+  stripe: CheckoutWebhookStripePort;
   confirmPaymentFromStripe: (
     paymentIntentId: string,
     stripePi: StripePaymentIntentSnapshot | undefined,

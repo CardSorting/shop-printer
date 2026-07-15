@@ -27,7 +27,7 @@ The table below maps common Shopify merchant features to DreamBees Art implement
 | Shopify area | DreamBees Art | Notes |
 | --- | --- | --- |
 | Online store | ✅ Storefront pages + collections + SEO | Handle-based URLs, JSON-LD, sitemap hooks |
-| Cart & checkout | ✅ Frozen lanes | `services.cart` (intent buffer) + `services.checkout` (commitment + payment); proof: `test:storefront-release` |
+| Cart & checkout | ✅ Frozen lanes | `services.cart` (intent buffer) + `services.checkout` (commitment + payment); [cart contract](./cart.md), proof: `test:storefront-release` |
 | Orders & fulfillment | ✅ Admin + customer account | Fulfillment, notes, tracking import, Pirate Ship CSV export |
 | Products & variants | ✅ Admin + bulk editor | Metafields, digital and physical types |
 | Inventory | ✅ Protocol | Multi-location levels, reservations, ledger, PO receive |
@@ -102,15 +102,14 @@ Policy: **[commerce-protocol-frozen.md](./commerce-protocol-frozen.md)**
 
 ## Codebase footprint
 
-Approximate scale (useful for onboarding, not a SLA):
+Repository snapshot verified July 14, 2026 (useful for onboarding, not a SLA):
 
 | Metric | Count |
 | --- | ---: |
-| API routes | ~142 |
-| App pages | ~67 |
-| Test/spec files | ~70 |
-| Vitest tests | 320+ |
-| Storefront release gate | 125 tests (`npm run test:storefront-release`) |
+| API route files | 150 |
+| App Router page files | 71 |
+| Test/spec files | 103 across `src/` and `e2e/` |
+| Storefront release gate | `npm run test:storefront-release` |
 
 Persistence is **Firestore-only** for runtime commerce (SQLite references in env are legacy/seed tooling).
 

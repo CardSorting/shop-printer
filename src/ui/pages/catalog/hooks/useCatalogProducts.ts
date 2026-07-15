@@ -40,6 +40,7 @@ export function useCatalogProducts({
   selectedCategories,
   query,
   initialProducts,
+  initialNextCursor,
   pageSize = CATALOG_PAGE_SIZE,
 }: UseCatalogProductsOptions) {
   const hasBootstrap = true;

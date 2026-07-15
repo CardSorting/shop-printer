@@ -3,6 +3,7 @@ import {
   calculateGrossMarginPercent, 
   classifyMarginHealth, 
   calculateCartTotal, 
+  calculateCheckoutShipping,
   validateCartItem, 
   classifyInventoryHealth, 
   formatCents,
@@ -59,6 +60,37 @@ describe('Domain Rules', () => {
 
     it('should return 0 for empty cart', () => {
       expect(calculateCartTotal([])).toBe(0);
+    });
+  });
+
+  describe('calculateCheckoutShipping', () => {
+    const address = { street: '1 Main', city: 'Denver', state: 'CO', zip: '80202', country: 'us' };
+    const zones = [{ id: 'us', name: 'United States', countries: ['US'] }];
+    const rates = [{
+      id: 'physical-under-100',
+      name: 'Standard',
+      amount: 599,
+      type: 'price_based',
+      minLimit: 0,
+      maxLimit: 5_500,
+      shippingZoneId: 'us',
+    }];
+
+    it('excludes digital lines from physical rate matching', () => {
+      const quote = calculateCheckoutShipping([
+        { productId: 'physical', name: 'Print', imageUrl: '', priceSnapshot: 5_000, quantity: 1, isDigital: false },
+        { productId: 'digital', name: 'Download', imageUrl: '', priceSnapshot: 1_000, quantity: 1, isDigital: true },
+      ], address, rates as any, zones as any, { subtotal: 6_000 });
+
+      expect(quote).toMatchObject({ available: true, amount: 599, rateName: 'Standard' });
+    });
+
+    it('applies the shared free-shipping threshold after finding a valid rate', () => {
+      const quote = calculateCheckoutShipping([
+        { productId: 'physical', name: 'Print', imageUrl: '', priceSnapshot: 5_000, quantity: 1, isDigital: false },
+      ], address, rates as any, zones as any, { subtotal: 10_000 });
+
+      expect(quote).toMatchObject({ available: true, amount: 0, rateName: 'Standard' });
     });
   });
 

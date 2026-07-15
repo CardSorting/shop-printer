@@ -4,7 +4,7 @@ End-to-end stories that cross storefront, admin, and the four frozen protocols. 
 
 Policy anchor: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md)
 
-**Storefront frozen chain:** catalog/PDP (read) → cart (intent buffer) → checkout (commitment gate) → inventory (reservation at checkout) → payment (capture). Proof gate: `npm run test:storefront-release` · browser smoke: `npm run test:e2e:checkout-smoke`. Detail: [storefront-release.md](./storefront-release.md).
+**Storefront frozen chain:** catalog/PDP (read) → cart (intent buffer) → checkout (commitment gate) → inventory (reservation at checkout) → payment (capture). Proof gate: `npm run test:storefront-release` · browser gates: `npm run test:e2e:cart-smoke` and `npm run test:e2e:checkout-smoke`. Detail: [cart.md](./cart.md) · [storefront-release.md](./storefront-release.md).
 
 ---
 
@@ -37,12 +37,12 @@ Policy anchor: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md)
 
 | Step | Actor | Protocol | What happens |
 | ---: | --- | --- | --- |
-| 1 | Customer | Cart API | `CartService` calls `inventory.checkAvailability` |
+| 1 | Customer | Cart API | `services.cart` checks availability through `InventoryAvailabilityReader` |
 | 2 | Customer | Checkout | `POST /api/checkout/create-payment-intent` → `createCheckoutSession` |
 | 3 | System | Checkout + Inventory | Lock → `reserveInventory` → pending order → Stripe PaymentIntent |
 | 4 | Customer | Stripe.js | Confirms payment |
 | 5a | Stripe | Checkout | Webhook `payment_intent.succeeded` → `handleCheckoutWebhook` |
-| 5b | Browser | Checkout | `GET /api/checkout/verify` → `recoverPendingOrder` |
+| 5b | Browser | Checkout | `POST /api/checkout/verify` → `recoverPendingOrder` |
 | 6 | System | Checkout + Inventory | `confirmReservation` → order status paid/processing |
 | 7 | Operator | Admin (read) | Order visible in `/admin/orders` |
 
@@ -78,7 +78,7 @@ Details: [checkout.md § Business flows](./checkout.md#6-business-flows)
 | Step | Actor | Service | Notes |
 | ---: | --- | --- | --- |
 | 1 | Customer | `POST /api/cart/items` | Add line |
-| 2 | System | `CartService` + `inventory.checkAvailability` | Blocks oversell for physical SKUs |
+| 2 | System | `CartFlowService` + `InventoryAvailabilityReader` | Calls `inventory.checkAvailability`; never reserves |
 | 3 | Customer | Apply discount | `POST /api/discounts/validate` |
 | 4 | Customer | Navigate to `/checkout` | Checkout page loads Stripe |
 | 5 | Customer | Purchase flow below | Cart consumed during session create |

@@ -2,7 +2,6 @@
  * Cart purchase intent protocol — public core exports.
  */
 export type { CartApplicationService } from './cartApplicationService';
-export { CartApplicationServiceImpl } from './cartApplicationService';
 export type { CartResult, CartErrorCode } from './cartResult';
 export type {
   CartView,

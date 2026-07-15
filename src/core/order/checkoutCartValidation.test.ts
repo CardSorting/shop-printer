@@ -26,7 +26,6 @@ describe('checkout cart validation gate', () => {
       {} as any,
       {} as any,
       {} as any,
-      {} as any,
       undefined,
       undefined,
       cartIntent,
@@ -36,7 +35,6 @@ describe('checkout cart validation gate', () => {
       service.runCheckoutReservation({
         userId: 'u1',
         shippingAddress: { street: '1 Main', city: 'Austin', state: 'TX', zip: '78701', country: 'US' },
-        paymentMethodId: 'pm_1',
         idempotencyKey: 'attempt-1',
       }),
     ).rejects.toThrow(DomainError);
@@ -45,7 +43,6 @@ describe('checkout cart validation gate', () => {
       service.runCheckoutReservation({
         userId: 'u1',
         shippingAddress: { street: '1 Main', city: 'Austin', state: 'TX', zip: '78701', country: 'US' },
-        paymentMethodId: 'pm_1',
         idempotencyKey: 'attempt-2',
       }),
     ).rejects.toThrow('Price changed for Poster. Poster is out of stock.');

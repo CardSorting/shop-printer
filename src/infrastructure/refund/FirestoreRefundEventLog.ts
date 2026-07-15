@@ -1,11 +1,11 @@
 import { adminDb, FieldValue, withAdminFirestoreRetry } from '@infrastructure/firebase/admin';
-import type { IRefundEventLog, RefundExecutionEvent } from '@core/refund/refundEventLog';
+import type { IRefundEventLog, RefundExecutionClaimResult, RefundExecutionEvent } from '@core/refund/refundEventLog';
 
 const CLAIMS_COLLECTION = 'refund_execution_claims';
 const EVENTS_COLLECTION = 'refund_execution_events';
 
 export class FirestoreRefundEventLog implements IRefundEventLog {
-  async claimRefundExecution(idempotencyKey: string) {
+  async claimRefundExecution(idempotencyKey: string): Promise<RefundExecutionClaimResult> {
     const ref = adminDb.collection(CLAIMS_COLLECTION).doc(idempotencyKey);
     return withAdminFirestoreRetry(
       () => adminDb.runTransaction(async (transaction: any) => {
@@ -23,7 +23,7 @@ export class FirestoreRefundEventLog implements IRefundEventLog {
         return 'new';
       }),
       { operationName: 'refundEventLog.claimRefundExecution' },
-    );
+    ) as Promise<RefundExecutionClaimResult>;
   }
 
   async markRefundExecutionCompleted(idempotencyKey: string): Promise<void> {

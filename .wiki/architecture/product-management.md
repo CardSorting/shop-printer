@@ -104,7 +104,7 @@ The form loads the same metadata when editing existing products and sends cent-b
 - Adds merchant-friendly search guidance text and a result summary showing filtered count, saved-view count, and current sort label.
 - Emphasizes product identification in list/grid presentation with SKU, barcode, manufacturer SKU fallback, vendor/supplier, setup warnings, stock, margin, and updated-date context.
 
-`src/utils/formatters.ts::humanizeCategory()` now humanizes underscore-delimited category ids, so values such as `elite_trainer_box` render as `Elite Trainer Box`.
+`humanizeCategory()` in `src/utils/formatters.ts` humanizes underscore-delimited category ids, so values such as `elite_trainer_box` render as `Elite Trainer Box`.
 
 ## Verification evidence
 
@@ -122,4 +122,4 @@ The 2026-05-01 admin product search/filter/navigation update was additionally ch
 npx eslint src/domain/models.ts src/core/ProductService.ts 'src/app/api/admin/products/views/[view]/route.ts' src/ui/apiClientServices.ts src/ui/pages/admin/AdminProducts.tsx
 ```
 
-The targeted ESLint command returned with no diagnostics for the files changed in the 2026-05-01 update. Full-project `npm run lint` was also run and reported pre-existing unrelated lint failures in `src/core/container.ts`, `src/ui/pages/WishlistPage.tsx`, and `src/ui/pages/admin/AdminPOS.tsx`. `npm run build` was run and failed on a pre-existing Server/Client Component boundary issue in `src/ui/pages/admin/product-form/hooks/useProductForm.ts`, outside the files changed in the 2026-05-01 product list update.
+The targeted ESLint command returned with no diagnostics for the files changed in the 2026-05-01 update. Use the current gates in [docs/testing.md](../../docs/testing.md) for repository-wide verification.

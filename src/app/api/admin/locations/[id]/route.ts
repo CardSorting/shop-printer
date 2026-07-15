@@ -50,7 +50,7 @@ export async function DELETE(
   try {
     const user = await requireAdminSession(request);
     const { id } = await params;
-    const body = await readJsonObject(request).catch(() => ({}));
+    const body = (await readJsonObject(request).catch(() => ({}))) as Record<string, any>;
     const services = await getServerServices();
     const result = await services.admin.archiveLocation({
       actor: toAdminActor(user),

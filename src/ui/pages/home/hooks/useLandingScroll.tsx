@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useScroll, type MotionValue } from 'framer-motion';
-import { SCROLL_OPTS } from './useParallax';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 
 type LandingScrollContextValue = {
@@ -14,7 +13,7 @@ const LandingScrollContext = createContext<LandingScrollContextValue | null>(nul
 
 /** Single passive document scroll listener for the homepage. */
 export function LandingScrollProvider({ children }: { children: ReactNode }) {
-  const { scrollYProgress } = useScroll(SCROLL_OPTS);
+  const { scrollYProgress } = useScroll();
 
   return (
     <LandingScrollContext.Provider value={{ progress: scrollYProgress }}>

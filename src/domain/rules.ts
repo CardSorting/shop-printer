@@ -578,10 +578,8 @@ export function addCartItem(
   variantId?: string,
   customImages?: string[]
 ): CartItem[] {
-  const existingIndex = items.findIndex((i) => 
-    i.productId === product.id && 
-    i.variantId === variantId &&
-    JSON.stringify(i.customImages || []) === JSON.stringify(customImages || [])
+  const existingIndex = items.findIndex((item) =>
+    cartLineMatches(item, product.id, variantId, customImages),
   );
   const existingQty = existingIndex >= 0 ? items[existingIndex].quantity : 0;
 
@@ -639,8 +637,30 @@ export function addCartItem(
 }
 
 
-export function removeCartItem(items: CartItem[], productId: string, variantId?: string): CartItem[] {
-  return items.filter((i) => !(i.productId === productId && i.variantId === variantId));
+export function cartLineMatches(
+  item: Pick<CartItem, 'productId' | 'variantId' | 'customImages'>,
+  productId: string,
+  variantId?: string,
+  customImages?: string[],
+): boolean {
+  return item.productId === productId
+    && item.variantId === variantId
+    && JSON.stringify(item.customImages ?? []) === JSON.stringify(customImages ?? []);
+}
+
+export function cartLineKey(
+  item: Pick<CartItem, 'productId' | 'variantId' | 'customImages'>,
+): string {
+  return JSON.stringify([item.productId, item.variantId ?? null, item.customImages ?? []]);
+}
+
+export function removeCartItem(
+  items: CartItem[],
+  productId: string,
+  variantId?: string,
+  customImages?: string[],
+): CartItem[] {
+  return items.filter((item) => !cartLineMatches(item, productId, variantId, customImages));
 }
 
 // ─────────────────────────────────────────────
@@ -654,12 +674,12 @@ export function calculateShipping(
   address: Address,
   allRates: ShippingRate[],
   allZones: ShippingZone[]
-): { amount: number; rateName: string; shippingClassId?: string; carrier?: string; serviceCode?: string } {
+): { available: boolean; amount: number; rateName: string; shippingClassId?: string; carrier?: string; serviceCode?: string } {
   const subtotal = cartItems.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0);
   
   // 1. Find matching zone
   const zone = allZones.find(z => z.countries.includes(address.country)) || allZones.find(z => z.name.toLowerCase() === 'rest of world');
-  if (!zone) return { amount: 0, rateName: 'Shipping calculation failed: No matching zone' }; // Production Hardening: Fail explicitly if no zone matched
+  if (!zone) return { available: false, amount: 0, rateName: 'Shipping unavailable: No matching zone' };
 
   // 2. Identify the classes and total weight in the cart
   const classesInCart = new Set(cartItems.map(item => item.shippingClassId).filter(Boolean));
@@ -698,6 +718,7 @@ export function calculateShipping(
 
   if (matchedRate) {
     return { 
+      available: true,
       amount: matchedRate.amount, 
       rateName: matchedRate.name,
       shippingClassId: matchedRate.shippingClassId,
@@ -707,7 +728,45 @@ export function calculateShipping(
   }
 
   // Final fallback: Production Hardening - Strict rate matching.
-  return { amount: 0, rateName: 'Shipping calculation failed: No matching rate' };
+  return { available: false, amount: 0, rateName: 'Shipping unavailable: No matching rate' };
+}
+
+export const FREE_SHIPPING_THRESHOLD_CENTS = 10_000;
+
+/**
+ * Authoritative checkout shipping quote shared by the UI estimate and the
+ * server reservation. Digital lines never affect physical rate matching.
+ */
+export function calculateCheckoutShipping(
+  cartItems: CartItem[],
+  address: Address,
+  allRates: ShippingRate[],
+  allZones: ShippingZone[],
+  options: {
+    subtotal?: number;
+    freeShipping?: boolean;
+    fulfillmentMethod?: 'shipping' | 'pickup' | 'delivery';
+  } = {},
+): ReturnType<typeof calculateShipping> {
+  const physicalItems = cartItems.filter((item) => !item.isDigital);
+  if (physicalItems.length === 0) {
+    return { available: true, amount: 0, rateName: 'Digital Delivery' };
+  }
+
+  const normalizedAddress = {
+    ...address,
+    country: address.country.trim().toUpperCase() || 'US',
+  };
+  const quote = calculateShipping(physicalItems, normalizedAddress, allRates, allZones);
+  if (!quote.available) return quote;
+
+  const subtotal = options.subtotal
+    ?? cartItems.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0);
+  const free = options.freeShipping
+    || subtotal >= FREE_SHIPPING_THRESHOLD_CENTS
+    || options.fulfillmentMethod === 'pickup';
+
+  return free ? { ...quote, amount: 0 } : quote;
 }
 
 /**
@@ -953,9 +1012,12 @@ export function updateCartItemQuantity(
   productId: string,
   quantity: number,
   product: Product,
-  variantId?: string
+  variantId?: string,
+  customImages?: string[],
 ): CartItem[] {
-  const existingIndex = items.findIndex((i) => i.productId === productId && i.variantId === variantId);
+  const existingIndex = items.findIndex((item) =>
+    cartLineMatches(item, productId, variantId, customImages),
+  );
   if (existingIndex < 0) return items;
 
   if (!validateCartItem(product, quantity, 0, variantId)) {

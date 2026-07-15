@@ -1,4 +1,4 @@
-import { UnauthorizedError } from '@domain/errors';
+import { DomainError, UnauthorizedError } from '@domain/errors';
 import type { RefundErrorCode, RefundResult } from '../refund/refundResult';
 
 export type AdminErrorCode =

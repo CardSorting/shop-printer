@@ -109,7 +109,12 @@ export class CartValidationService {
         userId,
         undefined,
         [],
-        { lineItems: cart.items },
+        {
+          lineItems: cart.items.map((item) => ({
+            ...item,
+            unitPrice: item.priceSnapshot,
+          })),
+        },
       );
       if (!validation.valid) {
         const isExpired = validation.message?.toLowerCase().includes('expired');

@@ -66,6 +66,13 @@ export class CheckoutInProgressError extends DomainError {
   }
 }
 
+export class CheckoutSessionExpiredError extends DomainError {
+  constructor(message: string = 'This checkout session can no longer accept payment. Return to checkout and start again.') {
+    super(message);
+    this.name = 'CheckoutSessionExpiredError';
+  }
+}
+
 export class PaymentFailedError extends DomainError {
   constructor(message: string = 'Payment processing failed. Your cart stock has been restored.') {
     super(message);

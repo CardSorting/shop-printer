@@ -41,7 +41,6 @@ const STOREFRONT_CHAIN = [
     lane: 'payment',
     routes: [
       'src/app/api/checkout/create-payment-intent/route.ts',
-      'src/app/api/orders/route.ts',
       'src/app/api/webhooks/stripe/route.ts',
     ],
     server: 'services.checkout',
@@ -100,33 +99,34 @@ describe('Storefront release guard (frozen chain)', () => {
 
   it('[legacy] concierge reads cart through application service', () => {
     const source = read('src/app/api/concierge/chat/route.ts');
-    expect(source).toMatch(/cart\.getCart/);
-    expect(source).not.toMatch(/cartService\.getCart/);
+    expect(source).toMatch(/cart\.validateCart/);
+    expect(source).toMatch(/cart\.clearCart/);
+    expect(source).not.toMatch(/cartRepo\.(?:getByUserId|clear)/);
   });
 
   it('[e2e] cart protocol helper exists for release smoke mocks', () => {
     expect(fs.existsSync(path.join(process.cwd(), 'e2e/helpers/cartProtocol.ts'))).toBe(true);
     const helper = read('e2e/helpers/cartProtocol.ts');
     expect(helper).toMatch(/cartOk/);
-    expect(helper).toMatch(/WoodBine_guest_cart/);
+    expect(helper).toMatch(/cart:guest:v1/);
+    expect(helper).toMatch(/GUEST_CART_STORAGE_VERSION/);
   });
 
   it('[inventory] checkout reserves stock; cart only checks availability', () => {
     const checkout = read('src/core/order/checkoutMutationService.ts');
-    const cartService = read('src/core/CartService.ts');
+    const cartAvailability = read('src/core/cart/inventoryAvailabilityReader.ts');
     const cleanup = read('src/app/api/system/cleanup-inventory/route.ts');
     expect(checkout).toMatch(/reserveInventory/);
     expect(checkout).toMatch(/confirmReservation/);
     expect(checkout).toMatch(/releaseReservation/);
-    expect(cartService).toMatch(/checkAvailability/);
-    expect(cartService).not.toMatch(/reserveInventory/);
+    expect(cartAvailability).toMatch(/checkAvailability/);
+    expect(cartAvailability).not.toMatch(/reserveInventory/);
     expect(cleanup).toMatch(/services\.inventory\.cleanupExpiredReservations/);
   });
 
   it('[payment] money capture routes delegate to services.checkout', () => {
     for (const route of [
       'src/app/api/checkout/create-payment-intent/route.ts',
-      'src/app/api/orders/route.ts',
       'src/app/api/webhooks/stripe/route.ts',
     ]) {
       const source = read(route);
@@ -134,7 +134,10 @@ describe('Storefront release guard (frozen chain)', () => {
       expect(source, route).not.toMatch(/confirmStripePayment/);
     }
     const stripeForm = read('src/ui/checkout/StripeCheckoutForm.tsx');
-    expect(stripeForm).toMatch(/createPaymentMethod/);
-    expect(stripeForm).not.toMatch(/confirmCardPayment/);
+    expect(stripeForm).toMatch(/confirmCardPayment/);
+    expect(stripeForm).toMatch(/session\.clientSecret/);
+    expect(stripeForm).not.toMatch(/createPaymentIntent/);
+    const orders = read('src/app/api/orders/route.ts');
+    expect(orders).not.toMatch(/export async function POST/);
   });
 });

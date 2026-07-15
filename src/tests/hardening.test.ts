@@ -101,7 +101,6 @@ describe('Security Hardening Proofs', () => {
         productRepo: mockProductRepo,
         cartRepo: mockCartRepo,
         discountRepo: mockDiscountRepo,
-        payment: { processPayment: vi.fn().mockResolvedValue({ success: true, transactionId: 'tx1' }) } as any,
         audit: { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
         locker: { acquireLock: vi.fn().mockResolvedValue(true), releaseLock: vi.fn() } as any,
       }));

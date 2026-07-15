@@ -45,7 +45,6 @@ Root policy file: [SECURITY.md](../SECURITY.md) (summary + links).
 | --- | --- |
 | `BREVO_API_KEY` | Email |
 | `GEMINI_API_KEY` / `HERMES_*` | Concierge |
-| `CHECKOUT_ENDPOINT` + related | Trusted checkout gateway |
 
 ### Storage
 

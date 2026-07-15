@@ -78,6 +78,7 @@ describe('CheckoutFlowService', () => {
       paymentIntentId: 'pi_1',
       orderId: 'order-1',
       amount: 50_000,
+      paymentStatus: 'requires_payment_method',
     });
 
     const result = await flow.startClientCheckout({

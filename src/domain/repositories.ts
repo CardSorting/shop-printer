@@ -191,24 +191,8 @@ export interface IAuthProvider {
 }
 
 
-export interface IPaymentProcessor {
-  processPayment(params: {
-    amount: number;
-    orderId: string;
-    paymentMethodId?: string;
-    idempotencyKey: string;
-  }): Promise<{ success: boolean; transactionId: string | null }>;
+export interface IRefundProcessor {
   refundPayment(transactionId: string, amount: number, idempotencyKey: string): Promise<{ success: boolean; refundId?: string; status?: string }>;
-}
-
-export interface ICheckoutGateway {
-  finalizeCheckout(params: {
-    userId: string;
-    shippingAddress: import('./models').Address;
-    paymentMethodId: string;
-    idempotencyKey: string;
-    discountCode?: string;
-  }): Promise<Order>;
 }
 
 export interface ILockProvider {

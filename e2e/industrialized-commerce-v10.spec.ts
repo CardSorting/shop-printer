@@ -13,6 +13,7 @@ test.describe('Industrialized Commerce Suite V10', () => {
   async function setupSubstrateMocks(page: Page) {
     state = { items: [] as any[] };
     const nowIso = new Date().toISOString();
+    let checkoutAddress: Record<string, string> | undefined;
     
     const allProducts = [
       {
@@ -97,9 +98,26 @@ test.describe('Industrialized Commerce Suite V10', () => {
         return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'Invalid code' }) });
       }
 
-      // 5. ORDERS
-      if (url.includes('/api/orders') && method === 'POST') {
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'ORD_123', status: 'confirmed' }) });
+      // 5. CHECKOUT SESSION + FINALIZATION
+      if (url.includes('/api/checkout/create-payment-intent') && method === 'POST') {
+        checkoutAddress = body.shippingAddress;
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+          clientSecret: 'pi_v10_secret_v10', paymentIntentId: 'pi_v10', orderId: 'ORD_123',
+          amount: 13500, paymentStatus: 'requires_payment_method',
+          expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+        }) });
+      }
+      if (url.includes('/api/checkout/verify') && method === 'POST') {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, orderId: 'ORD_123', status: 'processing' }) });
+      }
+      if (url.includes('/api/orders/ORD_123') && method === 'GET') {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+          id: 'ORD_123', userId: 'u_v10', status: 'confirmed', paymentState: 'paid',
+          total: 13500, shippingAmount: 0, items: state.items.map(item => ({
+            productId: item.productId, name: item.name, unitPrice: item.priceSnapshot, quantity: item.quantity,
+          })), shippingAddress: checkoutAddress, customerEmail: 'client@hive.art',
+          customerName: 'Industrial Tester', createdAt: nowIso, updatedAt: nowIso,
+        }) });
       }
 
       // 6. DEFAULT (Catch-all for stability)

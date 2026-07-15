@@ -8,7 +8,6 @@ export type RunCheckoutReservationParams = {
   userName?: string;
   discountCode?: string;
   idempotencyKey?: string;
-  paymentMethodId?: string;
   fulfillmentMethod?: FulfillmentMethod;
   lockTtlMs?: number;
 };

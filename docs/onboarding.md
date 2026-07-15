@@ -72,7 +72,7 @@ Open `http://localhost:3000`.
 
 **Storefront smoke test**
 
-1. Browse `/products` — seeded catalog should load
+1. Browse `/collections/bestsellers` — seeded catalog should load (`/products` redirects there)
 2. Add a physical product to cart → `/cart` → `/checkout`
 3. Pay with Stripe test card `4242 4242 4242 4242`
 4. Land on success / verify path → order appears in `/orders`
@@ -87,6 +87,7 @@ Open `http://localhost:3000`.
 
 ```bash
 npm run test:storefront-release
+npm run test:e2e:cart-smoke
 npm run test:e2e:checkout-smoke
 ```
 
@@ -95,6 +96,7 @@ npm run test:e2e:checkout-smoke
 - [ ] `npm run dev` serves storefront and admin without Firebase/Stripe console errors
 - [ ] Test checkout creates a **paid** order (not stuck pending)
 - [ ] `npm test` and `npm run test:storefront-release` pass locally
+- [ ] The relevant isolated browser gate passes: cart smoke for cart changes, checkout smoke for checkout changes
 - [ ] You know which doc to open for checkout vs inventory vs refunds ([flows.md](./flows.md))
 
 **Next:** [day-2.md](./day-2.md) — rebrand, first product, trace a request, production prep.
@@ -110,7 +112,7 @@ Shopper/UI  →  API routes  →  [ checkout | inventory | refunds | admin ]  �
                                     ↑ only these may mutate money/stock
 ```
 
-Everything else (product reads, cart display, analytics queries) uses ordinary services — but the moment money or catalog stock moves, you must be inside a protocol.
+Cart intent uses `services.cart`; other reads use their query services. The moment money or catalog stock moves, execution must be inside a frozen mutation protocol.
 
 Visual: [architecture.md § System context](./architecture.md#system-context)
 
@@ -171,7 +173,7 @@ sequenceDiagram
     Checkout->>Inventory: confirmReservation
     Checkout->>Firestore: order paid
   and Verify path
-    Browser->>Checkout: GET checkout/verify
+    Browser->>Checkout: POST checkout/verify
     Checkout->>Inventory: confirmReservation
     Checkout->>Firestore: order paid
   end

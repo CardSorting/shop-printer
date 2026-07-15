@@ -5,7 +5,7 @@ export function buildProductDetailCacheKey(handle: string): string {
 }
 
 export function productDetailCacheTags(handle: string, category?: string): string[] {
-  const tags = [PRODUCT_DETAIL_CACHE_TAGS.product, PRODUCT_DETAIL_CACHE_TAGS.related];
+  const tags: string[] = [PRODUCT_DETAIL_CACHE_TAGS.product, PRODUCT_DETAIL_CACHE_TAGS.related];
   tags.push(`product-handle-${handle}`);
   if (category) tags.push(`product-category-${category.toLowerCase().replace(/\s+/g, '-')}`);
   return tags;

@@ -55,7 +55,7 @@ describe('Checkout production proof', () => {
     };
     for (const source of walk(cartApi)) {
       expect(source).not.toMatch(/createCheckoutSession/);
-      expect(source).not.toMatch(/completeCheckoutWithPaymentMethod/);
+      expect(source).not.toMatch(/paymentMethodId/);
       expect(source).not.toMatch(/reserveInventory/);
     }
   });

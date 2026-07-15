@@ -6,7 +6,7 @@ import {
     readJsonObject,
     requireSessionUser,
     requireStepUpSessionUser,
-    parseShippingAddress,
+    parseCheckoutAddress,
     optionalString,
     requireIdempotencyKey
 } from '@infrastructure/server/apiGuards';
@@ -17,14 +17,14 @@ import {
  */
 export async function POST(request: Request) {
   try {
-    const user = await requireSessionUser();
+    const user = await requireSessionUser(request);
     await assertRateLimit(request, 'checkout_init', 5, 60000);
     await assertRateLimit(request, 'checkout_init_user', 3, 60000, user.id);
 
     const services = await getServerServices();
     const body = await readJsonObject(request);
 
-    const shippingAddress = parseShippingAddress(body.shippingAddress);
+    const shippingAddress = parseCheckoutAddress(body.shippingAddress);
     const discountCode = optionalString(body.discountCode, 'discountCode');
     const idempotencyKey = requireIdempotencyKey(body.idempotencyKey);
 
@@ -35,7 +35,9 @@ export async function POST(request: Request) {
       userEmail: user.email,
       userName: user.displayName,
       discountCode,
-      requireHighValueStepUp: () => requireStepUpSessionUser(request, 5 * 60 * 1000),
+      requireHighValueStepUp: async () => {
+        await requireStepUpSessionUser(request, 5 * 60 * 1000);
+      },
     });
 
     return checkoutRouteResponse(result);

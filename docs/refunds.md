@@ -106,7 +106,7 @@ HTTP route / Concierge tool / Admin action
   → RefundResult<T>
   → refundRouteAdapter (admin routes) or inline result handling (Concierge)
   → RefundService.processRefund()       (internal only)
-  → StripePaymentProcessor.refundPayment()
+  → StripeRefundProcessor.refundPayment()
   → FirestoreRefundEventLog             (idempotency + audit)
 ```
 

@@ -72,11 +72,13 @@ export type UpdateCartItemInput = CartContext & {
   productId: string;
   quantity: number;
   variantId?: string;
+  customImages?: string[];
 };
 
 export type RemoveCartItemInput = CartContext & {
   productId: string;
   variantId?: string;
+  customImages?: string[];
 };
 
 export type ApplyDiscountInput = CartContext & {

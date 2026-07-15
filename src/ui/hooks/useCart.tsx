@@ -25,6 +25,7 @@ import { logger } from '@utils/logger';
 
 export interface CartContextValue {
   cart: Cart | null;
+  error: string | null;
   viewState: CartViewState;
   loading: boolean;
   refreshing: boolean;
@@ -32,8 +33,8 @@ export interface CartContextValue {
   openCart: () => void;
   closeCart: () => void;
   addItem: (productId: string, quantity: number, variantId?: string, customImages?: string[]) => Promise<void>;
-  updateQuantity: (productId: string, quantity: number, variantId?: string) => Promise<void>;
-  removeItem: (productId: string, variantId?: string) => Promise<void>;
+  updateQuantity: (productId: string, quantity: number, variantId?: string, customImages?: string[]) => Promise<void>;
+  removeItem: (productId: string, variantId?: string, customImages?: string[]) => Promise<void>;
   clearCart: () => Promise<void>;
   updateNote: (note: string) => Promise<void>;
   validateCart: () => Promise<void>;
@@ -49,11 +50,41 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const services = useServices();
   const [cart, setCart] = useState<Cart | null>(null);
   const [issues, setIssues] = useState<import('@core/cart').CartIssue[] | null>(null);
+  const [cartError, setCartError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const isMounted = useRef(true);
   const controllerRef = useRef<AbortController | null>(null);
+  const cartRef = useRef<Cart | null>(null);
+  const cartOwnerRef = useRef(user?.id ?? 'guest');
+  const mutationTailRef = useRef<Promise<void>>(Promise.resolve());
+
+  const commitCart = useCallback((next: Cart | null) => {
+    cartRef.current = next;
+    setCart(next);
+  }, []);
+
+  const enqueueCartMutation = useCallback((operation: () => Promise<void>): Promise<void> => {
+    const owner = cartOwnerRef.current;
+    const execute = async () => {
+      try {
+        setCartError(null);
+        if (cartOwnerRef.current !== owner) {
+          throw new Error('Cart owner changed before the operation could run. Please try again.');
+        }
+        await operation();
+      } catch (error) {
+        if (isMounted.current) {
+          setCartError(error instanceof Error ? error.message : 'Cart operation failed.');
+        }
+        throw error;
+      }
+    };
+    const next = mutationTailRef.current.then(execute, execute);
+    mutationTailRef.current = next.then(() => undefined, () => undefined);
+    return next;
+  }, []);
 
   useEffect(() => {
     isMounted.current = true;
@@ -61,6 +92,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       isMounted.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    cartOwnerRef.current = user?.id ?? 'guest';
+  }, [user?.id]);
 
   const viewState = useMemo(
     () =>
@@ -84,11 +119,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const syncFromView = useCallback((view: import('@core/cart').CartView | null) => {
     if (!view || view.items.length === 0) {
-      setCart(null);
+      commitCart(null);
       return;
     }
-    setCart(cartViewToDomain(view));
-  }, []);
+    commitCart(cartViewToDomain(view));
+  }, [commitCart]);
 
   const mergeGuestOnLogin = useCallback(async () => {
     const guestCart = loadGuestCart();
@@ -97,7 +132,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const mergeResult = await services.cart.mergeGuestItems(guestCartItemsFromCart(guestCart));
     if (!mergeResult.ok) {
       logger.error('Guest cart merge failed', mergeResult.message);
-      return;
+      throw new Error(mergeResult.message);
     }
 
     if (isMounted.current) {
@@ -114,7 +149,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         ...guestCart,
         items: mergeResult.data.remainingGuestItems.map((item) => {
           const existing = guestCart.items.find(
-            (line) => line.productId === item.productId && line.variantId === item.variantId,
+            (line) => line.productId === item.productId
+              && line.variantId === item.variantId
+              && JSON.stringify(line.customImages ?? []) === JSON.stringify(item.customImages ?? []),
           );
           return (
             existing ?? {
@@ -124,6 +161,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
               priceSnapshot: 0,
               quantity: item.quantity,
               imageUrl: '',
+              customImages: item.customImages,
             }
           );
         }),
@@ -138,6 +176,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     controllerRef.current = controller;
 
     setLoading(true);
+    setCartError(null);
     try {
       if (user) {
         const guestCart = loadGuestCart();
@@ -148,46 +187,56 @@ export function CartProvider({ children }: { children: ReactNode }) {
           if (controller.signal.aborted || !isMounted.current) return;
           if (result.ok) {
             syncFromView(result.data.items.length > 0 ? result.data : null);
+          } else {
+            throw new Error(result.message);
           }
         }
       } else if (isMounted.current) {
-        setCart(loadGuestCart());
+        commitCart(loadGuestCart());
         setIssues(null);
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') return;
       logger.error('Failed to load cart', err);
+      if (isMounted.current) {
+        setCartError(err instanceof Error ? err.message : 'Failed to load cart.');
+      }
     } finally {
       if (isMounted.current && !controller.signal.aborted) {
         setLoading(false);
       }
     }
-  }, [user, services.cart, syncFromView, mergeGuestOnLogin]);
+  }, [user, services.cart, syncFromView, mergeGuestOnLogin, commitCart]);
 
   const refreshCart = useCallback(async () => {
     if (!user) return;
     setRefreshing(true);
+    setCartError(null);
     try {
       const [cartResult, validationResult] = await Promise.all([
         services.cart.getCart(),
         services.cart.validateCart(),
       ]);
+      if (!cartResult.ok) throw new Error(cartResult.message);
+      if (!validationResult.ok) throw new Error(validationResult.message);
 
-      if (cartResult.ok && isMounted.current) {
+      if (isMounted.current) {
         syncFromView(cartResult.data.items.length > 0 ? cartResult.data : null);
       }
 
-      if (validationResult.ok && isMounted.current) {
+      if (isMounted.current) {
         setIssues(validationResult.data.valid ? null : validationResult.data.issues);
         if (!validationResult.data.valid) {
           const refreshed = await services.cart.getCart();
-          if (refreshed.ok) {
-            syncFromView(refreshed.data.items.length > 0 ? refreshed.data : null);
-          }
+          if (!refreshed.ok) throw new Error(refreshed.message);
+          syncFromView(refreshed.data.items.length > 0 ? refreshed.data : null);
         }
       }
     } catch (err) {
       logger.error('Failed to refresh cart', err);
+      if (isMounted.current) {
+        setCartError(err instanceof Error ? err.message : 'Failed to refresh cart.');
+      }
     } finally {
       if (isMounted.current) setRefreshing(false);
     }
@@ -211,7 +260,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshCart]);
 
-  const addItem = async (productId: string, quantity: number, variantId?: string, customImages?: string[]) => {
+  const addItem = (productId: string, quantity: number, variantId?: string, customImages?: string[]) => enqueueCartMutation(async () => {
     if (user) {
       const result = await services.cart.addItem(productId, quantity, variantId, customImages);
       if (!result.ok) throw new Error(result.message);
@@ -232,19 +281,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
       customImages,
     };
 
-    const shell = cart ?? loadGuestCart() ?? createGuestCartShell();
+    const shell = cartRef.current ?? loadGuestCart() ?? createGuestCartShell();
     const next = addGuestLineItem(shell, lineItemData);
     if (isMounted.current) {
-      setCart(next);
+      commitCart(next);
       saveGuestCart(next);
       setIsOpen(true);
       emitCartUxEvent({ type: 'cart.item_added', productId, variantId, quantity });
     }
-  };
+  });
 
-  const updateQuantity = async (productId: string, quantity: number, variantId?: string) => {
+  const updateQuantity = (productId: string, quantity: number, variantId?: string, customImages?: string[]) => enqueueCartMutation(async () => {
     if (user) {
-      const result = await services.cart.updateItem(productId, quantity, variantId);
+      const result = await services.cart.updateItem(productId, quantity, variantId, customImages);
       if (!result.ok) throw new Error(result.message);
       if (isMounted.current) {
         syncFromView(result.data);
@@ -253,19 +302,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const current = cart ?? loadGuestCart();
+    const current = cartRef.current ?? loadGuestCart();
     if (!current) return;
-    const next = updateGuestLineQuantity(current, productId, quantity, variantId);
+    const next = updateGuestLineQuantity(current, productId, quantity, variantId, customImages);
     if (isMounted.current) {
-      setCart(next);
+      commitCart(next);
       saveGuestCart(next);
       emitCartUxEvent({ type: 'cart.item_updated', productId, variantId, quantity });
     }
-  };
+  });
 
-  const removeItem = async (productId: string, variantId?: string) => {
+  const removeItem = (productId: string, variantId?: string, customImages?: string[]) => enqueueCartMutation(async () => {
     if (user) {
-      const result = await services.cart.removeItem(productId, variantId);
+      const result = await services.cart.removeItem(productId, variantId, customImages);
       if (!result.ok) throw new Error(result.message);
       if (isMounted.current) {
         syncFromView(result.data.items.length > 0 ? result.data : null);
@@ -274,44 +323,45 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const current = cart ?? loadGuestCart();
+    const current = cartRef.current ?? loadGuestCart();
     if (!current) return;
-    const next = removeGuestLineItem(current, productId, variantId);
+    const next = removeGuestLineItem(current, productId, variantId, customImages);
     if (isMounted.current) {
-      setCart(next.items.length > 0 ? next : null);
+      commitCart(next.items.length > 0 ? next : null);
       saveGuestCart(next.items.length > 0 ? next : null);
       emitCartUxEvent({ type: 'cart.item_removed', productId, variantId });
     }
-  };
+  });
 
-  const clearCart = async () => {
+  const clearCart = () => enqueueCartMutation(async () => {
     if (user) {
       const result = await services.cart.clearCart();
       if (!result.ok) throw new Error(result.message);
     }
     if (isMounted.current) {
-      setCart(null);
+      commitCart(null);
       saveGuestCart(null);
       setIssues(null);
       emitCartUxEvent({ type: 'cart.cleared', userId: user?.id ?? 'guest' });
     }
-  };
+  });
 
-  const updateNote = async (note: string) => {
+  const updateNote = (note: string) => enqueueCartMutation(async () => {
     if (user) {
       const result = await services.cart.updateNote(note);
-      if (result.ok && isMounted.current) syncFromView(result.data);
+      if (!result.ok) throw new Error(result.message);
+      if (isMounted.current) syncFromView(result.data);
       return;
     }
 
-    const current = cart ?? loadGuestCart();
+    const current = cartRef.current ?? loadGuestCart();
     if (!current) return;
     const next = { ...current, note, updatedAt: new Date() };
     if (isMounted.current) {
-      setCart(next);
+      commitCart(next);
       saveGuestCart(next);
     }
-  };
+  });
 
   const validateCart = async () => {
     await refreshCart();
@@ -319,6 +369,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const value: CartContextValue = {
     cart,
+    error: cartError,
     viewState,
     loading,
     refreshing,

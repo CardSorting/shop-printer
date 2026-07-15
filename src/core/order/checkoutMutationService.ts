@@ -4,7 +4,6 @@ import type {
   IDiscountRepository,
   ILockProvider,
   IOrderRepository,
-  IPaymentProcessor,
   IProductRepository,
   IShippingRepository,
 } from '@domain/repositories';
@@ -14,7 +13,7 @@ import {
   assertValidOrderItems,
   assertValidShippingAddress,
   calculateCartTotal,
-  calculateShipping,
+  calculateCheckoutShipping,
   calculateTax,
   deriveEstimatedDeliveryDate,
 } from '@domain/rules';
@@ -25,7 +24,6 @@ import { DiscountService } from '../DiscountService';
 import { logger } from '@utils/logger';
 import type { FulfillmentMethod } from './types';
 import {
-  CHECKOUT_PAYMENT_INTENT_ENTRY_PHASES,
   CHECKOUT_RECOVERY_PHASES,
   isSafelyFinalizedCheckoutState,
 } from './checkoutWorkflow';
@@ -49,7 +47,6 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
     private productRepo: IProductRepository,
     private cartRepo: ICartRepository,
     private discountRepo: IDiscountRepository,
-    private payment: IPaymentProcessor,
     private audit: AuditService,
     private locker: ILockProvider,
     private inventory: InventoryMutationBackend,
@@ -119,14 +116,11 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
       userName,
       discountCode,
       idempotencyKey,
-      paymentMethodId,
       fulfillmentMethod = 'shipping',
       lockTtlMs = 45000,
     } = params;
     const attemptId = idempotencyKey || crypto.randomUUID();
     this.logPhaseTransition(attemptId, null, 'PREPARE_CHECKOUT', 'local', 'none', { userId, discountCode });
-    assertValidShippingAddress(shippingAddress);
-
     if (this.cartIntent) {
       const cartValidation = await this.cartIntent.validateCart({ userId });
       if (!cartValidation.ok || !cartValidation.data.valid) {
@@ -146,9 +140,6 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
     }
 
     try {
-      let order!: Order;
-      let resumedFromExisting = false;
-
       if (idempotencyKey) {
         this.logPhaseTransition(attemptId, 'ACQUIRE_RESERVATION', 'CREATE_OR_RESUME_ATTEMPT', 'local', 'none', { idempotencyKey });
         const existing = await this.orderRepo.getByIdempotencyKey(idempotencyKey);
@@ -156,47 +147,23 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
           if (existing.userId !== userId) {
             throw new DomainError('Checkout idempotency key is already associated with another user.');
           }
-          if (existing.status === 'pending' && existing.paymentTransactionId === null && paymentMethodId) {
-            logger.info('Pending duplicate order without payment transaction found. Resuming payment flow.', { userId, idempotencyKey, orderId: existing.id });
-            await this.audit.record({
-              userId,
-              userEmail: userEmail || 'unknown@woodbine.com',
-              action: 'checkout_resumed',
-              targetId: existing.id,
-              details: { idempotencyKey, total: existing.total },
-              correlationId: idempotencyKey || undefined
-            });
-            order = existing;
-            resumedFromExisting = true;
-            // Persist progress to CREATE_OR_RESUME_ATTEMPT
-            await this.orderRepo.transitionCheckoutAttemptPhase({
-              attemptId: idempotencyKey,
-              expectedPhases: ['ACQUIRE_RESERVATION'],
-              nextPhase: 'CREATE_OR_RESUME_ATTEMPT',
-              authoritySource: 'local',
-              waitingFor: 'none',
-              reason: 'checkout_retry_resumed_existing_order',
-              orderId: existing.id,
-              actor: 'user',
-            }).catch(err => {
-              logger.warn('Failed to transition checkout attempt on resumption', { idempotencyKey, err });
-            });
-          } else {
-            logger.info('Duplicate checkout attempt, returning existing order', { userId, idempotencyKey });
-            return existing;
-          }
+          logger.info('Duplicate checkout attempt, returning existing reserved order', { userId, idempotencyKey, orderId: existing.id });
+          return existing;
         }
       }
 
-      if (!resumedFromExisting) {
-        const prevPhase = idempotencyKey ? 'CREATE_OR_RESUME_ATTEMPT' : 'ACQUIRE_RESERVATION';
-        this.logPhaseTransition(attemptId, prevPhase, 'INITIALIZE_ORDER', 'local', 'none');
-        order = await runWithPostCommitCommerceEvents(this.commerceEventBus, () =>
-          runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const prevPhase = idempotencyKey ? 'CREATE_OR_RESUME_ATTEMPT' : 'ACQUIRE_RESERVATION';
+      this.logPhaseTransition(attemptId, prevPhase, 'INITIALIZE_ORDER', 'local', 'none');
+      const order = await runWithPostCommitCommerceEvents(this.commerceEventBus, () =>
+        runTransaction(getUnifiedDb(), async (transaction: any) => {
           const cart = await this.cartRepo.getByUserId(userId, transaction);
           if (!cart || cart.items.length === 0) throw new CartEmptyError();
 
           assertValidOrderItems(cart.items);
+          const physicalItems = cart.items.filter(item => !item.isDigital);
+          if (physicalItems.length > 0) {
+            assertValidShippingAddress(shippingAddress);
+          }
           const subtotal = calculateCartTotal(cart.items);
 
           const productMap = new Map<string, any>();
@@ -257,12 +224,20 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
             ? await Promise.all([this.shippingRepo.getAllRates(), this.shippingRepo.getAllZones()])
             : [[], []];
 
-          const shippingResult = calculateShipping(cart.items, shippingAddress, allRates, allZones);
-          const shipping = (subtotal >= 10000 || isFreeShipping || fulfillmentMethod === 'pickup') ? 0 : shippingResult.amount;
+          const shippingResult = calculateCheckoutShipping(
+            cart.items,
+            shippingAddress,
+            allRates,
+            allZones,
+            { subtotal, freeShipping: isFreeShipping, fulfillmentMethod },
+          );
+          if (!shippingResult.available) {
+            throw new DomainError('Shipping is not available for this address. Please choose a supported destination.');
+          }
+          const shipping = shippingResult.amount;
           const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
           const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
 
-          const physicalItems = cart.items.filter(item => !item.isDigital);
           const reservationExpiresAt = new Date(Date.now() + this.RESERVATION_TTL_MS).toISOString();
           const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
             userId,
@@ -395,165 +370,14 @@ export class CheckoutMutationService implements CheckoutMutationBackend {
 
           return createdOrder;
         }));
-        await this.publishCheckoutEvent({
-          id: crypto.randomUUID(),
-          type: 'checkout.session_created',
-          orderId: order.id,
-          correlationId: orderCorrelationId(order.id, attemptId),
-          idempotencyKey: attemptId,
-          payload: { status: order.status, paymentState: order.paymentState },
-        });
-      }
-
-      if (!paymentMethodId) return order;
-
-      this.logPhaseTransition(attemptId, 'INITIALIZE_ORDER', 'CREATE_OR_RESUME_PAYMENT_INTENT', 'local', 'none', { paymentMethodId });
-      let paymentResult: { success: boolean; transactionId: string | null };
-      try {
-        paymentResult = await this.payment.processPayment({
-          amount: order.total,
-          orderId: order.id,
-          paymentMethodId,
-          idempotencyKey: attemptId
-        });
-      } catch (paymentErr: any) {
-        this.logPhaseTransition(attemptId, 'CREATE_OR_RESUME_PAYMENT_INTENT', 'RECOVER_OR_RECONCILE', 'local', 'none', { error: paymentErr.message || paymentErr });
-        logger.error('Payment processing failed, cancelling pending order and releasing stock', { userId, orderId: order.id, paymentErr });
-        await Promise.resolve(this.orderRepo.transitionPaymentState(order.id, ['unpaid', 'requires_payment_method', 'processing', 'failed'], 'failed', 'payment_processor_failure')).catch(err => {
-          logger.error('FATAL: Failed to mark payment state failed after payment failure', { orderId: order.id, err });
-        });
-        await Promise.resolve(this.orderRepo.guardedUpdateStatus(order.id, ['pending'], 'cancelled', 'payment_processor_failure')).catch(err => {
-          logger.error('FATAL: Rollback failed for order after payment failure', { orderId: order.id, err });
-        });
-
-        const physicalItems = order.items.filter(item => !item.isDigital);
-        if (physicalItems.length > 0 && order.metadata?.inventoryReserved) {
-          const releaseResult = await this.inventory.releaseReservation({
-            orderId: order.id,
-            idempotencyKey: `release:${attemptId}`,
-            actor: 'checkout',
-            reason: 'payment_failed',
-          }).catch(err => {
-            logger.error('FATAL: Failed to restore stock during checkout payment rollback', { orderId: order.id, err });
-            return null;
-          });
-
-          if (releaseResult?.ok || releaseResult === null) {
-            await Promise.resolve(this.orderRepo.updateMetadata(order.id, {
-              ...(order.metadata || {}),
-              inventoryReservationReleased: true,
-              inventoryReservationReleasedAt: new Date().toISOString(),
-            })).catch(err => {
-              logger.error('FATAL: Failed to update metadata for stock release during checkout rollback', { orderId: order.id, err });
-            });
-          }
-        }
-
-        if (order.discountCode) {
-          const discount = await this.discountRepo.getByCode(order.discountCode);
-          if (discount) {
-            await Promise.resolve(this.discountRepo.decrementUsage(discount.id)).catch(err => {
-              logger.error('FATAL: Failed to rollback discount usage', { discountId: discount.id, err });
-            });
-            if (order.userId) {
-              await Promise.resolve(runTransaction(getUnifiedDb(), async (transaction: any) => {
-                await this.orderRepo.removeUserDiscountUsage(order.userId, order.discountCode!, transaction);
-              })).catch(err => {
-                logger.error('FATAL: Failed to rollback customer discount usage during checkout payment rollback', { orderId: order.id, err });
-              });
-            }
-          }
-        }
-
-        throw paymentErr;
-      }
-
-      if (paymentResult.success && paymentResult.transactionId) {
-        try {
-          this.logPhaseTransition(attemptId, 'CREATE_OR_RESUME_PAYMENT_INTENT', 'FINALIZE_PAYMENT', 'local', 'none', { transactionId: paymentResult.transactionId });
-          await this.orderRepo.updatePaymentTransactionId(order.id, paymentResult.transactionId);
-          await Promise.resolve(this.orderRepo.transitionCheckoutAttemptPhase({
-            attemptId,
-            expectedPhases: CHECKOUT_PAYMENT_INTENT_ENTRY_PHASES,
-            nextPhase: 'CREATE_OR_RESUME_PAYMENT_INTENT',
-            authoritySource: 'local',
-            waitingFor: 'none',
-            reason: 'payment_intent_created_by_processor',
-            orderId: order.id,
-            paymentIntentId: paymentResult.transactionId,
-            actor: 'user',
-          })).catch(err => {
-            logger.error('FATAL: Failed to attach payment intent to checkout attempt', { orderId: order.id, transactionId: paymentResult.transactionId, err });
-          });
-          await Promise.resolve(this.orderRepo.updateCheckoutAttempt(attemptId, {
-            paymentIntentId: paymentResult.transactionId,
-            state: 'payment_intent_created',
-          })).catch(() => {});
-          await Promise.resolve(this.orderRepo.transitionCheckoutAttemptPhase({
-            attemptId,
-            expectedPhases: ['CREATE_OR_RESUME_PAYMENT_INTENT'],
-            nextPhase: 'AWAIT_PAYMENT_CONFIRMATION',
-            authoritySource: 'stripe',
-            waitingFor: 'webhook',
-            reason: 'payment_intent_ready_for_confirmation',
-            orderId: order.id,
-            paymentIntentId: paymentResult.transactionId,
-            actor: 'user',
-          })).catch(err => {
-            logger.error('FATAL: Failed to move checkout attempt into payment confirmation wait', { orderId: order.id, transactionId: paymentResult.transactionId, err });
-          });
-          const finalizedOrder = await this.confirmStripePayment(paymentResult.transactionId, {
-            id: paymentResult.transactionId,
-            status: 'succeeded',
-            metadata: {
-              orderId: order.id,
-              fencingToken: order.metadata?.fencingToken?.toString() || '0',
-              correlationId: attemptId,
-            },
-            charges: { data: [] },
-          }, 'user');
-          return finalizedOrder;
-        } catch (finalizationErr) {
-          this.logPhaseTransition(attemptId, 'FINALIZE_PAYMENT', 'RECOVER_OR_RECONCILE', 'operator', 'operator', { error: finalizationErr instanceof Error ? finalizationErr.message : 'Unknown finalization error' });
-          logger.error('Payment succeeded but order finalization failed; marking for reconciliation', {
-            userId,
-            orderId: order.id,
-            transactionId: paymentResult.transactionId,
-            finalizationErr
-          });
-          await Promise.resolve(this.orderRepo.transitionReconciliationState(order.id, ['none', 'needs_review'], 'needs_review', 'finalization_failure')).catch(err => {
-            logger.error('FATAL: Failed to set reconciliation state after finalization failure', { orderId: order.id, err });
-          });
-          await Promise.resolve(this.orderRepo.guardedUpdateStatus(order.id, ['pending'], 'reconciling', 'finalization_failure')).catch(err => {
-            logger.error('FATAL: Failed to mark paid order for reconciliation after finalization failure', { orderId: order.id, err });
-          });
-          await Promise.resolve(this.orderRepo.createOrUpdateReconciliationCase({
-            paymentIntentId: paymentResult.transactionId,
-            orderId: order.id,
-            checkoutAttemptId: attemptId,
-            reason: 'finalization_failure',
-            severity: 'critical',
-            stripeStatus: 'succeeded',
-            operatorVisibleMessage: `Payment ${paymentResult.transactionId} succeeded but local order finalization failed.`,
-            nextAction: 'Verify Stripe payment, then finalize order or refund from reconciliation.',
-            details: {
-              error: finalizationErr instanceof Error ? finalizationErr.message : 'Unknown finalization error',
-            },
-            failureClassification: 'local_persistence_failure',
-            lastObservedStripeState: 'succeeded',
-            lastObservedLocalState: `status:${order.status};paymentState:${order.paymentState || 'unknown'}`,
-          })).catch(err => {
-            logger.error('FATAL: Failed to create payment reconciliation case after finalization failure', { orderId: order.id, err });
-          });
-          await Promise.resolve(this.orderRepo.markForReconciliation(order.id, [
-            `Payment ${paymentResult.transactionId} succeeded but order finalization failed.`,
-            finalizationErr instanceof Error ? finalizationErr.message : 'Unknown finalization error'
-          ])).catch(err => {
-            logger.error('FATAL: Failed to write reconciliation note after finalization failure', { orderId: order.id, err });
-          });
-          throw finalizationErr;
-        }
-      }
+      await this.publishCheckoutEvent({
+        id: crypto.randomUUID(),
+        type: 'checkout.session_created',
+        orderId: order.id,
+        correlationId: orderCorrelationId(order.id, attemptId),
+        idempotencyKey: attemptId,
+        payload: { status: order.status, paymentState: order.paymentState },
+      });
 
       return order;
     } catch (err) {

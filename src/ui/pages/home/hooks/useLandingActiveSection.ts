@@ -5,7 +5,7 @@ import { LANDING_SECTIONS } from '../copy';
 
 /** One intersection observer set for chapter rail + ticker (avoids duplicate IO). */
 export function useLandingActiveSection(): { activeId: string; activeLabel: string } {
-  const [activeId, setActiveId] = useState(LANDING_SECTIONS[0].id);
+  const [activeId, setActiveId] = useState<string>(LANDING_SECTIONS[0].id);
 
   useEffect(() => {
     const observers: IntersectionObserver[] = [];

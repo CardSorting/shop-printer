@@ -26,6 +26,7 @@ If port 3000 hangs (curl times out): `npm run cleanup` then restart.
 
 ```bash
 npm run test:storefront-release
+npm run test:e2e:cart-smoke
 npm run test:e2e:checkout-smoke
 ```
 
@@ -44,8 +45,9 @@ See [storefront-release.md](./storefront-release.md).
 | `npm run cleanup` | Free stuck ports |
 | `npm test` | Vitest watch mode |
 | `npm test -- --run <file>` | Single run |
-| `npm run test:storefront-release` | Frozen storefront proof suite (125 tests) |
-| `npm run test:e2e:checkout-smoke` | Mocked checkout Playwright smoke (3 tests) |
+| `npm run test:storefront-release` | Frozen storefront proof suite |
+| `npm run test:e2e:cart-smoke` | Isolated cart-to-checkout Playwright smoke |
+| `npm run test:e2e:checkout-smoke` | Isolated mocked checkout Playwright smoke |
 | `npm run dev:e2e` | Dev server with E2E mock pay button |
 | `npm run test:e2e` | Full Playwright suite |
 | `npm run typecheck` | `tsc --noEmit` |
@@ -79,7 +81,7 @@ Architecture: [architecture.md](./architecture.md)
 1. Is `stripe listen` running?
 2. Does `STRIPE_WEBHOOK_SECRET` match current CLI session?
 3. Check terminal for `checkout_webhook_payment_succeeded` logs
-4. Try success URL verify: network tab for `GET /api/checkout/verify`
+4. Try success URL verify: network tab for `POST /api/checkout/verify`
 
 ### Trace a checkout in code
 

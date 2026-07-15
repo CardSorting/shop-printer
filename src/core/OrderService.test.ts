@@ -21,7 +21,6 @@ describe('OrderService', () => {
   let mockProductRepo: any;
   let mockCartRepo: any;
   let mockDiscountRepo: any;
-  let mockPayment: any;
   let mockAudit: any;
   let mockLocker: any;
 
@@ -61,9 +60,6 @@ describe('OrderService', () => {
       getByCode: vi.fn(),
       incrementUsage: vi.fn(),
     };
-    mockPayment = {
-      processPayment: vi.fn(),
-    };
     mockAudit = {
       record: vi.fn(),
       recordWithTransaction: vi.fn(),
@@ -78,7 +74,6 @@ describe('OrderService', () => {
       productRepo: mockProductRepo,
       cartRepo: mockCartRepo,
       discountRepo: mockDiscountRepo,
-      payment: mockPayment,
       audit: mockAudit,
       locker: mockLocker,
     }));

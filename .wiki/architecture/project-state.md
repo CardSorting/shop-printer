@@ -1,6 +1,6 @@
 # Project State
 
-Last updated: May 21, 2026.
+Last updated: July 14, 2026.
 
 This page describes what the repository currently implements. It is intentionally concrete: every major claim maps back to source files or existing documentation.
 
@@ -19,10 +19,10 @@ The project direction is not a thin demo storefront. It is closer to a self-owne
 
 | Surface | Current count | Source |
 | --- | ---: | --- |
-| API route files | 136 | `src/app/api/**/route.ts` |
-| App Router page files | 59 | `src/app/**/page.tsx` |
-| Test/spec files | 45 | `src/**/*.test.*`, `e2e/**/*.spec.ts` |
-| Firestore repositories | 21 | `src/infrastructure/repositories/firestore/` |
+| API route files | 150 | `src/app/api/**/route.ts` |
+| App Router page files | 71 | `src/app/**/page.tsx` |
+| Test/spec files | 103 | `src/**/*.test.*`, `e2e/**/*.spec.ts` |
+| Firestore repository source files | 28 | `src/infrastructure/repositories/firestore/` |
 | Primary Core services | 30+ | `src/core/` and `src/core/order/` |
 
 ## Storefront Surface
@@ -30,7 +30,7 @@ The project direction is not a thin demo storefront. It is closer to a self-owne
 Implemented customer-facing routes include:
 
 - `/` via `src/app/page.tsx`
-- `/products` and `/products/[handle]`
+- `/products` (redirects to `/collections/bestsellers`) and `/products/[handle]`
 - `/collections/[slug]`
 - `/search`
 - `/cart`
@@ -44,7 +44,7 @@ Implemented customer-facing routes include:
 Relevant UI entry points:
 
 - `src/ui/pages/HomePage.tsx`
-- `src/ui/pages/ProductsPage.tsx`
+- `src/ui/pages/catalog/CatalogPage.tsx`
 - `src/ui/pages/product-detail/ProductDetailPage.tsx`
 - `src/ui/pages/CartPage.tsx`
 - `src/ui/pages/CheckoutPage.tsx`
@@ -67,7 +67,7 @@ Admin routes currently cover:
 - Collections and taxonomy: `src/app/admin/collections/page.tsx`, `src/app/admin/taxonomy/page.tsx`
 - Discounts: `src/app/admin/discounts/page.tsx`
 - Customers: `src/app/admin/customers/page.tsx`, `src/app/admin/customers/[id]/page.tsx`
-- Support tickets and macros: `src/app/admin/tickets/page.tsx`, `src/app/admin/support/macros`
+- Support workspace: `src/app/admin/tickets/page.tsx`, `src/app/admin/support/page.tsx`
 - Concierge intelligence: `src/app/admin/concierge/page.tsx`
 - Analytics, audit, files, navigation, blog, settings, and operations planning.
 
@@ -77,7 +77,7 @@ Shared admin navigation is centralized in `src/ui/navigation/adminNavigation.ts`
 
 | Capability | Core files |
 | --- | --- |
-| Cart | `src/core/CartService.ts` |
+| Cart | `src/core/cart/cartApplicationService.ts`, `cartFlowService.ts`, `createCartStack.ts` |
 | Checkout/order orchestration | `src/core/order/CheckoutFlowService.ts`, `src/core/order/checkoutApplicationService.ts`, `src/core/order/checkoutWorkflow.ts` |
 | Order reads/admin/logistics | `src/core/order/OrderReadService.ts`, `OrderAdminService.ts`, `OrderLogisticsService.ts` |
 | Refunds | `src/core/RefundService.ts` |
@@ -106,10 +106,10 @@ Production adapters are Firestore-first:
 
 External services:
 
-- Stripe payment processing: `StripePaymentProcessor`, `StripeService`
+- Stripe checkout capture/session adapter: `StripeService`
+- Stripe refund adapter: `StripeRefundProcessor`
 - Firebase Auth adapter: `FirebaseAuthAdapter`
 - Email adapter: `BrevoEmailService`
-- Optional trusted checkout gateway: `TrustedCheckoutGateway`
 
 ## Checkout Reliability State
 
@@ -131,9 +131,9 @@ The current local Core benchmark uses real Core services with in-memory adapters
 
 | Flow | Max clean concurrency tested | Throughput | p95 latency | Failures |
 | --- | ---: | ---: | ---: | ---: |
-| Cart add-to-cart | 200 | 31,150.57 ops/sec | 7.40 ms | 0 |
-| Checkout reservation | 200 | 22,495.54 ops/sec | 10.39 ms | 0 |
-| Full order + payment finalization | 100 | 11,125.71 ops/sec | 9.47 ms | 0 |
+| Cart add-to-cart | 200 | 19,472.09 ops/sec | 27.42 ms | 0 |
+| Checkout reservation | 200 | 14,822.84 ops/sec | 16.35 ms | 0 |
+| Checkout PaymentIntent session | 100 | 13,899.31 ops/sec | 8.04 ms | 0 |
 
 Run:
 
@@ -158,4 +158,3 @@ For future work, update documentation in the same pull as code changes when any 
 - Admin route coverage.
 - Checkout/reconciliation semantics.
 - Benchmark numbers.
-

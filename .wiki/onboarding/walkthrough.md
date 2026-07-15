@@ -5,7 +5,7 @@
 The Domain layer is pure TypeScript business structure.
 
 - `src/domain/models.ts` defines products, users, carts, orders, order statuses, and addresses.
-- `src/domain/repositories.ts` defines interfaces for product/cart/order repositories, auth provider, payment processor, checkout gateway, and lock provider.
+- `src/domain/repositories.ts` defines product/cart/order repositories, auth, refund processing, inventory, audit, and lock contracts.
 - `src/domain/rules.ts` implements deterministic validation and calculations: product constraints, cart quantity/stock validation, order item validation, shipping address validation, stock-delta coalescing, and cent formatting.
 
 Constraint: keep this layer free of Next.js, cookies, crypto, database clients, fetch, filesystem, and environment-variable reads.
@@ -15,7 +15,7 @@ Constraint: keep this layer free of Next.js, cookies, crypto, database clients, 
 Core owns orchestration.
 
 - `src/core/container.ts` wires repositories/adapters into services through a factory path (`getServiceContainer`) and a lazy singleton path (`getInitialServices`).
-- `AuthService`, `CartService`, `OrderService`, and `ProductService` coordinate Domain contracts and delegate persistence/payment to injected dependencies.
+- `AuthService`, `CartFlowService`, `OrderService`, `CheckoutFlowService`, and `ProductService` coordinate Domain contracts and delegate persistence/payment to injected dependencies. Cart routes reach `CartFlowService` only through `services.cart`.
 
 Constraint: Core may wire Infrastructure but should not implement low-level DB/cookie/http mechanics directly.
 

@@ -1,6 +1,7 @@
 import { adminDb, FieldValue, withAdminFirestoreRetry } from '@infrastructure/firebase/admin';
 import type { ICommerceEventStore } from '@core/commerce/commerceEventBus';
 import type { CommerceEventEnvelope } from '@core/commerce/commerceEventTypes';
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 const EVENTS_COLLECTION = 'commerce_events';
 
@@ -25,7 +26,7 @@ export class FirestoreCommerceEventStore implements ICommerceEventStore {
       .orderBy('occurredAt', 'asc')
       .limit(limit)
       .get();
-    return snap.docs.map((doc) => doc.data() as CommerceEventEnvelope);
+    return snap.docs.map((doc: QueryDocumentSnapshot) => doc.data() as CommerceEventEnvelope);
   }
 
   async findByRelatedOrder(orderId: string, options?: { limit?: number }) {
@@ -36,7 +37,7 @@ export class FirestoreCommerceEventStore implements ICommerceEventStore {
       .orderBy('occurredAt', 'asc')
       .limit(limit)
       .get();
-    return snap.docs.map((doc) => doc.data() as CommerceEventEnvelope);
+    return snap.docs.map((doc: QueryDocumentSnapshot) => doc.data() as CommerceEventEnvelope);
   }
 
   async findByCorrelationId(correlationId: string, options?: { limit?: number }) {
@@ -47,7 +48,7 @@ export class FirestoreCommerceEventStore implements ICommerceEventStore {
       .orderBy('occurredAt', 'asc')
       .limit(limit)
       .get();
-    return snap.docs.map((doc) => doc.data() as CommerceEventEnvelope);
+    return snap.docs.map((doc: QueryDocumentSnapshot) => doc.data() as CommerceEventEnvelope);
   }
 
   async listAll(options?: { limit?: number }) {
@@ -57,6 +58,6 @@ export class FirestoreCommerceEventStore implements ICommerceEventStore {
       .orderBy('occurredAt', 'desc')
       .limit(limit)
       .get();
-    return snap.docs.map((doc) => doc.data() as CommerceEventEnvelope);
+    return snap.docs.map((doc: QueryDocumentSnapshot) => doc.data() as CommerceEventEnvelope);
   }
 }

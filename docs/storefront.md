@@ -2,7 +2,7 @@
 
 The DreamBees Art **customer-facing shop** covers discovery, cart, checkout, account, support, and content — the same jobs Shopify’s Online Store channel handles. All pages live under `src/app/` with UI in `src/ui/`.
 
-**Release gate:** [storefront-release.md](./storefront-release.md) · **First test purchase:** [onboarding.md § First purchase walkthrough](./onboarding.md#first-purchase-walkthrough-what-actually-happens) · **Checkout internals:** [checkout.md](./checkout.md) · **Full flow:** [flows.md § Purchase](./flows.md#purchase-flow-storefront-checkout)
+**Release gate:** [storefront-release.md](./storefront-release.md) · **Cart internals:** [cart.md](./cart.md) · **Checkout internals:** [checkout.md](./checkout.md) · **Full flow:** [flows.md § Purchase](./flows.md#purchase-flow-storefront-checkout)
 
 ---
 
@@ -18,8 +18,9 @@ payment        → money capture (Stripe tokenize in UI; capture via services.ch
 ```
 
 ```bash
-npm run test:storefront-release    # Vitest — 125 tests
-npm run test:e2e:checkout-smoke    # Playwright — 3 mocked checkout tests
+npm run test:storefront-release    # Vitest — frozen storefront proof suite
+npm run test:e2e:cart-smoke        # Playwright — isolated cart-to-checkout journey
+npm run test:e2e:checkout-smoke    # Playwright — isolated checkout journey
 ```
 
 | Lane | Route example | Entry |
@@ -29,7 +30,7 @@ npm run test:e2e:checkout-smoke    # Playwright — 3 mocked checkout tests
 | Cart | `/api/cart/*` | `services.cart` |
 | Checkout | `/checkout`, `/api/checkout/*` | `services.checkout` + `gateCheckoutCommit()` |
 
-Do not reintroduce legacy aliases (`ProductsPage`, `cartService` shim, direct `reserveInventory` from cart routes).
+Cart routes delegate only to `services.cart`; they never import repositories or call inventory reservation methods.
 
 ---
 
@@ -48,7 +49,7 @@ flowchart LR
 
 | Stage | Routes | Backend |
 | --- | --- | --- |
-| Discover | `/`, `/products`, `/collections/*`, `/search` | Product/collection APIs |
+| Discover | `/`, `/collections/*`, `/search` (`/products` redirects to bestsellers) | Product/collection APIs |
 | Evaluate | `/products/[handle]` | Reviews, metafields, availability read |
 | Cart | `/cart` | `services.cart` (availability via `checkAvailability` only) |
 | Checkout | `/checkout` | `services.checkout` — commitment gate before payment |
@@ -62,7 +63,7 @@ flowchart LR
 | Route | Purpose |
 | --- | --- |
 | `/` | Home, featured collections, editorial content |
-| `/products` | Product listing and filters |
+| `/products` | Compatibility redirect to `/collections/bestsellers` |
 | `/products/[handle]` | Product detail (variants, metafields, reviews) |
 | `/collections/[slug]` | Collection landing |
 | `/collections/[slug]/products/[handle]` | Collection-scoped product URL |
@@ -94,12 +95,14 @@ Browse → Add to cart → Checkout → Pay (Stripe) → Verify / webhook → Or
 | `/api/cart/validate` | POST | Pre-checkout validation |
 | `/api/cart/preview-line` | POST | Guest line snapshot preview |
 | `/api/cart/merge-guest` | POST | Merge guest cart on login |
-| `/api/cart/note` | POST | Order note |
-| `/api/cart/discount` | POST | Apply promo (authed) |
+| `/api/cart/note` | POST | Cart note (authenticated) |
+| `/api/cart/discount` | POST, DELETE | Apply or clear promo (authenticated) |
 
 Cart is a **purchase intent buffer** — not financial truth. Physical SKUs use `checkAvailability` only; stock holds happen at checkout via `reserveInventory`.
 
-Client: `useCart` → `services.cart` in `apiClientServices.ts` (no `cartService` shim).
+Client: `useCart` → `services.cart` in `apiClientServices.ts`. Full route, storage, merge, identity, and failure contracts: [cart.md](./cart.md).
+
+Guest carts use the versioned `cart:guest:v1` envelope. Malformed, unversioned, and retired-key payloads are discarded rather than migrated through another execution path. Client mutations are serialized per cart owner, and a line is identified by product, variant, and custom-image set so concurrent updates and customized products cannot collapse into the wrong line.
 
 ### Checkout API
 
@@ -108,9 +111,8 @@ Checkout mutations go **only** through `services.checkout`:
 | Endpoint | Method | Checkout method |
 | --- | --- | --- |
 | `/api/checkout/create-payment-intent` | POST | `createCheckoutSession` |
-| `/api/checkout/verify` | GET | `recoverPendingOrder` |
+| `/api/checkout/verify` | POST | `recoverPendingOrder` |
 | `/api/webhooks/stripe` | POST | `handleCheckoutWebhook` |
-| `/api/orders` | POST | `completeCheckoutWithPaymentMethod` |
 
 See [checkout.md](./checkout.md) for protocol details.
 
@@ -142,7 +144,7 @@ Order pages show timeline events, tracking links when present, and fulfillment s
 ### Guest shopper
 
 ```text
-Browse → add to cart → checkout as guest OR register mid-flow
+Browse → build a guest cart → sign in or register before payment
   → Firebase Auth (email/password or Google if enabled)
   → signed HTTP-only session cookie
   → cart merged to user id
@@ -172,16 +174,16 @@ The checkout page (`/checkout`) uses the commitment gate pattern:
 2. `gateCheckoutCommit(await services.cart.validateCart())` before payment
 3. Information → shipping → payment steps
 4. **PaymentIntent path:** `POST /api/checkout/create-payment-intent` with idempotency key → Stripe.js `clientSecret`
-5. **Payment-method path:** `services.checkout.completeWithPaymentMethod` → `POST /api/orders`
-6. Success: `OrderConfirmation` or verify via `GET /api/checkout/verify?payment_intent=…` (webhook may finalize in parallel)
+5. Stripe.js confirms the server-created PaymentIntent; no alternate payment-method endpoint exists
+6. Success: `OrderConfirmation` after `POST /api/checkout/verify` (webhook may finalize in parallel)
 
-**Client must not** capture money directly — Stripe UI only creates a `PaymentMethod`; server routes call `services.checkout`.
+**Client must not** create PaymentIntents. Stripe.js only confirms the server-created intent; server routes call `services.checkout`.
 
 UI modules: `src/ui/checkout/` (`validateBeforeCommit`, `StripeCheckoutForm`, `stripeClient`).
 
 ### E2E mock checkout
 
-When `NEXT_PUBLIC_E2E_MOCK_CHECKOUT=1`, `StripeCheckoutForm` shows a **Mock Pay (E2E)** button (no card entry). Used by `npm run test:e2e:checkout-smoke`.
+When `NEXT_PUBLIC_E2E_MOCK_CHECKOUT=1`, `StripeCheckoutForm` shows a **Mock Pay (E2E)** button (no card entry). The isolated runner sets this for both `npm run test:e2e:cart-smoke` and `npm run test:e2e:checkout-smoke`.
 
 Stripe test cards: [local-development.md](./local-development.md)
 

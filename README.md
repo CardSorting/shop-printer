@@ -57,8 +57,9 @@ Cart never reserves stock. Checkout never skips revalidation. Payment UI tokeniz
 **One command proves the chain:**
 
 ```bash
-npm run test:storefront-release   # 125 Vitest proofs
-npm run test:e2e:checkout-smoke   # 3 Playwright checkout tests
+npm run test:storefront-release   # frozen storefront proof suite
+npm run test:e2e:cart-smoke       # isolated cart-to-checkout journey
+npm run test:e2e:checkout-smoke   # isolated mocked checkout journey
 ```
 
 Detail: [docs/storefront-release.md](docs/storefront-release.md) · Policy: [docs/commerce-protocol-frozen.md](docs/commerce-protocol-frozen.md)
@@ -116,6 +117,7 @@ npm run lint
 npm run build
 npm run test
 npm run test:storefront-release   # frozen storefront + checkout proofs
+npm run test:e2e:cart-smoke       # cart ownership, persistence, merge, and checkout handoff
 npm run test:e2e:checkout-smoke   # mocked checkout browser smoke
 npm run test:e2e                  # full Playwright suite
 npm run benchmark:order-flow
@@ -141,7 +143,7 @@ Guided setup: [docs/onboarding.md](docs/onboarding.md) · Reference: [docs/getti
 | Strategy | [brief](docs/brief.md), [philosophy](docs/philosophy.md), [whitepaper](docs/whitepaper.md), [platform-overview](docs/platform-overview.md) |
 | Setup | [onboarding](docs/onboarding.md), [local-development](docs/local-development.md), [environment-variables](docs/environment-variables.md) |
 | Architecture | [architecture](docs/architecture.md), [protocols](docs/protocols.md), [flows](docs/flows.md), [storefront-release](docs/storefront-release.md) |
-| Protocols | [checkout](docs/checkout.md), [inventory](docs/inventory.md), [refunds](docs/refunds.md), [commerce-protocol-frozen](docs/commerce-protocol-frozen.md) |
+| Protocols | [cart](docs/cart.md), [checkout](docs/checkout.md), [inventory](docs/inventory.md), [refunds](docs/refunds.md), [commerce-protocol-frozen](docs/commerce-protocol-frozen.md) |
 | Ship | [production-readiness](docs/production-readiness.md), [deployment](docs/deployment.md), [release-checklist](docs/release-checklist.md), [runbook](docs/commerce-incident-runbook.md) |
 | Extend | [CONTRIBUTING](CONTRIBUTING.md), [customization](docs/customization.md), [contributing-commerce](docs/contributing-commerce.md), [migration-from-shopify](docs/migration-from-shopify.md) |
 
@@ -157,9 +159,9 @@ Next.js 15 · React 18 · TypeScript · Firestore · Firebase Auth · Stripe 17 
 
 ## Repository snapshot
 
-- ~142 API routes · ~67 App Router pages
+- 150 API route files · 71 App Router page files · 103 test/spec files (verified July 14, 2026)
 - Service container: `src/core/container.ts`
-- 320+ automated tests · 125-test storefront release gate
+- Frozen storefront release gate plus isolated cart and checkout browser gates
 
 ---
 

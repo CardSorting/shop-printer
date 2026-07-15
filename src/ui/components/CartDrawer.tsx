@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useServices } from '../hooks/useServices';
-import { MAX_CART_QUANTITY } from '@domain/rules';
+import { cartLineKey, MAX_CART_QUANTITY } from '@domain/rules';
 import { logger } from '@utils/logger';
 import { sanitizeImageUrl } from '@utils/imageSanitizer';
 import { CART_GUEST_TIERS, SITE_CART_EMPTY_LINE } from '@utils/seo';
@@ -24,10 +24,11 @@ function formatMoney(cents: number): string {
 
 export function CartDrawer() {
   const { 
-    cart, loading, isOpen, closeCart, 
+    cart, error, loading, isOpen, closeCart,
     updateQuantity, removeItem, updateNote, subtotal, totalItems 
   } = useCart();
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const bodyOverflowRef = useRef<string | null>(null);
 
@@ -40,6 +41,10 @@ export function CartDrawer() {
       if (focusTimer !== null) window.clearTimeout(focusTimer);
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    setNoteDraft(cart?.note ?? '');
+  }, [cart?.note]);
 
   useEffect(() => {
     if (isOpen) {
@@ -130,6 +135,11 @@ export function CartDrawer() {
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-8">
+          {error && (
+            <div role="alert" className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              {error}
+            </div>
+          )}
           {items.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center py-12 text-center">
               <div className="mb-8 relative">
@@ -167,7 +177,7 @@ export function CartDrawer() {
           ) : (
             <div className="space-y-10">
               {items.map((item) => {
-                const itemId = item.variantId ? `${item.productId}-${item.variantId}` : item.productId;
+                const itemId = cartLineKey(item);
                 const isUpdating = updatingItemId === itemId;
 
                 return (
@@ -190,7 +200,9 @@ export function CartDrawer() {
                             <button
                               onClick={() => {
                                 setUpdatingItemId(itemId);
-                                void removeItem(item.productId, item.variantId).finally(() => setUpdatingItemId(null));
+                                void removeItem(item.productId, item.variantId, item.customImages)
+                                  .catch(() => undefined)
+                                  .finally(() => setUpdatingItemId(null));
                               }}
                               className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0"
                               title="Remove item"
@@ -222,7 +234,9 @@ export function CartDrawer() {
                           <button
                             onClick={() => {
                               setUpdatingItemId(itemId);
-                              void updateQuantity(item.productId, item.quantity - 1, item.variantId).finally(() => setUpdatingItemId(null));
+                              void updateQuantity(item.productId, item.quantity - 1, item.variantId, item.customImages)
+                                .catch(() => undefined)
+                                .finally(() => setUpdatingItemId(null));
                             }}
                             disabled={item.quantity <= 1 || isUpdating}
                             className="h-8 w-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-primary-600 hover:bg-gray-50 disabled:opacity-20 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -234,7 +248,9 @@ export function CartDrawer() {
                           <button
                             onClick={() => {
                               setUpdatingItemId(itemId);
-                              void updateQuantity(item.productId, item.quantity + 1, item.variantId).finally(() => setUpdatingItemId(null));
+                              void updateQuantity(item.productId, item.quantity + 1, item.variantId, item.customImages)
+                                .catch(() => undefined)
+                                .finally(() => setUpdatingItemId(null));
                             }}
                             disabled={item.quantity >= MAX_CART_QUANTITY || isUpdating}
                             className="h-8 w-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-primary-600 hover:bg-gray-50 disabled:opacity-20 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -265,12 +281,16 @@ export function CartDrawer() {
                       placeholder="Enter your message here..."
                       rows={4}
                       maxLength={100}
-                      value={cart?.note || ''}
-                      onChange={(e) => updateNote(e.target.value)}
+                      value={noteDraft}
+                      onChange={(event) => setNoteDraft(event.target.value)}
+                      onBlur={() => {
+                        if (noteDraft === (cart?.note ?? '')) return;
+                        void updateNote(noteDraft).catch(() => undefined);
+                      }}
                     />
                     <div className="mt-2 flex justify-end">
-                      <span className={`text-[10px] font-bold uppercase tracking-widest ${(cart?.note?.length || 0) >= 100 ? 'text-red-500' : 'text-gray-300'}`}>
-                        {cart?.note?.length || 0}/100
+                      <span className={`text-[10px] font-bold uppercase tracking-widest ${noteDraft.length >= 100 ? 'text-red-500' : 'text-gray-300'}`}>
+                        {noteDraft.length}/100
                       </span>
                     </div>
                   </div>

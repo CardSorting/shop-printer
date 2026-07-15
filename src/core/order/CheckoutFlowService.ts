@@ -1,4 +1,4 @@
-import type { ICheckoutGateway, IOrderRepository } from '@domain/repositories';
+import type { IOrderRepository } from '@domain/repositories';
 import type { Order } from '@domain/models';
 import type { StripeService } from '@infrastructure/services/StripeService';
 import type { CheckoutMutationBackend } from './checkoutMutationBackend';
@@ -10,7 +10,6 @@ import { resolveCheckoutOrderByPaymentIntent } from './checkoutOrderResolver';
 import { verifyPaymentFromClientFlow } from './checkoutVerifyFlow';
 import { handleStripePaymentFailedFlow } from './checkoutStripeWebhookFlow';
 import { startClientCheckoutFlow } from './checkoutClientStartFlow';
-import { completeCheckoutWithPaymentMethod } from './checkoutPaymentMethodFlow';
 import { cleanupExpiredPendingOrdersFlow } from './checkoutCleanupFlow';
 import {
   completeOperatorRetryRecoveryFlow,
@@ -30,7 +29,6 @@ import type {
   CheckoutApplicationService,
   CleanupExpiredPendingOrdersInput,
   CleanupExpiredPendingOrdersReport,
-  CompleteCheckoutWithPaymentMethodInput,
   CreateCheckoutSessionData,
   CreateCheckoutSessionInput,
   HandleCheckoutWebhookData,
@@ -41,7 +39,6 @@ import type {
   RecoverPendingOrderInput,
 } from './checkoutApplicationService';
 import type {
-  CompleteWithPaymentMethodParams,
   ReconciliationOperatorAction,
   ReserveCheckoutParams,
   ResolveCheckoutOrderOptions,
@@ -51,7 +48,6 @@ import type {
 } from './checkoutTypes';
 
 export type CheckoutFlowServiceOptions = {
-  checkoutGateway?: ICheckoutGateway;
   stripe?: CheckoutStripePort & Pick<StripeService, 'constructEvent' | 'tryProcessEvent' | 'getEventStatus' | 'markEventProcessed' | 'markEventFailed'>;
   eventLog?: ICheckoutEventLog;
   cancelExpiredPendingOrder?: (orderId: string) => Promise<void>;
@@ -64,7 +60,6 @@ export type CheckoutFlowServiceOptions = {
 };
 
 export type {
-  CompleteWithPaymentMethodParams,
   ReserveCheckoutParams,
   ResolveCheckoutOrderOptions,
   StartClientCheckoutParams,
@@ -85,10 +80,6 @@ export class CheckoutFlowService implements CheckoutApplicationService {
     private readonly options: CheckoutFlowServiceOptions = {},
   ) {}
 
-  private get checkoutGateway() {
-    return this.options.checkoutGateway;
-  }
-
   private get stripe() {
     return this.options.stripe;
   }
@@ -100,7 +91,8 @@ export class CheckoutFlowService implements CheckoutApplicationService {
   async createCheckoutSession(
     input: CreateCheckoutSessionInput,
   ): Promise<CheckoutResult<CreateCheckoutSessionData>> {
-    if (!this.stripe) {
+    const stripe = this.stripe;
+    if (!stripe) {
       return checkoutErr('STRIPE_NOT_CONFIGURED', 'Stripe is not configured on the checkout stack', true);
     }
     return checkoutTry(() => this.startClientCheckout({
@@ -111,13 +103,8 @@ export class CheckoutFlowService implements CheckoutApplicationService {
       userName: input.userName,
       discountCode: input.discountCode,
       requireHighValueStepUp: input.requireHighValueStepUp,
+      stripe,
     }));
-  }
-
-  async completeCheckoutWithPaymentMethod(
-    input: CompleteCheckoutWithPaymentMethodInput,
-  ): Promise<CheckoutResult<Order>> {
-    return checkoutTry(() => this.completeWithPaymentMethod(input));
   }
 
   async handleCheckoutWebhook(
@@ -190,7 +177,8 @@ export class CheckoutFlowService implements CheckoutApplicationService {
   async cleanupExpiredPendingOrders(
     input: CleanupExpiredPendingOrdersInput,
   ): Promise<CheckoutResult<CleanupExpiredPendingOrdersReport>> {
-    if (!this.stripe) {
+    const stripe = this.stripe;
+    if (!stripe) {
       return checkoutErr('STRIPE_NOT_CONFIGURED', 'Stripe is not configured on the checkout stack', true);
     }
     const cancelExpiredOrder = this.options.cancelExpiredPendingOrder;
@@ -200,7 +188,7 @@ export class CheckoutFlowService implements CheckoutApplicationService {
 
     return checkoutTry(() => cleanupExpiredPendingOrdersFlow(input.maxAgeMinutes, {
       orderRepo: this.orderRepo,
-      stripe: this.stripe,
+      stripe,
       confirmPayment: (pi, piSnapshot, actor) => this.confirmPaymentFromStripe(pi, piSnapshot, actor),
       cancelExpiredOrder,
     }));
@@ -209,22 +197,24 @@ export class CheckoutFlowService implements CheckoutApplicationService {
   async recoverPendingOrder(
     input: RecoverPendingOrderInput,
   ): Promise<CheckoutResult<RecoverPendingOrderData>> {
-    if (!this.stripe) {
+    const stripe = this.stripe;
+    if (!stripe) {
       return checkoutErr('STRIPE_NOT_CONFIGURED', 'Stripe is not configured on the checkout stack', true);
     }
     try {
-      const pi = await this.stripe.getPaymentIntent(input.paymentIntentId);
+      const pi = await stripe.getPaymentIntent(input.paymentIntentId);
       const verification = await this.verifyPaymentFromClient(
         input.userId,
         input.paymentIntentId,
         pi as StripePaymentIntentSnapshot,
       );
       if (!verification.success) {
-        return checkoutErr(
-          'VERIFICATION_FAILED',
-          verification.message ?? 'Payment verification failed',
-          false,
-        );
+        return checkoutOk({
+          success: false,
+          orderId: verification.orderId,
+          status: verification.status,
+          message: verification.message ?? 'Payment verification is still pending.',
+        });
       }
       return checkoutOk({
         success: true,
@@ -233,11 +223,7 @@ export class CheckoutFlowService implements CheckoutApplicationService {
         message: verification.message,
       });
     } catch (error) {
-      return checkoutErr(
-        'RECOVERY_FAILED',
-        error instanceof Error ? error.message : 'Payment recovery failed',
-        false,
-      );
+      return checkoutFromError(error);
     }
   }
 
@@ -275,14 +261,6 @@ export class CheckoutFlowService implements CheckoutApplicationService {
       idempotencyKey: params.idempotencyKey,
       fulfillmentMethod: params.fulfillmentMethod,
       lockTtlMs: params.lockTtlMs,
-    });
-  }
-
-  completeWithPaymentMethod(params: CompleteWithPaymentMethodParams): Promise<Order> {
-    return completeCheckoutWithPaymentMethod({
-      mutations: this.mutations,
-      checkoutGateway: this.checkoutGateway,
-      input: params,
     });
   }
 

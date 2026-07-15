@@ -1,10 +1,8 @@
 import type {
   ICartRepository,
-  ICheckoutGateway,
   IDiscountRepository,
   ILockProvider,
   IOrderRepository,
-  IPaymentProcessor,
   IProductRepository,
   IShippingRepository,
 } from '@domain/repositories';
@@ -24,11 +22,9 @@ export type CheckoutStackDeps = {
   productRepo: IProductRepository;
   cartRepo: ICartRepository;
   discountRepo: IDiscountRepository;
-  payment: IPaymentProcessor;
   audit: AuditService;
   locker: ILockProvider;
   shippingRepo?: IShippingRepository;
-  checkoutGateway?: ICheckoutGateway;
   stripe?: StripeService;
   eventLog?: ICheckoutEventLog;
   inventory: InventoryMutationBackend;
@@ -58,7 +54,6 @@ export function createCheckoutStack(deps: CheckoutStackDeps): CheckoutStack {
     deps.productRepo,
     deps.cartRepo,
     deps.discountRepo,
-    deps.payment,
     deps.audit,
     deps.locker,
     deps.inventory,
@@ -67,7 +62,6 @@ export function createCheckoutStack(deps: CheckoutStackDeps): CheckoutStack {
     deps.cartIntent,
   );
   const checkout = new CheckoutFlowService(mutations, deps.orderRepo, {
-    checkoutGateway: deps.checkoutGateway,
     stripe: deps.stripe,
     eventLog: deps.eventLog,
     cancelExpiredPendingOrder: deps.cancelExpiredPendingOrder,

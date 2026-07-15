@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: 'checkout-smoke.spec.ts',
+  testMatch: ['checkout-smoke.spec.ts', 'cart-checkout-comprehensive.spec.ts'],
   globalSetup: './e2e/global-setup/requireDevServer.ts',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,

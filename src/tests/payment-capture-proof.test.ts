@@ -59,12 +59,12 @@ function makeWebhookFlow(confirmStripePayment = vi.fn().mockResolvedValue({ id: 
 describe('Payment capture proof (money authority)', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('[ui] Stripe form tokenizes card only — never captures money client-side', () => {
+  it('[ui] Stripe form confirms only the server-created PaymentIntent', () => {
     const form = read('src/ui/checkout/StripeCheckoutForm.tsx');
     const client = read('src/ui/checkout/stripeClient.ts');
-    expect(form).toMatch(/createPaymentMethod/);
-    expect(form).not.toMatch(/confirmCardPayment/);
-    expect(form).not.toMatch(/confirmPayment/);
+    expect(form).toMatch(/confirmCardPayment/);
+    expect(form).toMatch(/session\.clientSecret/);
+    expect(form).not.toMatch(/createPaymentIntent/);
     expect(form).not.toMatch(/charges\.create/);
     expect(client).toMatch(/NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY/);
     expect(client).not.toMatch(/STRIPE_SECRET/);
@@ -75,16 +75,17 @@ describe('Payment capture proof (money authority)', () => {
   it('[ui] checkout page finalizes through services.checkout API', () => {
     const page = read('src/ui/pages/CheckoutPage.tsx');
     const apiClient = read('src/ui/apiClientServices.ts');
-    expect(page).toMatch(/services\.checkout\.completeWithPaymentMethod/);
+    expect(page).toMatch(/services\.checkout\.start/);
+    expect(page).toMatch(/services\.checkout\.finalize/);
     expect(page).toMatch(/gateCheckoutCommit/);
     expect(page).not.toMatch(/confirmCardPayment/);
-    expect(apiClient).toMatch(/\/api\/orders/);
-    expect(apiClient).not.toMatch(/\/api\/checkout\/create-payment-intent/);
+    expect(apiClient).toMatch(/\/api\/checkout\/create-payment-intent/);
+    expect(apiClient).toMatch(/\/api\/checkout\/verify/);
   });
 
   it('[routes] payment ingress delegates to services.checkout only', () => {
     const createIntent = read('src/app/api/checkout/create-payment-intent/route.ts');
-    const placeOrder = read('src/app/api/orders/route.ts');
+    const orders = read('src/app/api/orders/route.ts');
     const verify = read('src/app/api/checkout/verify/route.ts');
     const webhook = read('src/app/api/webhooks/stripe/route.ts');
 
@@ -93,8 +94,8 @@ describe('Payment capture proof (money authority)', () => {
     expect(createIntent).not.toMatch(/confirmStripePayment/);
     expect(createIntent).not.toMatch(/createPaymentIntent\(/);
 
-    expect(placeOrder).toMatch(/services\.checkout\.completeCheckoutWithPaymentMethod/);
-    expect(placeOrder).not.toMatch(/confirmStripePayment/);
+    expect(orders).toMatch(/export async function GET/);
+    expect(orders).not.toMatch(/export async function POST/);
 
     expect(verify).toMatch(/services\.checkout\.recoverPendingOrder/);
     expect(verify).not.toMatch(/getPaymentIntent\(/);
@@ -129,7 +130,7 @@ describe('Payment capture proof (money authority)', () => {
       expect(source, file).not.toMatch(/paymentIntent/);
       expect(source, file).not.toMatch(/createPaymentIntent/);
       expect(source, file).not.toMatch(/confirmStripePayment/);
-      expect(source, file).not.toMatch(/completeCheckoutWithPaymentMethod/);
+      expect(source, file).not.toMatch(/\.processPayment\s*\(/);
     }
   });
 

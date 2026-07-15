@@ -11,6 +11,7 @@ import {
   setDoc,
   where,
   getUnifiedDb,
+  type QueryDocumentSnapshot,
 } from '../../firebase/bridge';
 import type { IInventoryLedgerRepository } from '@domain/repositories';
 import type { InventoryLedgerEntry } from '@domain/inventory';
@@ -54,6 +55,6 @@ export class FirestoreInventoryLedgerRepository implements IInventoryLedgerRepos
       limit(options?.limit ?? 100),
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => d.data() as InventoryLedgerEntry);
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => d.data() as InventoryLedgerEntry);
   }
 }

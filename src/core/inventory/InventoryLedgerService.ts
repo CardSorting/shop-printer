@@ -58,9 +58,9 @@ export class InventoryLedgerService {
     );
     const envelope = mapInventoryLedgerToEnvelope(entry);
     if (isInPostCommitCommerceScope()) {
-      queuePostCommitCommerceEvent(envelope);
+      queuePostCommitCommerceEvent(envelope as any);
     } else if (this.commerceEventBus && !input.transaction) {
-      await this.commerceEventBus.publish(envelope);
+      await this.commerceEventBus.publish(envelope as any);
     }
     return entry;
   }

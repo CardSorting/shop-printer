@@ -13,22 +13,11 @@ export type StartClientCheckoutParams = {
   userId: string;
   shippingAddress: Address;
   idempotencyKey: string;
-  stripe: CheckoutStripePort;
+  stripe?: CheckoutStripePort;
   userEmail?: string;
   userName?: string;
   discountCode?: string;
   requireHighValueStepUp?: () => Promise<void>;
-};
-
-export type CompleteWithPaymentMethodParams = {
-  userId: string;
-  shippingAddress: Address;
-  paymentMethodId: string;
-  idempotencyKey?: string;
-  discountCode?: string;
-  userEmail?: string;
-  userName?: string;
-  fulfillmentMethod?: FulfillmentMethod;
 };
 
 export type ReserveCheckoutParams = {

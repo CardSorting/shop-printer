@@ -9,10 +9,12 @@ vi.mock('@infrastructure/server/services', () => ({
 }));
 
 vi.mock('@infrastructure/server/apiGuards', () => ({
+  assertRateLimit: vi.fn(async () => undefined),
   requireSessionUser: vi.fn(async () => ({ id: 'user-1', email: 'u@example.com', displayName: 'User', role: 'customer', createdAt: new Date() })),
-  requireString: (value: string | null) => {
+  readJsonObject: vi.fn(async (request: Request) => request.json()),
+  requireString: (value: unknown) => {
     if (!value) throw new Error('required');
-    return value;
+    return String(value);
   },
   jsonError: (err: any) => {
     const status = err?.name === 'UnauthorizedError' ? 403 : err?.name === 'OrderNotFoundError' ? 404 : 500;
@@ -32,9 +34,12 @@ describe('checkout verify authorization', () => {
       message: 'Unauthorized',
       retryable: false,
     });
-    const { GET } = await import('./route');
+    const { POST } = await import('./route');
 
-    const response = await GET(new Request('https://example.test/api/checkout/verify?payment_intent=pi_1'));
+    const response = await POST(new Request('https://example.test/api/checkout/verify', {
+      method: 'POST',
+      body: JSON.stringify({ paymentIntentId: 'pi_1' }),
+    }));
 
     expect(response.status).toBe(400);
     expect(recoverPendingOrder).toHaveBeenCalledWith({
@@ -48,9 +53,12 @@ describe('checkout verify authorization', () => {
       ok: true,
       data: { success: true, orderId: 'o1', status: 'processing' },
     });
-    const { GET } = await import('./route');
+    const { POST } = await import('./route');
 
-    const response = await GET(new Request('https://example.test/api/checkout/verify?payment_intent=pi_1'));
+    const response = await POST(new Request('https://example.test/api/checkout/verify', {
+      method: 'POST',
+      body: JSON.stringify({ paymentIntentId: 'pi_1' }),
+    }));
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -68,9 +76,12 @@ describe('checkout verify authorization', () => {
       message: 'Order not found',
       retryable: false,
     });
-    const { GET } = await import('./route');
+    const { POST } = await import('./route');
 
-    const response = await GET(new Request('https://example.test/api/checkout/verify?payment_intent=pi_1'));
+    const response = await POST(new Request('https://example.test/api/checkout/verify', {
+      method: 'POST',
+      body: JSON.stringify({ paymentIntentId: 'pi_1' }),
+    }));
 
     expect(response.status).toBe(400);
   });

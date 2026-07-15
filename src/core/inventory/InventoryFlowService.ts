@@ -84,7 +84,7 @@ export class InventoryFlowService implements InventoryApplicationService {
     }
 
     const existing = await this.reservations.findByIdempotencyKey(input.idempotencyKey, input.transaction);
-    if (this.reservations.isDuplicateReserve(existing)) {
+    if (existing && this.reservations.isDuplicateReserve(existing)) {
       return inventoryOk(
         {
           reservationId: existing.id,

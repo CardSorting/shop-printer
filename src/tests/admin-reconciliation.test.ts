@@ -316,7 +316,6 @@ describe('Operator-Facing Reconciliation & Forensics Integration Tests', () => {
       productRepo: { getById: vi.fn() } as any,
       cartRepo: { getByUserId: vi.fn() } as any,
       discountRepo: { getByCode: vi.fn() } as any,
-      payment: mockPayment as any,
       audit: mockAudit as any,
       locker: mockLocker as any,
     }));

@@ -1,7 +1,11 @@
 import { ProductNotFoundError, InsufficientStockError } from '@domain/errors';
+import type { Cart } from '@domain/models';
+import type { ICartRepository } from '@domain/repositories';
+import { addCartItem, calculateCartTotal, cartLineMatches, removeCartItem, updateCartItemQuantity } from '@domain/rules';
+import { getUnifiedDb, runTransaction } from '@infrastructure/firebase/bridge';
+import type { CartApplicationService } from './cartApplicationService';
 import type { CartUxEventBus } from './cartEvents';
 import { cartErr, cartOk, type CartResult } from './cartResult';
-import type { CartStore } from './cartStore';
 import type { CartValidationService } from './cartValidationService';
 import {
   buildEmptyCartView,
@@ -27,12 +31,11 @@ import type {
   CartLineItem,
 } from './types';
 import type { DiscountService } from '../DiscountService';
-import { calculateCartTotal } from '@domain/rules';
 import { mergeGuestCartItems } from './mergeGuestCart';
 import type { CartIssue } from './types';
 
 type CartFlowDeps = {
-  store: CartStore;
+  cartRepo: ICartRepository;
   productReadModel: ProductReadModel;
   availabilityReader: InventoryAvailabilityReader;
   pricingSnapshot: PricingSnapshotService;
@@ -41,12 +44,12 @@ type CartFlowDeps = {
   events?: CartUxEventBus;
 };
 
-export class CartFlowService {
+export class CartFlowService implements CartApplicationService {
   constructor(private deps: CartFlowDeps) {}
 
   async getCart(input: GetCartInput): Promise<CartResult<CartView>> {
     try {
-      const cart = await this.deps.store.get(input.userId);
+      const cart = await this.getPersistedCart(input.userId);
       if (!cart || cart.items.length === 0) {
         return cartOk(buildEmptyCartView(input.userId));
       }
@@ -66,7 +69,7 @@ export class CartFlowService {
 
   async addItem(input: AddCartItemInput): Promise<CartResult<CartView>> {
     try {
-      const cart = await this.deps.store.add(
+      const cart = await this.addPersistedItem(
         input.userId,
         input.productId,
         input.quantity,
@@ -87,11 +90,12 @@ export class CartFlowService {
 
   async updateItem(input: UpdateCartItemInput): Promise<CartResult<CartView>> {
     try {
-      const cart = await this.deps.store.updateQuantity(
+      const cart = await this.updatePersistedItem(
         input.userId,
         input.productId,
         input.quantity,
         input.variantId,
+        input.customImages,
       );
       this.deps.events?.emit({
         type: 'cart.item_updated',
@@ -107,7 +111,12 @@ export class CartFlowService {
 
   async removeItem(input: RemoveCartItemInput): Promise<CartResult<CartView>> {
     try {
-      const cart = await this.deps.store.remove(input.userId, input.productId, input.variantId);
+      const cart = await this.removePersistedItem(
+        input.userId,
+        input.productId,
+        input.variantId,
+        input.customImages,
+      );
       this.deps.events?.emit({
         type: 'cart.item_removed',
         productId: input.productId,
@@ -121,7 +130,7 @@ export class CartFlowService {
 
   async clearDiscount(input: GetCartInput): Promise<CartResult<CartView>> {
     try {
-      const cart = await this.deps.store.clearDiscountCode(input.userId);
+      const cart = await this.updatePersistedDiscount(input.userId, null);
       this.deps.events?.emit({ type: 'cart.discount_cleared' });
       return this.viewFromCart(cart);
     } catch (err) {
@@ -131,7 +140,7 @@ export class CartFlowService {
 
   async applyDiscount(input: ApplyDiscountInput): Promise<CartResult<CartView>> {
     try {
-      const existing = await this.deps.store.get(input.userId);
+      const existing = await this.getPersistedCart(input.userId);
       if (!existing || existing.items.length === 0) {
         return cartErr('cart_empty', 'Add items before applying a discount.');
       }
@@ -144,7 +153,12 @@ export class CartFlowService {
           input.userId,
           undefined,
           [],
-          { lineItems: existing.items },
+          {
+            lineItems: existing.items.map((item) => ({
+              ...item,
+              unitPrice: item.priceSnapshot,
+            })),
+          },
         );
         if (!validation.valid) {
           const isExpired = validation.message?.toLowerCase().includes('expired');
@@ -155,7 +169,7 @@ export class CartFlowService {
         }
       }
 
-      const cart = await this.deps.store.applyDiscountCode(input.userId, input.code);
+      const cart = await this.updatePersistedDiscount(input.userId, input.code.trim().toUpperCase());
       this.deps.events?.emit({ type: 'cart.discount_applied', code: input.code.trim().toUpperCase() });
       return this.viewFromCart(cart);
     } catch (err) {
@@ -165,7 +179,7 @@ export class CartFlowService {
 
   async clearCart(input: ClearCartInput): Promise<CartResult<CartView>> {
     try {
-      await this.deps.store.clear(input.userId);
+      await this.deps.cartRepo.clear(input.userId);
       this.deps.events?.emit({ type: 'cart.cleared', userId: input.userId });
       return cartOk(buildEmptyCartView(input.userId));
     } catch (err) {
@@ -175,14 +189,14 @@ export class CartFlowService {
 
   async validateCart(input: ValidateCartInput): Promise<CartResult<CartValidation>> {
     try {
-      let cart = await this.deps.store.get(input.userId);
+      let cart = await this.getPersistedCart(input.userId);
       let validation = await this.deps.validation.validate(cart, input.userId);
 
       const discountStale = validation.issues.some(
         (issue) => issue.code === 'discount_invalid' || issue.code === 'discount_expired',
       );
       if (discountStale && cart?.discountCode) {
-        cart = await this.deps.store.clearDiscountCode(input.userId);
+        cart = await this.updatePersistedDiscount(input.userId, null);
         this.deps.events?.emit({ type: 'cart.discount_cleared' });
         validation = await this.deps.validation.validate(cart, input.userId);
         validation = { ...validation, requiresRefresh: true };
@@ -195,12 +209,25 @@ export class CartFlowService {
   }
 
   async mergeGuestItems(
-    input: ValidateCartInput & { items: Array<{ productId: string; quantity: number; variantId?: string }> },
+    input: ValidateCartInput & {
+      items: Array<{
+        productId: string;
+        quantity: number;
+        variantId?: string;
+        customImages?: string[];
+      }>;
+    },
   ): Promise<CartResult<{ cart: CartView; mergeIssues: CartIssue[]; remainingGuestItems: typeof input.items }>> {
     try {
       const mergeResult = await mergeGuestCartItems(input.items, async (item) => {
         try {
-          await this.deps.store.add(input.userId, item.productId, item.quantity, item.variantId);
+          await this.addPersistedItem(
+            input.userId,
+            item.productId,
+            item.quantity,
+            item.variantId,
+            item.customImages,
+          );
           return { ok: true as const };
         } catch (err) {
           return {
@@ -210,7 +237,7 @@ export class CartFlowService {
         }
       });
 
-      const cart = await this.deps.store.get(input.userId);
+      const cart = await this.getPersistedCart(input.userId);
       const view = await this.viewFromCart(cart);
       if (!view.ok) return view;
 
@@ -226,7 +253,7 @@ export class CartFlowService {
 
   async updateNote(input: UpdateCartNoteInput): Promise<CartResult<CartView>> {
     try {
-      const cart = await this.deps.store.updateNote(input.userId, input.note);
+      const cart = await this.updatePersistedNote(input.userId, input.note);
       return this.viewFromCart(cart);
     } catch (err) {
       return this.mapError(err);
@@ -257,7 +284,7 @@ export class CartFlowService {
     }
   }
 
-  private async viewFromCart(cart: Awaited<ReturnType<CartStore['get']>>): Promise<CartResult<CartView>> {
+  private async viewFromCart(cart: Cart | null): Promise<CartResult<CartView>> {
     if (!cart) return cartOk(buildEmptyCartView(''));
     const items = await enrichCartLineItems(
       cart,
@@ -265,6 +292,142 @@ export class CartFlowService {
       this.deps.availabilityReader,
     );
     return cartOk(mapCartToView(cart, items));
+  }
+
+  private getPersistedCart(userId: string): Promise<Cart | null> {
+    return this.deps.cartRepo.getByUserId(userId);
+  }
+
+  private async addPersistedItem(
+    userId: string,
+    productId: string,
+    quantity: number,
+    variantId?: string,
+    customImages?: string[],
+  ): Promise<Cart> {
+    return runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const cart = await this.deps.cartRepo.getByUserId(userId, transaction);
+      const items = cart?.items ?? [];
+      const product = await this.deps.productReadModel.getProduct(productId, transaction);
+      if (!product) throw new ProductNotFoundError(productId);
+
+      const existingQuantity = items
+        .filter((item) => item.productId === productId && item.variantId === variantId)
+        .reduce((total, item) => total + item.quantity, 0);
+      await this.deps.availabilityReader.assertAvailable(
+        product,
+        existingQuantity + quantity,
+        variantId,
+      );
+
+      const updatedCart: Cart = {
+        ...cart,
+        id: userId,
+        userId,
+        items: addCartItem(items, product, quantity, variantId, customImages),
+        updatedAt: new Date(),
+      };
+      await this.deps.cartRepo.save(updatedCart, transaction);
+      return updatedCart;
+    });
+  }
+
+  private async updatePersistedItem(
+    userId: string,
+    productId: string,
+    quantity: number,
+    variantId?: string,
+    customImages?: string[],
+  ): Promise<Cart> {
+    return runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const cart = await this.deps.cartRepo.getByUserId(userId, transaction);
+      const items = cart?.items ?? [];
+
+      if (quantity === 0) {
+        const updatedCart: Cart = {
+          ...cart,
+          id: userId,
+          userId,
+          items: removeCartItem(items, productId, variantId, customImages),
+          updatedAt: new Date(),
+        };
+        await this.deps.cartRepo.save(updatedCart, transaction);
+        return updatedCart;
+      }
+
+      const product = await this.deps.productReadModel.getProduct(productId, transaction);
+      if (!product) throw new ProductNotFoundError(productId);
+
+      const targetIndex = items.findIndex((item) =>
+        cartLineMatches(item, productId, variantId, customImages),
+      );
+      const aggregateQuantity = items.reduce((total, item, index) => {
+        if (item.productId !== productId || item.variantId !== variantId) return total;
+        return total + (index === targetIndex ? quantity : item.quantity);
+      }, targetIndex < 0 ? quantity : 0);
+      await this.deps.availabilityReader.assertAvailable(product, aggregateQuantity, variantId);
+
+      const updatedCart: Cart = {
+        ...cart,
+        id: userId,
+        userId,
+        items: updateCartItemQuantity(
+          items,
+          productId,
+          quantity,
+          product,
+          variantId,
+          customImages,
+        ),
+        updatedAt: new Date(),
+      };
+      await this.deps.cartRepo.save(updatedCart, transaction);
+      return updatedCart;
+    });
+  }
+
+  private async removePersistedItem(
+    userId: string,
+    productId: string,
+    variantId?: string,
+    customImages?: string[],
+  ): Promise<Cart> {
+    return runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const cart = await this.deps.cartRepo.getByUserId(userId, transaction);
+      const updatedCart: Cart = {
+        ...cart,
+        id: userId,
+        userId,
+        items: removeCartItem(cart?.items ?? [], productId, variantId, customImages),
+        updatedAt: new Date(),
+      };
+      await this.deps.cartRepo.save(updatedCart, transaction);
+      return updatedCart;
+    });
+  }
+
+  private async updatePersistedNote(userId: string, note: string): Promise<Cart> {
+    return this.updatePersistedMetadata(userId, (cart) => ({ ...cart, note }));
+  }
+
+  private async updatePersistedDiscount(userId: string, discountCode: string | null): Promise<Cart> {
+    return this.updatePersistedMetadata(userId, (cart) => ({
+      ...cart,
+      discountCode: discountCode ?? undefined,
+    }));
+  }
+
+  private async updatePersistedMetadata(
+    userId: string,
+    update: (cart: Cart) => Cart,
+  ): Promise<Cart> {
+    return runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const cart = await this.deps.cartRepo.getByUserId(userId, transaction);
+      if (!cart) throw new Error(`Cart not found for user ${userId}`);
+      const updatedCart = { ...update(cart), updatedAt: new Date() };
+      await this.deps.cartRepo.save(updatedCart, transaction);
+      return updatedCart;
+    });
   }
 
   private mapError<T>(err: unknown): CartResult<T> {

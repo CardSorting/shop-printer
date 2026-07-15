@@ -1,6 +1,7 @@
 import * as crypto from 'node:crypto';
 import type { UserRole, OrderStatus } from '@domain/models';
 import { UnauthorizedError, OrderNotFoundError } from '@domain/errors';
+import type { CheckoutApplicationService } from '../order/checkoutApplicationService';
 import type { RefundApplicationService } from '../refund/refundApplicationService';
 import type { InventoryApplicationService } from '../inventory/inventoryApplicationService';
 import type { OrderService } from '../OrderService';
@@ -56,6 +57,7 @@ import {
   adminOk,
   adminTry,
 } from './adminResult';
+import type { AdminResult } from './adminResult';
 import type { IAdminOperatorEventLog } from './adminOperatorEventLog';
 import { adminMutationKey } from './adminOperatorEventLog';
 import type { ICommerceEventBus } from '../commerce/commerceEventBus';
@@ -555,24 +557,26 @@ export class AdminFlowService implements AdminApplicationService {
 
   async requestRefund(input: RequestRefundInput) {
     const reasonError = validateReason(input.reason);
-    if (reasonError) return reasonError;
+    if (reasonError) return reasonError as AdminResult<never>;
     const elevationError = requireElevated(input.actor);
-    if (elevationError) return elevationError;
+    if (elevationError) return elevationError as AdminResult<never>;
     if (!input.idempotencyKey?.trim()) {
-      return adminErr('VALIDATION_FAILED', 'idempotencyKey is required for refund idempotency.', false);
+      return adminErr('VALIDATION_FAILED', 'idempotencyKey is required for refund idempotency.', false) as AdminResult<never>;
     }
 
     const adminKey = adminMutationKey('order.refund', input.orderId, input.actor.id, input.idempotencyKey);
     const claim = await this.operatorEventLog.claimMutation(adminKey);
     if (claim === 'completed') {
       const status = await this.refunds.getRefundStatus({ orderId: input.orderId });
-      if (!status.ok) return adminFromRefundResult(status);
+      if (!status.ok) return adminFromRefundResult(status) as AdminResult<never>;
       const match = status.data.stripeRefunds.find((entry) => entry.idempotencyKey.includes(input.idempotencyKey));
       if (match) {
         return adminOk({
           orderId: input.orderId,
           amount: match.amount,
-          status: status.data.refundableBalance <= 0 ? 'refunded' : 'partially_refunded',
+          status: status.data.refundableBalance <= 0
+            ? 'refunded' as const
+            : 'partially_refunded' as const,
           stripeRefundId: match.id,
           idempotencyKey: input.idempotencyKey,
         }, true);
@@ -589,7 +593,7 @@ export class AdminFlowService implements AdminApplicationService {
     });
 
     if (!refundResult.ok) {
-      return adminFromRefundResult(refundResult);
+      return adminFromRefundResult(refundResult) as AdminResult<never>;
     }
 
     await this.recordOperatorEvent({
@@ -612,7 +616,7 @@ export class AdminFlowService implements AdminApplicationService {
 
   async resolveReconciliationCase(input: ResolveReconciliationCaseInput) {
     const reasonError = validateReason(input.reason);
-    if (reasonError) return reasonError;
+    if (reasonError) return reasonError as AdminResult<never>;
 
     const idempotencyKey = adminMutationKey(
       `reconciliation:${input.action}`,
@@ -623,7 +627,7 @@ export class AdminFlowService implements AdminApplicationService {
 
     const claim = await this.operatorEventLog.claimMutation(idempotencyKey);
     if (claim === 'completed') {
-      return adminOk({ applied: true }, true);
+      return adminOk({ applied: true as const }, true);
     }
 
     const checkoutResult = await this.checkout.handleReconciliationOperatorAction({
@@ -634,7 +638,7 @@ export class AdminFlowService implements AdminApplicationService {
     });
 
     if (!checkoutResult.ok) {
-      return adminFromCheckoutResult(checkoutResult);
+      return adminFromCheckoutResult(checkoutResult) as AdminResult<never>;
     }
 
     await this.recordOperatorEvent({
@@ -647,7 +651,7 @@ export class AdminFlowService implements AdminApplicationService {
     });
     await this.operatorEventLog.markMutationCompleted(idempotencyKey);
 
-    return adminOk({ applied: true }, checkoutResult.duplicate);
+    return adminOk({ applied: true as const }, checkoutResult.duplicate);
   }
 
   async createProduct(input: CreateProductInput) {
@@ -727,7 +731,7 @@ export class AdminFlowService implements AdminApplicationService {
 
     const claim = await this.operatorEventLog.claimMutation(idempotencyKey);
     if (claim === 'completed') {
-      return adminOk({ archived: true, productId: input.productId }, true);
+      return adminOk({ archived: true as const, productId: input.productId }, true);
     }
 
     try {
@@ -741,7 +745,7 @@ export class AdminFlowService implements AdminApplicationService {
         idempotencyKey,
       });
       await this.operatorEventLog.markMutationCompleted(idempotencyKey);
-      return adminOk({ archived: true, productId: input.productId });
+      return adminOk({ archived: true as const, productId: input.productId });
     } catch (error) {
       return adminFromError(error);
     }
@@ -749,7 +753,7 @@ export class AdminFlowService implements AdminApplicationService {
 
   async adjustInventory(input: AdjustInventoryInput) {
     if (!input.updates.length) {
-      return adminErr('VALIDATION_FAILED', 'Inventory updates must not be empty.', false);
+      return adminErr('VALIDATION_FAILED', 'Inventory updates must not be empty.', false) as AdminResult<never>;
     }
 
     const claim = await this.operatorEventLog.claimMutation(input.idempotencyKey);
@@ -767,7 +771,7 @@ export class AdminFlowService implements AdminApplicationService {
     });
 
     if (!inventoryResult.ok) {
-      return adminFromInventoryResult(inventoryResult);
+      return adminFromInventoryResult(inventoryResult) as AdminResult<never>;
     }
 
     await this.recordOperatorEvent({

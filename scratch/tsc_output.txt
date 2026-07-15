@@ -1,0 +1,196 @@
+src/app/api/admin/locations/[id]/route.ts(58,27): error TS2339: Property 'reason' does not exist on type 'Record<string, unknown> | {}'.
+  Property 'reason' does not exist on type '{}'.
+src/app/api/admin/locations/[id]/route.ts(58,54): error TS2339: Property 'reason' does not exist on type 'Record<string, unknown> | {}'.
+  Property 'reason' does not exist on type '{}'.
+src/app/api/admin/locations/[id]/route.ts(59,35): error TS2339: Property 'idempotencyKey' does not exist on type 'Record<string, unknown> | {}'.
+  Property 'idempotencyKey' does not exist on type '{}'.
+src/app/api/admin/locations/[id]/route.ts(59,70): error TS2339: Property 'idempotencyKey' does not exist on type 'Record<string, unknown> | {}'.
+  Property 'idempotencyKey' does not exist on type '{}'.
+src/app/api/admin/orders/[id]/reconcile/route.ts(54,16): error TS2552: Cannot find name 'NextResponse'. Did you mean 'Response'?
+src/app/api/card-fetch/route.ts(86,7): error TS2322: Type 'Buffer<ArrayBufferLike>' is not assignable to type 'Buffer<ArrayBuffer>'.
+  Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+    Type 'SharedArrayBuffer' is missing the following properties from type 'ArrayBuffer': resizable, resize, detached, transfer, transferToFixedLength
+src/app/api/products/[id]/route.ts(45,33): error TS2339: Property 'reason' does not exist on type 'Record<string, unknown> | {}'.
+  Property 'reason' does not exist on type '{}'.
+src/app/api/products/[id]/route.ts(45,60): error TS2339: Property 'reason' does not exist on type 'Record<string, unknown> | {}'.
+  Property 'reason' does not exist on type '{}'.
+src/app/api/products/[id]/route.ts(46,41): error TS2339: Property 'idempotencyKey' does not exist on type 'Record<string, unknown> | {}'.
+  Property 'idempotencyKey' does not exist on type '{}'.
+src/app/api/products/[id]/route.ts(46,76): error TS2339: Property 'idempotencyKey' does not exist on type 'Record<string, unknown> | {}'.
+  Property 'idempotencyKey' does not exist on type '{}'.
+src/app/api/system/cleanup-inventory/route.ts(27,11): error TS2353: Object literal may only specify known properties, and 'success' does not exist in type '{ failed?: number | undefined; errors?: unknown[] | undefined; }'.
+src/app/api/upload/route.ts(38,7): error TS2322: Type 'Buffer<ArrayBufferLike>' is not assignable to type 'Buffer<ArrayBuffer>'.
+  Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+    Type 'SharedArrayBuffer' is missing the following properties from type 'ArrayBuffer': resizable, resize, detached, transfer, transferToFixedLength
+src/core/admin/adminApplicationService.ts(3,15): error TS2459: Module '"@core/OrderQueryService"' declares 'AdminDashboardSummary' locally, but it is not exported.
+src/core/admin/AdminFlowService.ts(65,13): error TS2552: Cannot find name 'CheckoutApplicationService'. Did you mean 'RefundApplicationService'?
+src/core/admin/AdminFlowService.ts(556,9): error TS2416: Property 'requestRefund' in type 'AdminFlowService' is not assignable to the same property in base type 'AdminApplicationService'.
+  Type '(input: RequestRefundInput) => Promise<{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: unknown; duplicate?: boolean | undefined; }>' is not assignable to type '(input: RequestRefundInput) => Promise<AdminResult<RequestRefundResult>>'.
+    Type 'Promise<{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: unknown; duplicate?: boolean | undefined; }>' is not assignable to type 'Promise<AdminResult<RequestRefundResult>>'.
+      Type '{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: unknown; duplicate?: boolean | undefined; }' is not assignable to type 'AdminResult<RequestRefundResult>'.
+        Type '{ ok: true; data: unknown; duplicate?: boolean | undefined; }' is not assignable to type 'AdminResult<RequestRefundResult>'.
+          Type '{ ok: true; data: unknown; duplicate?: boolean | undefined; }' is not assignable to type '{ ok: true; data: RequestRefundResult; duplicate?: boolean | undefined; }'.
+            Types of property 'data' are incompatible.
+              Type 'unknown' is not assignable to type 'RequestRefundResult'.
+src/core/admin/AdminFlowService.ts(613,9): error TS2416: Property 'resolveReconciliationCase' in type 'AdminFlowService' is not assignable to the same property in base type 'AdminApplicationService'.
+  Type '(input: ResolveReconciliationCaseInput) => Promise<{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: unknown; duplicate?: boolean | undefined; }>' is not assignable to type '(input: ResolveReconciliationCaseInput) => Promise<AdminResult<ResolveCaseResult>>'.
+    Type 'Promise<{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: unknown; duplicate?: boolean | undefined; }>' is not assignable to type 'Promise<AdminResult<ResolveCaseResult>>'.
+      Type '{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: unknown; duplicate?: boolean | undefined; }' is not assignable to type 'AdminResult<ResolveCaseResult>'.
+        Type '{ ok: true; data: unknown; duplicate?: boolean | undefined; }' is not assignable to type 'AdminResult<ResolveCaseResult>'.
+          Type '{ ok: true; data: unknown; duplicate?: boolean | undefined; }' is not assignable to type '{ ok: true; data: ResolveCaseResult; duplicate?: boolean | undefined; }'.
+            Types of property 'data' are incompatible.
+              Type 'unknown' is not assignable to type 'ResolveCaseResult'.
+src/core/admin/AdminFlowService.ts(717,9): error TS2416: Property 'archiveProduct' in type 'AdminFlowService' is not assignable to the same property in base type 'AdminApplicationService'.
+  Type '(input: ArchiveProductInput) => Promise<{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: { archived: boolean; productId: string; }; duplicate?: boolean | undefined; }>' is not assignable to type '(input: ArchiveProductInput) => Promise<AdminResult<ArchiveProductResult>>'.
+    Type 'Promise<{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: { archived: boolean; productId: string; }; duplicate?: boolean | undefined; }>' is not assignable to type 'Promise<AdminResult<ArchiveProductResult>>'.
+      Type '{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: { archived: boolean; productId: string; }; duplicate?: boolean | undefined; }' is not assignable to type 'AdminResult<ArchiveProductResult>'.
+        Type '{ ok: true; data: { archived: boolean; productId: string; }; duplicate?: boolean | undefined; }' is not assignable to type 'AdminResult<ArchiveProductResult>'.
+          Type '{ ok: true; data: { archived: boolean; productId: string; }; duplicate?: boolean | undefined; }' is not assignable to type '{ ok: true; data: ArchiveProductResult; duplicate?: boolean | undefined; }'.
+            The types of 'data.archived' are incompatible between these types.
+              Type 'boolean' is not assignable to type 'true'.
+src/core/admin/AdminFlowService.ts(750,9): error TS2416: Property 'adjustInventory' in type 'AdminFlowService' is not assignable to the same property in base type 'AdminApplicationService'.
+  Type '(input: AdjustInventoryInput) => Promise<{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: unknown; duplicate?: boolean | undefined; }>' is not assignable to type '(input: AdjustInventoryInput) => Promise<AdminResult<InventoryAdjustmentResult>>'.
+    Type 'Promise<{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: unknown; duplicate?: boolean | undefined; }>' is not assignable to type 'Promise<AdminResult<InventoryAdjustmentResult>>'.
+      Type '{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: unknown; duplicate?: boolean | undefined; }' is not assignable to type 'AdminResult<InventoryAdjustmentResult>'.
+        Type '{ ok: true; data: unknown; duplicate?: boolean | undefined; }' is not assignable to type 'AdminResult<InventoryAdjustmentResult>'.
+          Type '{ ok: true; data: unknown; duplicate?: boolean | undefined; }' is not assignable to type '{ ok: true; data: InventoryAdjustmentResult; duplicate?: boolean | undefined; }'.
+            Types of property 'data' are incompatible.
+              Type 'unknown' is not assignable to type 'InventoryAdjustmentResult'.
+src/core/admin/adminResult.ts(40,24): error TS2304: Cannot find name 'DomainError'.
+src/core/admin/adminResult.ts(41,37): error TS18046: 'error' is of type 'unknown'.
+src/core/cart/cartFlowService.ts(156,13): error TS2322: Type 'CartItem[]' is not assignable to type 'DiscountValidationLineItem[]'.
+  Property 'unitPrice' is missing in type 'CartItem' but required in type 'DiscountValidationLineItem'.
+src/core/cart/cartValidationService.ts(112,11): error TS2322: Type 'CartItem[]' is not assignable to type 'DiscountValidationLineItem[]'.
+  Property 'unitPrice' is missing in type 'CartItem' but required in type 'DiscountValidationLineItem'.
+src/core/cart/cartViewMapper.ts(46,5): error TS2345: Argument of type '{ priceSnapshot: number; quantity: number; }[]' is not assignable to parameter of type 'CartItem[]'.
+  Type '{ priceSnapshot: number; quantity: number; }' is missing the following properties from type 'CartItem': productId, name, imageUrl
+src/core/container.ts(227,5): error TS2345: Argument of type 'FirestoreShippingRepository' is not assignable to parameter of type 'InventoryApplicationService'.
+  Type 'FirestoreShippingRepository' is missing the following properties from type 'InventoryApplicationService': checkAvailability, reserveInventory, confirmReservation, releaseReservation, and 6 more.
+src/core/container.ts(372,5): error TS2322: Type 'FirestoreRefundEventLog' is not assignable to type 'IRefundEventLog'.
+  The types returned by 'claimRefundExecution(...)' are incompatible between these types.
+    Type 'Promise<unknown>' is not assignable to type 'Promise<RefundExecutionClaimResult>'.
+      Type 'unknown' is not assignable to type 'RefundExecutionClaimResult'.
+src/core/container.ts(384,5): error TS2322: Type 'RefundFlowService' is not assignable to type 'RefundApplicationService'.
+  The types returned by 'createRefund(...)' are incompatible between these types.
+    Type 'Promise<{ ok: false; code: RefundErrorCode; message: string; retryable: boolean; } | { ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }>' is not assignable to type 'Promise<RefundResult<CreateRefundResult>>'.
+      Type '{ ok: false; code: RefundErrorCode; message: string; retryable: boolean; } | { ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }' is not assignable to type 'RefundResult<CreateRefundResult>'.
+        Type '{ ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }' is not assignable to type 'RefundResult<CreateRefundResult>'.
+          Type '{ ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }' is not assignable to type '{ ok: true; data: CreateRefundResult; duplicate?: boolean | undefined; }'.
+            The types of 'data.status' are incompatible between these types.
+              Type 'string' is not assignable to type '"refunded" | "partially_refunded"'.
+src/core/container.ts(526,7): error TS2322: Type 'RefundFlowService' is not assignable to type 'RefundApplicationService'.
+  The types returned by 'createRefund(...)' are incompatible between these types.
+    Type 'Promise<{ ok: false; code: RefundErrorCode; message: string; retryable: boolean; } | { ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }>' is not assignable to type 'Promise<RefundResult<CreateRefundResult>>'.
+      Type '{ ok: false; code: RefundErrorCode; message: string; retryable: boolean; } | { ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }' is not assignable to type 'RefundResult<CreateRefundResult>'.
+        Type '{ ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }' is not assignable to type 'RefundResult<CreateRefundResult>'.
+          Type '{ ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }' is not assignable to type '{ ok: true; data: CreateRefundResult; duplicate?: boolean | undefined; }'.
+            The types of 'data.status' are incompatible between these types.
+              Type 'string' is not assignable to type '"refunded" | "partially_refunded"'.
+src/core/container.ts(529,9): error TS2322: Type 'FirestoreRefundEventLog' is not assignable to type 'IRefundEventLog'.
+  The types returned by 'claimRefundExecution(...)' are incompatible between these types.
+    Type 'Promise<unknown>' is not assignable to type 'Promise<RefundExecutionClaimResult>'.
+      Type 'unknown' is not assignable to type 'RefundExecutionClaimResult'.
+src/core/container.ts(547,11): error TS2739: Type 'ICartRepository' is missing the following properties from type 'FirestoreCartRepository': collectionName, mapDocToCart
+src/core/container.ts(548,11): error TS2739: Type 'IProductRepository' is missing the following properties from type 'FirestoreProductRepository': collectionName, ensureUniqueHandle
+src/core/container.ts(549,11): error TS2739: Type 'IDiscountRepository' is missing the following properties from type 'FirestoreDiscountRepository': collectionName, mapDocToDiscount
+src/core/container.ts(550,11): error TS2740: Type 'IOrderRepository' is missing the following properties from type 'FirestoreOrderRepository': collectionName, statsDocPath, checkoutAttemptCollectionName, userCheckoutStateCollectionName, and 12 more.
+src/core/container.ts(558,9): error TS2739: Type 'IProductRepository' is missing the following properties from type 'FirestoreProductRepository': collectionName, ensureUniqueHandle
+src/core/container.ts(559,9): error TS2739: Type 'ICartRepository' is missing the following properties from type 'FirestoreCartRepository': collectionName, mapDocToCart
+src/core/container.ts(560,9): error TS2740: Type 'IOrderRepository' is missing the following properties from type 'FirestoreOrderRepository': collectionName, statsDocPath, checkoutAttemptCollectionName, userCheckoutStateCollectionName, and 12 more.
+src/core/container.ts(561,9): error TS2739: Type 'IDiscountRepository' is missing the following properties from type 'FirestoreDiscountRepository': collectionName, mapDocToDiscount
+src/core/container.ts(562,9): error TS2741: Property 'collectionName' is missing in type 'ISettingsRepository' but required in type 'FirestoreSettingsRepository'.
+src/core/container.ts(563,9): error TS2739: Type 'ITransferRepository' is missing the following properties from type 'FirestoreTransferRepository': collectionName, mapDocToTransfer
+src/core/container.ts(564,9): error TS2739: Type 'IPurchaseOrderRepository' is missing the following properties from type 'FirestorePurchaseOrderRepository': poCollection, sessionCollection, mapDocToPO
+src/core/container.ts(565,9): error TS2741: Property 'collectionName' is missing in type 'IInventoryLocationRepository' but required in type 'FirestoreInventoryLocationRepository'.
+src/core/container.ts(566,9): error TS2739: Type 'IInventoryLevelRepository' is missing the following properties from type 'FirestoreInventoryLevelRepository': collectionName, getDocId
+src/core/container.ts(570,9): error TS2739: Type 'IWishlistRepository' is missing the following properties from type 'FirestoreWishlistRepository': collectionName, productRepo, mapDocToWishlist
+src/core/container.ts(571,9): error TS2740: Type 'ITicketRepository' is missing the following properties from type 'FirestoreTicketRepository': ticketCollection, messageCollection, macroCollection, claimCollection, and 2 more.
+src/core/container.ts(572,9): error TS2740: Type 'IKnowledgebaseRepository' is missing the following properties from type 'FirestoreKnowledgebaseRepository': categoryCollection, articleCollection, feedbackCollection, authorCollection, and 13 more.
+src/core/container.ts(573,9): error TS2740: Type 'IShippingRepository' is missing the following properties from type 'FirestoreShippingRepository': classesCollection, zonesCollection, ratesCollection, classesColl, and 2 more.
+src/core/container.ts(589,5): error TS2322: Type 'AdminFlowService' is not assignable to type 'AdminApplicationService'.
+  The types returned by 'resolveReconciliationCase(...)' are incompatible between these types.
+    Type 'Promise<{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: unknown; duplicate?: boolean | undefined; }>' is not assignable to type 'Promise<AdminResult<ResolveCaseResult>>'.
+      Type '{ ok: false; code: AdminErrorCode; message: string; retryable: boolean; } | { ok: true; data: unknown; duplicate?: boolean | undefined; }' is not assignable to type 'AdminResult<ResolveCaseResult>'.
+        Type '{ ok: true; data: unknown; duplicate?: boolean | undefined; }' is not assignable to type 'AdminResult<ResolveCaseResult>'.
+          Type '{ ok: true; data: unknown; duplicate?: boolean | undefined; }' is not assignable to type '{ ok: true; data: ResolveCaseResult; duplicate?: boolean | undefined; }'.
+            Types of property 'data' are incompatible.
+              Type 'unknown' is not assignable to type 'ResolveCaseResult'.
+src/core/container.ts(598,7): error TS2322: Type 'RefundApplicationService | null' is not assignable to type 'RefundApplicationService'.
+  Type 'null' is not assignable to type 'RefundApplicationService'.
+src/core/container.ts(611,9): error TS2739: Type 'ICartRepository' is missing the following properties from type 'FirestoreCartRepository': collectionName, mapDocToCart
+src/core/container.ts(612,9): error TS2739: Type 'IProductRepository' is missing the following properties from type 'FirestoreProductRepository': collectionName, ensureUniqueHandle
+src/core/container.ts(613,9): error TS2739: Type 'IDiscountRepository' is missing the following properties from type 'FirestoreDiscountRepository': collectionName, mapDocToDiscount
+src/core/container.ts(614,9): error TS2740: Type 'IOrderRepository' is missing the following properties from type 'FirestoreOrderRepository': collectionName, statsDocPath, checkoutAttemptCollectionName, userCheckoutStateCollectionName, and 12 more.
+src/core/container.ts(637,66): error TS2554: Expected 3 arguments, but got 2.
+src/core/inventory/InventoryFlowService.ts(167,21): error TS2339: Property 'state' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(167,57): error TS2339: Property 'state' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(168,107): error TS2339: Property 'state' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(174,32): error TS2339: Property 'lines' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(175,36): error TS2339: Property 'id' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(176,30): error TS2339: Property 'orderId' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(184,36): error TS2339: Property 'id' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(185,30): error TS2339: Property 'orderId' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(211,21): error TS2339: Property 'state' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(219,23): error TS2339: Property 'state' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(219,59): error TS2339: Property 'state' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(220,91): error TS2339: Property 'lines' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(224,38): error TS2339: Property 'id' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(225,32): error TS2339: Property 'orderId' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(232,32): error TS2339: Property 'lines' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(233,36): error TS2339: Property 'id' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(234,30): error TS2339: Property 'orderId' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(242,65): error TS2339: Property 'orderId' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(245,36): error TS2339: Property 'id' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(246,30): error TS2339: Property 'orderId' does not exist on type 'never'.
+src/core/inventory/InventoryFlowService.ts(248,36): error TS2339: Property 'lines' does not exist on type 'never'.
+src/core/inventory/InventoryLedgerService.ts(61,36): error TS2345: Argument of type 'CommerceEventEnvelope<InventoryLedgerEntry>' is not assignable to parameter of type 'CommerceEventEnvelope<Record<string, unknown>>'.
+  Type 'InventoryLedgerEntry' is not assignable to type 'Record<string, unknown>'.
+    Index signature for type 'string' is missing in type 'InventoryLedgerEntry'.
+src/core/inventory/InventoryLedgerService.ts(63,43): error TS2345: Argument of type 'CommerceEventEnvelope<InventoryLedgerEntry>' is not assignable to parameter of type 'CommerceEventEnvelope<Record<string, unknown>>'.
+  Type 'InventoryLedgerEntry' is not assignable to type 'Record<string, unknown>'.
+    Index signature for type 'string' is missing in type 'InventoryLedgerEntry'.
+src/core/refund/RefundFlowService.ts(20,9): error TS2416: Property 'createRefund' in type 'RefundFlowService' is not assignable to the same property in base type 'RefundApplicationService'.
+  Type '(input: CreateRefundInput) => Promise<{ ok: false; code: RefundErrorCode; message: string; retryable: boolean; } | { ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }>' is not assignable to type '(input: CreateRefundInput) => Promise<RefundResult<CreateRefundResult>>'.
+    Type 'Promise<{ ok: false; code: RefundErrorCode; message: string; retryable: boolean; } | { ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }>' is not assignable to type 'Promise<RefundResult<CreateRefundResult>>'.
+      Type '{ ok: false; code: RefundErrorCode; message: string; retryable: boolean; } | { ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }' is not assignable to type 'RefundResult<CreateRefundResult>'.
+        Type '{ ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }' is not assignable to type 'RefundResult<CreateRefundResult>'.
+          Type '{ ok: true; data: { orderId: string; amount: number; status: string; stripeRefundId: string | undefined; idempotencyKey: string; }; duplicate?: boolean | undefined; }' is not assignable to type '{ ok: true; data: CreateRefundResult; duplicate?: boolean | undefined; }'.
+            The types of 'data.status' are incompatible between these types.
+              Type 'string' is not assignable to type '"refunded" | "partially_refunded"'.
+src/core/RefundService.ts(31,13): error TS1016: A required parameter cannot follow an optional parameter.
+src/infrastructure/commerce/FirestoreCommerceEventStore.ts(28,27): error TS7006: Parameter 'doc' implicitly has an 'any' type.
+src/infrastructure/commerce/FirestoreCommerceEventStore.ts(39,27): error TS7006: Parameter 'doc' implicitly has an 'any' type.
+src/infrastructure/commerce/FirestoreCommerceEventStore.ts(50,27): error TS7006: Parameter 'doc' implicitly has an 'any' type.
+src/infrastructure/commerce/FirestoreCommerceEventStore.ts(60,27): error TS7006: Parameter 'doc' implicitly has an 'any' type.
+src/infrastructure/refund/FirestoreRefundEventLog.ts(8,9): error TS2416: Property 'claimRefundExecution' in type 'FirestoreRefundEventLog' is not assignable to the same property in base type 'IRefundEventLog'.
+  Type '(idempotencyKey: string) => Promise<unknown>' is not assignable to type '(idempotencyKey: string) => Promise<RefundExecutionClaimResult>'.
+    Type 'Promise<unknown>' is not assignable to type 'Promise<RefundExecutionClaimResult>'.
+      Type 'unknown' is not assignable to type 'RefundExecutionClaimResult'.
+src/infrastructure/repositories/firestore/FirestoreInventoryLedgerRepository.ts(57,31): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/infrastructure/repositories/firestore/FirestoreInventoryReservationRepository.ts(119,31): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/infrastructure/repositories/firestore/FirestoreTicketRepository.ts(216,73): error TS2367: This comparison appears to be unintentional because the types '"open" | "new" | "closed" | "pending_customer" | "pending_internal" | "reopened" | undefined' and '"solved"' have no overlap.
+src/infrastructure/repositories/firestore/FirestoreTicketRepository.ts(241,39): error TS2367: This comparison appears to be unintentional because the types '"open" | "new" | "closed" | "pending_customer" | "pending_internal" | "reopened" | undefined' and '"solved"' have no overlap.
+src/infrastructure/server/catalog/cacheKeys.ts(25,15): error TS2345: Argument of type '`catalog-slug-${string}`' is not assignable to parameter of type '"catalog-categories" | "catalog-products"'.
+src/infrastructure/server/catalog/cacheKeys.ts(28,15): error TS2345: Argument of type '"catalog-search"' is not assignable to parameter of type '"catalog-categories" | "catalog-products"'.
+src/infrastructure/server/product-detail/cacheKeys.ts(9,13): error TS2345: Argument of type '`product-handle-${string}`' is not assignable to parameter of type '"product-detail" | "product-detail-related"'.
+src/infrastructure/server/product-detail/cacheKeys.ts(10,27): error TS2345: Argument of type '`product-category-${string}`' is not assignable to parameter of type '"product-detail" | "product-detail-related"'.
+src/infrastructure/server/product-detail/selectProductSeo.ts(1,15): error TS2300: Duplicate identifier 'Product'.
+src/infrastructure/server/product-detail/selectProductSeo.ts(6,15): error TS2300: Duplicate identifier 'Product'.
+src/infrastructure/server/services.ts(29,5): error TS2322: Type '{ authProvider: IAuthProvider; authService: AuthService; productService: ProductService; cart: CartApplicationService; ... 36 more ...; tenantContext: { ...; }; }' is not assignable to type 'ServerServices'.
+  Type '{ authProvider: IAuthProvider; authService: AuthService; productService: ProductService; cart: CartApplicationService; ... 36 more ...; tenantContext: { ...; }; }' is not assignable to type '{ checkout: CheckoutApplicationService; inventory: InventoryApplicationService; admin: AdminApplicationService; ... 4 more ...; commerceTimeline: CommerceTimelineService; }'.
+    Types of property 'refunds' are incompatible.
+      Type 'RefundApplicationService | null' is not assignable to type 'RefundApplicationService'.
+        Type 'null' is not assignable to type 'RefundApplicationService'.
+src/ui/components/ProductCard/index.tsx(227,58): error TS2322: Type '{ productId: string; onClick: (e: MouseEvent<Element, MouseEvent>) => Promise<void>; }' is not assignable to type 'IntrinsicAttributes & { productId: string; }'.
+  Property 'onClick' does not exist on type 'IntrinsicAttributes & { productId: string; }'.
+src/ui/pages/catalog/CatalogProductGrid.tsx(107,14): error TS2322: Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'.
+  Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'RefObject<HTMLDivElement>'.
+    Type 'HTMLDivElement | null' is not assignable to type 'HTMLDivElement'.
+      Type 'null' is not assignable to type 'HTMLDivElement'.
+src/ui/pages/catalog/hooks/useCatalogProducts.ts(59,63): error TS2304: Cannot find name 'initialNextCursor'.
+src/ui/pages/catalog/hooks/useCatalogProducts.ts(68,47): error TS2304: Cannot find name 'initialNextCursor'.
+src/ui/pages/catalog/hooks/useCatalogProducts.ts(75,52): error TS2304: Cannot find name 'initialNextCursor'.
+src/ui/pages/catalog/hooks/useCatalogProducts.ts(77,48): error TS2304: Cannot find name 'initialNextCursor'.
+src/ui/pages/home/hooks/useLandingActiveSection.ts(19,49): error TS2345: Argument of type '"landing-hero" | "landing-vendors" | "landing-visit" | "landing-gatherings" | "landing-beyond" | "landing-directions"' is not assignable to parameter of type 'SetStateAction<"landing-hero">'.
+  Type '"landing-vendors"' is not assignable to type 'SetStateAction<"landing-hero">'.
+src/ui/pages/home/hooks/useLandingScroll.tsx(17,41): error TS2559: Type '{ readonly layoutEffect: false; }' has no properties in common with type 'UseScrollOptions'.

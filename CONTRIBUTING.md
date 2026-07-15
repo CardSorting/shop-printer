@@ -79,7 +79,8 @@ npm run test:storefront-release
 **If you touched checkout UI or payment flows:**
 
 ```bash
-npm run test:e2e:checkout-smoke
+npm run test:e2e:cart-smoke       # cart/storage/merge/handoff changes
+npm run test:e2e:checkout-smoke   # checkout UI changes
 ```
 
 **If you changed commerce protocols** (`src/core/order/`, `src/core/inventory/`, `src/core/refund/`, `src/core/admin/`):

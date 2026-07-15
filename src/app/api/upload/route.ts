@@ -35,9 +35,9 @@ export async function POST(req: NextRequest) {
     // Auto-rotate original and strip EXIF metadata using Sharp
     let optimizedBuffer = buffer;
     try {
-      optimizedBuffer = await sharp(buffer)
+      optimizedBuffer = (await sharp(buffer)
         .rotate() // Auto-rotates image based on EXIF orientation tag
-        .toBuffer();
+        .toBuffer()) as Buffer<ArrayBuffer>;
     } catch (sharpErr) {
       console.error('Sharp original optimization/rotation failed, saving raw buffer', sharpErr);
     }

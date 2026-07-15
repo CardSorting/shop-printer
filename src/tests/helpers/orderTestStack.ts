@@ -16,11 +16,9 @@ export type OrderTestStackMocks = {
   productRepo: any;
   cartRepo: any;
   discountRepo: any;
-  payment: any;
   audit: any;
   locker: any;
   shippingRepo?: any;
-  checkoutGateway?: any;
   stripe?: any;
   eventLog?: InMemoryCheckoutEventLog;
   inventory?: InventoryApplicationService;
@@ -37,6 +35,18 @@ export function createOrderTestStack(mocks: OrderTestStackMocks): {
   const ledgerRepo = mocks.ledgerRepo ?? new InMemoryInventoryLedgerRepository();
   const reservationRepo = mocks.reservationRepo ?? new InMemoryInventoryReservationRepository();
   const reconciliationRepo = new InMemoryInventoryReconciliationRepository();
+  const shippingRepo = mocks.shippingRepo ?? {
+    getAllZones: async () => [{ id: 'test-us', name: 'United States', countries: ['US'] }],
+    getAllRates: async () => [{
+      id: 'test-standard',
+      name: 'Test Standard',
+      amount: 0,
+      type: 'price_based',
+      minLimit: 0,
+      maxLimit: Number.MAX_SAFE_INTEGER,
+      shippingZoneId: 'test-us',
+    }],
+  };
   const inventory = mocks.inventory ?? createInventoryStack({
     productRepo: mocks.productRepo,
     ledgerRepo,
@@ -49,7 +59,7 @@ export function createOrderTestStack(mocks: OrderTestStackMocks): {
     mocks.productRepo,
     mocks.discountRepo,
     mocks.audit,
-    mocks.shippingRepo,
+    shippingRepo,
     undefined,
     inventory,
   );
@@ -58,11 +68,9 @@ export function createOrderTestStack(mocks: OrderTestStackMocks): {
     productRepo: mocks.productRepo,
     cartRepo: mocks.cartRepo,
     discountRepo: mocks.discountRepo,
-    payment: mocks.payment,
     audit: mocks.audit,
     locker: mocks.locker,
-    shippingRepo: mocks.shippingRepo,
-    checkoutGateway: mocks.checkoutGateway,
+    shippingRepo,
     stripe: mocks.stripe,
     eventLog: mocks.eventLog ?? new InMemoryCheckoutEventLog(),
     inventory,

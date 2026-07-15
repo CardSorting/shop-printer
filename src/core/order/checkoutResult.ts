@@ -1,10 +1,11 @@
-import { DomainError, PaymentFailedError, UnauthorizedError } from '@domain/errors';
+import { CheckoutSessionExpiredError, DomainError, PaymentFailedError, UnauthorizedError } from '@domain/errors';
 
 export type CheckoutErrorCode =
   | 'CHECKOUT_NOT_CONFIGURED'
   | 'STRIPE_NOT_CONFIGURED'
   | 'OPERATOR_NOT_CONFIGURED'
   | 'SESSION_CREATE_FAILED'
+  | 'CHECKOUT_RESTART_REQUIRED'
   | 'FORBIDDEN'
   | 'PAYMENT_METHOD_FAILED'
   | 'WEBHOOK_INVALID_SIGNATURE'
@@ -39,6 +40,9 @@ export function checkoutFromError(error: unknown): CheckoutResult<never> {
   }
   if (error instanceof PaymentFailedError) {
     return checkoutErr('SESSION_CREATE_FAILED', error.message, false);
+  }
+  if (error instanceof CheckoutSessionExpiredError) {
+    return checkoutErr('CHECKOUT_RESTART_REQUIRED', error.message, false);
   }
   if (error instanceof DomainError) {
     return checkoutErr('DOMAIN_ERROR', error.message, false);

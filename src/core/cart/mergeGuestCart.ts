@@ -1,7 +1,10 @@
 import type { Cart, CartItem } from '@domain/models';
 import type { CartIssue } from './types';
 
-export type GuestCartMergeItem = Pick<CartItem, 'productId' | 'quantity' | 'variantId'>;
+export type GuestCartMergeItem = Pick<
+  CartItem,
+  'productId' | 'quantity' | 'variantId' | 'customImages'
+>;
 
 export type GuestCartMergeResult = {
   mergedCount: number;
@@ -49,5 +52,6 @@ export function guestCartItemsFromCart(cart: Cart): GuestCartMergeItem[] {
     productId: item.productId,
     quantity: item.quantity,
     variantId: item.variantId,
+    customImages: item.customImages,
   }));
 }

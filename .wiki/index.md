@@ -1,6 +1,6 @@
 # WoodBine Knowledge Ledger
 
-Definitive architectural bridge for humans and autonomous agents working in `/Users/bozoegg/Desktop/WoodBine`.
+Definitive architectural bridge for humans and autonomous agents working in the DreamBees Art repository.
 
 ## Navigation
 
@@ -26,10 +26,6 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 - [Concierge & Support Operations](./architecture/concierge-system.md) — Intelligent support workspace, outcome tracking, and operational digests.
 - [Concierge Lifecycle Marketing & Campaign Automation](./architecture/lifecycle-marketing-concierge.md) — Autonomous recapture playbooks, lifecycle strategy, customer investigation, and campaign governance.
 - [Admin Access](./admin-access.md) — credentials and instructions for local access.
-
-### Agent
-- [Agent Memory](./agent/agent-memory.md) — condensed strict constraints for future autonomous agents.
-- [Patterns](./agent/patterns.md) — repeatable implementation/audit workflows.
 
 ### Ledger
 - [Changelog](./changelog.md) — granular forensic citations for verified structural changes.
@@ -64,12 +60,13 @@ Run these from the repository root:
 npm run lint
 npm run build
 npm run test
-npm run test:storefront-release   # frozen storefront chain (125 Vitest proofs)
-npm run test:e2e:checkout-smoke   # mocked checkout browser smoke (3 tests)
+npm run test:storefront-release   # frozen storefront proof suite
+npm run test:e2e:cart-smoke       # isolated cart-to-checkout journey
+npm run test:e2e:checkout-smoke   # isolated checkout journey
 npm run test:e2e                  # full Playwright suite
 ```
 
-Storefront release gate: [docs/storefront-release.md](../docs/storefront-release.md). Latest checkout smoke validates mocked cart → shipping → mock pay → order confirmation without live Stripe.
+Storefront release gate: [docs/storefront-release.md](../docs/storefront-release.md). Cart contract: [docs/cart.md](../docs/cart.md). The isolated browser gates validate guest/auth cart transitions and checkout without live Stripe or Firestore.
 
 ## Mermaid: Architectural Bridge
 
@@ -90,24 +87,3 @@ graph TD
   UI --> Utils
   UI -. HTTP only .-> Infra
 ```
-
-## Modified Documentation Files in this Synchronization
-
-- `README.md`
-- `PRODUCTION_READY_METRICS.md`
-- `docs/index.md`
-- `docs/woodbine-crm-whitepaper.md`
-- `.wiki/index.md`
-- `.wiki/architecture/project-state.md`
-- `.wiki/architecture/overview.md`
-- `.wiki/architecture/directories.md`
-- `.wiki/architecture/decisions.md`
-- `.wiki/architecture/risk-map.md`
-- `.wiki/architecture/product-management.md`
-- `.wiki/architecture/support-crm.md`
-- `.wiki/architecture/digital-fulfillment.md`
-- `.wiki/architecture/seo-routing.md`
-- `.wiki/onboarding/getting-started.md`
-- `.wiki/onboarding/day-2.md`
-- `.wiki/onboarding/walkthrough.md`
-- `.wiki/onboarding/troubleshooting.md`

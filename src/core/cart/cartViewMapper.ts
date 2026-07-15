@@ -43,7 +43,13 @@ export function buildEmptyCartView(userId: string): CartView {
 export function mapCartToView(cart: Cart, items?: CartLineItem[]): CartView {
   const lineItems = items ?? cart.items.map((item) => domainItemToLineItem(item));
   const subtotal = calculateCartTotal(
-    lineItems.map((item) => ({ priceSnapshot: item.priceSnapshot, quantity: item.quantity })),
+    lineItems.map((item) => ({
+      productId: item.productId,
+      name: item.title,
+      imageUrl: item.image,
+      priceSnapshot: item.priceSnapshot,
+      quantity: item.quantity,
+    })),
   );
   const totalItems = lineItems.reduce((sum, item) => sum + item.quantity, 0);
   const updatedAt = cart.updatedAt instanceof Date ? cart.updatedAt : new Date(cart.updatedAt);

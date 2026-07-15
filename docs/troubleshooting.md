@@ -29,7 +29,7 @@ What broke?
 | Changes to `.env` ignored | Server not restarted | Stop and re-run `npm run dev` |
 | Port already in use | Previous dev server | `npm run cleanup` or kill process on 3000 |
 | Port 3000 accepts connections but HTTP hangs | Zombie `node` on 3000 | `npm run cleanup`; smoke script clears this automatically |
-| `test:e2e:checkout-smoke` stalls forever | Playwright `webServer` or hung port | Use `npm run test:e2e:checkout-smoke` (script manages dev); run `npm run cleanup` first |
+| Cart/checkout smoke stalls | Hung process on port 3000 | Run `npm run cleanup`, then the relevant isolated smoke command; the runner owns the dev-server lifecycle |
 | Playwright "Executable doesn't exist" | Browsers not installed | `npx playwright install chromium` |
 
 ---
@@ -39,7 +39,7 @@ What broke?
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | `permission-denied` in console | Wrong project or missing service account | Verify `NEXT_PUBLIC_FIREBASE_PROJECT_ID` matches Firestore project; set `FIREBASE_SERVICE_ACCOUNT_JSON` |
-| Empty `/products` after setup | Seed failed silently | Re-run `npm run setup`; check terminal for SeedDataLoader errors |
+| Empty `/collections/bestsellers` after setup | Seed failed silently | Re-run `npm run setup`; check terminal for SeedDataLoader errors |
 | Login works but no admin | User missing `role: admin` | Firestore `users` doc — set role; or use seeded `admin@woodbine.com` |
 | Auth `invalid-api-key` | Mismatch web config | Re-copy Firebase web app config to all `NEXT_PUBLIC_FIREBASE_*` |
 
@@ -168,6 +168,9 @@ npm run test:storefront-release
 # Checkout browser smoke (mocked APIs)
 npm run test:e2e:checkout-smoke
 
+# Cart-to-checkout browser smoke (mocked APIs)
+npm run test:e2e:cart-smoke
+
 # Commerce protocol ladders
 npm test -- --run \
   src/tests/checkout-verification-ladder.test.ts \
@@ -186,10 +189,11 @@ npm test
 | `*-verification-ladder` | Protocol boundary regression |
 | `webhook*.test` | Stripe ingress / dedup |
 | `checkout-smoke.spec` | Checkout UI, mocks, or dev server / port 3000 |
+| `cart-checkout-comprehensive.spec` | Cart storage, ownership, merge, UI, or checkout handoff |
 | `firestore-security` | Rules mismatch |
 | `e2e/*` (other) | Full stack / UI regression |
 
-[storefront-release.md](./storefront-release.md)
+[cart.md](./cart.md) · [storefront-release.md](./storefront-release.md)
 
 ---
 

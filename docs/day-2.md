@@ -87,7 +87,6 @@ Set breakpoints or add temporary structured logs — remove before commit.
 | --- | --- | --- |
 | Email | `BREVO_*` | [getting-started.md](./getting-started.md) |
 | Concierge AI | `GEMINI_API_KEY` | [concierge/overview.md](./concierge/overview.md) |
-| Trusted checkout | `CHECKOUT_ENDPOINT` | [checkout.md § Construction](./checkout.md#2-construction) |
 
 ---
 

@@ -86,7 +86,6 @@ function makeSvc(orderRepo: any, productRepo: any = { getById: vi.fn() }) {
     productRepo,
     cartRepo: { getByUserId: vi.fn() } as any,
     discountRepo: { getByCode: vi.fn() } as any,
-    payment: mockPayment as any,
     audit: mockAudit as any,
     locker: mockLocker as any,
   }).orderService;

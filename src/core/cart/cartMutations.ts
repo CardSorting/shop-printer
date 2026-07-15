@@ -1,14 +1,11 @@
 import type { Cart, CartItem } from '@domain/models';
-import { MAX_CART_QUANTITY } from '@domain/rules';
+import { cartLineMatches, MAX_CART_QUANTITY } from '@domain/rules';
 import type { CartLineItem } from './types';
 
 /** Pure guest-cart mutations — snapshots only, no inventory writes. */
 export function addGuestLineItem(cart: Cart, line: CartLineItem): Cart {
-  const existingIndex = cart.items.findIndex(
-    (i) => 
-      i.productId === line.productId && 
-      i.variantId === line.variantId &&
-      JSON.stringify(i.customImages || []) === JSON.stringify(line.customImages || []),
+  const existingIndex = cart.items.findIndex((item) =>
+    cartLineMatches(item, line.productId, line.variantId, line.customImages),
   );
   const domainItem: CartItem = {
     productId: line.productId,
@@ -43,12 +40,13 @@ export function updateGuestLineQuantity(
   productId: string,
   quantity: number,
   variantId?: string,
+  customImages?: string[],
 ): Cart {
   const safeQuantity = Math.max(1, Math.min(quantity, MAX_CART_QUANTITY));
   return {
     ...cart,
     items: cart.items.map((item) =>
-      item.productId === productId && item.variantId === variantId
+      cartLineMatches(item, productId, variantId, customImages)
         ? { ...item, quantity: safeQuantity }
         : item,
     ),
@@ -60,11 +58,12 @@ export function removeGuestLineItem(
   cart: Cart,
   productId: string,
   variantId?: string,
+  customImages?: string[],
 ): Cart {
   return {
     ...cart,
     items: cart.items.filter(
-      (item) => !(item.productId === productId && item.variantId === variantId),
+      (item) => !cartLineMatches(item, productId, variantId, customImages),
     ),
     updatedAt: new Date(),
   };

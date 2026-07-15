@@ -12,6 +12,7 @@ import {
   updateDoc,
   where,
   getUnifiedDb,
+  type QueryDocumentSnapshot,
 } from '../../firebase/bridge';
 import type { IInventoryReservationRepository } from '@domain/repositories';
 import type { InventoryReservation, InventoryReservationState } from '@domain/inventory';
@@ -116,6 +117,6 @@ export class FirestoreInventoryReservationRepository implements IInventoryReserv
       limit(max),
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => d.data() as InventoryReservation);
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => d.data() as InventoryReservation);
   }
 }

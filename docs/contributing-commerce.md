@@ -125,6 +125,7 @@ Admin inventory UI already sends idempotency keys — follow that pattern for ne
 | Production proof | Lane invariant | `*-production-proof.test.ts`, `*-reservation-proof.test.ts` |
 | Flow integration | Complex workflow | `npm test -- --run src/tests/checkout-flow-service.test.ts` |
 | Financial recovery | Payment edge cases | `npm test -- --run src/tests/financial-recovery-hardening.test.ts` |
+| E2E cart smoke | Cart UI, guest storage, merge, handoff | `npm run test:e2e:cart-smoke` |
 | E2E checkout smoke | Checkout UI | `npm run test:e2e:checkout-smoke` |
 | E2E full | Broader UI regression | `npm run test:e2e` |
 | Benchmark | Performance | `npm run benchmark:order-flow` |

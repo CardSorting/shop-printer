@@ -62,12 +62,6 @@ WoodBine strings in the repo are **demo skin** — replace systematically:
 rg "WoodBine" src/ public/ --glob '!*.test.*'
 ```
 
-### 4. Stripe receipt branding
-
-Payment description uses merchant context in `StripePaymentProcessor` — update to your store name when forking.
-
----
-
 ## Storefront visual customization
 
 | What | Where |

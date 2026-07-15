@@ -18,6 +18,15 @@ Defined in `src/domain/models.ts`.
 - `shippingAddress`: `street`, `city`, `state`, `zip`.
 - `fulfillmentEvents`: Chronological timeline of status changes.
 
+### Cart
+
+- `id`, `userId`, `updatedAt`
+- `items`: Product/variant/customization snapshots with integer-cent `priceSnapshot`
+- `note`, `discountCode`: Advisory cart-level intent
+- Exact line identity: product id + variant id + ordered custom-image list
+
+Authenticated carts persist through `ICartRepository`; guest carts use the validated `cart:guest:v1` browser envelope. Cart data is not reservation or payment authority.
+
 ### Support Ticket
 - `id`, `subject`, `status`, `priority`
 - `messages`: Thread of agent and customer interactions.
@@ -51,6 +60,7 @@ Firestore is used as the primary transactional database, organized into collecti
 ### Primary Collections
 - **`products`**: Central catalog with optimized queries on `handle` and `sku`.
 - **`orders`**: Transactional order data with embedded line items.
+- **`carts`**: Authenticated purchase intent; never direct inventory authority.
 - **`support_tickets`**: CRM ticket data with threaded messages.
 - **`inventory_levels`**: Scalable stock tracking across locations.
 - **`marketingCampaigns`**: Concierge lifecycle campaign definitions, playbooks, governance, and performance counters.

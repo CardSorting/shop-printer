@@ -45,11 +45,11 @@ describe('Inventory reservation proof (scarcity authority)', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('[cart] uses checkAvailability only — never reserves stock', () => {
-    const cartService = read('src/core/CartService.ts');
     const cartFlow = read('src/core/cart/cartFlowService.ts');
+    const cartAvailability = read('src/core/cart/inventoryAvailabilityReader.ts');
     const cartValidation = read('src/core/cart/cartValidationService.ts');
-    expect(cartService).toMatch(/checkAvailability/);
-    expect(cartService).not.toMatch(/reserveInventory/);
+    expect(cartAvailability).toMatch(/checkAvailability/);
+    expect(cartAvailability).not.toMatch(/reserveInventory/);
     expect(cartFlow).not.toMatch(/reserveInventory/);
     expect(cartValidation).not.toMatch(/reserveInventory/);
   });

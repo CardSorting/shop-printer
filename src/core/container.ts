@@ -9,9 +9,8 @@ import { FirestoreCartRepository } from '@infrastructure/repositories/firestore/
 import { FirestoreOrderRepository } from '@infrastructure/repositories/firestore/FirestoreOrderRepository';
 import { FirestoreDiscountRepository } from '@infrastructure/repositories/firestore/FirestoreDiscountRepository';
 import { FirebaseAuthAdapter } from '@infrastructure/services/FirebaseAuthAdapter';
-import { StripePaymentProcessor } from '@infrastructure/services/StripePaymentProcessor';
+import { StripeRefundProcessor } from '@infrastructure/services/StripeRefundProcessor';
 import { StripeService } from '@infrastructure/services/StripeService';
-import { TrustedCheckoutGateway } from '@infrastructure/checkout/TrustedCheckoutGateway';
 import { BrevoEmailService } from '@infrastructure/services/BrevoEmailService';
 import { FirestoreSettingsRepository } from '@infrastructure/repositories/firestore/FirestoreSettingsRepository';
 import { FirestoreTransferRepository } from '@infrastructure/repositories/firestore/FirestoreTransferRepository';
@@ -30,7 +29,6 @@ import { FirestoreCampaignRepository } from '@infrastructure/repositories/firest
 import { FirestoreCampaignEventRepository } from '@infrastructure/repositories/firestore/FirestoreCampaignEventRepository';
 import { FirestoreCustomerSegmentRepository } from '@infrastructure/repositories/firestore/FirestoreCustomerSegmentRepository';
 import { ProductService } from './ProductService';
-import { CartService } from './CartService';
 import { createCartStack, type CartStack } from './cart/createCartStack';
 import type { CartApplicationService } from './cart/cartApplicationService';
 import { OrderService } from './OrderService';
@@ -93,12 +91,36 @@ import type {
   ITicketRepository,
   IKnowledgebaseRepository,
   IAuthProvider,
-  IPaymentProcessor,
+  IRefundProcessor,
   ILockProvider,
-  ICheckoutGateway,
   IShippingRepository,
   IEmailService,
+  ICampaignRepository,
+  ICampaignEventRepository,
+  ICustomerSegmentRepository,
 } from '@domain/repositories';
+
+type IRepositories = {
+  productRepo: IProductRepository;
+  cartRepo: ICartRepository;
+  orderRepo: IOrderRepository;
+  discountRepo: IDiscountRepository;
+  settingsRepo: ISettingsRepository;
+  transferRepo: ITransferRepository;
+  purchaseOrderRepo: IPurchaseOrderRepository;
+  inventoryLocationRepo: IInventoryLocationRepository;
+  inventoryLevelRepo: IInventoryLevelRepository;
+  supplierRepo: ISupplierRepository;
+  collectionRepo: ICollectionRepository;
+  taxonomyRepo: ITaxonomyRepository;
+  wishlistRepo: IWishlistRepository;
+  ticketRepo: ITicketRepository;
+  kbRepo: IKnowledgebaseRepository;
+  shippingRepo: IShippingRepository;
+  campaignRepo: ICampaignRepository;
+  campaignEventRepo: ICampaignEventRepository;
+  segmentRepo: ICustomerSegmentRepository;
+};
 
 // Singleton caches for production (Pattern 2 - getInitialServices)
 let authServiceInstance: AuthService | null = null;
@@ -109,9 +131,8 @@ let productRepoInstance: IProductRepository | null = null;
 let cartRepoInstance: ICartRepository | null = null;
 let orderRepoInstance: IOrderRepository | null = null;
 let discountRepoInstance: IDiscountRepository | null = null;
-let paymentProcessorInstance: IPaymentProcessor | null = null;
+let refundProcessorInstance: IRefundProcessor | null = null;
 let lockProviderInstance: ILockProvider | null = null;
-let checkoutGatewayInstance: ICheckoutGateway | null = null;
 let settingsRepoInstance: ISettingsRepository | null = null;
 let shippingRepoInstance: IShippingRepository | null = null;
 let transferRepoInstance: ITransferRepository | null = null;
@@ -201,12 +222,8 @@ function createInventoryApplication(
   }).inventory;
 }
 
-function createCheckoutGateway(): ICheckoutGateway | undefined {
-  return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
-}
-
 function wireCartStack(
-  repos: Pick<ReturnType<typeof createRepositories>, 'cartRepo' | 'productRepo' | 'discountRepo' | 'orderRepo'>,
+  repos: Pick<IRepositories, 'cartRepo' | 'productRepo' | 'discountRepo' | 'orderRepo'>,
   inventory: InventoryApplicationService,
   audit: AuditService,
 ): CartStack {
@@ -220,13 +237,11 @@ function wireCartStack(
 }
 
 function wireOrderCheckoutStack(
-  repos: ReturnType<typeof createRepositories>,
-  payment: IPaymentProcessor,
+  repos: IRepositories,
   audit: AuditService,
   locker: ILockProvider,
   stripeService: StripeService,
   inventory: InventoryApplicationService,
-  checkoutGateway?: ICheckoutGateway,
   cartIntent?: Pick<CartApplicationService, 'validateCart'>,
 ) {
   const orderService = new OrderService(
@@ -234,9 +249,9 @@ function wireOrderCheckoutStack(
     repos.productRepo,
     repos.discountRepo,
     audit,
+    inventory,
     repos.shippingRepo,
     stripeService,
-    inventory,
   );
   const eventLog = checkoutEventLogInstance ?? new FirestoreCheckoutEventLog();
   checkoutEventLogInstance = eventLog;
@@ -245,11 +260,9 @@ function wireOrderCheckoutStack(
     productRepo: repos.productRepo,
     cartRepo: repos.cartRepo,
     discountRepo: repos.discountRepo,
-    payment,
     audit,
     locker,
     shippingRepo: repos.shippingRepo,
-    checkoutGateway,
     stripe: stripeService,
     eventLog,
     inventory,
@@ -353,12 +366,10 @@ export function getServiceContainer() {
   const cartStack = wireCartStack(repos, inventory, auditService);
   const { orderService, checkout } = wireOrderCheckoutStack(
     repos,
-    new StripePaymentProcessor(),
     auditService,
     new FirestoreLocker(),
     stripeService,
     inventory,
-    createCheckoutGateway(),
     cartStack.cart,
   );
   const productService = new ProductService(repos.productRepo, auditService, inventory);
@@ -372,7 +383,7 @@ export function getServiceContainer() {
   );
   const refundService = new RefundService(
     repos.orderRepo,
-    new StripePaymentProcessor(),
+    new StripeRefundProcessor(),
     auditService,
     repos.productRepo,
     repos.discountRepo,
@@ -405,7 +416,6 @@ export function getServiceContainer() {
     authService,
     productService,
     cart: cartStack.cart,
-    cartService: cartStack.cartService,
     orderService,
     checkout,
     inventory,
@@ -498,16 +508,12 @@ export function getInitialServices() {
     authServiceInstance = new AuthService(authProviderInstance!, getAuditService());
   }
 
-  if (!paymentProcessorInstance) {
-    paymentProcessorInstance = new StripePaymentProcessor();
+  if (!refundProcessorInstance) {
+    refundProcessorInstance = new StripeRefundProcessor();
   }
 
   if (!lockProviderInstance) {
     lockProviderInstance = new FirestoreLocker();
-  }
-
-  if (!checkoutGatewayInstance && process.env.CHECKOUT_ENDPOINT) {
-    checkoutGatewayInstance = new TrustedCheckoutGateway();
   }
 
   const getPurchaseOrderService = () => {
@@ -527,7 +533,7 @@ export function getInitialServices() {
     if (!refundServiceInstance) {
       refundServiceInstance = new RefundService(
         orderRepoInstance!,
-        paymentProcessorInstance!,
+        refundProcessorInstance!,
         getAuditService(),
         productRepoInstance!,
         discountRepoInstance!,
@@ -538,7 +544,7 @@ export function getInitialServices() {
     return refundServiceInstance;
   };
 
-  const getRefunds = () => {
+  const getRefunds = (): RefundApplicationService => {
     if (!refundsInstance) {
       const eventLog = refundEventLogInstance ?? new FirestoreRefundEventLog();
       refundEventLogInstance = eventLog;
@@ -549,7 +555,7 @@ export function getInitialServices() {
         commerceEventBus: getCommerceEventBus(),
       }).refunds;
     }
-    return refundsInstance;
+    return refundsInstance!;
   };
 
   const getStripeService = () => {
@@ -594,12 +600,10 @@ export function getInitialServices() {
         campaignEventRepo: campaignEventRepoInstance!,
         segmentRepo: segmentRepoInstance!,
       },
-      paymentProcessorInstance!,
       getAuditService(),
       lockProviderInstance!,
       getStripeService(),
       inventory,
-      checkoutGatewayInstance ?? undefined,
       cartStackInstance!.cart,
     );
     orderServiceInstance = stack.orderService;
@@ -644,7 +648,6 @@ export function getInitialServices() {
     authService: authServiceInstance,
     productService: new ProductService(productRepoInstance!, getAuditService(), inventoryInstance!),
     cart: cartStackInstance!.cart,
-    cartService: cartStackInstance!.cartService,
     orderService: orderServiceInstance,
     checkout: checkoutInstance,
     inventory: inventoryInstance!,
@@ -656,7 +659,10 @@ export function getInitialServices() {
     commerceTimeline: getCommerceTimeline(),
     fulfillmentService: new FulfillmentService(orderRepoInstance!, shippingRepoInstance!),
     orderManagementService: new OrderManagementService(orderRepoInstance!, getAuditService()),
-    orderQueryService: new OrderQueryService(orderRepoInstance!, new ProductService(productRepoInstance!, getAuditService())),
+    orderQueryService: new OrderQueryService(
+      orderRepoInstance!,
+      new ProductService(productRepoInstance!, getAuditService(), inventoryInstance!),
+    ),
     refundService: getRefundService(),
     discountService: new DiscountService(discountRepoInstance!, getAuditService(), orderRepoInstance!),
     settingsService: new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),
@@ -686,7 +692,6 @@ export function getInitialServices() {
       return wishlistServiceInstance;
     })(),
     productRepo: productRepoInstance!,
-    cartRepo: cartRepoInstance!,
     orderRepo: orderRepoInstance!,
     discountRepo: discountRepoInstance!,
     inventoryLocationRepo: inventoryLocationRepoInstance!,

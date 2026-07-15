@@ -37,7 +37,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
         assertTrustedMutationOrigin(request);
         const user = await requireAdminSession();
         const { id } = await params;
-        const body = await readJsonObject(request).catch(() => ({}));
+        const body = (await readJsonObject(request).catch(() => ({}))) as Record<string, any>;
         const services = await getServerServices();
         const result = await services.admin.archiveProduct({
             actor: toAdminActor(user),

@@ -83,9 +83,9 @@ export async function POST(req: NextRequest) {
     // Auto-rotate and optimize fetched card using Sharp
     let optimizedBuffer = buffer;
     try {
-      optimizedBuffer = await sharp(buffer)
+      optimizedBuffer = (await sharp(buffer)
         .rotate()
-        .toBuffer();
+        .toBuffer()) as Buffer<ArrayBuffer>;
     } catch (sharpErr) {
       console.error('Sharp fetch optimization failed, saving raw buffer', sharpErr);
     }

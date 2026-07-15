@@ -35,7 +35,7 @@ export class StripeService {
     userId: string;
     metadata?: Record<string, string>;
     idempotencyKey?: string;
-  }): Promise<{ clientSecret: string; id: string }> {
+  }): Promise<{ clientSecret: string; id: string; status: string }> {
     if (!process.env.STRIPE_SECRET_KEY?.trim()) {
       throw new PaymentFailedError('Stripe is not configured. Set STRIPE_SECRET_KEY.');
     }
@@ -63,6 +63,7 @@ export class StripeService {
       return {
         clientSecret: paymentIntent.client_secret,
         id: paymentIntent.id,
+        status: paymentIntent.status,
       };
     } catch (error) {
       logger.error('Stripe PaymentIntent creation failed', error);

@@ -125,7 +125,7 @@ Internal orchestration (not imported by routes):
 
 ```text
 CheckoutFlowService
-  → flow modules (client start, payment method, webhook ingress, verify, cleanup, operator)
+  → flow modules (client start, webhook ingress, verify, cleanup, operator)
   → CheckoutMutationService               (CheckoutMutationBackend — internal only)
   → checkoutOrderResolver / checkoutPaymentIntentFlow / checkoutVerifyFlow
   → checkoutOrderState / checkoutEventLog
@@ -144,10 +144,9 @@ wireOrderCheckoutStack()
   → OrderService
   → createCheckoutStack({
        orderRepo, productRepo, cartRepo, discountRepo,
-       payment, audit, locker, shippingRepo,
+       audit, locker, shippingRepo,
        stripe,                    // single StripeService instance
        eventLog,                  // FirestoreCheckoutEventLog
-       checkoutGateway?,          // TrustedCheckoutGateway when CHECKOUT_ENDPOINT set
        cancelExpiredPendingOrder, // OrderService.cancelExpiredPendingOrder
        recordOperatorAction,      // OrderService.handleReconciliationOperatorAction
      })
@@ -160,7 +159,6 @@ wireOrderCheckoutStack()
 | `eventLog` | `FirestoreCheckoutEventLog` | Recovery + operator-action idempotency |
 | `cancelExpiredPendingOrder` | `OrderService` admin path | Unpaid expired order cancellation during cleanup |
 | `recordOperatorAction` | `OrderService` reconciliation admin | Operator case metadata before recovery |
-| `checkoutGateway` | `TrustedCheckoutGateway` (optional) | Server-side trusted checkout finalization |
 
 ---
 
@@ -197,26 +195,13 @@ Starts or resumes a Stripe PaymentIntent checkout for the storefront flow.
 
 **Flow:** acquire checkout lock → reserve cart/inventory → create pending order → create or resume PaymentIntent → transition `checkoutOrderState` to `checkout_session_created`.
 
-#### `completeCheckoutWithPaymentMethod`
-
-Trusted server-side checkout with a saved payment method (non–client-secret path).
-
-| | |
-|---|---|
-| **Route** | `POST /api/orders` |
-| **Input** | `userId`, `shippingAddress`, `paymentMethodId`, optional `idempotencyKey`, `discountCode`, `userEmail`, `userName`, `fulfillmentMethod` |
-| **Success data** | `Order` |
-| **Typical errors** | `DOMAIN_ERROR`, `UNKNOWN` |
-
-Uses `TrustedCheckoutGateway` when `CHECKOUT_ENDPOINT` is configured; otherwise processes via `CheckoutMutationService`.
-
 #### `recoverPendingOrder`
 
 Success-page verification after Stripe redirect — confirms payment and finalizes the local order.
 
 | | |
 |---|---|
-| **Route** | `GET /api/checkout/verify?payment_intent=…` |
+| **Route** | `POST /api/checkout/verify` |
 | **Input** | `userId`, `paymentIntentId` |
 | **Success data** | `{ success, orderId?, status?, message? }` |
 | **Typical errors** | `VERIFICATION_FAILED`, `RECOVERY_FAILED`, `STRIPE_NOT_CONFIGURED` |
@@ -321,9 +306,8 @@ Checkout protocol routes call **only** `services.checkout`:
 | Route | Method | Checkout API |
 |-------|--------|--------------|
 | `/api/checkout/create-payment-intent` | POST | `createCheckoutSession` |
-| `/api/checkout/verify` | GET | `recoverPendingOrder` |
+| `/api/checkout/verify` | POST | `recoverPendingOrder` |
 | `/api/webhooks/stripe` | POST | `handleCheckoutWebhook` |
-| `/api/orders` | POST | `completeCheckoutWithPaymentMethod` |
 | `/api/system/cleanup-orders` | POST | `cleanupExpiredPendingOrders` |
 | `/api/admin/reconciliation/cases` | POST | `handleReconciliationOperatorAction` |
 
@@ -354,16 +338,8 @@ Checkout protocol routes call **only** `services.checkout`:
 3. Client confirms payment with Stripe.js
 4. Parallel finalization paths (idempotent):
    a. Stripe webhook payment_intent.succeeded
-   b. Success page GET /api/checkout/verify
+   b. Browser POST /api/checkout/verify
 5. confirmStripePayment: local order → paid/processing, attempt complete
-```
-
-### Payment-method checkout
-
-```text
-POST /api/orders with paymentMethodId
-  → completeCheckoutWithPaymentMethod
-  → reserve + charge + finalize in one server path
 ```
 
 ### Webhook ingress
@@ -491,7 +467,6 @@ Additional application-level idempotency:
 |--------|------|
 | `CheckoutMutationService` | `runCheckoutReservation`, `confirmStripePayment`, `rollbackUnpaidCheckout` |
 | `checkoutClientStartFlow` | Session create + high-value step-up + PI create/resume |
-| `checkoutPaymentMethodFlow` | Payment-method completion |
 | `checkoutPaymentIntentFlow` | PI create/resume phase transitions |
 | `checkoutVerifyFlow` | Success-page verify |
 | `checkoutWebhookIngressFlow` | Webhook signature, dedupe, dispatch |
@@ -502,7 +477,6 @@ Additional application-level idempotency:
 | `checkoutForensics` | Operator timeline rendering |
 | `checkoutWorkflow` | Phase transition rules |
 | `FirestoreCheckoutEventLog` | Recovery/operator idempotency persistence |
-| `TrustedCheckoutGateway` | Optional external checkout endpoint (`src/infrastructure/checkout/`) |
 
 Tests and benchmarks may call internal methods on `CheckoutFlowService` (e.g. `confirmPaymentFromStripe`, `reserveCheckout`). Routes may not.
 
@@ -563,7 +537,7 @@ npm test -- --run \
 | Checkout routes do not import `StripeService` or `OrderService` | `checkout-protocol-guard`, route layer audit |
 | Public methods do not throw for expected failure | `checkoutOk` / `checkoutErr` / `checkoutTry` throughout |
 
-Browser smoke: `npm run test:e2e:checkout-smoke` — [storefront-release.md](./storefront-release.md)
+Browser gates: `npm run test:e2e:cart-smoke` for cart handoff and `npm run test:e2e:checkout-smoke` for checkout — [cart.md](./cart.md) · [storefront-release.md](./storefront-release.md)
 
 Benchmark (core throughput, not production capacity):
 
@@ -583,7 +557,6 @@ src/core/order/
   createCheckoutStack.ts          # Factory
   checkoutMutationService.ts    # Internal mutations
   checkoutClientStartFlow.ts
-  checkoutPaymentMethodFlow.ts
   checkoutPaymentIntentFlow.ts
   checkoutVerifyFlow.ts
   checkoutWebhookIngressFlow.ts
@@ -603,7 +576,6 @@ src/infrastructure/server/
   checkoutRouteAdapter.ts         # HTTP mapping
 
 src/infrastructure/checkout/
-  TrustedCheckoutGateway.ts
   FirestoreCheckoutEventLog.ts
 
 src/app/api/checkout/
@@ -611,7 +583,7 @@ src/app/api/checkout/
   verify/route.ts
 src/app/api/webhooks/stripe/route.ts
 src/app/api/system/cleanup-orders/route.ts
-src/app/api/orders/route.ts       # POST only
+src/app/api/orders/route.ts       # GET customer order list only
 src/app/api/admin/reconciliation/cases/route.ts  # POST only
 ```
 

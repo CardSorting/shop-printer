@@ -22,6 +22,7 @@ flowchart TB
   end
 
   subgraph core [Core protocols]
+    CART[services.cart]
     CH[services.checkout]
     RF[services.refunds]
     INV[services.inventory]
@@ -39,10 +40,13 @@ flowchart TB
   AD --> PAGES
   AD --> API
   ST --> API
+  API --> CART
   API --> CH
   API --> RF
   API --> INV
   API --> ADM
+  CART -. availability read .-> INV
+  CART --> FS
   CH --> INV
   ADM --> RF
   ADM --> INV
@@ -74,27 +78,29 @@ flowchart TB
 
 ## Commerce protocols (the cages)
 
-These four boundaries are **frozen**. Full policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md).
+Four mutation boundaries are **frozen**. Cart is an additional purchase-intent boundary: it may read availability but cannot mutate money or stock. Full policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md). Cart detail: [cart.md](./cart.md).
 
 ```txt
 checkout  = money capture      → CheckoutApplicationService
 refunds   = money reversal     → RefundApplicationService
 inventory = stock movement     → InventoryApplicationService
 admin     = human authority    → AdminApplicationService
+cart      = purchase intent    → CartApplicationService
 ```
 
 ```txt
 No route, tool, admin action, or automation touches raw money mutation services directly.
 ```
 
-| Protocol | Container key | Internal engine (do not import from routes) |
+| Boundary | Container key | Internal engine (do not import from routes) |
 | --- | --- | --- |
 | Checkout | `services.checkout` | `CheckoutMutationService`, `StripeService` |
+| Cart | `services.cart` | `CartFlowService`, `InventoryAvailabilityReader` |
 | Refunds | `services.refunds` | `RefundService` |
 | Inventory | `services.inventory` | `InventoryMutationService` → `batchUpdateStock` |
 | Admin | `services.admin` | Delegates to above + `OrderService` (authorized) |
 
-Each protocol returns `*Result<T>` — expected failures are data, not thrown exceptions.
+Each boundary returns `*Result<T>` — expected failures are data, not thrown exceptions.
 
 ---
 
@@ -105,7 +111,8 @@ All server wiring flows through `src/core/container.ts`:
 ```text
 getInitialServices() / getServerServices()
   ├── checkout, refunds, inventory, admin    ← mutation boundaries
-  ├── orderService, productService, cartService ← orchestration / reads
+  ├── cart                                ← purchase-intent protocol
+  ├── orderService, productService        ← orchestration / reads
   ├── fulfillmentService, orderQueryService   ← fulfillment & queries
   └── refundService                           ← INTERNAL (RefundFlowService only)
 ```
@@ -113,6 +120,7 @@ getInitialServices() / getServerServices()
 | Protocol | Factory | Implementation |
 | --- | --- | --- |
 | Checkout | `createCheckoutStack()` / `wireOrderCheckoutStack()` | `CheckoutFlowService` |
+| Cart | `createCartStack()` / `wireCartStack()` | `CartFlowService` |
 | Refunds | `createRefundStack()` | `RefundFlowService` |
 | Inventory | `createInventoryStack()` | `InventoryFlowService` |
 | Admin | `createAdminStack()` | `AdminFlowService` |
@@ -125,6 +133,7 @@ Not every API call goes through the four protocols. Use this table when adding r
 
 | Operation | Correct entry | Example |
 | --- | --- | --- |
+| Add/update cart intent | `services.cart` | `/api/cart/items` |
 | Start checkout | `services.checkout` | `createCheckoutSession` |
 | Stripe webhook | `services.checkout` | `handleCheckoutWebhook` |
 | Refund | `services.admin.requestRefund` → `services.refunds` | Admin UI |
@@ -174,7 +183,7 @@ Every mutation route should follow this shape:
 1. HTTP request     → src/app/api/.../route.ts
 2. Guards           → session, role, rate limit, same-origin (apiGuards.ts)
 3. Parse + validate → domain-aligned parsers
-4. Delegate         → services.{checkout|refunds|inventory|admin}.*
+4. Delegate         → services.{cart|checkout|refunds|inventory|admin}.*
 5. Adapt result     → *RouteAdapter → JSON + HTTP status
 6. Audit (optional) → AuditService / operator event log
 ```
@@ -278,6 +287,7 @@ Read-only? → query services / repos
 | --- | --- |
 | Understand entity shapes | `src/domain/models.ts` |
 | Wire a new service | `src/core/container.ts` |
+| Change cart behavior | `src/core/cart/cartFlowService.ts` |
 | Change checkout behavior | `src/core/order/CheckoutFlowService.ts` |
 | Change stock behavior | `src/core/inventory/InventoryFlowService.ts` |
 | Change refund behavior | `src/core/refund/RefundFlowService.ts` |
@@ -298,6 +308,7 @@ Read-only? → query services / repos
 | Protocol seals | `*-verification-ladder.test.ts` | After any protocol change |
 | Flow modules | Unit tests + in-memory repos | During development |
 | API routes | Route tests on critical paths | Webhook, checkout verify |
+| Cart browser smoke | `npm run test:e2e:cart-smoke` | Cart UI, storage, merge, and handoff changes |
 | Checkout browser smoke | `npm run test:e2e:checkout-smoke` | Checkout UI releases |
 | Storefront journeys | Playwright `e2e/` | Broader UI regression |
 | Throughput | `npm run benchmark:order-flow` | Performance regression |
@@ -321,6 +332,7 @@ npm test -- --run \
 | Topic | Document |
 | --- | --- |
 | End-to-end stories | [flows.md](./flows.md) |
+| Purchase intent / cart | [cart.md](./cart.md) |
 | Money capture | [checkout.md](./checkout.md) |
 | Stock movement | [inventory.md](./inventory.md) |
 | Money reversal | [refunds.md](./refunds.md) |

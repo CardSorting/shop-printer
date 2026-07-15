@@ -66,8 +66,14 @@ export async function startClientCheckoutFlow(params: {
     onRollback,
   });
 
-  if (onSessionCreated) {
-    await onSessionCreated(result.orderId, result.paymentIntentId);
+  if (onSessionCreated && !['processing', 'succeeded'].includes(result.paymentStatus)) {
+    await onSessionCreated(result.orderId, result.paymentIntentId).catch((error) => {
+      logger.error('Checkout session was created, but its presentation-state marker could not be updated.', {
+        orderId: result.orderId,
+        paymentIntentId: result.paymentIntentId,
+        error,
+      });
+    });
   }
 
   return result;

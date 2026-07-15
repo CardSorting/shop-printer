@@ -48,7 +48,7 @@ export function useCatalog(props: CatalogPageProps) {
     initialNextCursor,
   });
 
-  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
 
   useCatalogInfiniteScroll({

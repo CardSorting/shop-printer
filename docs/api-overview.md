@@ -39,26 +39,25 @@ No admin role. Session optional unless noted.
 
 ### Cart
 
-Cart is a **purchase intent buffer** (`services.cart`). Physical SKUs use `inventory.checkAvailability` only — stock holds happen at checkout. Proof: [storefront-release.md](./storefront-release.md).
+Cart is a **purchase intent buffer** (`services.cart`). Physical SKUs use `inventory.checkAvailability` only — stock holds happen at checkout. Guest state stays in the versioned browser protocol and uses the public preview endpoint; all persisted cart routes are session-owned. Canonical detail: [cart.md](./cart.md).
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| GET | `/api/cart` | Load cart (`CartResult<CartView>`) |
-| DELETE | `/api/cart` | Clear cart |
-| POST/PATCH/DELETE | `/api/cart/items` | Line items |
-| POST | `/api/cart/validate` | Pre-checkout validation (used by `gateCheckoutCommit`) |
-| POST | `/api/cart/preview-line` | Guest line snapshot preview |
-| POST | `/api/cart/merge-guest` | Merge guest cart on login |
-| POST | `/api/cart/note` | Cart note |
-| POST | `/api/cart/discount` | Apply promo (authed) |
+| Method | Route | Session | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/cart` | Required | Load cart (`CartResult<CartView>`) |
+| DELETE | `/api/cart` | Required | Clear cart |
+| POST/PATCH/DELETE | `/api/cart/items` | Required | Add, update, or remove an exact line |
+| POST | `/api/cart/validate` | Required | Pre-checkout validation; may clear a stale discount |
+| POST | `/api/cart/preview-line` | Public | Rate-limited guest line snapshot preview |
+| POST | `/api/cart/merge-guest` | Required | Merge guest cart after sign-in |
+| POST | `/api/cart/note` | Required | Update cart note |
+| POST/DELETE | `/api/cart/discount` | Required | Apply or clear promo code |
 
 ### Checkout & orders
 
 | Method | Route | Protocol / service |
 | --- | --- | --- |
 | POST | `/api/checkout/create-payment-intent` | `services.checkout.createCheckoutSession` |
-| GET | `/api/checkout/verify` | `services.checkout.recoverPendingOrder` |
-| POST | `/api/orders` | `services.checkout.completeCheckoutWithPaymentMethod` |
+| POST | `/api/checkout/verify` | `services.checkout.recoverPendingOrder` |
 | GET | `/api/orders` | Order list (session required) |
 | POST | `/api/discounts/validate` | Discount validation |
 
@@ -152,7 +151,7 @@ Require `requireAdminSession`. Mutations delegate to `services.admin` and commer
 | `/api/admin/upload`, `/api/admin/media` | Media |
 | `/api/admin/seo/snapshot` | SEO health |
 
-Complete route list: `src/app/api/**/route.ts` (~142 files).
+Complete route list: `src/app/api/**/route.ts` (150 route files as of July 14, 2026).
 
 ---
 

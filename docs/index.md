@@ -17,6 +17,7 @@ Open-source, self-hosted ecommerce with Shopify-class storefront and admin.
 | Debug something | [troubleshooting.md](./troubleshooting.md) · [faq.md](./faq.md) |
 | One-screen lookup | [quick-reference.md](./quick-reference.md) |
 | Storefront release gate | [storefront-release.md](./storefront-release.md) |
+| Cart internals | [cart.md](./cart.md) |
 | All four protocols | [protocols.md](./protocols.md) |
 
 ---
@@ -31,13 +32,14 @@ philosophy.md                 protocols.md                  release-checklist.md
 whitepaper.md                 flows.md                      runbook.md
 platform-overview.md          data-model.md                 security.md
                               api-overview.md               testing.md
+                              cart.md
 
 START                         SURFACES                      POLICY
 ─────                         ────────                      ──────
 onboarding.md                 storefront.md                 commerce-protocol-frozen.md
 day-2.md                      storefront-release.md         checkout.md
 local-development.md          admin.md                      inventory.md
-getting-started.md              concierge/overview.md         refunds.md
+getting-started.md            concierge/overview.md         refunds.md
 environment-variables.md                                    CONTRIBUTING.md (repo root)
                                                             contributing-commerce.md
 
@@ -87,6 +89,7 @@ migration-from-shopify.md · troubleshooting.md
 | [admin.md](./admin.md) | Merchant console + operator cookbook |
 | [api-overview.md](./api-overview.md) | HTTP route map |
 | [architecture.md](./architecture.md) | Layers, diagrams, entities |
+| [cart.md](./cart.md) | Canonical cart flow, guest storage, identity, merge, and verification |
 | [checkout.md](./checkout.md) | Money capture protocol |
 | [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) | Mutation policy |
 | [concierge/overview.md](./concierge/overview.md) | AI support |
@@ -126,7 +129,8 @@ migration-from-shopify.md · troubleshooting.md
 
 ```bash
 npm test
-npm run test:storefront-release          # catalog → payment proofs (125 tests)
+npm run test:storefront-release          # catalog → payment proofs
+npm run test:e2e:cart-smoke              # isolated cart-to-checkout journey
 npm run test:e2e:checkout-smoke          # mocked checkout browser smoke
 npm test -- --run src/tests/*-verification-ladder.test.ts
 npm test -- --run src/tests/protocol-guard.test.ts

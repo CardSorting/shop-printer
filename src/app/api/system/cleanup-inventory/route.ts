@@ -27,6 +27,8 @@ export async function POST(request: Request) {
           success: true,
           report: result.data,
           timestamp: new Date().toISOString(),
+          failed: result.data.failed,
+          errors: result.data.errors,
         },
       });
     }

@@ -45,6 +45,8 @@ laws      = constitution
 
 Protocols mutate durable state. Events record what happened. Timeline reconstructs order for operators. This document is the constitution — the event architecture is frozen after post-commit inventory fan-out.
 
+Cart is deliberately outside this operational event stream: `services.cart` owns purchase intent, and its `CartUxEventBus` is presentation-only. Cart never publishes payment, inventory, or order truth. See [cart.md](./cart.md).
+
 ## Unified commerce events
 
 All protocols publish through `CommerceEventBus` into `commerce_events` (Firestore append-only store).

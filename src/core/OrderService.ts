@@ -42,9 +42,9 @@ export class OrderService {
     productRepo: IProductRepository,
     discountRepo: IDiscountRepository,
     audit: AuditService,
+    inventory: InventoryApplicationService,
     shippingRepo?: IShippingRepository,
     private readonly stripeService?: StripeService,
-    inventory: InventoryApplicationService,
   ) {
     this.logisticsService = new OrderLogisticsService(this.orderRepo, productRepo);
     this.fulfillmentWorkflowService = new OrderFulfillmentWorkflowService(this.orderRepo);

@@ -77,7 +77,8 @@ We enforce design with layered verification:
 | **Production proofs** | `*-production-proof`, `*-reservation-proof` | Behavioral — lane invariants hold under orchestration |
 | **Verification ladders** | `*-verification-ladder` | Protocol semantics — idempotency, actors, error mapping |
 | **Release gate** | `test:storefront-release` | One command across the frozen chain |
-| **Browser smoke** | `test:e2e:checkout-smoke` | Checkout UI still completes the journey |
+| **Cart browser smoke** | `test:e2e:cart-smoke` | Guest/auth cart state and checkout handoff remain deterministic |
+| **Checkout browser smoke** | `test:e2e:checkout-smoke` | Checkout UI still completes the journey |
 
 Changing protocol behavior without updating the matching proof is a **regression by definition**, not an oversight to catch later.
 
@@ -125,6 +126,7 @@ Before merging storefront or checkout work:
 
 ```bash
 npm run test:storefront-release
+npm run test:e2e:cart-smoke       # cart UI/protocol changes
 npm run test:e2e:checkout-smoke   # checkout UI changes
 ```
 

@@ -146,7 +146,6 @@ describe('checkout create payment intent retry handling', () => {
       productRepo: { batchUpdateStock, getById: vi.fn(), getAll: vi.fn() } as any,
       cartRepo: { getByUserId: getCartByUserId, save: saveCart } as any,
       discountRepo: { getByCode: vi.fn() } as any,
-      payment: { processPayment: vi.fn(), refundPayment: vi.fn() } as any,
       audit: { record: vi.fn(), recordWithTransaction: vi.fn() } as any,
       locker: { acquireLock: vi.fn(), releaseLock: vi.fn() } as any,
       stripe: { createPaymentIntent, getPaymentIntent, cancelPaymentIntent } as any,
@@ -190,6 +189,7 @@ describe('checkout create payment intent retry handling', () => {
       paymentIntentId: 'pi_existing',
       orderId: 'order-1',
       amount: 1234,
+      paymentStatus: 'requires_payment_method',
       resumed: true,
     });
     expect(createPaymentIntent).not.toHaveBeenCalled();
