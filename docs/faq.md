@@ -1,18 +1,18 @@
 # FAQ
 
-Common questions about DreamBees Art as an open-source Shopify-class platform.
+Common questions about MeowAcc as an open-source Shopify-class platform.
 
 ---
 
 ## General
 
-### What is DreamBees Art?
+### What is MeowAcc?
 
 A self-hosted ecommerce monolith: Next.js storefront + admin + Firestore + Stripe. Full source access; you own data and infrastructure.
 
 ### How is this different from Shopify?
 
-Shopify is hosted SaaS with themes and apps. DreamBees Art is **deployable source** with explicit checkout/inventory/refund protocols you can read and patch.
+Shopify is hosted SaaS with themes and apps. MeowAcc is **deployable source** with explicit checkout/inventory/refund protocols you can read and patch.
 
 ### What is WoodBine?
 

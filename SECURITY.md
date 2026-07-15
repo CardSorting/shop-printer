@@ -1,6 +1,6 @@
 # Security
 
-DreamBees Art security practices for self-hosted ecommerce (Firebase + Stripe + signed sessions).
+MeowAcc security practices for self-hosted ecommerce (Firebase + Stripe + signed sessions).
 
 **Full guide:** [docs/security.md](docs/security.md)
 

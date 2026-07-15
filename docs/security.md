@@ -1,6 +1,6 @@
 # Security
 
-Security model for DreamBees Art — open-source self-hosted ecommerce on Firebase + Stripe.
+Security model for MeowAcc — open-source self-hosted ecommerce on Firebase + Stripe.
 
 Root policy file: [SECURITY.md](../SECURITY.md) (summary + links).
 

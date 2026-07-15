@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       try {
         const scryfallRes = await fetch(
           `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}`,
-          { headers: { 'User-Agent': 'DreamBeesArt/1.0' } }
+          { headers: { 'User-Agent': 'MeowAcc/1.0' } }
         );
         if (scryfallRes.ok) {
           const cardData = await scryfallRes.json();
@@ -34,14 +34,14 @@ export async function POST(req: NextRequest) {
         // Try exact match first
         let ygoRes = await fetch(
           `https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${encodeURIComponent(name)}`,
-          { headers: { 'User-Agent': 'DreamBeesArt/1.0' } }
+          { headers: { 'User-Agent': 'MeowAcc/1.0' } }
         );
         
         // Try fuzzy match if exact fails
         if (!ygoRes.ok) {
           ygoRes = await fetch(
             `https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=${encodeURIComponent(name)}`,
-            { headers: { 'User-Agent': 'DreamBeesArt/1.0' } }
+            { headers: { 'User-Agent': 'MeowAcc/1.0' } }
           );
         }
 
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       try {
         const pokeRes = await fetch(
           `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(name)}"`,
-          { headers: { 'User-Agent': 'DreamBeesArt/1.0' } }
+          { headers: { 'User-Agent': 'MeowAcc/1.0' } }
         );
         if (pokeRes.ok) {
           const cardData = await pokeRes.json();
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch the image from the source URL
-    const imgRes = await fetch(imageUrl, { headers: { 'User-Agent': 'DreamBeesArt/1.0' } });
+    const imgRes = await fetch(imageUrl, { headers: { 'User-Agent': 'MeowAcc/1.0' } });
     if (!imgRes.ok) {
       return NextResponse.json({ error: 'Failed to download card artwork' }, { status: 502 });
     }

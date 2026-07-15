@@ -1,6 +1,6 @@
 # Platform Overview
 
-DreamBees Art is a **standalone, open-source ecommerce application** that mirrors the core capabilities merchants expect from Shopify — storefront, checkout, catalog, inventory, orders, customers, discounts, content, analytics, and support — while keeping the entire stack in your repository and your cloud accounts.
+MeowAcc is a **standalone, open-source ecommerce application** that mirrors the core capabilities merchants expect from Shopify — storefront, checkout, catalog, inventory, orders, customers, discounts, content, analytics, and support — while keeping the entire stack in your repository and your cloud accounts.
 
 This is not a headless-only API or a theme kit. It is a full merchant operating system: customer-facing shop, operator admin, payment processing, stock movement, refunds, and support CRM in one deployable Next.js application.
 
@@ -22,9 +22,9 @@ This is not a headless-only API or a theme kit. It is a full merchant operating 
 
 ## Shopify capability map
 
-The table below maps common Shopify merchant features to DreamBees Art implementation status. “Protocol” means the behavior is sealed behind an `ApplicationService` boundary with proof tests.
+The table below maps common Shopify merchant features to MeowAcc implementation status. “Protocol” means the behavior is sealed behind an `ApplicationService` boundary with proof tests.
 
-| Shopify area | DreamBees Art | Notes |
+| Shopify area | MeowAcc | Notes |
 | --- | --- | --- |
 | Online store | ✅ Storefront pages + collections + SEO | Handle-based URLs, JSON-LD, sitemap hooks |
 | Cart & checkout | ✅ Frozen lanes | `services.cart` (intent buffer) + `services.checkout` (commitment + payment); [cart contract](./cart.md), proof: `test:storefront-release` |
@@ -139,7 +139,7 @@ Items commonly found in Shopify Plus or app ecosystems that are **not** first-cl
 - Native POS hardware integration
 - Built-in email marketing automation (Concierge covers lifecycle experiments; Brevo sends mail)
 
-Track strategic direction in [SHOPMORE_ROADMAP.md](../SHOPMORE_ROADMAP.md) at repo root.
+Track strategic direction in [MEOWACC_ROADMAP.md](../MEOWACC_ROADMAP.md) at repo root.
 
 ---
 

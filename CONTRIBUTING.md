@@ -1,6 +1,6 @@
-# Contributing to DreamBees Art
+# Contributing to MeowAcc
 
-Thank you for helping build sovereign, inspectable commerce software. DreamBees Art is created and maintained by **William Cruz** and released under the [MIT License](LICENSE). Contributions that merge into this repository are licensed under the same terms.
+Thank you for helping build sovereign, inspectable commerce software. MeowAcc is created and maintained by **William Cruz** and released under the [MIT License](LICENSE). Contributions that merge into this repository are licensed under the same terms.
 
 ---
 

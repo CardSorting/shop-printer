@@ -145,7 +145,7 @@ Production throughput still needs staging or emulator testing with real Firestor
 
 ## Known Documentation Corrections
 
-Older docs sometimes used the project codename `ShopMore` and mentioned SQLite backup/migration paths. The current repository state is WoodBine with Firestore repositories and Firebase bridge code. New documentation should describe Firestore, not SQLite.
+Older docs sometimes used the project codename `MeowAcc` and mentioned SQLite backup/migration paths. The current repository state is WoodBine with Firestore repositories and Firebase bridge code. New documentation should describe Firestore, not SQLite.
 
 ## Operating Principle
 

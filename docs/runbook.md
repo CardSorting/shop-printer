@@ -1,6 +1,6 @@
 # Production Runbook
 
-Operator and SRE procedures for a live DreamBees Art store. Assumes [deployment.md](./deployment.md) is complete.
+Operator and SRE procedures for a live MeowAcc store. Assumes [deployment.md](./deployment.md) is complete.
 
 ---
 

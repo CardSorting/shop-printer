@@ -13,7 +13,7 @@
 - **Documentation Overhaul**:
   - Rewrote `README.md` to reflect the industrialized status, correct tech stack (Next.js 15, Firestore), and "Joy-Zoning" architecture.
   - Synchronized `PRODUCTION_READY_METRICS.md` to emphasize transactional integrity, idempotency, and forensic auditability.
-  - Updated `SHOPMORE_ROADMAP.md` to mark Phase 2 (Transactional Hardening) as complete and refined Phase 3 priorities.
+  - Updated `MEOWACC_ROADMAP.md` to mark Phase 2 (Transactional Hardening) as complete and refined Phase 3 priorities.
 - **Wiki Synchronization**:
   - Systematic replacement of SQLite references with Firestore across all architectural guides (`overview.md`, `schemas.md`, `directories.md`, etc.).
   - Updated `.wiki/index.md` with the latest "Verified State" citations for Support CRM, Digital Fulfillment, and Transactional Hardening.
@@ -24,7 +24,7 @@
 
 ### Verification evidence
 
-- All documentation files (`README.md`, `PRODUCTION_READY_METRICS.md`, `SHOPMORE_ROADMAP.md`, `.wiki/index.md`) successfully updated and verified for accuracy.
+- All documentation files (`README.md`, `PRODUCTION_READY_METRICS.md`, `MEOWACC_ROADMAP.md`, `.wiki/index.md`) successfully updated and verified for accuracy.
 - `src/core/container.ts` audit confirms exclusive use of Firestore repositories for all commerce operations.
 - E2E test suite confirmed passing in previous sessions for atomic order/discount lifecycle.
 
@@ -32,7 +32,7 @@
 
 - `README.md`
 - `PRODUCTION_READY_METRICS.md`
-- `SHOPMORE_ROADMAP.md`
+- `MEOWACC_ROADMAP.md`
 - `.wiki/index.md`
 - `.wiki/architecture/overview.md`
 - `.wiki/architecture/directories.md`

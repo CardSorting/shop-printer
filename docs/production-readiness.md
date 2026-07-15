@@ -1,6 +1,6 @@
 # Production Readiness
 
-Operational gate before deploying DreamBees Art. No architecture — just deployability.
+Operational gate before deploying MeowAcc. No architecture — just deployability.
 
 **Related:** [deployment.md](./deployment.md) · [release-checklist.md](./release-checklist.md) · [commerce-incident-runbook.md](./commerce-incident-runbook.md) · [environment-variables.md](./environment-variables.md)
 

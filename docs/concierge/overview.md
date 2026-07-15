@@ -1,6 +1,6 @@
 # Concierge
 
-DreamBees Art **Concierge** is an AI-assisted customer support and lifecycle marketing layer — comparable to Shopify Sidekick plus support automation, but wired to this platform’s orders, tickets, inventory, and refund protocols.
+MeowAcc **Concierge** is an AI-assisted customer support and lifecycle marketing layer — comparable to Shopify Sidekick plus support automation, but wired to this platform’s orders, tickets, inventory, and refund protocols.
 
 Concierge is not a separate product. It is a privileged client of the same Core services merchants use in admin, with tool policies and spend limits on autonomous actions.
 

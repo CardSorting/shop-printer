@@ -1,4 +1,4 @@
-# DreamBees Art — Brief
+# MeowAcc — Brief
 
 **Open-source, self-hosted ecommerce with Shopify-class surfaces and inspectable commerce internals.**
 
@@ -6,7 +6,7 @@
 
 ## What it is
 
-DreamBees Art is a full merchant operating system in one deployable Next.js application: storefront, admin, checkout, inventory, refunds, support CRM, and optional AI concierge. You run it on your Firebase project and Stripe account. You own the data, the code, and the release cadence.
+MeowAcc is a full merchant operating system in one deployable Next.js application: storefront, admin, checkout, inventory, refunds, support CRM, and optional AI concierge. You run it on your Firebase project and Stripe account. You own the data, the code, and the release cadence.
 
 The reference deployment ships with **WoodBine** demo branding. The engine is vertical-neutral — rebrand via admin settings and `src/domain/seo/brand.ts`.
 
@@ -16,7 +16,7 @@ The reference deployment ships with **WoodBine** demo branding. The engine is ve
 
 SaaS platforms trade sovereignty for convenience. Merchants get familiar UX but opaque checkout, platform-hosted data, customization ceilings, and recurring fees on top of payment processor costs. Teams that need recoverable money paths, auditable stock movement, or deep forks hit walls fast.
 
-DreamBees Art inverts the trade: **you operate the stack**, and the codebase enforces **inspectable, testable commerce** instead of hoping routes stayed honest.
+MeowAcc inverts the trade: **you operate the stack**, and the codebase enforces **inspectable, testable commerce** instead of hoping routes stayed honest.
 
 ---
 

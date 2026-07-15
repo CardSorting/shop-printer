@@ -8,7 +8,7 @@ export const CATALOG_INITIAL_SKELETON_COUNT = 9;
 export const CATALOG_LOAD_MORE_SKELETON_COUNT = 3;
 export const CATALOG_PRIORITY_IMAGE_COUNT = 3;
 export const CATALOG_STAGGERED_ANIMATION_COUNT = 6;
-export const CATALOG_GRID_STORAGE_KEY = 'dreambees_catalog_grid_cols';
+export const CATALOG_GRID_STORAGE_KEY = 'meowacc_catalog_grid_cols';
 
 export const CATALOG_SORT_OPTIONS = [
   { value: 'newest', label: 'Sort By: Newest' },

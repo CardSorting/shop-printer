@@ -1,6 +1,6 @@
 # API Overview
 
-HTTP API map for DreamBees Art. Routes are thin transport: they **guard**, **parse**, **delegate** to Core services, and **adapt** typed results to JSON.
+HTTP API map for MeowAcc. Routes are thin transport: they **guard**, **parse**, **delegate** to Core services, and **adapt** typed results to JSON.
 
 **Auth model:** signed HTTP-only session cookie (Firebase-backed user). Admin routes require `role: admin`. Destructive admin ops may require elevation or step-up.
 

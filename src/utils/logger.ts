@@ -34,7 +34,7 @@ function emit(level: LogLevel, message: string, context?: unknown) {
   }
 
   const timestamp = new Date().toISOString();
-  const prefix = `[DB-ART:${level.toUpperCase()}] ${timestamp}`;
+  const prefix = `[MEOWACC:${level.toUpperCase()}] ${timestamp}`;
   
   // Serialize error objects and mask PII
   let contextualData = context;

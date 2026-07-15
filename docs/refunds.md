@@ -2,7 +2,7 @@
 
 > **Refunds are money reversal — not an admin shortcut around Stripe.**
 
-DreamBees Art routes every refund through `RefundApplicationService`. Admin buttons, Concierge tools, and future automations call `services.refunds.createRefund()` — never `RefundService.processRefund()` directly.
+MeowAcc routes every refund through `RefundApplicationService`. Admin buttons, Concierge tools, and future automations call `services.refunds.createRefund()` — never `RefundService.processRefund()` directly.
 
 Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) · Stories: [flows.md § Refund flow](./flows.md#refund-flow)
 
@@ -22,7 +22,7 @@ Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) · Stories:
 
 ## Shopify analogue
 
-| Shopify concept | DreamBees Art implementation |
+| Shopify concept | MeowAcc implementation |
 | --- | --- |
 | Refund in admin | `services.admin.requestRefund` → `services.refunds.createRefund` |
 | Partial refund | `amount` in cents on `createRefund` |

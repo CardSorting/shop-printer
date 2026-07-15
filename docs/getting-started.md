@@ -1,6 +1,6 @@
 # Getting Started
 
-Technical setup reference for running DreamBees Art locally. For a guided **day-0 walkthrough** (checklists, first purchase, learning path), start with **[onboarding.md](./onboarding.md)**.
+Technical setup reference for running MeowAcc locally. For a guided **day-0 walkthrough** (checklists, first purchase, learning path), start with **[onboarding.md](./onboarding.md)**.
 
 ---
 
@@ -23,7 +23,7 @@ Optional: Brevo (email), Gemini (Concierge), Firebase Storage (media uploads).
 
 ```bash
 git clone <your-fork-url>
-cd DreamBeesArt
+cd MeowAcc
 npm run setup
 npm run dev
 ```

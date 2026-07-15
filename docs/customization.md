@@ -1,6 +1,6 @@
 # Customization Guide
 
-How to rebrand and extend DreamBees Art without breaking commerce protocols. Shopify uses themes and apps; this platform uses **source-level customization** on a fork or private branch.
+How to rebrand and extend MeowAcc without breaking commerce protocols. Shopify uses themes and apps; this platform uses **source-level customization** on a fork or private branch.
 
 **Rule:** Customize UI, branding, and read paths freely. **Do not** bypass checkout, inventory, refund, or admin protocols for mutations.
 
@@ -110,7 +110,7 @@ TCG, apparel, food, digital goods all use the same engine with different catalog
 
 ## Shopify merchant migration (conceptual)
 
-| Shopify | DreamBees Art |
+| Shopify | MeowAcc |
 | --- | --- |
 | Theme | Fork + edit `src/ui/` |
 | Products CSV | Build import script → admin API or seed |

@@ -1,6 +1,6 @@
 # Glossary
 
-Commerce and platform terms used across DreamBees Art docs. Shopify merchants will recognize many labels; protocol terms are specific to this codebase.
+Commerce and platform terms used across MeowAcc docs. Shopify merchants will recognize many labels; protocol terms are specific to this codebase.
 
 ---
 
@@ -8,7 +8,7 @@ Commerce and platform terms used across DreamBees Art docs. Shopify merchants wi
 
 | Term | Meaning |
 | --- | --- |
-| **DreamBees Art** | This open-source, self-hosted ecommerce platform (the repo/product). |
+| **MeowAcc** | This open-source, self-hosted ecommerce platform (the repo/product). |
 | **WoodBine** | Default demo merchant branding in the reference deployment — replace via settings. |
 | **Protocol** | A frozen `ApplicationService` boundary (`checkout`, `refunds`, `inventory`, `admin`). |
 | **Raw service** | Internal Core class (e.g. `RefundService`) — not callable from routes or tools. |

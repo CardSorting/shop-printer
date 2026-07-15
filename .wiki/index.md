@@ -1,6 +1,6 @@
 # WoodBine Knowledge Ledger
 
-Definitive architectural bridge for humans and autonomous agents working in the DreamBees Art repository.
+Definitive architectural bridge for humans and autonomous agents working in the MeowAcc repository.
 
 ## Navigation
 

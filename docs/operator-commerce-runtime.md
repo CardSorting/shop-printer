@@ -1,6 +1,6 @@
 # Operator Commerce Runtime
 
-Quick reference for operating DreamBees Art as a **commerce runtime**, not a route-driven clone.
+Quick reference for operating MeowAcc as a **commerce runtime**, not a route-driven clone.
 
 ```txt
 protocols = authority

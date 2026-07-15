@@ -22,7 +22,7 @@ Work through these in order. Each step builds on the previous one.
 
 ```bash
 git clone <your-fork-url>
-cd DreamBeesArt
+cd MeowAcc
 npm run setup
 ```
 
@@ -105,7 +105,7 @@ npm run test:e2e:checkout-smoke
 
 ## Mental model (60 seconds)
 
-DreamBees Art is one Next.js app with **four locked doors** for dangerous operations:
+MeowAcc is one Next.js app with **four locked doors** for dangerous operations:
 
 ```text
 Shopper/UI  →  API routes  →  [ checkout | inventory | refunds | admin ]  →  Firestore + Stripe

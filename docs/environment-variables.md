@@ -1,6 +1,6 @@
 # Environment Variables
 
-Complete reference for DreamBees Art configuration. Template: `.env.example` at repo root.
+Complete reference for MeowAcc configuration. Template: `.env.example` at repo root.
 
 **Setup walkthrough:** [getting-started.md](./getting-started.md) · **Production:** [deployment.md](./deployment.md)
 

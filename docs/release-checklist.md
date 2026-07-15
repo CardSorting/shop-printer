@@ -1,6 +1,6 @@
 # Release Checklist
 
-Pre-release gate for DreamBees Art — use before merging to main or deploying production.
+Pre-release gate for MeowAcc — use before merging to main or deploying production.
 
 ---
 

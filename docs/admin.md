@@ -1,6 +1,6 @@
 # Admin Console
 
-The DreamBees Art **merchant admin** is the operator control plane — analogous to Shopify Admin. It covers catalog, orders, inventory, customers, marketing, content, support, and store settings. Admin screens call API routes; API routes delegate to Core services, with **mutations** flowing through `AdminApplicationService` and commerce protocols.
+The MeowAcc **merchant admin** is the operator control plane — analogous to Shopify Admin. It covers catalog, orders, inventory, customers, marketing, content, support, and store settings. Admin screens call API routes; API routes delegate to Core services, with **mutations** flowing through `AdminApplicationService` and commerce protocols.
 
 **Operator onboarding:** [onboarding.md § Operator checklist](./onboarding.md#day-0-operator-checklist) · **End-to-end stories:** [flows.md](./flows.md)
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ShopMore Onboarding & Setup Script
+# MeowAcc Onboarding & Setup Script
 # Verifies environment and prepares the sovereign workspace.
 
 set -e
@@ -12,7 +12,7 @@ BLUE="\033[34m"
 RED="\033[31m"
 RESET="\033[0m"
 
-echo -e "${BLUE}${BOLD}Initializing ShopMore Engine...${RESET}\n"
+echo -e "${BLUE}${BOLD}Initializing MeowAcc Engine...${RESET}\n"
 
 # 1. Check Node version
 NODE_VERSION=$(node -v | cut -d 'v' -f 2 | cut -d '.' -f 1)

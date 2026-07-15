@@ -1,6 +1,6 @@
 # Data Model
 
-Firestore collections used by DreamBees Art runtime commerce. This is a **practical map**, not an exhaustive schema — field detail lives in `src/domain/models.ts` and [.wiki/architecture/schemas.md](../.wiki/architecture/schemas.md).
+Firestore collections used by MeowAcc runtime commerce. This is a **practical map**, not an exhaustive schema — field detail lives in `src/domain/models.ts` and [.wiki/architecture/schemas.md](../.wiki/architecture/schemas.md).
 
 Persistence: **Firestore only** for production commerce (SQLite env vars are legacy/seed tooling references).
 

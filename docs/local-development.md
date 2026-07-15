@@ -1,6 +1,6 @@
 # Local Development
 
-Day-to-day developer workflow for DreamBees Art. Assumes [onboarding.md](./onboarding.md) is complete.
+Day-to-day developer workflow for MeowAcc. Assumes [onboarding.md](./onboarding.md) is complete.
 
 ---
 

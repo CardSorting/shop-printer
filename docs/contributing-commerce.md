@@ -1,6 +1,6 @@
 # Contributing to Commerce Core
 
-How to extend DreamBees Art **without breaking frozen protocols**. Read [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) first — this doc is the practical checklist.
+How to extend MeowAcc **without breaking frozen protocols**. Read [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) first — this doc is the practical checklist.
 
 ---
 

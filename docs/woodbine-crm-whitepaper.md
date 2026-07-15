@@ -2,7 +2,7 @@
 
 This document has been superseded.
 
-DreamBees Art documentation now describes the project as an **open-source, self-hosted ecommerce platform** with protocol-bound commerce and provable storefront release gates.
+MeowAcc documentation now describes the project as an **open-source, self-hosted ecommerce platform** with protocol-bound commerce and provable storefront release gates.
 
 **Read instead:**
 

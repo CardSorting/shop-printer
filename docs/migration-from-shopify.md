@@ -1,6 +1,6 @@
 # Migrating from Shopify
 
-Conceptual guide for merchants and integrators moving from **Shopify SaaS** to **self-hosted DreamBees Art**. This is not an automated migration tool — it is a map of what transfers, what changes, and what you rebuild.
+Conceptual guide for merchants and integrators moving from **Shopify SaaS** to **self-hosted MeowAcc**. This is not an automated migration tool — it is a map of what transfers, what changes, and what you rebuild.
 
 **Customize after migration:** [customization.md](./customization.md) · **Operate:** [admin.md](./admin.md)
 
@@ -8,7 +8,7 @@ Conceptual guide for merchants and integrators moving from **Shopify SaaS** to *
 
 ## What you gain
 
-| Shopify limitation | DreamBees Art |
+| Shopify limitation | MeowAcc |
 | --- | --- |
 | Monthly platform fee + transaction fees | Pay only Stripe + infrastructure |
 | Theme/Liquid constraints | Full React/TypeScript source |
@@ -20,7 +20,7 @@ Conceptual guide for merchants and integrators moving from **Shopify SaaS** to *
 
 ## What you lose (today)
 
-| Shopify feature | DreamBees Art status |
+| Shopify feature | MeowAcc status |
 | --- | --- |
 | Theme marketplace | Source customization only |
 | App store | Build or integrate via API/fork |
@@ -36,7 +36,7 @@ Honest gaps: [platform-overview.md § Roadmap gaps](./platform-overview.md#roadm
 
 ## Concept mapping
 
-| Shopify | DreamBees Art |
+| Shopify | MeowAcc |
 | --- | --- |
 | Online Store | Storefront (`src/app/`, `src/ui/`) |
 | Admin | `/admin` + `services.admin` |
@@ -62,7 +62,7 @@ Honest gaps: [platform-overview.md § Roadmap gaps](./platform-overview.md#roadm
 
 1. Firebase project + Auth + Firestore
 2. Stripe account (can start test mode)
-3. Deploy DreamBees Art staging — [deployment.md](./deployment.md)
+3. Deploy MeowAcc staging — [deployment.md](./deployment.md)
 4. Rebrand — [customization.md](./customization.md)
 
 ### Phase 2 — Catalog (week 1–2)
@@ -116,7 +116,7 @@ Historical Shopify orders: optional read-only import for customer service — no
 
 ## Team training differences
 
-| Shopify habit | DreamBees Art habit |
+| Shopify habit | MeowAcc habit |
 | --- | --- |
 | Edit quantity on product page | Use `/admin/inventory` batch adjust |
 | Refund in Shopify admin | Refund requires **reason** + elevation |
@@ -129,7 +129,7 @@ Flow reference: [flows.md](./flows.md)
 
 ## Integrations you may rebuild
 
-| Common Shopify app | DreamBees Art path |
+| Common Shopify app | MeowAcc path |
 | --- | --- |
 | Email (Klaviyo) | Brevo + custom triggers (roadmap: webhooks) |
 | Reviews | Built-in product reviews API |

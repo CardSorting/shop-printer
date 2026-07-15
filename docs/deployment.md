@@ -1,6 +1,6 @@
 # Deployment
 
-Production deployment guide for DreamBees Art — self-hosted on **Firebase Hosting** (SSR) with **Firestore**, **Firebase Auth**, and **Stripe**.
+Production deployment guide for MeowAcc — self-hosted on **Firebase Hosting** (SSR) with **Firestore**, **Firebase Auth**, and **Stripe**.
 
 Prerequisites: completed [onboarding.md](./onboarding.md) locally. Production gate: [production-readiness.md](./production-readiness.md).
 

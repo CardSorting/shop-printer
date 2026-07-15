@@ -1,4 +1,4 @@
-# DreamBees Art Documentation
+# MeowAcc Documentation
 
 Open-source, self-hosted ecommerce with Shopify-class storefront and admin.
 

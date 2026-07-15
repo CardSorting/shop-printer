@@ -1,4 +1,4 @@
-# DreamBees Art — Technical Whitepaper
+# MeowAcc — Technical Whitepaper
 
 **Inspectable, self-hosted ecommerce with protocol-bound money and stock paths.**
 
@@ -10,7 +10,7 @@ Version: reflects repository state as of the storefront release gate (`test:stor
 
 ## Abstract
 
-DreamBees Art is an open-source ecommerce platform that delivers Shopify-class merchant and customer surfaces while keeping transactional logic in explicit, testable application protocols. Deployed as a Next.js monolith on Firebase and Stripe, it gives operators familiar workflows and gives engineering teams full source access, recoverable checkout, auditable inventory movement, and automated proof gates that enforce architectural boundaries at CI time.
+MeowAcc is an open-source ecommerce platform that delivers Shopify-class merchant and customer surfaces while keeping transactional logic in explicit, testable application protocols. Deployed as a Next.js monolith on Firebase and Stripe, it gives operators familiar workflows and gives engineering teams full source access, recoverable checkout, auditable inventory movement, and automated proof gates that enforce architectural boundaries at CI time.
 
 The system is designed for merchants and agencies who want **data sovereignty** and **customization depth** without rebuilding catalog, admin, CRM, and fulfillment from scratch — and for engineers who believe self-hosted checkout must be as inspectable as self-hosted databases.
 
@@ -33,7 +33,7 @@ For many merchants this trade is correct. For teams with compliance requirements
 
 Headless commerce APIs and storefront starters address part of the gap — APIs without admin, or admin without sealed money paths. Teams still assemble checkout recovery, inventory reservation semantics, refund idempotency, and operator tooling themselves.
 
-DreamBees Art targets the **full operating system**: storefront, admin, protocols, support CRM, digital fulfillment, and verification infrastructure in one repository.
+MeowAcc targets the **full operating system**: storefront, admin, protocols, support CRM, digital fulfillment, and verification infrastructure in one repository.
 
 ---
 
@@ -210,7 +210,7 @@ We deliberately avoid Kafka/Pub/Sub for runtime commerce. Operational truth must
 
 ## 6. Verification architecture
 
-DreamBees Art treats tests as **architectural enforcement**, not optional coverage.
+MeowAcc treats tests as **architectural enforcement**, not optional coverage.
 
 ### 6.1 Test pyramid
 
@@ -334,7 +334,7 @@ Honest limitations versus Shopify Plus / app ecosystems:
 - Native POS hardware
 - Built-in email marketing automation (Concierge experiments + Brevo transactional mail today)
 
-Strategic tracker: [SHOPMORE_ROADMAP.md](../SHOPMORE_ROADMAP.md)
+Strategic tracker: [MEOWACC_ROADMAP.md](../MEOWACC_ROADMAP.md)
 
 ---
 
@@ -355,7 +355,7 @@ Service wiring: `src/core/container.ts`
 
 ## 13. Conclusion
 
-DreamBees Art is built on a simple bet: **self-hosted commerce that cannot be inspected cannot be trusted at scale.**
+MeowAcc is built on a simple bet: **self-hosted commerce that cannot be inspected cannot be trusted at scale.**
 
 The platform delivers familiar merchant surfaces while cageing money and stock behind protocols, sealing the storefront journey in provable lanes, and enforcing architecture with release gates — not documentation alone.
 

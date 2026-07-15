@@ -1,19 +1,19 @@
-# ShopMore: Open Source Ecommerce Platform (Audit & Roadmap)
+# MeowAcc: Open Source Ecommerce Platform (Audit & Roadmap)
 
 > **Documentation:** Product and architecture docs live in [docs/index.md](docs/index.md). This file tracks strategic roadmap items.
 
-ShopMore / **DreamBees Art** is an open-source, self-hosted alternative to Shopify — a neutral, high-performance commerce platform with full source access.
+**MeowAcc** is an open-source, self-hosted alternative to Shopify — a neutral, high-performance commerce platform with full source access.
 
 ## 1. The "Neutrality" Wedge (Design Philosophy)
 
-To serve as a generic base for any industry (from TCG to Apparel to Digital Goods), ShopMore embraces a **"Design-Less" Design System**.
+To serve as a generic base for any industry (from TCG to Apparel to Digital Goods), MeowAcc embraces a **"Design-Less" Design System**.
 
 *   **Aesthetic Neutrality**: Utilizing a refined, professional, and high-contrast UI that feels premium out-of-the-box but acts as a blank canvas for merchant branding.
 *   **Standardized Taxonomy**: Adopting industry-standard terminology (Products, Orders, Customers) to ensure instant familiarity for users migrating from Shopify or BigCommerce.
 
 ## 2. The Customization Engine (Deep Audit)
 
-The true power of ShopMore lies in its **Extensibility Substrate**.
+The true power of MeowAcc lies in its **Extensibility Substrate**.
 
 ### A. Metafields & Custom Attributes
 *   **Wedge**: Implementing a "Dynamic Attribute" system where merchants can define custom fields (e.g., 'Size', 'Color', 'Material', or 'Grade') without modifying the database schema.
@@ -34,7 +34,7 @@ The true power of ShopMore lies in its **Extensibility Substrate**.
 *   [x] **Terminology Clean-up**: Refactored all TCG-specific references to generic Product metadata.
 *   [x] **Navigation Re-Architecture**: Implemented the "Approachable Merchant Layout" (Sales, Orders, Products, Customers, Content, Insights, Apps).
 *   [x] **Global Search Hardening**: Finalized the `SearchCommandPalette` as a universal discovery tool.
-*   [x] **Visual Sovereignty**: Transitioned branding to "ShopMore" with a neutral, high-performance UI.
+*   [x] **Visual Sovereignty**: Transitioned branding to "MeowAcc" with a neutral, high-performance UI.
 
 ### Phase 2: Industrialization & Extensibility (Completed)
 *   [x] **SEO Hardening**: Transitioned to handle-based routing (`/products/[handle]`) with JSON-LD and Sitemap/Robots automation.
@@ -52,7 +52,7 @@ The true power of ShopMore lies in its **Extensibility Substrate**.
 
 ## 4. Competitive Comparison (Open Source vs. SaaS)
 
-| Feature | Shopify (SaaS) | ShopMore (Open Source) |
+| Feature | Shopify (SaaS) | MeowAcc (Open Source) |
 | :--- | :--- | :--- |
 | **Data Ownership** | Proprietary | **Sovereign (Your Firestore)** |
 | **Customization** | Gated by Liquid/Apps | **Absolute (Full Source Access)** |
@@ -60,6 +60,8 @@ The true power of ShopMore lies in its **Extensibility Substrate**.
 | **Speed** | Shared Infrastructure | **Cloud Native / Optimized** |
 
 ---
+
+## 5. Audit Note
 
 > [!IMPORTANT]
 > **Audit Note**: The engine has successfully transitioned to a Firestore-backed substrate, resolving previous SQLite concurrency limitations while preserving Clean Architecture isolation.

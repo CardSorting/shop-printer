@@ -1,176 +1,209 @@
-# DreamBees Art
+# 🐾 MeowAcc
 
-**Sovereign ecommerce — Shopify-class surfaces, inspectable commerce internals.**
+### *Sovereign ecommerce — Shopify-class surfaces, inspectable commerce internals.*
 
-DreamBees Art is an open-source merchant operating system you deploy on your own cloud. Storefront, admin, checkout, inventory, refunds, support CRM, and digital fulfillment ship in one Next.js application. You own the data, the code, and the money paths — with automated proof gates that keep architecture honest as the codebase evolves.
+MeowAcc is an enterprise-ready, open-source merchant operating system designed to run entirely on your own cloud. Storefront, admin panel, checkout pipelines, inventory ledger, support CRM, and digital fulfillment are packed into a single, inspectable Next.js monolith. 
 
-The reference deployment uses **WoodBine** demo branding. The engine is vertical-neutral; rebrand via admin settings and `src/domain/seo/brand.ts`.
+You own the database, the code, the keys, and the cash flow paths — backed by strict, automated mathematical proof gates that maintain architectural integrity as your business scales.
 
----
-
-## Why this exists
-
-SaaS ecommerce trades sovereignty for speed. DreamBees Art inverts the trade:
-
-| SaaS default | DreamBees Art |
-| --- | --- |
-| Platform-hosted data | Your Firestore project |
-| Opaque checkout | Protocol-bound, recoverable, testable |
-| Themes and app limits | Full TypeScript source |
-| Subscription + platform fees | Infrastructure you pay for directly |
-
-**Thesis:** commerce software should be **sovereign**, **inspectable**, and **provable**. Read the argument in [docs/philosophy.md](docs/philosophy.md). Executive summary: [docs/brief.md](docs/brief.md). Full technical thesis: [docs/whitepaper.md](docs/whitepaper.md).
+> [!NOTE]
+> The default reference deployment uses **WoodBine** demo branding (our sample Salt Lake City food hall). The core engine is completely vertical-neutral. Easily swap out logos, brand details, and theme configurations via admin settings and `src/domain/seo/brand.ts`.
 
 ---
 
-## Strategy
+## ⚡ The Sovereignty Paradigm
 
-Two enforcement layers keep the system trustworthy at scale.
+In SaaS ecommerce, you trade independence for speed. MeowAcc inverts the equation, giving you maximum performance without compromising control:
 
-### Protocol cages (commerce mutations)
+| SaaS Default | MeowAcc |
+| :--- | :--- |
+| **Platform-Hosted Data** | 🔒 Your own sovereign Google Cloud Firestore project |
+| **Opaque Checkout** | 🛠️ Protocol-bound, fully auditable, and recoverable checkout states |
+| **Theme & App Limits** | 💻 Unlimited flexibility with a raw TypeScript & React code deck |
+| **Subscription Fees** | 💵 Zero platform cut. Pay raw serverless infrastructure costs directly |
 
-All money and stock mutations pass through four frozen application services — never raw routes or repositories:
-
-```txt
-checkout  = money capture      → services.checkout
-refunds   = money reversal     → services.refunds
-inventory = stock movement     → services.inventory
-admin     = human authority    → services.admin
-```
-
-```txt
-No route, tool, admin action, or automation touches raw money mutation services directly.
-```
-
-### Frozen storefront lanes (customer journey)
-
-The shop path is sealed in lanes — each with one construction path and proof tests:
-
-```txt
-catalog / PDP  →  cart  →  checkout  →  inventory holds  →  payment capture
-   read intent     intent      commitment      scarcity           money
-                   buffer         gate          authority          capture
-```
-
-Cart never reserves stock. Checkout never skips revalidation. Payment UI tokenizes; the server captures.
-
-**One command proves the chain:**
-
-```bash
-npm run test:storefront-release   # frozen storefront proof suite
-npm run test:e2e:cart-smoke       # isolated cart-to-checkout journey
-npm run test:e2e:checkout-smoke   # isolated mocked checkout journey
-```
-
-Detail: [docs/storefront-release.md](docs/storefront-release.md) · Policy: [docs/commerce-protocol-frozen.md](docs/commerce-protocol-frozen.md)
+> [!TIP]
+> Commerce software should be sovereign, inspectable, and provable. Read the deep-dive philosophy guide in [docs/philosophy.md](docs/philosophy.md), browse the executive summary in [docs/brief.md](docs/brief.md), or review the full technical thesis in [docs/whitepaper.md](docs/whitepaper.md).
 
 ---
 
-## What you get
+## 🛡️ Strategic Integrity Layers
 
-| Surface | Capabilities |
-| --- | --- |
-| **Storefront** | Collections, PDP, search, cart, checkout, account, orders, wishlist, support, blog, digital vault |
-| **Admin** | Orders, products, bulk editor, inventory, PO receive, customers, discounts, shipping, analytics, SEO, tickets |
-| **Commerce core** | Idempotent checkout, reservation lifecycle, refunds, reconciliation, unified event log |
-| **Support & AI** | Ticketing, KB, macros, Concierge (bounded by the same protocol cages) |
-| **Integrations** | Stripe, Firebase Auth + Firestore, Brevo email, optional Gemini/Vertex |
+MeowAcc protects itself from logic degradation through two frozen architectural patterns:
 
----
-
-## Architecture
-
-Layered TypeScript monolith on Next.js App Router:
+### 1. Protocol Cages (Commerce Mutations)
+All financial and inventory state mutations are isolated within four frozen application service boundaries. Direct route handlers or external adapters are physically blocked from raw repositories:
 
 ```text
-UI (React)  →  App Router (pages + API)  →  Core (protocols)  →  Domain (pure rules)
-                                                    ↓
-                                          Infrastructure (Firestore, Stripe, guards)
+  ┌─────────────────────────────────────────────────────────────┐
+  │                        API / Routes                         │
+  └──────────────┬──────────────────────────────┬───────────────┘
+                 │                              │
+                 ▼                              ▼
+    ┌─────────────────────────┐    ┌─────────────────────────┐
+    │    services.checkout    │    │    services.inventory   │
+    │     (Money Capture)     │    │    (Stock Movement)     │
+    └─────────────────────────┘    └─────────────────────────┘
+                 │                              │
+                 ▼                              ▼
+    ┌─────────────────────────┐    ┌─────────────────────────┐
+    │     services.refunds    │    │      services.admin     │
+    │     (Money Reversals)   │    │    (Human Authority)    │
+    └─────────────────────────┘    └─────────────────────────┘
+                 │                              │
+                 └──────────────┬───────────────┘
+                                ▼
+  ┌─────────────────────────────────────────────────────────────┐
+  │                 Infrastructure / Database                   │
+  └─────────────────────────────────────────────────────────────┘
 ```
+> [!IMPORTANT]
+> No raw route, automation, or LLM agent is permitted to touch mutation layers without passing through this service container.
 
-| Layer | Path | Role |
-| --- | --- | --- |
-| Domain | `src/domain/` | Models, contracts, pure rules — no I/O |
-| Core | `src/core/` | Checkout, refunds, inventory, admin orchestration |
-| Infrastructure | `src/infrastructure/` | Adapters, guards, Firestore, Stripe |
-| App Router | `src/app/` | Thin HTTP boundaries |
-| UI | `src/ui/` | Storefront and admin — APIs only, no direct Infra |
+### 2. Frozen Storefront Lanes (The Customer Journey)
+The storefront lifecycle is treated as a linear assembly line. Each transition is locked behind strict view-state and protocol validation tests:
 
-Deep dive: [docs/architecture.md](docs/architecture.md) · End-to-end flows: [docs/flows.md](docs/flows.md)
+$$\text{Catalog/PDP (Read Intent)} \longrightarrow \text{Cart (Buffer)} \longrightarrow \text{Checkout (Commitment Gate)} \longrightarrow \text{Inventory Holds (Scarcity)} \longrightarrow \text{Payment Capture (Money)}$$
+
+- The cart **never** reserves stock.
+- The checkout **never** skips revalidation.
+- The browser UI only tokenizes; the server controls the capture.
+
+To prove the entire chain is green:
+```bash
+npm run test:storefront-release   # Runs the storefront release proof suite
+npm run test:e2e:cart-smoke       # Proves isolated guest/auth cart journeys
+npm run test:e2e:checkout-smoke   # Proves checkout session flows
+```
+*Read more: [docs/storefront-release.md](docs/storefront-release.md) & [docs/commerce-protocol-frozen.md](docs/commerce-protocol-frozen.md)*
 
 ---
 
-## Quick start
+## 📦 What is Included
 
-**Prerequisites:** Node.js 22, Firebase (Auth + Firestore), Stripe, `.env` from `.env.example`.
+| Module | Capabilities |
+| :--- | :--- |
+| **🏪 Storefront** | Collections, Product Detail Pages (PDP), search, responsive cart drawer, checkout, client account center, order history, wishlist, support board, content blog, and a secure customer digital asset locker (Vault) |
+| **💼 Admin Workspace** | Real-time sales telemetry, order fulfillments, product metadata catalog, visual bulk editor, inventory controls, purchase orders, supplier management, discount engines, local SEO hub, support ticket queue |
+| **⚙️ Transaction Core** | Fully idempotent checkout steps, multi-currency processing, automatic stock reserve-hold lifecycle, refund calculations, transaction reconciliation, and a centralized audit trail |
+| **🧠 Intelligent Support** | Multi-channel ticketing, canned replies (macros), agent collision tracking, and an integrated AI support agent (Concierge) constrained by standard safety protocols |
+| **🔌 Integrations** | Stripe payment processing, Firebase Auth + Cloud Firestore, Brevo transactional mailing, optional Vertex AI / Gemini models |
 
+---
+
+## 🏗️ Technical Architecture
+
+MeowAcc is written as a clean-architecture TypeScript monolith on the Next.js App Router:
+
+```text
+  [ UI Surface (React + CSS) ]
+             │
+             ▼
+  [ App Router (HTTP Pages + APIs) ]
+             │
+             ▼
+  [ Core (Application Protocols & Orchestration) ]
+             │
+             ├──────────────────────────────────────┐
+             ▼                                      ▼
+  [ Domain (Pure Business Rules) ]    [ Infrastructure (Firestore / Stripe / Guards) ]
+```
+
+- **Domain (`src/domain/`)**: Pure business logic, entity models, and interface definitions. Standard zero-dependency layer.
+- **Core (`src/core/`)**: Transaction workflows, orchestrations, and use-cases.
+- **Infrastructure (`src/infrastructure/`)**: Third-party integrations, database adapters, and authentication bindings.
+- **UI (`src/ui/`)**: User interface components, views, layouts, and pages.
+
+*Detailed Guide: [docs/architecture.md](docs/architecture.md) | Flow Diagrams: [docs/flows.md](docs/flows.md)*
+
+---
+
+## 🚀 Quick Start
+
+### 📋 Prerequisites
+- **Node.js 22** or higher
+- **Firebase Project** (Auth, Firestore, and Local Emulators)
+- **Stripe Account** (Developer keys)
+- Configure your environment variables by copying `.env.example` to `.env`.
+
+### 🛠️ Local Development
 ```bash
+# 1. Install dependencies
 npm install
+
+# 2. Run the onboarding and setup wizard
 npm run setup
+
+# 3. Start the Next.js dev server & Firebase emulators
 npm run dev
 ```
 
-**Verify before you ship:**
-
+### 🧪 Pre-Flight Checks
+Validate that your branch is healthy before pushing to production:
 ```bash
-npm run lint
-npm run build
-npm run test
-npm run test:storefront-release   # frozen storefront + checkout proofs
-npm run test:e2e:cart-smoke       # cart ownership, persistence, merge, and checkout handoff
-npm run test:e2e:checkout-smoke   # mocked checkout browser smoke
-npm run test:e2e                  # full Playwright suite
-npm run benchmark:order-flow
+npm run lint                 # Lint code using ESLint
+npm run typecheck            # Run TypeScript compilations
+npm run test                 # Run core service unit tests
+npm run test:storefront-release  # Execute frozen release gates
+npm run test:e2e             # Execute full Playwright E2E suite
+npm run benchmark:order-flow  # Run concurrency throughput benchmarks
 ```
 
-Guided setup: [docs/onboarding.md](docs/onboarding.md) · Reference: [docs/getting-started.md](docs/getting-started.md)
+*For step-by-step setup guides, read [docs/onboarding.md](docs/onboarding.md) or [docs/getting-started.md](docs/getting-started.md).*
 
 ---
 
-## Documentation
+## 📖 Document Directory
 
-| Read this | When |
-| --- | --- |
-| [brief.md](docs/brief.md) | 2-minute executive overview |
-| [philosophy.md](docs/philosophy.md) | Why the architecture is shaped this way |
-| [whitepaper.md](docs/whitepaper.md) | Full technical thesis |
-| [onboarding.md](docs/onboarding.md) | First run locally |
-| [quick-reference.md](docs/quick-reference.md) | Commands and cheat sheet |
-| [index.md](docs/index.md) | Complete documentation hub |
+### 🗺️ Context & Strategy
+- [brief.md](docs/brief.md) — 2-minute overview of the project.
+- [philosophy.md](docs/philosophy.md) — The rationale behind the sovereign engine design.
+- [whitepaper.md](docs/whitepaper.md) — Exhaustive system paper.
+- [platform-overview.md](docs/platform-overview.md) — Shopify mapping and feature statuses.
 
-| Area | Docs |
-| --- | --- |
-| Strategy | [brief](docs/brief.md), [philosophy](docs/philosophy.md), [whitepaper](docs/whitepaper.md), [platform-overview](docs/platform-overview.md) |
-| Setup | [onboarding](docs/onboarding.md), [local-development](docs/local-development.md), [environment-variables](docs/environment-variables.md) |
-| Architecture | [architecture](docs/architecture.md), [protocols](docs/protocols.md), [flows](docs/flows.md), [storefront-release](docs/storefront-release.md) |
-| Protocols | [cart](docs/cart.md), [checkout](docs/checkout.md), [inventory](docs/inventory.md), [refunds](docs/refunds.md), [commerce-protocol-frozen](docs/commerce-protocol-frozen.md) |
-| Ship | [production-readiness](docs/production-readiness.md), [deployment](docs/deployment.md), [release-checklist](docs/release-checklist.md), [runbook](docs/commerce-incident-runbook.md) |
-| Extend | [CONTRIBUTING](CONTRIBUTING.md), [customization](docs/customization.md), [contributing-commerce](docs/contributing-commerce.md), [migration-from-shopify](docs/migration-from-shopify.md) |
+### 🔌 Setup & Ops
+- [onboarding.md](docs/onboarding.md) — Day-0 installation checklist.
+- [local-development.md](docs/local-development.md) — Local testing and seed guides.
+- [environment-variables.md](docs/environment-variables.md) — Environment keys index.
+- [quick-reference.md](docs/quick-reference.md) — Cheat sheet for commands and script targets.
+- [runbook.md](docs/runbook.md) — Operator troubleshooting and incident runbooks.
 
-Operational wiki: [.wiki/index.md](.wiki/index.md)
-
----
-
-## Tech stack
-
-Next.js 15 · React 18 · TypeScript · Firestore · Firebase Auth · Stripe 17 · Tailwind CSS 4 · Vitest · Playwright
+### 📐 Engineering Specifications
+- [architecture.md](docs/architecture.md) — Deep dive into the four layers.
+- [storefront-release.md](docs/storefront-release.md) — Static checks and release proof system.
+- [checkout.md](docs/checkout.md) — Atomic order processing and reconciliation states.
+- [inventory.md](docs/inventory.md) — Double-entry inventory allocation guidelines.
+- [refunds.md](docs/refunds.md) — Refund rules.
+- [glossary.md](docs/glossary.md) — Common terminology definitions.
 
 ---
 
-## Repository snapshot
+## 🛠️ Tech Stack
 
-- 150 API route files · 71 App Router page files · 103 test/spec files (verified July 14, 2026)
-- Service container: `src/core/container.ts`
-- Frozen storefront release gate plus isolated cart and checkout browser gates
-
----
-
-## Contributing
-
-Contributions welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md). Commerce and protocol changes also require [docs/contributing-commerce.md](docs/contributing-commerce.md).
+- **Framework:** Next.js 15 (App Router)
+- **Runtime:** Node.js 22 (V8 Engine)
+- **Styling:** Tailwind CSS 4
+- **Database / Auth:** Google Cloud Firestore & Firebase Auth
+- **Payments:** Stripe API (Stripe.js V3 client + Stripe Node V17)
+- **Tests:** Vitest & Playwright E2E
+- **AI Core:** Gemini Pro API / Vertex AI SDK
 
 ---
 
-## License
+## 📊 Repository Snapshot
+- **API Interfaces:** 150 route boundaries
+- **App Router Views:** 71 pages
+- **Test Integrity:** 103 test files (134 total specs passing)
+- **Service Registration:** Centralized lazy container at `src/core/container.ts`
 
-MIT — Copyright (c) 2026 [William Cruz](LICENSE). See [LICENSE](LICENSE).
+---
+
+## 🤝 Contributing
+
+We welcome contributions to MeowAcc! Before writing code, review [CONTRIBUTING.md](CONTRIBUTING.md). For protocol-level state alterations, read the validation checklist at [docs/contributing-commerce.md](docs/contributing-commerce.md).
+
+---
+
+## 📄 License
+
+Sovereign commerce platform distributed under the **MIT License**. Copyright © 2026 [William Cruz](LICENSE). See the [LICENSE](LICENSE) file for conditions.

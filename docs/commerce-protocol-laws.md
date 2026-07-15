@@ -1,6 +1,6 @@
 # Commerce Protocol Laws
 
-Architectural constitution for DreamBees Art runtime commerce. Protocols mutate state; events describe reality.
+Architectural constitution for MeowAcc runtime commerce. Protocols mutate state; events describe reality.
 
 ## Layer model
 

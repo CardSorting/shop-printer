@@ -2,7 +2,7 @@
 
 > **Checkout is an application protocol — not route spaghetti.**
 
-DreamBees Art checkout coordinates cart reservation, order creation, Stripe PaymentIntent lifecycle, payment finalization, rollback, reconciliation, operator recovery, and expired-order cleanup. It is the **money capture** boundary for this open-source ecommerce platform (Shopify Checkout analogue, fully inspectable in source).
+MeowAcc checkout coordinates cart reservation, order creation, Stripe PaymentIntent lifecycle, payment finalization, rollback, reconciliation, operator recovery, and expired-order cleanup. It is the **money capture** boundary for this open-source ecommerce platform (Shopify Checkout analogue, fully inspectable in source).
 
 The public boundary is frozen. Extend behavior inside `CheckoutFlowService` and flow modules — do not add parallel checkout entry points.
 
@@ -30,7 +30,7 @@ Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) · Platform
 
 ## Shopify analogue
 
-| Shopify concept | DreamBees Art implementation |
+| Shopify concept | MeowAcc implementation |
 | --- | --- |
 | Checkout | `CheckoutApplicationService` — PaymentIntent flow |
 | Payments app / Stripe | `StripeService` internal to checkout stack only |

@@ -1,6 +1,6 @@
 # Commerce Protocol — FROZEN
 
-This document is the **architecture line** for DreamBees Art commerce mutations. DreamBees Art is an open-source, self-hosted ecommerce platform with Shopify-class surfaces; these rules keep money and stock paths caged regardless of merchant vertical or branding.
+This document is the **architecture line** for MeowAcc commerce mutations. MeowAcc is an open-source, self-hosted ecommerce platform with Shopify-class surfaces; these rules keep money and stock paths caged regardless of merchant vertical or branding.
 
 Do not extend behavior by calling raw services from routes, tools, admin actions, or automations.
 

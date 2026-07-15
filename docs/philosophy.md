@@ -1,4 +1,4 @@
-# DreamBees Art — Philosophy
+# MeowAcc — Philosophy
 
 How we think about open-source commerce, and why the architecture looks the way it does.
 
@@ -12,7 +12,7 @@ How we think about open-source commerce, and why the architecture looks the way 
 
 Merchants deserve Shopify-class familiarity without surrendering data, checkout internals, or customization depth. Engineers deserve mutation paths they can read, test, and recover — not black boxes behind webhooks and hope.
 
-DreamBees Art is built on that thesis: a single deployable application where **protocols own authority**, **events own memory**, and **tests own the release gate**.
+MeowAcc is built on that thesis: a single deployable application where **protocols own authority**, **events own memory**, and **tests own the release gate**.
 
 ---
 
@@ -120,7 +120,7 @@ Anti-patterns table: [flows.md § Anti-patterns](./flows.md#anti-patterns-do-not
 
 ## The verification mindset
 
-DreamBees Art treats release confidence as **architecture**, not QA headcount.
+MeowAcc treats release confidence as **architecture**, not QA headcount.
 
 Before merging storefront or checkout work:
 
@@ -142,7 +142,7 @@ This is the social contract of the codebase: **prove the invariant you relied on
 
 ## How this connects to the product vision
 
-[SHOPMORE_ROADMAP.md](../SHOPMORE_ROADMAP.md) names three wedges — **neutrality** (any vertical), **extensibility** (metafields, modular UI), **developer sovereignty** (full source, headless-capable APIs).
+[MEOWACC_ROADMAP.md](../MEOWACC_ROADMAP.md) names three wedges — **neutrality** (any vertical), **extensibility** (metafields, modular UI), **developer sovereignty** (full source, headless-capable APIs).
 
 The philosophy above is how those wedges stay true as the codebase grows. Neutrality without protocol cages becomes fork chaos. Extensibility without frozen lanes becomes checkout regressions. Sovereignty without proof ladders becomes unmaintainable self-hosting.
 

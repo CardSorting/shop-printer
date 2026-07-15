@@ -2,7 +2,7 @@
 
 > **Inventory is a movement protocol — not a stock counter.**
 
-DreamBees Art inventory coordinates **cached stock counts** (sellable catalog truth), **location levels** (warehouse truth), **reservations** (checkout holds), **commits** (post-payment), and an **append-only ledger** (audit truth). It is the **stock movement** boundary for this open-source ecommerce platform (Shopify inventory analogue, with explicit ledger and reconciliation).
+MeowAcc inventory coordinates **cached stock counts** (sellable catalog truth), **location levels** (warehouse truth), **reservations** (checkout holds), **commits** (post-payment), and an **append-only ledger** (audit truth). It is the **stock movement** boundary for this open-source ecommerce platform (Shopify inventory analogue, with explicit ledger and reconciliation).
 
 Routes, checkout, fulfillment, admin, and system jobs call `services.inventory` only — never `productRepo.batchUpdateStock` directly.
 
@@ -30,7 +30,7 @@ Policy: [commerce-protocol-frozen.md](./commerce-protocol-frozen.md) · Platform
 
 ## Shopify analogue
 
-| Shopify concept | DreamBees Art implementation |
+| Shopify concept | MeowAcc implementation |
 | --- | --- |
 | Available inventory | Cached catalog `stock` on product/variant |
 | Location inventory | `inventory_levels.availableQty` per location |

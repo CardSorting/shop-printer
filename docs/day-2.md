@@ -1,6 +1,6 @@
 # Day 2 Guide
 
-You completed [onboarding.md](./onboarding.md) — local store runs, test checkout works. This guide covers **what to do next** as a developer or merchant operator building on DreamBees Art.
+You completed [onboarding.md](./onboarding.md) — local store runs, test checkout works. This guide covers **what to do next** as a developer or merchant operator building on MeowAcc.
 
 Estimated time: **2–4 hours** for the developer track; operator tasks are independent.
 

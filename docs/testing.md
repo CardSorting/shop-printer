@@ -1,6 +1,6 @@
 # Testing Guide
 
-How DreamBees Art verifies commerce correctness — from protocol seals to browser e2e.
+How MeowAcc verifies commerce correctness — from protocol seals to browser e2e.
 
 **Quick run:** `npm test` · **Storefront gate:** `npm run test:storefront-release` · **Cheat sheet:** [quick-reference.md § Verification](./quick-reference.md#verification-fast)
 

@@ -4,7 +4,7 @@ test.describe('Admin Inventory Management', () => {
   test.beforeEach(async ({ page }) => {
     // Login as admin
     await page.goto('/login');
-    await page.fill('input[type="email"]', 'admin@shopmore.io');
+    await page.fill('input[type="email"]', 'admin@meowacc.io');
     await page.fill('input[type="password"]', 'AdminPassword123!');
     await page.click('button[type="submit"]');
     

@@ -1,6 +1,6 @@
 # Architecture
 
-DreamBees Art is a **layered TypeScript monolith**: one Next.js deployable containing storefront, admin, API routes, and commerce orchestration. The design mirrors Shopify’s familiar surfaces while keeping **explicit protocol boundaries** for money and stock — because self-hosted checkout must be recoverable, auditable, and testable in source.
+MeowAcc is a **layered TypeScript monolith**: one Next.js deployable containing storefront, admin, API routes, and commerce orchestration. The design mirrors Shopify’s familiar surfaces while keeping **explicit protocol boundaries** for money and stock — because self-hosted checkout must be recoverable, auditable, and testable in source.
 
 **New here?** Read [onboarding.md](./onboarding.md) first, then [flows.md](./flows.md) for end-to-end stories.
 
